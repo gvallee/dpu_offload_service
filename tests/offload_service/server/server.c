@@ -9,6 +9,27 @@
 
 #include "dpu_offload_service_daemon.h"
 
+static inline bool req_completed(struct ucx_context *req)
+{
+    if (req == NULL)
+        return true;
+
+    ucs_status_t status = ucp_request_check_status(req);
+    if (status == UCS_INPROGRESS)
+        return false;
+    return true;
+}
+
+static void recv_cb(void *request, ucs_status_t status, ucp_tag_recv_info_t *info)
+{
+    fprintf(stderr, "ping msg from client successfully received, sending pong...\n");
+}
+
+static void send_cb(void *request, ucs_status_t status)
+{
+    fprintf(stderr, "pong successfully sent\n");
+}
+
 int main(int argc, char **argv)
 {
     dpu_offload_server_t *server;
@@ -24,9 +45,54 @@ int main(int argc, char **argv)
         return EXIT_FAILURE;
     }
 
+    int msg_tag = 42;
+    ucp_tag_t msg_tag_mask = (ucp_tag_t)-1;
+    int ping;
+    struct ucx_context *recv_req = ucp_tag_recv_nb(server->ucp_worker, &ping, sizeof(ping), ucp_dt_make_contig(1), msg_tag, msg_tag_mask, recv_cb);
+    if (UCS_PTR_IS_ERR(recv_req))
+    {
+        fprintf(stderr, "Recv failed\n");
+        ucp_request_cancel(server->ucp_worker, recv_req);
+        ucp_request_free(recv_req);
+        recv_req = NULL;
+    }
+    /* Did the request complete right away? */
+    ucp_tag_recv_info_t _info;
+    ucs_status_t _status = ucp_tag_recv_request_test(recv_req, &_info);
+    if (_status != UCS_INPROGRESS)
+    {
+        ucp_request_free(recv_req);
+        recv_req = NULL;
+    }
+    if (recv_req != NULL)
+    {
+        while (!req_completed(recv_req))
+            ucp_worker_progress(server->ucp_worker);
+        ucp_request_free(recv_req);
+        recv_req = NULL;
+    }
+
+    int msg = ping + 1;
+    struct ucx_context *send_req = ucp_tag_send_nb(server->client_ep, &msg, sizeof(msg), ucp_dt_make_contig(1), msg_tag, send_cb);
+    if (UCS_PTR_IS_ERR(send_req))
+    {
+        ucp_request_cancel(server->ucp_worker, send_req);
+        ucp_request_free(send_req);
+        send_req = NULL;
+    }
+    if (send_req != NULL)
+    {
+        while (!req_completed(send_req))
+            ucp_worker_progress(server->ucp_worker);
+        ucp_request_free(send_req);
+        send_req = NULL;
+    }
+
+    fprintf(stderr, "Waiting for client to terminate...\n");
+
     while (!server->done)
     {
-        server_progress(server);
+        ucp_worker_progress(server->ucp_worker);
     }
 
     server_fini(&server);

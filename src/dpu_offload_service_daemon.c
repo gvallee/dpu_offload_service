@@ -612,6 +612,44 @@ int client_init(dpu_offload_client_t **client)
     return 0;
 }
 
+static ucs_status_t request_wait(ucp_worker_h ucp_worker, void *request, am_req_t *ctx)
+{
+    ucs_status_t status;
+
+    /* if operation was completed immediately */
+    if (request == NULL) {
+        return UCS_OK;
+    }
+
+    if (UCS_PTR_IS_ERR(request)) {
+        return UCS_PTR_STATUS(request);
+    }
+
+    while (ctx->complete == 0) {
+        ucp_worker_progress(ucp_worker);
+    }
+    status = ucp_request_check_status(request);
+
+    ucp_request_free(request);
+
+    return status;
+}
+
+static int request_finalize(ucp_worker_h ucp_worker, void *request, am_req_t *ctx)
+{
+    int ret = 0;
+    ucs_status_t status;
+
+    status = request_wait(ucp_worker, request, ctx);
+    if (status != UCS_OK)
+    {
+        fprintf(stderr, "request failed: %s\n", ucs_status_string(status));
+        return -1;
+    }
+
+    return 0;
+}
+
 void client_fini(dpu_offload_client_t **c)
 {
     if (c == NULL || *c == NULL)
@@ -622,9 +660,17 @@ void client_fini(dpu_offload_client_t **c)
     void *term_msg;
     size_t msg_length = 0;
     ucp_request_param_t params;
+    am_req_t ctx;
+    ctx.complete = 0;
+    params.op_attr_mask = UCP_OP_ATTR_FIELD_CALLBACK |
+                          UCP_OP_ATTR_FIELD_DATATYPE |
+                          UCP_OP_ATTR_FIELD_USER_DATA;
+    params.datatype = ucp_dt_make_contig(1);
+    params.user_data = &ctx;
     params.cb.send = (ucp_send_nbx_callback_t)send_cb;
-    am_req_t *request = ucp_am_send_nbx(client->server_ep, AM_TERM_MSG_ID, NULL, 0ul, term_msg,
-                                        msg_length, &params);
+    void *request = ucp_am_send_nbx(client->server_ep, AM_TERM_MSG_ID, NULL, 0ul, term_msg,
+                                    msg_length, &params);
+    request_finalize(client->ucp_worker, request, &ctx);
 
     ep_close(client->ucp_worker, client->server_ep);
     ucp_worker_destroy(client->ucp_worker);
@@ -975,17 +1021,6 @@ int server_init(dpu_offload_server_t **s)
     }
 
     fprintf(stderr, "Connection accepted\n");
-    return 0;
-}
-
-int server_progress(dpu_offload_server_t *server)
-{
-    if (server == NULL)
-    {
-        fprintf(stderr, "Server is undefined\n");
-        return -1;
-    }
-
     return 0;
 }
 

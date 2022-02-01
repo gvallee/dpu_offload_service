@@ -14,6 +14,7 @@
 #include <netinet/ip.h>
 #include <arpa/inet.h>
 #include <string.h>
+#include <stdbool.h>
 
 #include <ucp/api/ucp.h>
 
@@ -118,12 +119,11 @@ enum
 
 enum
 {
-    AM_TERM_MSG_ID = 0,
+    AM_TERM_MSG_ID = 33,
     AM_TEST_MSG_ID
 } am_id_t;
 
 int server_init(dpu_offload_server_t **server);
-int server_progress(dpu_offload_server_t *server);
 void server_fini(dpu_offload_server_t **server);
 
 int client_init(dpu_offload_client_t **client);
