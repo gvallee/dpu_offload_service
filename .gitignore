@@ -35,7 +35,9 @@
 *.i*86
 *.x86_64
 *.hex
-tests/dpu_process_spawn
+tests/offload_service/client/client
+tests/offload_service/server/server
+tests/process_spawn/dpu_process_spawn
 
 # Debug files
 *.dSYM/
