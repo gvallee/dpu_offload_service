@@ -1,6 +1,6 @@
 # -*- shell-script -*-
 #
-# Copyright 2021 NVIDIA CORPORATIONS. All rights reserved.
+# Copyright 2022 NVIDIA CORPORATIONS. All rights reserved.
 #
 # See COPYING in top-level directory.
 #
@@ -9,4 +9,5 @@
 # $HEADER$
 #
 
-SUBDIRS = offload_service process_spawn
+SUBDIRS = client server
+bin_PROGRAMS = 

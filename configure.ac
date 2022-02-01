@@ -48,6 +48,31 @@ AC_CHECK_HEADERS(pthread.h,, [AC_MSG_ERROR([pthread.h required])])
 AC_SUBST([LIBS],["$LIBS -lpthread"])
 AC_CHECK_LIB(pthread, pthread_create,,AC_MSG_ERROR([Cannot use pthread lib]))
 
+dnl# ucx
+
+AC_MSG_CHECKING([UCX installation])
+AC_ARG_WITH(ucx,
+            [AS_HELP_STRING([--with-ucx=PATH],
+             [Absolute path to the install directory for UCX])],
+            [UCX_INSTALL_DIR="${withval}"],
+            [UCX_INSTALL_DIR=""])
+UCX_INC=""
+UCX_LIB=""
+if test "x$UCX_INSTALL_DIR" = "x" ; then
+    AC_MSG_RESULT([no])
+else
+    AC_MSG_RESULT([yes])
+    UCX_INC="-I$UCX_INSTALL_DIR/include"
+    UCX_LIB="-L$UCX_INSTALL_DIR/lib"
+fi
+
+CPPFLAGS_save="$CPPFLAGS"
+LIBS_save="$LIBS"
+AC_SUBST([CPPFLAGS],["$UCX_INC $CPPFLAGS_save"])
+AC_SUBST([LIBS],["$UCX_LIB $LIBS_save -lucp"])
+AC_CHECK_HEADERS([ucp/api/ucp.h],[AC_DEFINE(HAVE_PMIX)],AC_MSG_ERROR([Cannot find UCX]))
+AC_CHECK_LIB([ucp],[ucp_init_version],,AC_MSG_ERROR([Cannot use UCX lib]))
+
 dnl# pmix
 
 AC_MSG_CHECKING([PMIx installation])
@@ -72,7 +97,7 @@ LIBS_save="$LIBS"
 AC_SUBST([CPPFLAGS],["$PMIX_INC $CPPFLAGS_save -std=c99"])
 AC_SUBST([LIBS],["$PMIX_LIB $LIBS_save -lpmix"])
 AC_CHECK_HEADERS([pmix.h],[AC_DEFINE(HAVE_PMIX)],[AC_MSG_ERROR([Cannot find PMIX])])
-AC_CHECK_LIB([pmix], [PMIx_Init],,AC_MSG_ERROR([Cannot use PMIx lib]))
+AC_CHECK_LIB([pmix],[PMIx_Init],,AC_MSG_ERROR([Cannot use PMIx lib]))
 
 dnl# prrte
 
@@ -98,8 +123,8 @@ LIBS_save="$LIBS"
 AC_SUBST([CPPFLAGS],["$PRRTE_INC $CPPFLAGS_save -std=c99"])
 AC_SUBST([LIBS],["$PRRTE_LIB $LIBS_save -lprrte"])
 AC_CHECK_HEADERS([prte.h],[AC_DEFINE(HAVE_PRRTE)],[AC_MSG_ERROR([Cannot find PRRTE])])
-AC_CHECK_LIB([prrte], [prte],,AC_MSG_ERROR([Cannot use PRRTE lib]))
+AC_CHECK_LIB([prrte],[prte],,AC_MSG_ERROR([Cannot use PRRTE lib]))
 
 # Generate Makefiles
-AC_CONFIG_FILES([Makefile src/Makefile tests/Makefile])
+AC_CONFIG_FILES([Makefile src/Makefile tests/Makefile tests/process_spawn/Makefile tests/offload_service/Makefile tests/offload_service/server/Makefile tests/offload_service/client/Makefile])
 AC_OUTPUT
