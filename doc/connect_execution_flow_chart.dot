@@ -1,0 +1,45 @@
+digraph G {
+    splines=true;
+    newrank="true";
+
+    /* Entities */
+    host_uninitialized [label="Offload service\nun-initialized", shape="square", pos="0,0"];
+    host_initialized [label="Offload service\nInitialized", shape="square"];
+    host_service_started [label="Offload service started", shape="square"];
+    host_prrte_daemon [label="PRRTE daemon", shape=Mdiamond];
+    host_initialized[label="host_offload_init()", shape=diamond];
+    host_create_dvm[label="DVM start"];
+    host_start_service[label="dpu_offload_service_start()", shape=diamond];
+    host_offload_daemon [label="Offload daemon\nrunning"];
+    host_prun [label="DVM run", shape="circle"]
+
+    dpu_prrte_daemon [label="PRRTE daemon", shape=Mdiamond];
+    dpu_offload_service_started [label="Offload service\nstarted", shape="square"];
+    //dpu_offload_daemon [label="Offload daemon\nrunning"];
+    //dpu_uninitialized [label="Offload service\nun-initialized", shape="square", pos="0.0"];
+    
+    /* Relationships */
+    subgraph cluster_0 {
+        style = filled;
+        color=lightgrey;
+        label = "Host";
+
+        host_uninitialized -> host_initialized;
+        host_initialized -> host_start_service;
+        host_start_service -> host_create_dvm [label="(1)"];
+        host_create_dvm -> host_prrte_daemon [label="(1)"];
+        host_start_service -> host_prun[label="(2)"];
+        host_prun -> host_prrte_daemon[label="(2)"];
+        host_prun -> host_offload_daemon[label="(2)"];
+        host_prrte_daemon -> host_offload_daemon[label="(2)"];
+        host_offload_daemon->host_service_started[label="(2)",constraint=false];
+    }
+
+    subgraph cluster_1 {
+        style = filled;
+        label = "DPU";
+        color=lightblue;
+
+        dpu_offload_service_started -> dpu_prrte_daemon;
+    }    
+}

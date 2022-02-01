@@ -1,0 +1,67 @@
+digraph G {
+    splines=true;
+    newrank="true";
+
+    rank1 [style=invisible];
+    rank2 [style=invisible];
+    rank3 [style=invisible];
+    rank4 [style=invisible];
+
+    /* Entities */
+    host_uninitialized [label="Offload service\nun-initialized", shape="square", pos="0,0"];
+    host_initialized [label="Offload service\nInitialized", shape="square"];
+    host_service_started [label="Offload service started", shape="square"];
+    host_prrte_daemon [label="PRRTE daemon", shape=Mdiamond];
+    host_initialized[label="host_offload_init()", shape=diamond];
+    host_create_dvm[label="DVM start"];
+    host_start_service[label="dpu_offload_service_start()", shape=diamond];
+    host_offload_daemon [label="Offload daemon\nrunning"];
+    host_prun [label="DVM run", shape="circle"]
+
+    dpu_prrte_daemon [label="PRRTE daemon", shape=Mdiamond];
+    dpu_offload_service_started [label="Offload service\nstarted", shape="square"];
+    dpu_offload_daemon [label="Offload daemon\nrunning"];
+    dpu_uninitialized [label="Offload service\nun-initialized", shape="square", pos="0.0"];
+    
+    /* Relationships */
+    subgraph cluster_0 {
+        style = filled;
+        color=lightgrey;
+        label = "Host";
+
+        host_uninitialized -> host_initialized;
+        host_initialized -> host_start_service;
+        host_start_service -> host_create_dvm [label="(1)"];
+        host_create_dvm -> host_prrte_daemon [label="(1)"];
+        host_start_service -> host_prun[label="(2)"];
+        host_prun -> host_prrte_daemon[label="(2)"];
+        host_prun -> host_offload_daemon[label="(2)"];
+        host_prrte_daemon -> host_offload_daemon[label="(2)"];
+        host_offload_daemon->host_service_started[label="(2)",constraint=false];
+    }
+
+    subgraph cluster_1 {
+        style = filled;
+        label = "DPU";
+        color=lightblue;
+
+        dpu_uninitialized -> dpu_prrte_daemon;
+        dpu_prrte_daemon -> dpu_offload_daemon [label="(2)"];
+        dpu_offload_daemon -> dpu_offload_service_started[label="(2)",constraint=false];
+    }
+
+    //host_prun -> dpu_initialized;
+    edge[constraint=false];
+    host_create_dvm -> dpu_prrte_daemon [label="(1)"];
+    host_prrte_daemon -> dpu_prrte_daemon [label="(2)"];
+
+    // Some tricks to control placement
+    {rank=same; host_start_service; dpu_offload_service_started};
+    rank1 -> host_start_service -> dpu_offload_service_started [style=invis];
+    {rank=same; host_uninitialized; dpu_uninitialized};
+    rank2 -> host_uninitialized -> dpu_uninitialized [style=invis];
+    {rank=same; host_prrte_daemon; dpu_prrte_daemon};
+    {rank=same; host_service_started; dpu_offload_service_started};
+    rank3 -> host_service_started -> dpu_offload_service_started [style=invis];
+    rank1 -> rank2 -> rank3 [style=invisible];
+}
