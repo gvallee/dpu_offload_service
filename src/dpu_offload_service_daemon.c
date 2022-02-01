@@ -35,11 +35,10 @@ typedef struct am_msg_t
     void *recv_buf;
 } am_msg_t;
 
-typedef struct oob_msg_t
+struct oob_msg
 {
     uint64_t len;
-    void *data;
-} oob_msg_t;
+};
 
 am_msg_t am_data_desc = {0, 0, NULL, NULL};
 
@@ -126,7 +125,7 @@ static int oob_server_accept(uint16_t server_port, sa_family_t af)
 {
     int listenfd, connfd;
     struct sockaddr_in servaddr;
-    time_t ticks;
+    int optval = 1;
 
     listenfd = socket(AF_INET, SOCK_STREAM, 0);
 
@@ -134,6 +133,8 @@ static int oob_server_accept(uint16_t server_port, sa_family_t af)
     servaddr.sin_family = AF_INET;
     servaddr.sin_addr.s_addr = htonl(INADDR_ANY);
     servaddr.sin_port = htons(server_port);
+
+    setsockopt(listenfd, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval));
 
     bind(listenfd, (struct sockaddr *)&servaddr, sizeof(servaddr));
     listen(listenfd, 1024);
@@ -291,7 +292,8 @@ ucs_status_t am_term_msg_cb(void *arg, const void *header, size_t header_length,
                             void *data, size_t length,
                             const ucp_am_recv_param_t *param)
 {
-    dpu_offload_server_t *server = (dpu_offload_server_t *)data;
+    dpu_offload_server_t *server = (dpu_offload_server_t *)arg;
+    fprintf(stderr, "TERM msg received (server=%p)\n", server);
     if (server == NULL)
     {
         fprintf(stderr, "am_term_msg_cb() - server is NULL\n");
@@ -552,7 +554,7 @@ static int oob_connect(dpu_offload_client_t *client)
 
     size_t msg_len = sizeof(uint64_t) + client->conn_data.oob.local_addr_len;
     fprintf(stderr, "Allocating msg (len: %ld)\n", msg_len);
-    oob_msg_t *msg = malloc(msg_len);
+    struct oob_msg *msg = malloc(msg_len);
     if (msg == NULL)
     {
         fprintf(stderr, "Memory allocation failed for msg\n");
@@ -743,7 +745,7 @@ static void oob_recv_handler(void *request, ucs_status_t status,
 
 static int oob_server_ucx_client_connection(dpu_offload_server_t *server)
 {
-    struct oob_msg_t *msg = NULL;
+    struct oob_msg *msg = NULL;
     struct ucx_context *request = NULL;
     size_t msg_len = 0;
     ucp_request_param_t send_param;
@@ -797,9 +799,9 @@ static int oob_server_ucx_client_connection(dpu_offload_server_t *server)
                            UCP_EP_PARAM_FIELD_ERR_HANDLING_MODE |
                            UCP_EP_PARAM_FIELD_ERR_HANDLER |
                            UCP_EP_PARAM_FIELD_USER_DATA;
-    ep_params.address = server->conn_data.oob.peer_addr;
     ep_params.err_mode = err_handling_opt.ucp_err_mode;
     ep_params.err_handler.cb = err_cb;
+    ep_params.err_handler.arg = NULL;
 #else
     ep_params.field_mask = UCP_EP_PARAM_FIELD_REMOTE_ADDRESS |
                            UCP_EP_PARAM_FIELD_USER_DATA;
@@ -809,7 +811,7 @@ static int oob_server_ucx_client_connection(dpu_offload_server_t *server)
     status = ucp_ep_create(server->ucp_worker, &ep_params, &server->client_ep);
     if (status != UCS_OK)
     {
-        fprintf(stderr, "ucp_ep_create() failed\n");
+        fprintf(stderr, "ucp_ep_create() failed: %s\n", ucs_status_string(status));
         return -1;
     }
     fprintf(stderr, "Endpoint to client successfully created\n");
@@ -948,6 +950,7 @@ int server_init(dpu_offload_server_t **s)
         fprintf(stderr, "server_init_context() failed\n");
         return -1;
     }
+    fprintf(stderr, "Server handle successfully created: %p\n", *s);
 
     /* Initialize Active Message data handler */
     ucp_am_handler_param_t param;
