@@ -32,7 +32,7 @@ void send_cb(void *request, ucs_status_t status)
 
 int main(int argc, char **argv)
 {
-    dpu_offload_client_t *client;
+    dpu_offload_daemon_t *client;
     int rc = client_init(&client);
     if (rc)
     {
@@ -47,31 +47,36 @@ int main(int argc, char **argv)
     }
 
     /* ping-pong with the server */
+    ucp_worker_h worker;
+    DAEMON_GET_WORKER(client, worker);
+    ucp_ep_h server_ep;
+    DAEMON_GET_PEER_EP(client, server_ep);
+
     int msg_tag = 42;
     ucp_tag_t msg_tag_mask = (ucp_tag_t)-1;
     int msg = 99;
-    struct ucx_context *send_req = ucp_tag_send_nb(client->server_ep, &msg, sizeof(msg), ucp_dt_make_contig(1), msg_tag, send_cb);
+    struct ucx_context *send_req = ucp_tag_send_nb(server_ep, &msg, sizeof(msg), ucp_dt_make_contig(1), msg_tag, send_cb);
     if (UCS_PTR_IS_ERR(send_req))
     {
         fprintf(stderr, "send failed\n");
-        ucp_request_cancel(client->ucp_worker, send_req);
+        ucp_request_cancel(worker, send_req);
         ucp_request_free(send_req);
         send_req = NULL;
     }
     if (send_req != NULL)
     {
         while (!req_completed(send_req))
-            ucp_worker_progress(client->ucp_worker);
+            ucp_worker_progress(worker);
         ucp_request_free(send_req);
         send_req = NULL;
     }
 
     int response;
-    struct ucx_context *recv_req = ucp_tag_recv_nb(client->ucp_worker, &response, sizeof(response), ucp_dt_make_contig(1), msg_tag, msg_tag_mask, recv_cb);
+    struct ucx_context *recv_req = ucp_tag_recv_nb(worker, &response, sizeof(response), ucp_dt_make_contig(1), msg_tag, msg_tag_mask, recv_cb);
     if (UCS_PTR_IS_ERR(recv_req))
     {
         fprintf(stderr, "Recv failed\n");
-        ucp_request_cancel(client->ucp_worker, recv_req);
+        ucp_request_cancel(worker, recv_req);
         ucp_request_free(recv_req);
         recv_req = NULL;
     }
@@ -87,7 +92,7 @@ int main(int argc, char **argv)
     {
         /* if it did not complete, we wait for it to complete */
         while (!req_completed(recv_req))
-            ucp_worker_progress(client->ucp_worker);
+            ucp_worker_progress(worker);
         ucp_request_free(recv_req);
         recv_req = NULL;
     }

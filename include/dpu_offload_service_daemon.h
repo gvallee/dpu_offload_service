@@ -18,6 +18,30 @@
 
 #include <ucp/api/ucp.h>
 
+#define DAEMON_GET_WORKER(_d, _w) ({ \
+    if (_d->type == DAEMON_CLIENT)   \
+    {                                \
+        fprintf(stderr, "Client\n"); \
+        _w = _d->client->ucp_worker; \
+    }                                \
+    else                             \
+    {                                \
+        fprintf(stderr, "Server\n"); \
+        _w = _d->server->ucp_worker; \
+    }                                \
+})
+
+#define DAEMON_GET_PEER_EP(_d, _ep) ({ \
+    if (_d->type == DAEMON_CLIENT)     \
+    {                                  \
+        _ep = _d->client->server_ep;   \
+    }                                  \
+    else                               \
+    {                                  \
+        _ep = _d->server->client_ep;   \
+    }                                  \
+})
+
 typedef struct ucx_server_ctx
 {
     volatile ucp_conn_request_h conn_request;
@@ -26,7 +50,6 @@ typedef struct ucx_server_ctx
 
 typedef struct dpu_offload_server_t
 {
-    int done;
     int mode;
     char *ip_str;
     char *port_str;
@@ -58,7 +81,6 @@ typedef struct dpu_offload_server_t
 
 typedef struct dpu_offload_client_t
 {
-    int done;
     int mode;
     char *address_str;
     char *port_str;
@@ -66,7 +88,6 @@ typedef struct dpu_offload_client_t
 
     ucp_worker_h ucp_worker;
     ucp_context_h ucp_context;
-    //ucp_ep_h ep;
     ucp_ep_h server_ep;
     ucs_status_t server_ep_status;
     union
@@ -88,6 +109,17 @@ typedef struct dpu_offload_client_t
     } conn_data;
 } dpu_offload_client_t;
 
+typedef struct
+{
+    uint8_t type;
+    int done;
+    union
+    {
+        dpu_offload_client_t *client;
+        dpu_offload_server_t *server;
+    };
+} dpu_offload_daemon_t;
+
 typedef struct am_req_t
 {
     int complete;
@@ -98,11 +130,18 @@ struct ucx_context
     int completed;
 };
 
-typedef enum {
+typedef enum
+{
+    DAEMON_CLIENT = 0,
+    DAEMON_SERVER
+} daemon_type_t;
+
+typedef enum
+{
     FAILURE_MODE_NONE,
-    FAILURE_MODE_SEND,      /* fail send operation on server */
-    FAILURE_MODE_RECV,      /* fail receive operation on client */
-    FAILURE_MODE_KEEPALIVE  /* fail without communication on client */
+    FAILURE_MODE_SEND,     /* fail send operation on server */
+    FAILURE_MODE_RECV,     /* fail receive operation on client */
+    FAILURE_MODE_KEEPALIVE /* fail without communication on client */
 } failure_mode_t;
 
 static struct err_handling
@@ -120,13 +159,14 @@ enum
 enum
 {
     AM_TERM_MSG_ID = 33,
+    AM_EVENT_MSG_ID,
     AM_TEST_MSG_ID
 } am_id_t;
 
-int server_init(dpu_offload_server_t **server);
-void server_fini(dpu_offload_server_t **server);
+int server_init(dpu_offload_daemon_t **server);
+void server_fini(dpu_offload_daemon_t **server);
 
-int client_init(dpu_offload_client_t **client);
-void client_fini(dpu_offload_client_t **client);
+int client_init(dpu_offload_daemon_t **client);
+void client_fini(dpu_offload_daemon_t **client);
 
 #endif // DPU_OFFLOAD_SERVICE_DAEMON_H_

@@ -14,6 +14,7 @@
 #include <string.h>
 
 #include "dpu_offload_service_daemon.h"
+#include "dpu_offload_comm_channels.h"
 
 // A lot of the code is from ucp_client_serrver.c from UCX
 
@@ -288,22 +289,6 @@ err:
     return ret;
 }
 
-ucs_status_t am_term_msg_cb(void *arg, const void *header, size_t header_length,
-                            void *data, size_t length,
-                            const ucp_am_recv_param_t *param)
-{
-    dpu_offload_server_t *server = (dpu_offload_server_t *)arg;
-    fprintf(stderr, "TERM msg received (server=%p)\n", server);
-    if (server == NULL)
-    {
-        fprintf(stderr, "am_term_msg_cb() - server is NULL\n");
-        return -1;
-    }
-
-    server->done = 1;
-    return UCS_OK;
-}
-
 ucs_status_t ucp_am_data_cb(void *arg, const void *header, size_t header_length,
                             void *data, size_t length,
                             const ucp_am_recv_param_t *param)
@@ -378,7 +363,6 @@ int client_init_context(dpu_offload_client_t **c)
 
     get_env_config(&client->address_str, &client->port_str, &(client->port));
     client->port = (uint16_t)atoi(client->port_str);
-    client->done = 0;
 
     int rc = init_context(&(client->ucp_context), &(client->ucp_worker));
     if (rc)
@@ -579,37 +563,66 @@ static int oob_connect(dpu_offload_client_t *client)
     return 0;
 }
 
-int client_init(dpu_offload_client_t **client)
+int client_init(dpu_offload_daemon_t **client)
 {
+    if (client == NULL)
+    {
+        fprintf(stderr, "Undefined handle\n");
+        goto error_out;
+    }
+
+    dpu_offload_daemon_t *d = malloc(sizeof(dpu_offload_daemon_t));
+    if (d == NULL)
+    {
+        fprintf(stderr, "Unable to allocate resources\n");
+        goto error_out;
+    }
+    d->type = DAEMON_CLIENT;
+    d->done = 0;
+
     ucs_status_t status;
-    int rc = client_init_context(client);
+    dpu_offload_client_t *_client;
+    int rc = client_init_context(&_client);
     if (rc)
     {
         fprintf(stderr, "init_client_context() failed\n");
-        return -1;
+        goto error_out;
     }
-    if ((*client) == NULL)
+    if (_client == NULL)
     {
         fprintf(stderr, "client handle is undefined\n");
-        return -1;
+        goto error_out;
+    }
+    d->client = _client;
+
+    /* Initialize Active Message data handler */
+    int ret = dpu_offload_set_am_recv_handlers(d);
+    if (ret)
+    {
+        fprintf(stderr, "dpu_offload_set_am_recv_handlers() failed\n");
+        goto error_out;
     }
 
-    switch ((*client)->mode)
+    switch (d->client->mode)
     {
     case UCX_LISTENER:
     {
-        ucx_listener_client_connect(*client);
+        ucx_listener_client_connect(d->client);
         break;
     }
     default:
     {
-        oob_connect(*client);
+        oob_connect(d->client);
     }
     }
 
     // The client is ready and wait for a message from the server for the initial handshake
+    *client = d;
 
     return 0;
+error_out:
+    *client = NULL;
+    return -1;
 }
 
 static ucs_status_t request_wait(ucp_worker_h ucp_worker, void *request, am_req_t *ctx)
@@ -617,15 +630,18 @@ static ucs_status_t request_wait(ucp_worker_h ucp_worker, void *request, am_req_
     ucs_status_t status;
 
     /* if operation was completed immediately */
-    if (request == NULL) {
+    if (request == NULL)
+    {
         return UCS_OK;
     }
 
-    if (UCS_PTR_IS_ERR(request)) {
+    if (UCS_PTR_IS_ERR(request))
+    {
         return UCS_PTR_STATUS(request);
     }
 
-    while (ctx->complete == 0) {
+    while (ctx->complete == 0)
+    {
         ucp_worker_progress(ucp_worker);
     }
     status = ucp_request_check_status(request);
@@ -650,54 +666,61 @@ static int request_finalize(ucp_worker_h ucp_worker, void *request, am_req_t *ct
     return 0;
 }
 
-void client_fini(dpu_offload_client_t **c)
+void client_fini(dpu_offload_daemon_t **c)
 {
     if (c == NULL || *c == NULL)
         return;
-    dpu_offload_client_t *client = *c;
 
-    fprintf(stderr, "Sending termination message...\n");
-    void *term_msg;
-    size_t msg_length = 0;
-    ucp_request_param_t params;
-    am_req_t ctx;
-    ctx.complete = 0;
-    params.op_attr_mask = UCP_OP_ATTR_FIELD_CALLBACK |
-                          UCP_OP_ATTR_FIELD_DATATYPE |
-                          UCP_OP_ATTR_FIELD_USER_DATA;
-    params.datatype = ucp_dt_make_contig(1);
-    params.user_data = &ctx;
-    params.cb.send = (ucp_send_nbx_callback_t)send_cb;
-    void *request = ucp_am_send_nbx(client->server_ep, AM_TERM_MSG_ID, NULL, 0ul, term_msg,
-                                    msg_length, &params);
-    request_finalize(client->ucp_worker, request, &ctx);
-
-    ep_close(client->ucp_worker, client->server_ep);
-    ucp_worker_destroy(client->ucp_worker);
-
-    switch ((*c)->mode)
+    if ((*c)->client != NULL)
     {
-    case UCX_LISTENER:
-        break;
-    default:
-        // OOB
-        if (client->conn_data.oob.sock > 0)
+        dpu_offload_client_t *client = (*c)->client;
+
+        fprintf(stderr, "Sending termination message...\n");
+        void *term_msg;
+        size_t msg_length = 0;
+        ucp_request_param_t params;
+        am_req_t ctx;
+        ctx.complete = 0;
+        params.op_attr_mask = UCP_OP_ATTR_FIELD_CALLBACK |
+                              UCP_OP_ATTR_FIELD_DATATYPE |
+                              UCP_OP_ATTR_FIELD_USER_DATA;
+        params.datatype = ucp_dt_make_contig(1);
+        params.user_data = &ctx;
+        params.cb.send = (ucp_send_nbx_callback_t)send_cb;
+        void *request = ucp_am_send_nbx(client->server_ep, AM_TERM_MSG_ID, NULL, 0ul, term_msg,
+                                        msg_length, &params);
+        request_finalize(client->ucp_worker, request, &ctx);
+
+        ep_close(client->ucp_worker, client->server_ep);
+        ucp_worker_destroy(client->ucp_worker);
+
+        switch (client->mode)
         {
-            close(client->conn_data.oob.sock);
-            client->conn_data.oob.sock = -1;
+        case UCX_LISTENER:
+            break;
+        default:
+            // OOB
+            if (client->conn_data.oob.sock > 0)
+            {
+                close(client->conn_data.oob.sock);
+                client->conn_data.oob.sock = -1;
+            }
+            if (client->conn_data.oob.addr_msg_str != NULL)
+            {
+                free(client->conn_data.oob.addr_msg_str);
+                client->conn_data.oob.addr_msg_str = NULL;
+            }
+            if (client->conn_data.oob.peer_addr != NULL)
+            {
+                free(client->conn_data.oob.peer_addr);
+                client->conn_data.oob.peer_addr = NULL;
+            }
+            ucp_worker_release_address(client->ucp_worker, client->conn_data.oob.local_addr);
         }
-        if (client->conn_data.oob.addr_msg_str != NULL)
-        {
-            free(client->conn_data.oob.addr_msg_str);
-            client->conn_data.oob.addr_msg_str = NULL;
-        }
-        if (client->conn_data.oob.peer_addr != NULL)
-        {
-            free(client->conn_data.oob.peer_addr);
-            client->conn_data.oob.peer_addr = NULL;
-        }
-        ucp_worker_release_address(client->ucp_worker, client->conn_data.oob.local_addr);
+        free((*c)->client);
+        (*c)->client = NULL;
     }
+
     free(*c);
     *c = NULL;
 }
@@ -905,7 +928,7 @@ static int start_server(dpu_offload_server_t *server)
         if (rc)
         {
             fprintf(stderr, "oob_server_listen() failed\n");
-            server->done = 1;
+            return -1;
         }
     }
     }
@@ -924,7 +947,6 @@ int server_init_context(dpu_offload_server_t **s)
 
     get_env_config(&server->ip_str, &server->port_str, &(server->port));
     server->port = (uint16_t)atoi(server->port_str);
-    server->done = 0;
     server->mode = OOB; // By default, we connect with the OOB mode
 
     int ret = init_context(&(server->ucp_context), &(server->ucp_worker));
@@ -988,67 +1010,87 @@ static ucs_status_t server_create_ep(ucp_worker_h data_worker,
     return status;
 }
 
-int server_init(dpu_offload_server_t **s)
+int server_init(dpu_offload_daemon_t **s)
 {
-    int ret = server_init_context(s);
+    if (s == NULL)
+    {
+        fprintf(stderr, "Handle is NULL\n");
+        goto error_out;
+    }
+
+    dpu_offload_daemon_t *d = malloc(sizeof(dpu_offload_daemon_t));
+    if (d == NULL)
+    {
+        fprintf(stderr, "Unable to allocate resources\n");
+        goto error_out;
+    }
+    d->type = DAEMON_SERVER;
+    d->done = 0;
+
+    int ret = server_init_context(&(d->server));
     if (ret)
     {
         fprintf(stderr, "server_init_context() failed\n");
-        return -1;
+        goto error_out;
     }
     fprintf(stderr, "Server handle successfully created: %p\n", *s);
 
     /* Initialize Active Message data handler */
-    ucp_am_handler_param_t param;
-    param.field_mask = UCP_AM_HANDLER_PARAM_FIELD_ID |
-                       UCP_AM_HANDLER_PARAM_FIELD_CB |
-                       UCP_AM_HANDLER_PARAM_FIELD_ARG;
-    param.id = AM_TERM_MSG_ID;
-    param.cb = am_term_msg_cb; // ucp_am_data_cb;
-    param.arg = (*s);          /* not used in our callback */
-    ucs_status_t status = ucp_worker_set_am_recv_handler((*s)->ucp_worker, &param);
-    if (status != UCS_OK)
+    ret = dpu_offload_set_am_recv_handlers(d);
+    if (ret)
     {
-        return -1;
+        fprintf(stderr, "dpu_offload_set_am_recv_handlers() failed\n");
+        goto error_out;
     }
-    fprintf(stderr, "AM recv handler successfully registered\n");
 
-    status = start_server(*s);
+    ucs_status_t status = start_server(d->server);
     if (status != UCS_OK)
     {
         fprintf(stderr, "start_server() failed\n");
-        return -1;
+        goto error_out;
     }
+    *s = d;
 
     fprintf(stderr, "Connection accepted\n");
     return 0;
+
+error_out:
+    *s = NULL;
+    return -1;
 }
 
-void server_fini(dpu_offload_server_t **s)
+void server_fini(dpu_offload_daemon_t **s)
 {
     if (s == NULL || *s == NULL)
         return;
-    dpu_offload_server_t *server = *s;
-    /* Close the endpoint to the client */
-    ep_close(server->ucp_worker, server->client_ep);
-    switch ((*s)->mode)
+    dpu_offload_server_t *server = (*s)->server;
+
+    if (server != NULL)
     {
-    case UCX_LISTENER:
-    {
-        server->conn_data.ucx_listener.context.conn_request = NULL;
-        ucp_listener_destroy(server->conn_data.ucx_listener.context.listener);
-        break;
-    }
-    default:
-        /* OOB */
-        ucp_worker_release_address(server->ucp_worker, server->conn_data.oob.local_addr);
-        if (server->conn_data.oob.peer_addr != NULL)
+        /* Close the endpoint to the client */
+        ep_close(server->ucp_worker, server->client_ep);
+        switch ((*s)->server->mode)
         {
-            free(server->conn_data.oob.peer_addr);
-            server->conn_data.oob.peer_addr = NULL;
+        case UCX_LISTENER:
+        {
+            server->conn_data.ucx_listener.context.conn_request = NULL;
+            ucp_listener_destroy(server->conn_data.ucx_listener.context.listener);
+            break;
         }
+        default:
+            /* OOB */
+            ucp_worker_release_address(server->ucp_worker, server->conn_data.oob.local_addr);
+            if (server->conn_data.oob.peer_addr != NULL)
+            {
+                free(server->conn_data.oob.peer_addr);
+                server->conn_data.oob.peer_addr = NULL;
+            }
+        }
+        ucp_worker_destroy(server->ucp_worker);
+        free((*s)->server);
+        (*s)->server = NULL;
     }
-    ucp_worker_destroy(server->ucp_worker);
+
     free(*s);
     *s = NULL;
 }
