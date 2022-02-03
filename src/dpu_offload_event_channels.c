@@ -20,7 +20,7 @@ static ucs_status_t am_notification_msg_cb(void *arg, const void *header, size_t
                                            const ucp_am_recv_param_t *param)
 {
     fprintf(stderr, "Notification received, dispatching...\n");
-    dpu_offload_daemon_t *d = (dpu_offload_daemon_t *)arg;
+    execution_context_t *econtext = (execution_context_t *)arg;
     if (header == NULL)
     {
         fprintf(stderr, "header is undefined\n");
@@ -29,16 +29,16 @@ static ucs_status_t am_notification_msg_cb(void *arg, const void *header, size_t
     uint64_t *hdr = (uint64_t *)header;
     uint64_t idx = hdr[0];
 
-    if (idx >= d->event_channels->num_notification_callbacks)
+    if (idx >= econtext->event_channels->num_notification_callbacks)
     {
         fprintf(stderr, "notification callback %" PRIu64 " is out of range\n", idx);
         return UCS_ERR_NO_MESSAGE;
     }
-    notification_callback_entry_t *entry = &(d->event_channels->notification_callbacks[idx]);
+    notification_callback_entry_t *entry = &(econtext->event_channels->notification_callbacks[idx]);
     if (entry->set == false)
     {
         pending_notification_t *pending_notif;
-        DYN_LIST_GET(d->event_channels->free_pending_notifications, pending_notification_t, item, pending_notif);
+        DYN_LIST_GET(econtext->event_channels->free_pending_notifications, pending_notification_t, item, pending_notif);
         if (pending_notif == NULL)
         {
             fprintf(stderr, "unable to get pending notification object\n");
@@ -66,7 +66,7 @@ static ucs_status_t am_notification_msg_cb(void *arg, const void *header, size_t
         {
             pending_notif->header = NULL;
         }
-        ucs_list_add_tail(&(d->event_channels->pending_notifications), &(pending_notif->item));
+        ucs_list_add_tail(&(econtext->event_channels->pending_notifications), &(pending_notif->item));
     }
     notification_cb cb = entry->cb;
     if (cb == NULL)
@@ -74,13 +74,19 @@ static ucs_status_t am_notification_msg_cb(void *arg, const void *header, size_t
         fprintf(stderr, "Callback is undefined\n");
         return UCS_ERR_NO_MESSAGE;
     }
-    cb(d, data);
+    cb(econtext, data);
 
     return UCS_OK;
 }
 
-int event_channels_init(dpu_offload_daemon_t *d)
+int event_channels_init(dpu_offload_ev_sys_t **e, execution_context_t *econtext)
 {
+    if (econtext == NULL)
+    {
+        fprintf(stderr, "Undefined execution context\n");
+        return -1;
+    }
+
     dpu_offload_ev_sys_t *new_ev_sys = malloc(sizeof(dpu_offload_ev_sys_t));
     if (new_ev_sys == NULL)
     {
@@ -100,14 +106,12 @@ int event_channels_init(dpu_offload_daemon_t *d)
         fprintf(stderr, "Resource allocation failed\n");
         return -1;
     }
-    fprintf(stderr, "Initializing evt cbs...\n");
     uint64_t i;
     for (i = 0; i < num_notifications_cbs; i++)
     {
         notification_callback_entry_t *entry = &(new_ev_sys->notification_callbacks[i]);
         entry->set = false;
     }
-    fprintf(stderr, "... done\n");
 
     ucp_am_handler_param_t ev_param;
     ev_param.field_mask = UCP_AM_HANDLER_PARAM_FIELD_ID |
@@ -115,19 +119,15 @@ int event_channels_init(dpu_offload_daemon_t *d)
                           UCP_AM_HANDLER_PARAM_FIELD_ARG;
     ev_param.id = AM_EVENT_MSG_ID;
     ev_param.cb = am_notification_msg_cb;
-    ev_param.arg = d;
-    ucp_worker_h worker;
-    fprintf(stderr, "Getting worker...\n");
-    DAEMON_GET_WORKER(d, worker);
-    assert(worker);
+    ev_param.arg = econtext;
     fprintf(stderr, "Registering AM callback for notifications\n");
-    ucs_status_t status = ucp_worker_set_am_recv_handler(worker, &ev_param);
+    ucs_status_t status = ucp_worker_set_am_recv_handler(GET_WORKER(econtext), &ev_param);
     if (status != UCS_OK)
     {
         return -1;
     }
 
-    d->event_channels = new_ev_sys;
+    *e = new_ev_sys;
     return 0;
 }
 
