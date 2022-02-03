@@ -39,13 +39,15 @@ static int dummy_notification_cb(void *context, void *data)
 
 int main(int argc, char **argv)
 {
-    dpu_offload_daemon_t *server;
-    int rc = server_init(&server);
-    if (rc)
+    offloading_engine_t *offload_engine;
+    int rc = offload_engine_init(&offload_engine);
+    if (rc || offload_engine == NULL)
     {
-        fprintf(stderr, "init_server() failed\n");
+        fprintf(stderr, "offload_engine_init() failed\n");
         return EXIT_FAILURE;
     }
+
+    execution_context_t *server = server_init(offload_engine);
     if (server == NULL)
     {
         fprintf(stderr, "server handle is undefined\n");
@@ -61,20 +63,14 @@ int main(int argc, char **argv)
     }
 
     // PING_PONG TEST
-
-    ucp_worker_h worker;
-    DAEMON_GET_WORKER(server, worker);
-    ucp_ep_h client_ep;
-    DAEMON_GET_PEER_EP(server, client_ep);
-
     int msg_tag = 42;
     ucp_tag_t msg_tag_mask = (ucp_tag_t)-1;
     int ping;
-    struct ucx_context *recv_req = ucp_tag_recv_nb(worker, &ping, sizeof(ping), ucp_dt_make_contig(1), msg_tag, msg_tag_mask, recv_cb);
+    struct ucx_context *recv_req = ucp_tag_recv_nb(GET_WORKER(server), &ping, sizeof(ping), ucp_dt_make_contig(1), msg_tag, msg_tag_mask, recv_cb);
     if (UCS_PTR_IS_ERR(recv_req))
     {
         fprintf(stderr, "Recv failed\n");
-        ucp_request_cancel(worker, recv_req);
+        ucp_request_cancel(GET_WORKER(server), recv_req);
         ucp_request_free(recv_req);
         recv_req = NULL;
     }
@@ -89,42 +85,44 @@ int main(int argc, char **argv)
     if (recv_req != NULL)
     {
         while (!req_completed(recv_req))
-            ucp_worker_progress(worker);
+            ucp_worker_progress(GET_WORKER(server));
         ucp_request_free(recv_req);
         recv_req = NULL;
     }
 
     int msg = ping + 1;
-    struct ucx_context *send_req = ucp_tag_send_nb(client_ep, &msg, sizeof(msg), ucp_dt_make_contig(1), msg_tag, send_cb);
+    ucp_ep_h ep = server->server->connected_clients.clients[0].ep;
+    struct ucx_context *send_req = ucp_tag_send_nb(ep, &msg, sizeof(msg), ucp_dt_make_contig(1), msg_tag, send_cb);
     if (UCS_PTR_IS_ERR(send_req))
     {
-        ucp_request_cancel(worker, send_req);
+        ucp_request_cancel(GET_WORKER(server), send_req);
         ucp_request_free(send_req);
         send_req = NULL;
     }
     if (send_req != NULL)
     {
         while (!req_completed(send_req))
-            ucp_worker_progress(worker);
+            ucp_worker_progress(GET_WORKER(server));
         ucp_request_free(send_req);
         send_req = NULL;
     }
 
-    while(!notification_recvd)
+    while (!notification_recvd)
     {
-        ucp_worker_progress(worker);
+        ucp_worker_progress(GET_WORKER(server));
     }
 
     fprintf(stderr, "ALL TESTS COMPLETED\n");
 
     fprintf(stderr, "Waiting for client to terminate...\n");
 
-    while (!server->done)
+    while (!EXECUTION_CONTEXT_DONE(server))
     {
-        ucp_worker_progress(worker);
+        ucp_worker_progress(GET_WORKER(server));
     }
 
     server_fini(&server);
+    offload_engine_fini(&offload_engine);
 
     fprintf(stderr, "server all done, exiting successfully\n");
     return EXIT_SUCCESS;

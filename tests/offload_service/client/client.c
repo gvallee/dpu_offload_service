@@ -32,14 +32,16 @@ void send_cb(void *request, ucs_status_t status)
 
 int main(int argc, char **argv)
 {
-    dpu_offload_daemon_t *client;
-    int rc = client_init(&client);
-    if (rc)
+    offloading_engine_t *offload_engine;
+    int rc = offload_engine_init(&offload_engine);
+    if (rc || offload_engine == NULL)
     {
-        fprintf(stderr, "init_client() failed\n");
+        fprintf(stderr, "offload_engine_init() failed\n");
         return EXIT_FAILURE;
     }
 
+    
+    execution_context_t *client = client_init(offload_engine);
     if (client == NULL)
     {
         fprintf(stderr, "client handle is undefined\n");
@@ -47,36 +49,31 @@ int main(int argc, char **argv)
     }
 
     /* ping-pong with the server */
-    ucp_worker_h worker;
-    DAEMON_GET_WORKER(client, worker);
-    ucp_ep_h server_ep;
-    DAEMON_GET_PEER_EP(client, server_ep);
-
     int msg_tag = 42;
     ucp_tag_t msg_tag_mask = (ucp_tag_t)-1;
     int msg = 99;
-    struct ucx_context *send_req = ucp_tag_send_nb(server_ep, &msg, sizeof(msg), ucp_dt_make_contig(1), msg_tag, send_cb);
+    struct ucx_context *send_req = ucp_tag_send_nb(GET_SERVER_EP(client), &msg, sizeof(msg), ucp_dt_make_contig(1), msg_tag, send_cb);
     if (UCS_PTR_IS_ERR(send_req))
     {
         fprintf(stderr, "send failed\n");
-        ucp_request_cancel(worker, send_req);
+        ucp_request_cancel(GET_WORKER(client), send_req);
         ucp_request_free(send_req);
         send_req = NULL;
     }
     if (send_req != NULL)
     {
         while (!req_completed(send_req))
-            ucp_worker_progress(worker);
+            ucp_worker_progress(GET_WORKER(client));
         ucp_request_free(send_req);
         send_req = NULL;
     }
 
     int response;
-    struct ucx_context *recv_req = ucp_tag_recv_nb(worker, &response, sizeof(response), ucp_dt_make_contig(1), msg_tag, msg_tag_mask, recv_cb);
+    struct ucx_context *recv_req = ucp_tag_recv_nb(GET_WORKER(client), &response, sizeof(response), ucp_dt_make_contig(1), msg_tag, msg_tag_mask, recv_cb);
     if (UCS_PTR_IS_ERR(recv_req))
     {
         fprintf(stderr, "Recv failed\n");
-        ucp_request_cancel(worker, recv_req);
+        ucp_request_cancel(GET_WORKER(client), recv_req);
         ucp_request_free(recv_req);
         recv_req = NULL;
     }
@@ -92,7 +89,7 @@ int main(int argc, char **argv)
     {
         /* if it did not complete, we wait for it to complete */
         while (!req_completed(recv_req))
-            ucp_worker_progress(worker);
+            ucp_worker_progress(GET_WORKER(client));
         ucp_request_free(recv_req);
         recv_req = NULL;
     }
@@ -111,7 +108,7 @@ int main(int argc, char **argv)
         return EXIT_FAILURE;
     }
 
-    rc = event_channel_emit(ev, AM_TEST_MSG_ID, server_ep, NULL, NULL, 0);
+    rc = event_channel_emit(ev, AM_TEST_MSG_ID, GET_SERVER_EP(client), NULL, NULL, 0);
     if (rc)
     {
         fprintf(stderr, "event_channel_emit() failed\n");
@@ -119,7 +116,7 @@ int main(int argc, char **argv)
     }
 
     while(!ev->ctx.complete)
-        ucp_worker_progress(worker);
+        ucp_worker_progress(GET_WORKER(client));
 
     rc = event_return(client->event_channels, &ev);
     if (rc)
@@ -132,6 +129,7 @@ int main(int argc, char **argv)
 
 end_test:
     client_fini(&client);
+    offload_engine_fini(&offload_engine);
     fprintf(stderr, "client all done, exiting successfully\n");
 
     return EXIT_SUCCESS;

@@ -32,8 +32,15 @@ void send_cb(void *request, ucs_status_t status)
 
 int main(int argc, char **argv)
 {
-    dpu_offload_daemon_t *client;
-    int rc = client_init(&client);
+    offloading_engine_t *offload_engine;
+    int rc = offload_engine_init(&offload_engine);
+    if (rc || offload_engine == NULL)
+    {
+        fprintf(stderr, "offload_engine_init() failed\n");
+        return EXIT_FAILURE;
+    }
+
+    execution_context_t *client = client_init(offload_engine);
     if (rc)
     {
         fprintf(stderr, "init_client() failed\n");
@@ -48,6 +55,7 @@ int main(int argc, char **argv)
 
 end_test:
     client_fini(&client);
+    offload_engine_fini(&offload_engine);
     fprintf(stderr, "client all done, exiting successfully\n");
 
     return EXIT_SUCCESS;
