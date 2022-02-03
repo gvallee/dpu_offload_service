@@ -37,17 +37,17 @@ typedef enum
     _ep;                                    \
 })
 
-#define GET_CLIENT_EP(_exec_ctx) ({                               \
-    ucp_ep_h _ep;                                                 \
-    if (_exec_ctx->type == CONTEXT_CLIENT)                        \
-    {                                                             \
-        _ep = _exec_ctx->server->connected_clients.clients[0].ep; \
-    }                                                             \
-    else                                                          \
-    {                                                             \
-        _ep = NULL;                                               \
-    }                                                             \
-    _ep;                                                          \
+#define GET_CLIENT_EP(_exec_ctx, _client_id) ({                            \
+    ucp_ep_h _ep;                                                          \
+    if (_exec_ctx->type == CONTEXT_CLIENT)                                 \
+    {                                                                      \
+        _ep = _exec_ctx->server->connected_clients.clients[_client_id].ep; \
+    }                                                                      \
+    else                                                                   \
+    {                                                                      \
+        _ep = NULL;                                                        \
+    }                                                                      \
+    _ep;                                                                   \
 })
 
 #define GET_WORKER(_exec_ctx) ({            \
@@ -155,16 +155,24 @@ typedef struct connected_clients
     connected_client_t *clients;
 } connected_clients_t;
 
+typedef struct conn_params
+{
+    char *addr_str;
+    char *port_str;
+    int port;
+    struct sockaddr_storage saddr;
+} conn_params_t;
+
 typedef struct dpu_offload_server_t
 {
     int mode;
     bool done;
-    char *ip_str;
-    char *port_str;
-    uint16_t port;
-    struct sockaddr_storage saddr;
+    conn_params_t conn_params;
     ucp_worker_h ucp_worker;
     ucp_context_h ucp_context;
+    pthread_t connect_tid;
+    pthread_mutex_t mutex;
+    pthread_mutexattr_t mattr;
     connected_clients_t connected_clients;
 
     dpu_offload_ev_sys_t *event_channels;
@@ -192,9 +200,7 @@ typedef struct dpu_offload_server_t
 typedef struct dpu_offload_client_t
 {
     int mode;
-    char *address_str;
-    char *port_str;
-    uint16_t port;
+    conn_params_t conn_params;
     bool done;
 
     ucp_worker_h ucp_worker;

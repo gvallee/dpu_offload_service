@@ -47,7 +47,7 @@ int main(int argc, char **argv)
         return EXIT_FAILURE;
     }
 
-    execution_context_t *server = server_init(offload_engine);
+    execution_context_t *server = server_init(offload_engine, NULL);
     if (server == NULL)
     {
         fprintf(stderr, "server handle is undefined\n");

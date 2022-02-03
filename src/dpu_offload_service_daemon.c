@@ -45,15 +45,16 @@ struct oob_msg
 
 am_msg_t am_data_desc = {0, 0, NULL, NULL};
 
-int get_env_config(char **addr_str, char **port_str, uint16_t *port)
+// int get_env_config(char **addr_str, char **port_str, uint16_t *port)
+int get_env_config(conn_params_t *params)
 {
     char *server_port_envvar = getenv(SERVER_PORT_ENVVAR);
     char *server_addr = getenv(SERVER_IP_ADDR_ENVVAR);
-    *port = -1;
+    int port = -1;
 
     if (server_port_envvar)
     {
-        *port = (uint16_t)atoi(server_port_envvar);
+        port = (uint16_t)atoi(server_port_envvar);
     }
 
     if (!server_addr)
@@ -62,14 +63,16 @@ int get_env_config(char **addr_str, char **port_str, uint16_t *port)
         return -1;
     }
 
-    if (*port < 0)
+    if (port < 0)
     {
-        fprintf(stderr, "Invalid server port (%s), please specify the environment variable %s\n", server_port_envvar, SERVER_PORT_ENVVAR);
+        fprintf(stderr, "Invalid server port (%s), please specify the environment variable %s\n",
+                server_port_envvar, SERVER_PORT_ENVVAR);
         return -1;
     }
 
-    *addr_str = server_addr;
-    *port_str = server_port_envvar;
+    params->addr_str = server_addr;
+    params->port_str = server_port_envvar;
+    params->port = port;
 
     return 0;
 }
@@ -158,15 +161,15 @@ int oob_client_connect(dpu_offload_client_t *client, sa_family_t af)
     int ret;
     int rc = 0;
 
-    snprintf(service, sizeof(service), "%u", client->port);
+    snprintf(service, sizeof(service), "%u", client->conn_params.port);
     memset(&hints, 0, sizeof(hints));
-    hints.ai_flags = (client->address_str == NULL) ? AI_PASSIVE : 0;
+    hints.ai_flags = (client->conn_params.addr_str == NULL) ? AI_PASSIVE : 0;
     hints.ai_family = af;
     hints.ai_socktype = SOCK_STREAM;
 
-    fprintf(stderr, "Connecting to %s:%" PRIu16 "\n", client->address_str, client->port);
+    fprintf(stderr, "Connecting to %s:%" PRIu16 "\n", client->conn_params.addr_str, client->conn_params.port);
 
-    ret = getaddrinfo(client->address_str, service, &hints, &res);
+    ret = getaddrinfo(client->conn_params.addr_str, service, &hints, &res);
     if (ret < 0)
     {
         fprintf(stderr, "getaddrinfo() failed\n");
@@ -186,7 +189,15 @@ int oob_client_connect(dpu_offload_client_t *client, sa_family_t af)
         int rc = connect(client->conn_data.oob.sock, t->ai_addr, t->ai_addrlen);
         if (rc == 0)
         {
-            fprintf(stderr, "Connection established, fd = %d\n", client->conn_data.oob.sock);
+            struct sockaddr_in conn_addr;
+            socklen_t conn_addr_len = sizeof(conn_addr);
+            memset(&conn_addr, 0, sizeof(conn_addr));
+            getsockname(client->conn_data.oob.sock, (struct sockaddr *) &conn_addr, &conn_addr_len);
+            char conn_ip[16];
+            inet_ntop(AF_INET, &(conn_addr.sin_addr), conn_ip, sizeof(conn_ip));
+            int conn_port;
+            conn_port = ntohs(conn_addr.sin_port);
+            fprintf(stderr, "Connection established, fd = %d, addr=%s:%d\n", client->conn_data.oob.sock, conn_ip, conn_port);
             break;
         }
         else
@@ -247,7 +258,7 @@ static int init_worker(ucp_context_h ucp_context, ucp_worker_h *ucp_worker)
     int ret = 0;
     memset(&worker_params, 0, sizeof(worker_params));
     worker_params.field_mask = UCP_WORKER_PARAM_FIELD_THREAD_MODE;
-    worker_params.thread_mode = UCS_THREAD_MODE_SINGLE;
+    worker_params.thread_mode = UCS_THREAD_MODE_MULTI;
     status = ucp_worker_create(ucp_context, &worker_params, ucp_worker);
     if (status != UCS_OK)
     {
@@ -362,9 +373,7 @@ int client_init_context(dpu_offload_client_t **c)
         fprintf(stderr, "Unable to allocate client handle\n");
         return -1;
     }
-
-    get_env_config(&client->address_str, &client->port_str, &(client->port));
-    client->port = (uint16_t)atoi(client->port_str);
+    get_env_config(&(client->conn_params));
 
     int rc = init_context(&(client->ucp_context), &(client->ucp_worker));
     if (rc)
@@ -403,7 +412,7 @@ int client_init_context(dpu_offload_client_t **c)
 
 static int ucx_listener_client_connect(dpu_offload_client_t *client)
 {
-    set_sock_addr(client->address_str, client->port, &(client->conn_data.ucx_listener.connect_addr));
+    set_sock_addr(client->conn_params.addr_str, client->conn_params.port, &(client->conn_data.ucx_listener.connect_addr));
 
     /*
      * Endpoint field mask bits:
@@ -430,11 +439,11 @@ static int ucx_listener_client_connect(dpu_offload_client_t *client)
     ep_params.flags = UCP_EP_PARAMS_FLAGS_CLIENT_SERVER;
     ep_params.sockaddr.addr = (struct sockaddr *)&(client->conn_data.ucx_listener.connect_addr);
     ep_params.sockaddr.addrlen = sizeof(client->conn_data.ucx_listener.connect_addr);
-    fprintf(stderr, "Connecting to %s:%s\n", client->address_str, client->port_str);
+    fprintf(stderr, "Connecting to %s:%s\n", client->conn_params.addr_str, client->conn_params.port_str);
     ucs_status_t status = ucp_ep_create(client->ucp_worker, &ep_params, &(client->server_ep));
     if (status != UCS_OK)
     {
-        fprintf(stderr, "failed to connect to %s (%s)\n", client->address_str,
+        fprintf(stderr, "failed to connect to %s (%s)\n", client->conn_params.addr_str,
                 ucs_status_string(status));
         return -1;
     }
@@ -823,15 +832,15 @@ static int ucx_listener_server(dpu_offload_server_t *server)
     ucp_listener_attr_t attr;
     ucs_status_t status;
     char *port_str;
-    set_sock_addr(server->ip_str, server->port, &(server->saddr));
+    set_sock_addr(server->conn_params.addr_str, server->conn_params.port, &(server->conn_params.saddr));
     params.field_mask = UCP_LISTENER_PARAM_FIELD_SOCK_ADDR |
                         UCP_LISTENER_PARAM_FIELD_CONN_HANDLER;
-    params.sockaddr.addr = (const struct sockaddr *)&(server->saddr);
-    params.sockaddr.addrlen = sizeof(server->saddr);
+    params.sockaddr.addr = (const struct sockaddr *)&(server->conn_params.saddr);
+    params.sockaddr.addrlen = sizeof(server->conn_params.saddr);
     params.conn_handler.cb = server_conn_handle_cb;
     params.conn_handler.arg = &(server->conn_data.ucx_listener.context);
     /* Create a listener on the server side to listen on the given address.*/
-    fprintf(stderr, "Creating listener on %s:%s\n", server->ip_str, port_str);
+    fprintf(stderr, "Creating listener on %s:%s\n", server->conn_params.addr_str, port_str);
     status = ucp_listener_create(server->ucp_worker, &params, &(server->conn_data.ucx_listener.context.listener));
     if (status != UCS_OK)
     {
@@ -849,7 +858,7 @@ static int ucx_listener_server(dpu_offload_server_t *server)
         return -1;
     }
     fprintf(stderr, "server is listening on IP %s port %s\n",
-            server->ip_str, port_str);
+            server->conn_params.addr_str, port_str);
     return 0;
 }
 
@@ -896,9 +905,12 @@ static int oob_server_ucx_client_connection(execution_context_t *econtext)
         ucp_worker_progress(server->ucp_worker);
 
         /* Probing incoming events in non-block mode */
+        pthread_mutex_lock(&(econtext->server->mutex));
         msg_tag = ucp_tag_probe_nb(server->ucp_worker, server->conn_data.oob.tag, server->conn_data.oob.tag_mask, 1, &info_tag);
+        pthread_mutex_unlock(&(econtext->server->mutex));
     } while (msg_tag == NULL);
 
+    pthread_mutex_lock(&(econtext->server->mutex));
     fprintf(stderr, "allocating space for message to receive: %ld\n", info_tag.length);
     msg = malloc(info_tag.length);
     if (msg == NULL)
@@ -934,7 +946,7 @@ static int oob_server_ucx_client_connection(execution_context_t *econtext)
     ep_params.err_handler.cb = err_cb;
     ep_params.err_handler.arg = NULL;
     ep_params.address = server->conn_data.oob.peer_addr;
-    ep_params.user_data = &(server->connected_clients.clients[0].ep_status);
+    ep_params.user_data = &(server->connected_clients.clients[server->connected_clients.num_connected_clients].ep_status);
     ucp_worker_h worker = server->ucp_worker;
     if (worker == NULL)
     {
@@ -948,7 +960,9 @@ static int oob_server_ucx_client_connection(execution_context_t *econtext)
         fprintf(stderr, "ucp_ep_create() failed: %s\n", ucs_status_string(status));
         return -1;
     }
-    server->connected_clients.clients[0].ep = client_ep;
+    server->connected_clients.clients[server->connected_clients.num_connected_clients].ep = client_ep;
+    server->connected_clients.num_connected_clients++;
+    pthread_mutex_unlock(&(econtext->server->mutex));
     fprintf(stderr, "Endpoint to client successfully created\n");
 
     return 0;
@@ -957,7 +971,7 @@ static int oob_server_ucx_client_connection(execution_context_t *econtext)
 static int oob_server_listen(execution_context_t *econtext)
 {
     /* OOB connection establishment */
-    econtext->server->conn_data.oob.sock = oob_server_accept(econtext->server->port, ai_family);
+    econtext->server->conn_data.oob.sock = oob_server_accept(econtext->server->conn_params.port, ai_family);
     send(econtext->server->conn_data.oob.sock, &(econtext->server->conn_data.oob.local_addr_len), sizeof(econtext->server->conn_data.oob.local_addr_len), 0);
     send(econtext->server->conn_data.oob.sock, econtext->server->conn_data.oob.local_addr, econtext->server->conn_data.oob.local_addr_len, 0);
 
@@ -969,6 +983,45 @@ static int oob_server_listen(execution_context_t *econtext)
     }
 
     return 0;
+}
+
+static void *connect_thread(void *arg)
+{
+    execution_context_t *econtext = (execution_context_t *)arg;
+    if (econtext == NULL)
+    {
+        fprintf(stderr, "Execution context is NULL\n");
+        pthread_exit(NULL);
+    }
+
+    while (!econtext->server->done)
+    {
+        switch (econtext->server->mode)
+        {
+        case UCX_LISTENER:
+        {
+            ucx_listener_server(econtext->server);
+            fprintf(stderr, "Waiting for connection on UCX listener...\n");
+            while (econtext->server->conn_data.ucx_listener.context.conn_request == NULL)
+            {
+                fprintf(stderr, "Progressing worker...\n");
+                ucp_worker_progress(econtext->server->ucp_worker);
+            }
+            break;
+        }
+        default:
+        {
+            int rc = oob_server_listen(econtext);
+            if (rc)
+            {
+                fprintf(stderr, "oob_server_listen() failed\n");
+                pthread_exit(NULL);
+            }
+        }
+        }
+    }
+
+    pthread_exit(NULL);
 }
 
 static int start_server(execution_context_t *econtext)
@@ -985,34 +1038,26 @@ static int start_server(execution_context_t *econtext)
         return -1;
     }
 
-    switch (econtext->server->mode)
+    int rc = pthread_create(&econtext->server->connect_tid, NULL, &connect_thread, econtext);
+    if (rc)
     {
-    case UCX_LISTENER:
-    {
-        ucx_listener_server(econtext->server);
-        fprintf(stderr, "Waiting for connection on UCX listener...\n");
-        while (econtext->server->conn_data.ucx_listener.context.conn_request == NULL)
-        {
-            fprintf(stderr, "Progressing worker...\n");
-            ucp_worker_progress(econtext->server->ucp_worker);
-        }
-        break;
+        fprintf(stderr, "unable to start connection thread\n");
     }
-    default:
+
+    // Wait for at least one client to connect
+    bool client_connected = false;
+    while (!client_connected)
     {
-        int rc = oob_server_listen(econtext);
-        if (rc)
-        {
-            fprintf(stderr, "oob_server_listen() failed\n");
-            return -1;
-        }
-    }
+        pthread_mutex_lock(&(econtext->server->mutex));
+        if (econtext->server->connected_clients.num_connected_clients > 0)
+            client_connected++;
+        pthread_mutex_unlock(&(econtext->server->mutex));
     }
 
     return 0;
 }
 
-int server_init_context(dpu_offload_server_t **s)
+int server_init_context(dpu_offload_server_t **s, conn_params_t *conn_params)
 {
     dpu_offload_server_t *server = malloc(sizeof(dpu_offload_server_t));
     if (server == NULL)
@@ -1021,17 +1066,30 @@ int server_init_context(dpu_offload_server_t **s)
         return -1;
     }
 
-    get_env_config(&server->ip_str, &server->port_str, &(server->port));
-    server->port = (uint16_t)atoi(server->port_str);
     server->mode = OOB; // By default, we connect with the OOB mode
     server->connected_clients.clients = malloc(DEFAULT_MAX_NUM_CLIENTS * sizeof(connected_client_t));
+    if (conn_params == NULL)
+        get_env_config(&(server->conn_params));
+    else
+    {
+        server->conn_params.addr_str = conn_params->addr_str;
+        server->conn_params.port = conn_params->port;
+        server->conn_params.port_str = NULL;
+    }
+
+    int ret = pthread_mutex_init(&(server->mutex), &(server->mattr));
+    if (ret)
+    {
+        fprintf(stderr, "pthread_mutex_init() failed\n");
+        return -1;
+    }
     if (server->connected_clients.clients == NULL)
     {
         fprintf(stderr, "Unable to allocate resources for list of connected clients\n");
         return -1;
     }
 
-    int ret = init_context(&(server->ucp_context), &(server->ucp_worker));
+    ret = init_context(&(server->ucp_context), &(server->ucp_worker));
     if (ret != 0)
     {
         fprintf(stderr, "init_context() failed\n");
@@ -1092,7 +1150,7 @@ static ucs_status_t server_create_ep(ucp_worker_h data_worker,
     return status;
 }
 
-execution_context_t *server_init(offloading_engine_t *offloading_engine)
+execution_context_t *server_init(offloading_engine_t *offloading_engine, conn_params_t *conn_params)
 {
     if (offloading_engine == NULL)
     {
@@ -1109,7 +1167,7 @@ execution_context_t *server_init(offloading_engine_t *offloading_engine)
     execution_context->type = CONTEXT_SERVER;
 
     dpu_offload_server_t *server;
-    int ret = server_init_context(&server);
+    int ret = server_init_context(&server, conn_params);
     if (ret)
     {
         fprintf(stderr, "server_init_context() failed\n");
@@ -1166,6 +1224,8 @@ void server_fini(execution_context_t **exec_ctx)
     }
 
     dpu_offload_server_t *server = (*exec_ctx)->server;
+    pthread_join(server->connect_tid, NULL);
+    pthread_mutex_destroy(&(server->mutex));
 
     /* Close the clients' endpoint */
     int i;
