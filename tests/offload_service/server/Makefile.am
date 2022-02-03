@@ -11,6 +11,6 @@
 
 bin_PROGRAMS = server
 
-dpu_process_spawn_SOURCES = server.c
+server_SOURCES = server.c
 AM_LDFLAGS = -ldpuoffloaddaemon
 AM_CFLAGS = -I@top_srcdir@/include -L@top_srcdir@/src/.libs

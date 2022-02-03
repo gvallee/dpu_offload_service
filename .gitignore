@@ -35,6 +35,7 @@
 *.i*86
 *.x86_64
 *.hex
+daemons/default_dpu_daemon
 tests/offload_service/client/client
 tests/offload_service/server/server
 tests/process_spawn/dpu_process_spawn

@@ -126,5 +126,5 @@ AC_CHECK_HEADERS([prte.h],[AC_DEFINE(HAVE_PRRTE)],[AC_MSG_ERROR([Cannot find PRR
 AC_CHECK_LIB([prrte],[prte],,AC_MSG_ERROR([Cannot use PRRTE lib]))
 
 # Generate Makefiles
-AC_CONFIG_FILES([Makefile src/Makefile tests/Makefile tests/process_spawn/Makefile tests/offload_service/Makefile tests/offload_service/server/Makefile tests/offload_service/client/Makefile])
+AC_CONFIG_FILES([Makefile src/Makefile daemons/Makefile tests/Makefile tests/process_spawn/Makefile tests/offload_service/Makefile tests/offload_service/server/Makefile tests/offload_service/client/Makefile])
 AC_OUTPUT

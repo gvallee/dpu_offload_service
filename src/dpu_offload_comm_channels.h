@@ -39,19 +39,6 @@ static int dpu_offload_set_am_recv_handlers(dpu_offload_daemon_t *d)
         return -1;
     }
 
-    ucp_am_handler_param_t ev_param;
-    ev_param.field_mask = UCP_AM_HANDLER_PARAM_FIELD_ID |
-                          UCP_AM_HANDLER_PARAM_FIELD_CB |
-                          UCP_AM_HANDLER_PARAM_FIELD_ARG;
-    ev_param.id = AM_TERM_MSG_ID;
-    ev_param.cb = am_term_msg_cb;
-    ev_param.arg = d;
-    status = ucp_worker_set_am_recv_handler(worker, &ev_param);
-    if (status != UCS_OK)
-    {
-        return -1;
-    }
-
     fprintf(stderr, "AM recv handlers successfully registered\n");
 
     return 0;
