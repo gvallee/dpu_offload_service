@@ -30,6 +30,13 @@ static void send_cb(void *request, ucs_status_t status)
     fprintf(stderr, "pong successfully sent\n");
 }
 
+bool notification_recvd = false;
+static int dummy_notification_cb(void *context, void *data)
+{
+    fprintf(stderr, "Notification successfully received\n");
+    notification_recvd = true;
+}
+
 int main(int argc, char **argv)
 {
     dpu_offload_daemon_t *server;
@@ -44,6 +51,16 @@ int main(int argc, char **argv)
         fprintf(stderr, "server handle is undefined\n");
         return EXIT_FAILURE;
     }
+
+    // REGISTER SOME EVENTS FOR TESTING
+    rc = event_channel_register(server->event_channels, AM_TEST_MSG_ID, dummy_notification_cb);
+    if (rc)
+    {
+        fprintf(stderr, "event_channel_register() failed\n");
+        return EXIT_FAILURE;
+    }
+
+    // PING_PONG TEST
 
     ucp_worker_h worker;
     DAEMON_GET_WORKER(server, worker);
@@ -92,6 +109,13 @@ int main(int argc, char **argv)
         ucp_request_free(send_req);
         send_req = NULL;
     }
+
+    while(!notification_recvd)
+    {
+        ucp_worker_progress(worker);
+    }
+
+    fprintf(stderr, "ALL TESTS COMPLETED\n");
 
     fprintf(stderr, "Waiting for client to terminate...\n");
 

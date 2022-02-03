@@ -102,6 +102,34 @@ int main(int argc, char **argv)
     else
         fprintf(stderr, "Successfully received the expected response from the server\n");
 
+    // NOTIFICATION TEST
+    dpu_offload_event_t *ev;
+    rc = event_get(client->event_channels, &ev);
+    if (rc)
+    {
+        fprintf(stderr, "event_get() failed\n");
+        return EXIT_FAILURE;
+    }
+
+    rc = event_channel_emit(ev, AM_TEST_MSG_ID, server_ep, NULL, NULL, 0);
+    if (rc)
+    {
+        fprintf(stderr, "event_channel_emit() failed\n");
+        return EXIT_FAILURE;
+    }
+
+    while(!ev->ctx.complete)
+        ucp_worker_progress(worker);
+
+    rc = event_return(client->event_channels, &ev);
+    if (rc)
+    {
+        fprintf(stderr, "event_return() failed\n");
+        return EXIT_FAILURE;
+    }
+
+    fprintf(stderr, "ALL TESTS COMPLETED\n");
+
 end_test:
     client_fini(&client);
     fprintf(stderr, "client all done, exiting successfully\n");

@@ -15,6 +15,7 @@
 
 #include "dpu_offload_service_daemon.h"
 #include "dpu_offload_comm_channels.h"
+#include "dpu_offload_event_channels.h"
 
 // A lot of the code is from ucp_client_serrver.c from UCX
 
@@ -595,6 +596,13 @@ int client_init(dpu_offload_daemon_t **client)
     }
     d->client = _client;
 
+    rc = event_channels_init(d);
+    if (rc)
+    {
+        fprintf(stderr, "event_channel_init() failed\n");
+        goto error_out;
+    }
+
     /* Initialize Active Message data handler */
     int ret = dpu_offload_set_am_recv_handlers(d);
     if (ret)
@@ -720,6 +728,8 @@ void client_fini(dpu_offload_daemon_t **c)
         free((*c)->client);
         (*c)->client = NULL;
     }
+
+    event_channels_fini(&((*c)->event_channels));
 
     free(*c);
     *c = NULL;
@@ -1026,7 +1036,7 @@ int server_init(dpu_offload_daemon_t **s)
     }
     d->type = DAEMON_SERVER;
     d->done = 0;
-
+    
     int ret = server_init_context(&(d->server));
     if (ret)
     {
@@ -1034,6 +1044,14 @@ int server_init(dpu_offload_daemon_t **s)
         goto error_out;
     }
     fprintf(stderr, "Server handle successfully created: %p\n", *s);
+
+    ret = event_channels_init(d);
+    if (ret)
+    {
+        fprintf(stderr, "event_channel_init() failed\n");
+        goto error_out;
+    }
+
 
     /* Initialize Active Message data handler */
     ret = dpu_offload_set_am_recv_handlers(d);
@@ -1090,6 +1108,8 @@ void server_fini(dpu_offload_daemon_t **s)
         free((*s)->server);
         (*s)->server = NULL;
     }
+
+    event_channels_fini(&((*s)->event_channels));
 
     free(*s);
     *s = NULL;
