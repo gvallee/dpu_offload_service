@@ -32,7 +32,7 @@ static void send_cb(void *request, ucs_status_t status)
 
 int main(int argc, char **argv)
 {
-    dpu_offload_server_t *server;
+    dpu_offload_daemon_t *server;
     int rc = server_init(&server);
     if (rc)
     {
@@ -45,14 +45,19 @@ int main(int argc, char **argv)
         return EXIT_FAILURE;
     }
 
+    ucp_worker_h worker;
+    DAEMON_GET_WORKER(server, worker);
+    ucp_ep_h client_ep;
+    DAEMON_GET_PEER_EP(server, client_ep);
+
     int msg_tag = 42;
     ucp_tag_t msg_tag_mask = (ucp_tag_t)-1;
     int ping;
-    struct ucx_context *recv_req = ucp_tag_recv_nb(server->ucp_worker, &ping, sizeof(ping), ucp_dt_make_contig(1), msg_tag, msg_tag_mask, recv_cb);
+    struct ucx_context *recv_req = ucp_tag_recv_nb(worker, &ping, sizeof(ping), ucp_dt_make_contig(1), msg_tag, msg_tag_mask, recv_cb);
     if (UCS_PTR_IS_ERR(recv_req))
     {
         fprintf(stderr, "Recv failed\n");
-        ucp_request_cancel(server->ucp_worker, recv_req);
+        ucp_request_cancel(worker, recv_req);
         ucp_request_free(recv_req);
         recv_req = NULL;
     }
@@ -67,23 +72,23 @@ int main(int argc, char **argv)
     if (recv_req != NULL)
     {
         while (!req_completed(recv_req))
-            ucp_worker_progress(server->ucp_worker);
+            ucp_worker_progress(worker);
         ucp_request_free(recv_req);
         recv_req = NULL;
     }
 
     int msg = ping + 1;
-    struct ucx_context *send_req = ucp_tag_send_nb(server->client_ep, &msg, sizeof(msg), ucp_dt_make_contig(1), msg_tag, send_cb);
+    struct ucx_context *send_req = ucp_tag_send_nb(client_ep, &msg, sizeof(msg), ucp_dt_make_contig(1), msg_tag, send_cb);
     if (UCS_PTR_IS_ERR(send_req))
     {
-        ucp_request_cancel(server->ucp_worker, send_req);
+        ucp_request_cancel(worker, send_req);
         ucp_request_free(send_req);
         send_req = NULL;
     }
     if (send_req != NULL)
     {
         while (!req_completed(send_req))
-            ucp_worker_progress(server->ucp_worker);
+            ucp_worker_progress(worker);
         ucp_request_free(send_req);
         send_req = NULL;
     }
@@ -92,7 +97,7 @@ int main(int argc, char **argv)
 
     while (!server->done)
     {
-        ucp_worker_progress(server->ucp_worker);
+        ucp_worker_progress(worker);
     }
 
     server_fini(&server);
