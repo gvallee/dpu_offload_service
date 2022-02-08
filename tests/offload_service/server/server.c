@@ -55,6 +55,7 @@ int main(int argc, char **argv)
     }
 
     // REGISTER SOME EVENTS FOR TESTING
+    fprintf(stderr, "Registering callback for notifications of type %d\n", AM_TEST_MSG_ID);
     rc = event_channel_register(server->event_channels, AM_TEST_MSG_ID, dummy_notification_cb);
     if (rc)
     {

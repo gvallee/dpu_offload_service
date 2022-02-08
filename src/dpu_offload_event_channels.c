@@ -4,9 +4,10 @@
 // See LICENSE.txt for license information
 //
 
-#include <ucp/api/ucp.h>
 #include <inttypes.h>
 #include <string.h>
+
+#include <ucp/api/ucp.h>
 
 #include "dpu_offload_types.h"
 #include "dpu_offload_mem_mgt.h"
@@ -19,6 +20,7 @@ static ucs_status_t am_notification_msg_cb(void *arg, const void *header, size_t
                                            void *data, size_t length,
                                            const ucp_am_recv_param_t *param)
 {
+    assert(header_length == sizeof(am_header_t));
     fprintf(stderr, "Notification received, dispatching...\n");
     execution_context_t *econtext = (execution_context_t *)arg;
     if (header == NULL)
@@ -26,25 +28,26 @@ static ucs_status_t am_notification_msg_cb(void *arg, const void *header, size_t
         fprintf(stderr, "header is undefined\n");
         return UCS_ERR_NO_MESSAGE;
     }
-    uint64_t *hdr = (uint64_t *)header;
-    uint64_t idx = hdr[0];
-
-    if (idx >= econtext->event_channels->num_notification_callbacks)
+    am_header_t *hdr = (am_header_t *)header;
+    assert(hdr);
+    if (hdr->type >= econtext->event_channels->num_notification_callbacks)
     {
-        fprintf(stderr, "notification callback %" PRIu64 " is out of range\n", idx);
+        fprintf(stderr, "notification callback %" PRIu64 " is out of range\n", hdr->type);
         return UCS_ERR_NO_MESSAGE;
     }
-    notification_callback_entry_t *entry = &(econtext->event_channels->notification_callbacks[idx]);
+    notification_callback_entry_t *entry = &(econtext->event_channels->notification_callbacks[hdr->type]);
     if (entry->set == false)
     {
         pending_notification_t *pending_notif;
+        fprintf(stderr, "callback not available for %" PRIu64 "\n", hdr->type);
         DYN_LIST_GET(econtext->event_channels->free_pending_notifications, pending_notification_t, item, pending_notif);
         if (pending_notif == NULL)
         {
             fprintf(stderr, "unable to get pending notification object\n");
             return UCS_ERR_NO_MESSAGE;
         }
-        pending_notif->type = idx;
+        pending_notif->type = hdr->type;
+        pending_notif->client_id = hdr->id;
         pending_notif->data_size = length;
         pending_notif->header_size = header_length;
         pending_notif->arg = arg;
@@ -67,7 +70,9 @@ static ucs_status_t am_notification_msg_cb(void *arg, const void *header, size_t
             pending_notif->header = NULL;
         }
         ucs_list_add_tail(&(econtext->event_channels->pending_notifications), &(pending_notif->item));
+        return UCS_OK;
     }
+
     notification_cb cb = entry->cb;
     if (cb == NULL)
     {
@@ -76,7 +81,6 @@ static ucs_status_t am_notification_msg_cb(void *arg, const void *header, size_t
     }
     struct dpu_offload_ev_sys *ev_sys = EV_SYS(econtext);
     cb(ev_sys, econtext, data);
-
     return UCS_OK;
 }
 
@@ -213,6 +217,7 @@ static void notification_emit_cb(void *user_data, const char *type_str)
 int event_channel_emit(dpu_offload_event_t *ev, uint64_t client_id, uint64_t type, ucp_ep_h dest_ep, void *ctx, void *payload, size_t payload_size)
 {
     ucp_request_param_t params;
+    fprintf(stderr, "Sending notification of type %" PRIu64 " (client_id=%" PRIu64 ")\n", type, client_id);
     ev->ctx.complete = 0;
     ev->ctx.hdr.type = type;
     ev->ctx.hdr.id = client_id;
@@ -222,7 +227,7 @@ int event_channel_emit(dpu_offload_event_t *ev, uint64_t client_id, uint64_t typ
     params.datatype = ucp_dt_make_contig(1);
     params.user_data = &ctx;
     params.cb.send = (ucp_send_nbx_callback_t)notification_emit_cb;
-    ev->req = ucp_am_send_nbx(dest_ep, AM_EVENT_MSG_ID, &(ev->ctx.hdr), sizeof(uint64_t), payload, payload_size, &params);
+    ev->req = ucp_am_send_nbx(dest_ep, AM_EVENT_MSG_ID, &(ev->ctx.hdr), sizeof(am_header_t), payload, payload_size, &params);
     if (ev->req == NULL)
     {
         // Immediate completion, the callback is *not* invoked

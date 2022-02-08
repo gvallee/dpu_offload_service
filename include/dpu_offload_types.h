@@ -201,6 +201,7 @@ typedef struct pending_notification
 {
     ucs_list_link_t item;
     uint64_t type;
+    uint64_t client_id;
     void *header;
     size_t header_size;
     void *data;

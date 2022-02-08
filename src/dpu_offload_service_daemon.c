@@ -1164,10 +1164,16 @@ static ucs_status_t server_create_ep(ucp_worker_h data_worker,
     return status;
 }
 
+/**
+ * @brief Initialize a connection server.
+ * 
+ * @param offloading_engine Associated offloading engine.
+ * @param conn_params Connection parameters, e.g., port to use to listen for connections. If NULL, the configuration will be pulled from environment variables.
+ * @return execution_context_t* 
+ */
 execution_context_t *server_init(offloading_engine_t *offloading_engine, conn_params_t *conn_params)
 {
     assert(offloading_engine);
-    assert(conn_params);
     if (offloading_engine == NULL)
     {
         fprintf(stderr, "Handle is NULL\n");
