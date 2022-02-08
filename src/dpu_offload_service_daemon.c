@@ -17,6 +17,7 @@
 #include "dpu_offload_comm_channels.h"
 #include "dpu_offload_event_channels.h"
 #include "dpu_offload_envvars.h"
+#include "dynamic_list.h"
 
 // A lot of the code is from ucp_client_serrver.c from UCX
 
@@ -192,7 +193,7 @@ int oob_client_connect(dpu_offload_client_t *client, sa_family_t af)
             struct sockaddr_in conn_addr;
             socklen_t conn_addr_len = sizeof(conn_addr);
             memset(&conn_addr, 0, sizeof(conn_addr));
-            getsockname(client->conn_data.oob.sock, (struct sockaddr *) &conn_addr, &conn_addr_len);
+            getsockname(client->conn_data.oob.sock, (struct sockaddr *)&conn_addr, &conn_addr_len);
             char conn_ip[16];
             inet_ntop(AF_INET, &(conn_addr.sin_addr), conn_ip, sizeof(conn_ip));
             int conn_port;
@@ -527,6 +528,7 @@ static int oob_connect(dpu_offload_client_t *client)
         return -1;
     }
     recv(client->conn_data.oob.sock, client->conn_data.oob.peer_addr, client->conn_data.oob.peer_addr_len, MSG_WAITALL);
+    recv(client->conn_data.oob.sock, &(client->id), sizeof(client->id), MSG_WAITALL);
 
     /* Establish the UCX level connection */
     ucp_ep_params_t ep_params;
@@ -592,7 +594,9 @@ int offload_engine_init(offloading_engine_t **engine)
         fprintf(stderr, "unable to allocate resources\n");
         return -1;
     }
+    DYN_LIST_ALLOC(d->free_op_descs, 8, op_desc_t, item);
     *engine = d;
+
     return 0;
 }
 
@@ -617,6 +621,7 @@ execution_context_t *client_init(offloading_engine_t *offload_engine)
         goto error_out;
     }
     ctx->type = CONTEXT_CLIENT;
+    ctx->engine = offload_engine;
 
     ucs_status_t status;
     dpu_offload_client_t *_client;
@@ -715,6 +720,7 @@ static int request_finalize(ucp_worker_h ucp_worker, void *request, am_req_t *ct
 
 void offload_engine_fini(offloading_engine_t **offload_engine)
 {
+    DYN_LIST_FREE((*offload_engine)->free_op_descs, op_desc_t, item);
     free((*offload_engine)->client);
     free((*offload_engine)->servers);
     free(*offload_engine);
@@ -873,7 +879,7 @@ static void oob_recv_handler(void *request, ucs_status_t status,
            status, ucs_status_string(status), info->length);
 }
 
-static int oob_server_ucx_client_connection(execution_context_t *econtext)
+static inline int oob_server_ucx_client_connection(execution_context_t *econtext)
 {
     struct oob_msg *msg = NULL;
     struct ucx_context *request = NULL;
@@ -968,12 +974,20 @@ static int oob_server_ucx_client_connection(execution_context_t *econtext)
     return 0;
 }
 
+static inline uint64_t generate_unique_client_id(execution_context_t *econtext)
+{
+    // For now we only use the slot that the client will have in the list of connected clients
+    return (uint64_t)econtext->server->connected_clients.num_connected_clients;
+}
+
 static int oob_server_listen(execution_context_t *econtext)
 {
     /* OOB connection establishment */
     econtext->server->conn_data.oob.sock = oob_server_accept(econtext->server->conn_params.port, ai_family);
     send(econtext->server->conn_data.oob.sock, &(econtext->server->conn_data.oob.local_addr_len), sizeof(econtext->server->conn_data.oob.local_addr_len), 0);
     send(econtext->server->conn_data.oob.sock, econtext->server->conn_data.oob.local_addr, econtext->server->conn_data.oob.local_addr_len, 0);
+    uint64_t client_id = generate_unique_client_id(econtext);
+    send(econtext->server->conn_data.oob.sock, &client_id, sizeof(uint64_t), 0);
 
     int rc = oob_server_ucx_client_connection(econtext);
     if (rc)
@@ -1150,8 +1164,16 @@ static ucs_status_t server_create_ep(ucp_worker_h data_worker,
     return status;
 }
 
+/**
+ * @brief Initialize a connection server.
+ * 
+ * @param offloading_engine Associated offloading engine.
+ * @param conn_params Connection parameters, e.g., port to use to listen for connections. If NULL, the configuration will be pulled from environment variables.
+ * @return execution_context_t* 
+ */
 execution_context_t *server_init(offloading_engine_t *offloading_engine, conn_params_t *conn_params)
 {
+    assert(offloading_engine);
     if (offloading_engine == NULL)
     {
         fprintf(stderr, "Handle is NULL\n");
@@ -1165,6 +1187,7 @@ execution_context_t *server_init(offloading_engine_t *offloading_engine, conn_pa
         goto error_out;
     }
     execution_context->type = CONTEXT_SERVER;
+    execution_context->engine = offloading_engine;
 
     dpu_offload_server_t *server;
     int ret = server_init_context(&server, conn_params);

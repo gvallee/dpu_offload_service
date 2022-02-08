@@ -5,6 +5,8 @@
 //
 
 #include <stdlib.h>
+#include <assert.h>
+
 #include <ucs/datastruct/list.h>
 
 #ifndef DPU_OFFLOAD_DYNAMIC_LIST_H

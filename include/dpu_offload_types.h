@@ -24,6 +24,19 @@ typedef enum
     CONTEXT_SERVER
 } daemon_type_t;
 
+#define MY_ID(_exec_ctx) ({                \
+    uint64_t _my_id;                       \
+    if (_exec_ctx->type == CONTEXT_CLIENT) \
+    {                                      \
+        _my_id = _exec_ctx->client->id;    \
+    }                                      \
+    else                                   \
+    {                                      \
+        _my_id = 0;                        \
+    }                                      \
+    _my_id;                                \
+})
+
 #define GET_SERVER_EP(_exec_ctx) ({         \
     ucp_ep_h _ep;                           \
     if (_exec_ctx->type == CONTEXT_CLIENT)  \
@@ -61,6 +74,32 @@ typedef enum
         _w = _exec_ctx->server->ucp_worker; \
     }                                       \
     _w;                                     \
+})
+
+#define EV_SYS(_exec_ctx) ({                      \
+    dpu_offload_ev_sys_t *_sys;                   \
+    if (_exec_ctx->type == CONTEXT_CLIENT)        \
+    {                                             \
+        _sys = _exec_ctx->client->event_channels; \
+    }                                             \
+    else                                          \
+    {                                             \
+        _sys = _exec_ctx->server->event_channels; \
+    }                                             \
+    _sys;                                         \
+})
+
+#define ACTIVE_OPS(_exec_ctx) ({                  \
+    ucs_list_link_t *_list;                       \
+    if (_exec_ctx->type == CONTEXT_CLIENT)        \
+    {                                             \
+        _list = &(_exec_ctx->client->active_ops); \
+    }                                             \
+    else                                          \
+    {                                             \
+        _list = &(_exec_ctx->server->active_ops); \
+    }                                             \
+    _list;                                        \
 })
 
 #define EXECUTION_CONTEXT_DONE(_exec_ctx) ({ \
@@ -104,11 +143,57 @@ typedef struct offload_config
     } infra;
 } offload_config_t;
 
-typedef int (*notification_cb)(void *context, void *data);
+/* OPERATIONS */
+
+typedef int (*op_init_fn)();
+typedef int (*op_complete_fn)();
+typedef int (*op_progress_fn)();
+typedef int (*op_fini_fn)();
+
+typedef struct offload_op
+{
+    // alg_id identifies the algorithm being implemented, e.g. alltoallv
+    uint64_t alg_id;
+
+    op_init_fn op_init;
+    op_complete_fn op_complete;
+    op_progress_fn op_progress;
+    op_fini_fn op_fini;
+
+    // alg_data is a pointer that can be used by developers to store data
+    // that can be used for the execution of all operations that is specific
+    // to the implementation of the algorithm.
+    void *alg_data;
+} offload_op_t;
+
+typedef struct op_desc
+{
+    ucs_list_link_t item;
+    uint64_t id;
+    offload_op_t *op_definition;
+
+    // op_data can be used by developers to associate any run-time data to the execution of the operation.
+    void *op_data;
+    bool completed;
+} op_desc_t;
+
+#if 0
+typedef struct active_ops
+{
+    size_t num_active_ops;
+    op_desc_t *ops;
+} active_ops_t;
+#endif
+
+/* NOTIFICATIONS */
+
+struct dpu_offload_ev_sys;
+typedef int (*notification_cb)(struct dpu_offload_ev_sys *ev_sys, void *context, void *data);
 
 typedef struct notification_callback_entry
 {
     bool set;
+    struct dpu_offload_ev_sys *ev_sys;
     notification_cb cb;
 } notification_callback_entry_t;
 
@@ -116,6 +201,7 @@ typedef struct pending_notification
 {
     ucs_list_link_t item;
     uint64_t type;
+    uint64_t client_id;
     void *header;
     size_t header_size;
     void *data;
@@ -134,6 +220,8 @@ typedef struct dpu_offload_ev_sys
     // Array of callback functions, i.e., array of pointers
     notification_callback_entry_t *notification_callbacks;
 } dpu_offload_ev_sys_t;
+
+/* OFFLOADING ENGINE, CLIENTS/SERVERS */
 
 typedef struct ucx_server_ctx
 {
@@ -177,6 +265,9 @@ typedef struct dpu_offload_server_t
 
     dpu_offload_ev_sys_t *event_channels;
 
+    /* Active operations: a server can execute operations on behalf of all the clients that are connected */
+    ucs_list_link_t active_ops;
+
     union
     {
         struct
@@ -199,6 +290,7 @@ typedef struct dpu_offload_server_t
 
 typedef struct dpu_offload_client_t
 {
+    uint64_t id; // Identifier assigned by server
     int mode;
     conn_params_t conn_params;
     bool done;
@@ -209,6 +301,9 @@ typedef struct dpu_offload_client_t
     ucs_status_t server_ep_status;
 
     dpu_offload_ev_sys_t *event_channels;
+
+    /* Active operations: a client can execute operations on behalf of the server it is connected to */
+    ucs_list_link_t active_ops;
 
     union
     {
@@ -229,9 +324,11 @@ typedef struct dpu_offload_client_t
     } conn_data;
 } dpu_offload_client_t;
 
+struct offloading_engine; // forward declaration
 typedef struct execution_context
 {
     int type;
+    struct offloading_engine *engine;
     dpu_offload_ev_sys_t *event_channels;
     union
     {
@@ -240,9 +337,19 @@ typedef struct execution_context
     };
 } execution_context_t;
 
-typedef struct am_req_t
+typedef struct am_header
 {
-    uint64_t hdr;
+    // For clients, id assigned by server during connection,
+    // used for triage when server has multiple clients
+    uint64_t id;
+
+    // Type associated to the payload, e.g., notification type.
+    uint64_t type;
+} am_header_t;
+
+typedef struct am_req
+{
+    am_header_t hdr;
     int complete;
 } am_req_t;
 
@@ -262,6 +369,8 @@ typedef enum
     EVENT_INPROGRESS = UCS_INPROGRESS
 } event_state_t;
 
+/* OFFLOADING ENGINE */
+
 typedef struct offloading_engine
 {
     int done;
@@ -275,12 +384,19 @@ typedef struct offloading_engine
     size_t num_max_servers;
     size_t num_servers;
     dpu_offload_server_t **servers;
+
+    /* Vector of registered operation, ready for execution */
+    size_t num_registered_ops;
+    offload_op_t *registered_ops;
+    dyn_list_t *free_op_descs;
 } offloading_engine_t;
 
 typedef enum
 {
     AM_TERM_MSG_ID = 33,
     AM_EVENT_MSG_ID,
+    AM_OP_START_MSG_ID,
+    AM_OP_COMPLETION_MSG_ID,
     AM_TEST_MSG_ID
 } am_id_t;
 

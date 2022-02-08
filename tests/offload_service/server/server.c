@@ -31,7 +31,7 @@ static void send_cb(void *request, ucs_status_t status)
 }
 
 bool notification_recvd = false;
-static int dummy_notification_cb(void *context, void *data)
+static int dummy_notification_cb(struct dpu_offload_ev_sys *ev_sys, void *context, void *data)
 {
     fprintf(stderr, "Notification successfully received\n");
     notification_recvd = true;
@@ -55,6 +55,7 @@ int main(int argc, char **argv)
     }
 
     // REGISTER SOME EVENTS FOR TESTING
+    fprintf(stderr, "Registering callback for notifications of type %d\n", AM_TEST_MSG_ID);
     rc = event_channel_register(server->event_channels, AM_TEST_MSG_ID, dummy_notification_cb);
     if (rc)
     {

@@ -16,7 +16,7 @@
 int event_channels_init(dpu_offload_ev_sys_t **, execution_context_t *);
 int event_channel_register(dpu_offload_ev_sys_t *ev_sys, uint64_t type, notification_cb cb);
 int event_channel_deregister(dpu_offload_ev_sys_t *ev_sys, uint64_t type);
-int event_channel_emit(dpu_offload_event_t *ev, uint64_t type, ucp_ep_h dest_ep, void *ctx, void *payload, size_t payload_size);
+int event_channel_emit(dpu_offload_event_t *ev, uint64_t client_id, uint64_t type, ucp_ep_h dest_ep, void *ctx, void *payload, size_t payload_size);
 int event_channels_fini(dpu_offload_ev_sys_t **);
 
 int event_get(dpu_offload_ev_sys_t *ev_sys, dpu_offload_event_t **ev);
