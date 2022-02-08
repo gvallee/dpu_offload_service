@@ -74,7 +74,8 @@ static ucs_status_t am_notification_msg_cb(void *arg, const void *header, size_t
         fprintf(stderr, "Callback is undefined\n");
         return UCS_ERR_NO_MESSAGE;
     }
-    cb(econtext, data);
+    struct dpu_offload_ev_sys *ev_sys = EV_SYS(econtext);
+    cb(ev_sys, econtext, data);
 
     return UCS_OK;
 }
@@ -113,6 +114,7 @@ int event_channels_init(dpu_offload_ev_sys_t **e, execution_context_t *econtext)
         entry->set = false;
     }
 
+    // Register the UCX AM handler used for all notifications
     ucp_am_handler_param_t ev_param;
     ev_param.field_mask = UCP_AM_HANDLER_PARAM_FIELD_ID |
                           UCP_AM_HANDLER_PARAM_FIELD_CB |
@@ -154,6 +156,7 @@ int event_channel_register(dpu_offload_ev_sys_t *ev_sys, uint64_t type, notifica
 
     entry->cb = cb;
     entry->set = true;
+    entry->ev_sys = (struct dpu_offload_ev_sys *)ev_sys;
 
     /* check for any pending notification that would match */
     pending_notification_t *pending_notif, *next_pending_notif;
@@ -162,7 +165,7 @@ int event_channel_register(dpu_offload_ev_sys_t *ev_sys, uint64_t type, notifica
         if (pending_notif->type == type)
         {
             ucs_list_del(&(pending_notif->item));
-            cb(pending_notif->arg, pending_notif->data);
+            cb((struct dpu_offload_ev_sys *)ev_sys, pending_notif->arg, pending_notif->data);
         }
     }
 
@@ -207,11 +210,12 @@ static void notification_emit_cb(void *user_data, const char *type_str)
     ctx->complete = 1;
 }
 
-int event_channel_emit(dpu_offload_event_t *ev, uint64_t type, ucp_ep_h dest_ep, void *ctx, void *payload, size_t payload_size)
+int event_channel_emit(dpu_offload_event_t *ev, uint64_t client_id, uint64_t type, ucp_ep_h dest_ep, void *ctx, void *payload, size_t payload_size)
 {
     ucp_request_param_t params;
     ev->ctx.complete = 0;
-    ev->ctx.hdr = type;
+    ev->ctx.hdr.type = type;
+    ev->ctx.hdr.id = client_id;
     params.op_attr_mask = UCP_OP_ATTR_FIELD_CALLBACK |
                           UCP_OP_ATTR_FIELD_DATATYPE |
                           UCP_OP_ATTR_FIELD_USER_DATA;
@@ -263,5 +267,99 @@ int event_return(dpu_offload_ev_sys_t *ev_sys, dpu_offload_event_t **ev)
     DYN_LIST_RETURN(ev_sys->free_evs, (*ev), item);
     ev_sys->num_used_evs--;
     *ev = NULL; // so it cannot be used any longer
+    return 0;
+}
+
+static int op_completion_cb(struct dpu_offload_ev_sys *ev_sys, void *context, void *data)
+{
+    execution_context_t *econtext = (execution_context_t *)context;
+    uint64_t *_data = (uint64_t *)data;
+
+    // Find the operation and add it to the local list of active operations
+    op_desc_t *cur_op, *next_op, *op = NULL;
+    ucs_list_for_each_safe(cur_op, next_op, ACTIVE_OPS(econtext), item)
+    {
+        if (cur_op->id == _data[0])
+        {
+            op = cur_op;
+            break;
+        }
+    }
+
+    if (op == NULL)
+    {
+        fprintf(stderr, "%s(): unable to look up operation\n", __func__);
+        return -1;
+    }
+
+    op->completed = true;
+    if (op->op_definition->op_complete != NULL)
+        op->op_definition->op_complete();
+
+    return 0;
+}
+
+static int op_start_cb(struct dpu_offload_ev_sys *ev_sys, void *context, void *data)
+{
+    assert(context);
+    assert(data);
+    execution_context_t *econtext = (execution_context_t *)context;
+    uint64_t *_data = (uint64_t *)data;
+    uint64_t op_idx = _data[0];
+
+    // Find the operation and add it to the local list of registered operations
+    offload_op_t *op_cfg = NULL;
+    int i;
+    for (i = 0; i < econtext->engine->num_registered_ops; i++)
+    {
+        if (_data[0] == econtext->engine->registered_ops[i].alg_id)
+        {
+            op_cfg = &(econtext->engine->registered_ops[i]);
+            break;
+        }
+    }
+
+    if (op_cfg == NULL)
+    {
+        fprintf(stderr, "%s(): unable to find a matching registered function\n", __func__);
+        return -1;
+    }
+
+    // Instantiate the operation
+    op_desc_t *op_desc;
+    DYN_LIST_GET(econtext->engine->free_op_descs, op_desc_t, item, op_desc);
+    if (op_desc == NULL)
+    {
+        fprintf(stderr, "%s(): unable to get a free operation descriptor\n", __func__);
+        return -1;
+    }
+
+    op_desc->id = _data[0];
+    op_desc->completed = false;
+    op_desc->op_definition = op_cfg;
+
+    ucs_list_add_tail(ACTIVE_OPS(econtext), &(op_desc->item));
+
+    // Call the init function of the operation
+    op_cfg->op_init();
+
+    return 0;
+}
+
+int register_default_notifications(dpu_offload_ev_sys_t *ev_sys)
+{
+    int rc = event_channel_register(ev_sys, AM_OP_START_MSG_ID, op_start_cb);
+    if (rc)
+    {
+        fprintf(stderr, "event_channel_register() failed, cannot register handler to start operations\n");
+        return -1;
+    }
+
+    rc = event_channel_register(ev_sys, AM_OP_COMPLETION_MSG_ID, op_completion_cb);
+    if (rc)
+    {
+        fprintf(stderr, "event_channel_register() failed, cannot register handler for operation completion\n");
+        return -1;
+    }
     return 0;
 }

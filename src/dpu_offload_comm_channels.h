@@ -17,13 +17,24 @@ static ucs_status_t am_term_msg_cb(void *arg, const void *header, size_t header_
         fprintf(stderr, "am_term_msg_cb() - handle is NULL\n");
         return -1;
     }
+
     switch (d->type)
     {
     case CONTEXT_CLIENT:
         d->client->done = true;
         break;
     case CONTEXT_SERVER:
-        d->server->done = true;
+#if 0
+        // the client id provided by the client is actually the slot where the client info is
+        am_header_t *hdr = (am_header_t*)header;
+        int idx = (int)hdr->id;  // todo: track which client is connected/disconnected
+        d->server->connected_clients.clients[idx].status = DISCONNECTED;
+#endif
+        d->server->connected_clients.num_connected_clients --;
+        if (d->server->connected_clients.num_connected_clients == 0)
+        {
+            d->server->done = true;
+        }
         break;
     default:
         fprintf(stderr, "invalid type\n");

@@ -108,7 +108,7 @@ int main(int argc, char **argv)
         return EXIT_FAILURE;
     }
 
-    rc = event_channel_emit(ev, AM_TEST_MSG_ID, GET_SERVER_EP(client), NULL, NULL, 0);
+    rc = event_channel_emit(ev, client->client->id, AM_TEST_MSG_ID, GET_SERVER_EP(client), NULL, NULL, 0);
     if (rc)
     {
         fprintf(stderr, "event_channel_emit() failed\n");
