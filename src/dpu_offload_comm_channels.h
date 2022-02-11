@@ -6,6 +6,9 @@
 
 #include "dpu_offload_service_daemon.h"
 
+#ifndef _DPU_OFFLOAD_COMM_CHANNELS_H
+#define _DPU_OFFLOAD_COMM_CHANNELS_H
+
 static ucs_status_t am_term_msg_cb(void *arg, const void *header, size_t header_length,
                                    void *data, size_t length,
                                    const ucp_am_recv_param_t *param)
@@ -76,3 +79,5 @@ static int dpu_offload_set_am_recv_handlers(execution_context_t *ctx)
 
     return 0;
 }
+
+#endif // _DPU_OFFLOAD_COMM_CHANNELS_H
