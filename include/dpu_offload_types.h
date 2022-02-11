@@ -324,12 +324,17 @@ typedef struct dpu_offload_client_t
     } conn_data;
 } dpu_offload_client_t;
 
+struct execution_context;
+typedef int (*execution_context_progress_fn)(struct execution_context *);
+
 struct offloading_engine; // forward declaration
 typedef struct execution_context
 {
     int type;
     struct offloading_engine *engine;
     dpu_offload_ev_sys_t *event_channels;
+    ucs_list_link_t ongoing_events;
+    execution_context_progress_fn progress;
     union
     {
         dpu_offload_client_t *client;
@@ -393,10 +398,12 @@ typedef struct offloading_engine
 
 typedef enum
 {
-    AM_TERM_MSG_ID = 33,
+    AM_TERM_MSG_ID = 33, // 33 to make it easier to see corruptions (dbg)
     AM_EVENT_MSG_ID,
     AM_OP_START_MSG_ID,
     AM_OP_COMPLETION_MSG_ID,
+    AM_XGVMI_ADD_MSG_ID,
+    AM_XGVMI_DEL_MSG_ID,
     AM_TEST_MSG_ID
 } am_id_t;
 

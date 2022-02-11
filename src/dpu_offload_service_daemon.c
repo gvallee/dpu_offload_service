@@ -600,6 +600,40 @@ int offload_engine_init(offloading_engine_t **engine)
     return 0;
 }
 
+static int execution_context_progress(execution_context_t *ctx)
+{
+    // Progress the UCX worker to eventually complete some communications
+    ucp_worker_progress(GET_WORKER(ctx));
+
+    // Progress the ingoing events
+    dpu_offload_event_t *ev, *next_ev;
+    ucs_list_for_each_safe(ev, next_ev, (&(ctx->ongoing_events)), item)
+    {
+        if (ev->ctx.complete)
+        {
+            event_return(ctx->event_channels, &ev);
+        }
+    }
+}
+
+static int execution_context_init(offloading_engine_t *offload_engine, uint64_t type, execution_context_t **econtext)
+{
+    execution_context_t *ctx = malloc(sizeof(execution_context_t));
+    if (ctx == NULL)
+    {
+        fprintf(stderr, "unable to allocate execution context\n");
+        goto error_out;
+    }
+    ctx->type = CONTEXT_CLIENT;
+    ctx->engine = offload_engine;
+    ctx->progress = execution_context_progress;
+    ucs_list_head_init(&(ctx->ongoing_events));
+    *econtext = ctx;
+    return 0;
+error_out:
+    return -1;
+}
+
 execution_context_t *client_init(offloading_engine_t *offload_engine)
 {
     if (offload_engine == NULL)
@@ -614,18 +648,17 @@ execution_context_t *client_init(offloading_engine_t *offload_engine)
         goto error_out;
     }
 
-    execution_context_t *ctx = malloc(sizeof(execution_context_t));
-    if (ctx == NULL)
+    execution_context_t *ctx;
+    int rc = execution_context_init(offload_engine, CONTEXT_CLIENT, &ctx);
+    if (rc != 0 || ctx == NULL)
     {
-        fprintf(stderr, "unable to allocate execution context\n");
+        fprintf(stderr, "execution_context_init() failed\n");
         goto error_out;
     }
-    ctx->type = CONTEXT_CLIENT;
-    ctx->engine = offload_engine;
 
     ucs_status_t status;
     dpu_offload_client_t *_client;
-    int rc = client_init_context(&_client);
+    rc = client_init_context(&_client);
     if (rc)
     {
         fprintf(stderr, "init_client_context() failed\n");
@@ -1166,10 +1199,10 @@ static ucs_status_t server_create_ep(ucp_worker_h data_worker,
 
 /**
  * @brief Initialize a connection server.
- * 
+ *
  * @param offloading_engine Associated offloading engine.
  * @param conn_params Connection parameters, e.g., port to use to listen for connections. If NULL, the configuration will be pulled from environment variables.
- * @return execution_context_t* 
+ * @return execution_context_t*
  */
 execution_context_t *server_init(offloading_engine_t *offloading_engine, conn_params_t *conn_params)
 {
@@ -1180,14 +1213,13 @@ execution_context_t *server_init(offloading_engine_t *offloading_engine, conn_pa
         goto error_out;
     }
 
-    execution_context_t *execution_context = malloc(sizeof(execution_context_t));
-    if (execution_context == NULL)
+    execution_context_t *execution_context;
+    int rc = execution_context_init(offloading_engine, CONTEXT_SERVER, &execution_context);
+    if (rc)
     {
-        fprintf(stderr, "unable to allocate execution context\n");
+        fprintf(stderr, "execution_context_init() failed\n");
         goto error_out;
     }
-    execution_context->type = CONTEXT_SERVER;
-    execution_context->engine = offloading_engine;
 
     dpu_offload_server_t *server;
     int ret = server_init_context(&server, conn_params);
