@@ -63,7 +63,7 @@ int main(int argc, char **argv)
     if (send_req != NULL)
     {
         while (!req_completed(send_req))
-            ucp_worker_progress(GET_WORKER(client));
+            client->progress(client);
         ucp_request_free(send_req);
         send_req = NULL;
     }
@@ -89,7 +89,7 @@ int main(int argc, char **argv)
     {
         /* if it did not complete, we wait for it to complete */
         while (!req_completed(recv_req))
-            ucp_worker_progress(GET_WORKER(client));
+            client->progress(client);
         ucp_request_free(recv_req);
         recv_req = NULL;
     }
@@ -116,7 +116,7 @@ int main(int argc, char **argv)
     }
 
     while(!ev->ctx.complete)
-        ucp_worker_progress(GET_WORKER(client));
+        client->progress(client);
 
     rc = event_return(client->event_channels, &ev);
     if (rc)

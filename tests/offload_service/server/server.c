@@ -86,7 +86,7 @@ int main(int argc, char **argv)
     if (recv_req != NULL)
     {
         while (!req_completed(recv_req))
-            ucp_worker_progress(GET_WORKER(server));
+            server->progress(server);
         ucp_request_free(recv_req);
         recv_req = NULL;
     }
@@ -103,14 +103,14 @@ int main(int argc, char **argv)
     if (send_req != NULL)
     {
         while (!req_completed(send_req))
-            ucp_worker_progress(GET_WORKER(server));
+           server->progress(server);
         ucp_request_free(send_req);
         send_req = NULL;
     }
 
     while (!notification_recvd)
     {
-        ucp_worker_progress(GET_WORKER(server));
+        server->progress(server);
     }
 
     fprintf(stderr, "ALL TESTS COMPLETED\n");
@@ -119,7 +119,7 @@ int main(int argc, char **argv)
 
     while (!EXECUTION_CONTEXT_DONE(server))
     {
-        ucp_worker_progress(GET_WORKER(server));
+        server->progress(server);
     }
 
     server_fini(&server);

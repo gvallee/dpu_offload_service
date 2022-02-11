@@ -259,7 +259,10 @@ int event_get(dpu_offload_ev_sys_t *ev_sys, dpu_offload_event_t **ev)
     dpu_offload_event_t *_ev;
     DYN_LIST_GET(ev_sys->free_evs, dpu_offload_event_t, item, _ev);
     if (_ev != NULL)
+    {
         ev_sys->num_used_evs++;
+        _ev->ctx.complete = 0;
+    }
     *ev = _ev;
     return 0;
 }
@@ -274,6 +277,10 @@ int event_return(dpu_offload_ev_sys_t *ev_sys, dpu_offload_event_t **ev)
     *ev = NULL; // so it cannot be used any longer
     return 0;
 }
+
+/********************/
+/* DEFAULT HANDLERS */
+/********************/
 
 static int op_completion_cb(struct dpu_offload_ev_sys *ev_sys, void *context, void *data)
 {
@@ -351,6 +358,16 @@ static int op_start_cb(struct dpu_offload_ev_sys *ev_sys, void *context, void *d
     return 0;
 }
 
+static int xgvmi_key_revoke_cb(struct dpu_offload_ev_sys *ev_sys, void *context, void *data)
+{
+    // todo
+}
+
+static int xgvmi_key_recv_cb(struct dpu_offload_ev_sys *ev_sys, void *context, void *data)
+{
+    // todo
+}
+
 int register_default_notifications(dpu_offload_ev_sys_t *ev_sys)
 {
     int rc = event_channel_register(ev_sys, AM_OP_START_MSG_ID, op_start_cb);
@@ -366,5 +383,20 @@ int register_default_notifications(dpu_offload_ev_sys_t *ev_sys)
         fprintf(stderr, "event_channel_register() failed, cannot register handler for operation completion\n");
         return -1;
     }
+
+    rc = event_channel_register(ev_sys, AM_XGVMI_ADD_MSG_ID, xgvmi_key_recv_cb);
+    if (rc)
+    {
+        fprintf(stderr, "event_channel_register() failed, cannot register handler for receiving XGVMI keys\n");
+        return -1;
+    }
+
+    rc = event_channel_register(ev_sys, AM_XGVMI_DEL_MSG_ID, xgvmi_key_revoke_cb);
+    if (rc)
+    {
+        fprintf(stderr, "event_channel_register() failed, cannot register handler for revoke XGVMI keys\n");
+        return -1;
+    }
+
     return 0;
 }
