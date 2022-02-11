@@ -42,11 +42,32 @@ AC_ENABLE_SHARED
 AC_DISABLE_STATIC
 LT_INIT
 
-# pthread
+dnl # pthread
 
 AC_CHECK_HEADERS(pthread.h,, [AC_MSG_ERROR([pthread.h required])])
 AC_SUBST([LIBS],["$LIBS -lpthread"])
 AC_CHECK_LIB(pthread, pthread_create,,AC_MSG_ERROR([Cannot use pthread lib]))
+
+dnl # debug mode
+
+AC_MSG_CHECKING([Check for debug mode request])
+AC_ARG_ENABLE(debug,
+              AS_HELP_STRING([--enable-debug],
+                             [enable debugging, default: no]),
+                             [case "${enableval}" in
+                                yes) debug=true ;;
+                                no)  debug=false ;;
+                                *)   AC_MSG_ERROR([bad value ${enableval} for --enable-debug]) ;;
+                              esac],
+                             [debug=false])
+if test "x$enable_debug" = xyes; then
+    AC_MSG_RESULT([yes])
+    CFLAGS="-g"
+    AC_DEFINE([NDEBUG], [0], [NDEBUG set to 0 (debug enabled)])
+else
+    AC_MSG_RESULT([no])
+    AC_DEFINE([NDEBUG], [1], [NDEBUG set to 1 (debug disabled)])    
+fi
 
 dnl# ucx
 
