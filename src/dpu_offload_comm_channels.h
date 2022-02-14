@@ -5,6 +5,7 @@
 //
 
 #include "dpu_offload_service_daemon.h"
+#include "dpu_offload_debug.h"
 
 #ifndef _DPU_OFFLOAD_COMM_CHANNELS_H
 #define _DPU_OFFLOAD_COMM_CHANNELS_H
@@ -14,12 +15,8 @@ static ucs_status_t am_term_msg_cb(void *arg, const void *header, size_t header_
                                    const ucp_am_recv_param_t *param)
 {
     execution_context_t *d = (execution_context_t *)arg;
-    fprintf(stderr, "TERM msg received (handle=%p)\n", d);
-    if (d == NULL)
-    {
-        fprintf(stderr, "am_term_msg_cb() - handle is NULL\n");
-        return -1;
-    }
+    DBG("TERM msg received (handle=%p)", d);
+    CHECK_ERR_RETURN((d == NULL), DO_ERROR, "handle is NULL");
 
     switch (d->type)
     {
@@ -48,7 +45,7 @@ static ucs_status_t am_term_msg_cb(void *arg, const void *header, size_t header_
     return UCS_OK;
 }
 
-static int dpu_offload_set_am_recv_handlers(execution_context_t *ctx)
+static dpu_offload_status_t dpu_offload_set_am_recv_handlers(execution_context_t *ctx)
 {
     ucp_worker_h worker = GET_WORKER(ctx);
     if (worker == NULL)

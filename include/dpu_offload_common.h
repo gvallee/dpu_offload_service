@@ -5,6 +5,7 @@
 //
 
 #include <pmix.h>
+#include <ucp/api/ucp.h>
 
 #ifndef DPU_OFFLOAD_COMMON_H
 #define DPU_OFFLOAD_COMMON_H
@@ -19,22 +20,26 @@
 #endif
 
 #if defined(c_plusplus) || defined(__cplusplus)
-extern "C" {
+extern "C"
+{
 #endif
 
-typedef pmix_info_t     dpu_offload_info_t;
+    typedef pmix_info_t dpu_offload_info_t;
 
 #define DPU_OFFLOAD_INFO_CREATE PMIX_INFO_CREATE
-#define DPU_OFFLOAD_INFO_LOAD   PMIX_INFO_LOAD
-#define DPU_OFFLOAD_INFO_FREE   PMIX_INFO_FREE
+#define DPU_OFFLOAD_INFO_LOAD PMIX_INFO_LOAD
+#define DPU_OFFLOAD_INFO_FREE PMIX_INFO_FREE
 
-#define DPU_OFFLOAD_STRING      PMIX_STRING
+#define DPU_OFFLOAD_STRING PMIX_STRING
 
-typedef int dpu_offload_status_t;
+    typedef enum
+    {
+        DO_ERROR = UCS_ERR_NO_MESSAGE,
+        DO_SUCCESS = UCS_OK
+    } dpu_offload_status_t;
 
-#define DPU_OFFLOAD_SUCCESS                  0
-#define DPU_OFFLOAD_ERROR                   -1
-
+#define DPU_OFFLOAD_SUCCESS DO_SUCCESS
+#define DPU_OFFLOAD_ERROR DO_ERROR
 
 #if defined(c_plusplus) || defined(__cplusplus)
 }

@@ -10,10 +10,10 @@
 #ifndef DPU_OFFLOAD_TYPES_H
 #define DPU_OFFLOAD_TYPES_H
 
-#include <ucp/api/ucp.h>
 #include <ucs/datastruct/list.h>
 
 #include "dynamic_list.h"
+#include "dpu_offload_common.h"
 #include "dpu_offload_utils.h"
 
 _EXTERN_C_BEGIN
