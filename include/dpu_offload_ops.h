@@ -37,18 +37,18 @@ uint64_t register_new_op(offloading_engine_t *engine, offload_op_t *op);
  * @param id Unique identifier associated with the operation. For collective operation, it must be the same for all app processes.
  * @param op_id Registration identifier returned by register_new_op().
  * @param desc Returned descriptor. The operation is active only once submited.
- * @return int
+ * @return dpu_offload_status_t
  */
-int op_desc_get(offloading_engine_t *engine, const uint64_t id, uint64_t op_id, op_desc_t **desc);
+dpu_offload_status_t op_desc_get(offloading_engine_t *engine, const uint64_t id, uint64_t op_id, op_desc_t **desc);
 
 /**
  * @brief Start the execution of a operation descriptor.
  *
  * @param engine Associated offload engine.
  * @param desc Descriptor of the operation to execute.
- * @return int
+ * @return dpu_offload_status_t
  */
-int op_desc_submit(offloading_engine_t *engine, op_desc_t *desc);
+dpu_offload_status_t op_desc_submit(offloading_engine_t *engine, op_desc_t *desc);
 
 /**
  * @brief Return the descriptor of a completed operation. Returning a non-completed operation
@@ -56,8 +56,8 @@ int op_desc_submit(offloading_engine_t *engine, op_desc_t *desc);
  *
  * @param engine Associated offload engine.
  * @param desc Descriptor of the operation to return. In case of error, the descriptor is in an undefined step; upon success the descriptor shall be NULL.
- * @return int
+ * @return dpu_offload_status_t
  */
-int op_desc_return(offloading_engine_t *engine, op_desc_t **desc);
+dpu_offload_status_t op_desc_return(offloading_engine_t *engine, op_desc_t **desc);
 
 #endif // DPU_OFFLOAD_OPS_H

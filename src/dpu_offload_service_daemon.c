@@ -18,6 +18,7 @@
 #include "dpu_offload_event_channels.h"
 #include "dpu_offload_envvars.h"
 #include "dynamic_list.h"
+#include "dpu_offload_debug.h"
 
 // A lot of the code is from ucp_client_serrver.c from UCX
 
@@ -46,39 +47,30 @@ struct oob_msg
 
 am_msg_t am_data_desc = {0, 0, NULL, NULL};
 
-// int get_env_config(char **addr_str, char **port_str, uint16_t *port)
-int get_env_config(conn_params_t *params)
+dpu_offload_status_t get_env_config(conn_params_t *params)
 {
     char *server_port_envvar = getenv(SERVER_PORT_ENVVAR);
     char *server_addr = getenv(SERVER_IP_ADDR_ENVVAR);
     int port = -1;
+
+    CHECK_ERR_RETURN((!server_addr), DO_ERROR, "Invalid server address, please make sure the environment variable %s is correctly set", SERVER_IP_ADDR_ENVVAR);
 
     if (server_port_envvar)
     {
         port = (uint16_t)atoi(server_port_envvar);
     }
 
-    if (!server_addr)
-    {
-        fprintf(stderr, "Invalid server address, please make sure the environment variable %s is correctly set\n", SERVER_IP_ADDR_ENVVAR);
-        return -1;
-    }
-
-    if (port < 0)
-    {
-        fprintf(stderr, "Invalid server port (%s), please specify the environment variable %s\n",
-                server_port_envvar, SERVER_PORT_ENVVAR);
-        return -1;
-    }
+    CHECK_ERR_RETURN((port < 0), DO_ERROR, "Invalid server port (%s), please specify the environment variable %s",
+                     server_port_envvar, SERVER_PORT_ENVVAR);
 
     params->addr_str = server_addr;
     params->port_str = server_port_envvar;
     params->port = port;
 
-    return 0;
+    return DO_SUCCESS;
 }
 
-int set_sock_addr(char *addr, uint16_t port, struct sockaddr_storage *saddr)
+dpu_offload_status_t set_sock_addr(char *addr, uint16_t port, struct sockaddr_storage *saddr)
 {
     struct sockaddr_in *sa_in;
     struct sockaddr_in6 *sa_in6;
@@ -125,10 +117,10 @@ int set_sock_addr(char *addr, uint16_t port, struct sockaddr_storage *saddr)
         break;
     }
 
-    return 0;
+    return DO_SUCCESS;
 }
 
-static int oob_server_accept(uint16_t server_port, sa_family_t af)
+static dpu_offload_status_t oob_server_accept(uint16_t server_port, sa_family_t af)
 {
     int listenfd, connfd;
     struct sockaddr_in servaddr;
@@ -146,14 +138,14 @@ static int oob_server_accept(uint16_t server_port, sa_family_t af)
     bind(listenfd, (struct sockaddr *)&servaddr, sizeof(servaddr));
     listen(listenfd, 1024);
 
-    fprintf(stderr, "Accepting connection on port %" PRIu16 "...\n", server_port);
+    DBG("Accepting connection on port %" PRIu16 "...", server_port);
     connfd = accept(listenfd, (struct sockaddr *)NULL, NULL);
-    fprintf(stderr, "Connection acception on fd=%d\n", connfd);
+    DBG("Connection acception on fd=%d", connfd);
 
     return connfd;
 }
 
-int oob_client_connect(dpu_offload_client_t *client, sa_family_t af)
+dpu_offload_status_t oob_client_connect(dpu_offload_client_t *client, sa_family_t af)
 {
     int listenfd = -1;
     int optval = 1;
@@ -168,14 +160,10 @@ int oob_client_connect(dpu_offload_client_t *client, sa_family_t af)
     hints.ai_family = af;
     hints.ai_socktype = SOCK_STREAM;
 
-    fprintf(stderr, "Connecting to %s:%" PRIu16 "\n", client->conn_params.addr_str, client->conn_params.port);
+    DBG("Connecting to %s:%" PRIu16, client->conn_params.addr_str, client->conn_params.port);
 
     ret = getaddrinfo(client->conn_params.addr_str, service, &hints, &res);
-    if (ret < 0)
-    {
-        fprintf(stderr, "getaddrinfo() failed\n");
-        return -1;
-    }
+    CHECK_ERR_RETURN((ret < 0), DO_ERROR, "getaddrinfo() failed");
 
     bool connected = false;
     for (t = res; t != NULL; t = t->ai_next)
@@ -186,7 +174,7 @@ int oob_client_connect(dpu_offload_client_t *client, sa_family_t af)
             continue;
         }
 
-        fprintf(stderr, "Connecting to server...\n");
+        DBG("Connecting to server...");
         int rc = connect(client->conn_data.oob.sock, t->ai_addr, t->ai_addrlen);
         if (rc == 0)
         {
@@ -198,20 +186,16 @@ int oob_client_connect(dpu_offload_client_t *client, sa_family_t af)
             inet_ntop(AF_INET, &(conn_addr.sin_addr), conn_ip, sizeof(conn_ip));
             int conn_port;
             conn_port = ntohs(conn_addr.sin_port);
-            fprintf(stderr, "Connection established, fd = %d, addr=%s:%d\n", client->conn_data.oob.sock, conn_ip, conn_port);
+            DBG("Connection established, fd = %d, addr=%s:%d", client->conn_data.oob.sock, conn_ip, conn_port);
             break;
         }
         else
         {
-            fprintf(stderr, "Connection failed (rc: %d)\n", rc);
+            ERR_MSG("Connection failed (rc: %d)", rc);
         }
     }
 
-    if (client->conn_data.oob.sock < 0)
-    {
-        fprintf(stderr, "Unable to connect to server: invalid file descriptor (%d)\n", client->conn_data.oob.sock);
-        return -1;
-    }
+    CHECK_ERR_RETURN((client->conn_data.oob.sock < 0), DO_ERROR, "Unable to connect to server: invalid file descriptor (%d)", client->conn_data.oob.sock);
 
 out_free_res:
     freeaddrinfo(res);
@@ -225,8 +209,8 @@ err_close_sockfd:
 
 static void err_cb(void *arg, ucp_ep_h ep, ucs_status_t status)
 {
-    printf("error handling callback was invoked with status %d (%s)\n",
-           status, ucs_status_string(status));
+    fprintf(stderr, "error handling callback was invoked with status %d (%s)\n",
+            status, ucs_status_string(status));
 }
 
 static void ep_close(ucp_worker_h ucp_worker, ucp_ep_h ep)
@@ -248,11 +232,11 @@ static void ep_close(ucp_worker_h ucp_worker, ucp_ep_h ep)
     }
     else if (UCS_PTR_STATUS(close_req) != UCS_OK)
     {
-        fprintf(stderr, "failed to close ep %p\n", (void *)ep);
+        ERR_MSG("failed to close ep %p", (void *)ep);
     }
 }
 
-static int init_worker(ucp_context_h ucp_context, ucp_worker_h *ucp_worker)
+static dpu_offload_status_t init_worker(ucp_context_h ucp_context, ucp_worker_h *ucp_worker)
 {
     ucp_worker_params_t worker_params;
     ucs_status_t status;
@@ -261,16 +245,11 @@ static int init_worker(ucp_context_h ucp_context, ucp_worker_h *ucp_worker)
     worker_params.field_mask = UCP_WORKER_PARAM_FIELD_THREAD_MODE;
     worker_params.thread_mode = UCS_THREAD_MODE_MULTI;
     status = ucp_worker_create(ucp_context, &worker_params, ucp_worker);
-    if (status != UCS_OK)
-    {
-        fprintf(stderr, "failed to ucp_worker_create (%s)\n", ucs_status_string(status));
-        ret = -1;
-    }
-
+    CHECK_ERR_RETURN((status != UCS_OK), DO_ERROR, "failed to ucp_worker_create (%s)", ucs_status_string(status));
     return ret;
 }
 
-static int init_context(ucp_context_h *ucp_context, ucp_worker_h *ucp_worker)
+static dpu_offload_status_t init_context(ucp_context_h *ucp_context, ucp_worker_h *ucp_worker)
 {
     /* UCP objects */
     ucp_params_t ucp_params;
@@ -283,24 +262,17 @@ static int init_context(ucp_context_h *ucp_context, ucp_worker_h *ucp_worker)
     ucp_params.field_mask = UCP_PARAM_FIELD_FEATURES;
     ucp_params.features = UCP_FEATURE_TAG | UCP_FEATURE_AM;
     status = ucp_init(&ucp_params, config, ucp_context);
-    if (status != UCS_OK)
-    {
-        fprintf(stderr, "failed to ucp_init (%s)\n", ucs_status_string(status));
-        ret = -1;
-        goto err;
-    }
+    CHECK_ERR_GOTO((status != UCS_OK), err, "failed to ucp_init (%s)", ucs_status_string(status));
     ucp_config_print(config, stdout, NULL, UCS_CONFIG_PRINT_CONFIG);
     ucp_config_release(config);
     ret = init_worker(*ucp_context, ucp_worker);
-    if (ret != 0)
-    {
-        goto err_cleanup;
-    }
-    return ret;
+    CHECK_ERR_GOTO((ret != 0), err_cleanup, "init_worker() failed");
+    DBG("ucp worker successfully created: %p", *ucp_worker);
+    return DO_SUCCESS;
 err_cleanup:
     ucp_cleanup(*ucp_context);
 err:
-    return ret;
+    return DO_ERROR;
 }
 
 ucs_status_t ucp_am_data_cb(void *arg, const void *header, size_t header_length,
@@ -313,16 +285,9 @@ ucs_status_t ucp_am_data_cb(void *arg, const void *header, size_t header_length,
     static long iov_cnt = 1;
     static long test_string_length = 16;
 
-    if (length != iov_cnt * test_string_length)
-    {
-        fprintf(stderr, "received wrong data length %ld (expected %ld)",
-                length, iov_cnt * test_string_length);
-        return UCS_OK;
-    }
-    if (header_length != 0)
-    {
-        fprintf(stderr, "received unexpected header, length %ld", header_length);
-    }
+    CHECK_ERR_RETURN((length != iov_cnt * test_string_length), UCS_ERR_NO_MESSAGE, "received wrong data length %ld (expected %ld)",
+                     length, iov_cnt * test_string_length);
+    CHECK_ERR_RETURN((header_length != 0), UCS_ERR_NO_MESSAGE, "received unexpected header, length %ld", header_length);
     am_data_desc.complete = 1;
     if (param->recv_attr & UCP_AM_RECV_ATTR_FLAG_RNDV)
     {
@@ -354,7 +319,7 @@ static void common_cb(void *user_data, const char *type_str)
     am_req_t *ctx;
     if (user_data == NULL)
     {
-        fprintf(stderr, "user_data passed to %s mustn't be NULL\n", type_str);
+        ERR_MSG("user_data passed to %s mustn't be NULL", type_str);
         return;
     }
     ctx = user_data;
@@ -366,52 +331,42 @@ static void send_cb(void *request, ucs_status_t status, void *user_data)
     common_cb(user_data, "send_cb");
 }
 
-int client_init_context(dpu_offload_client_t **c)
+dpu_offload_status_t client_init_context(execution_context_t *econtext)
 {
-    dpu_offload_client_t *client = malloc(sizeof(dpu_offload_client_t));
-    if (client == NULL)
-    {
-        fprintf(stderr, "Unable to allocate client handle\n");
-        return -1;
-    }
-    get_env_config(&(client->conn_params));
+    econtext->type = CONTEXT_CLIENT;
+    econtext->client = malloc(sizeof(dpu_offload_client_t));
+    CHECK_ERR_RETURN((econtext->client == NULL), DO_ERROR, "Unable to allocate client handle\n");
+    int rc = get_env_config(&(econtext->client->conn_params));
+    CHECK_ERR_RETURN((rc), DO_ERROR, "get_env_config() failed");
+    rc = init_context(&(econtext->client->ucp_context), &(econtext->client->ucp_worker));
+    CHECK_ERR_RETURN((rc), DO_ERROR, "init_context() failed (rc: %d)", rc);
 
-    int rc = init_context(&(client->ucp_context), &(client->ucp_worker));
-    if (rc)
-    {
-        fprintf(stderr, "init_context() failed (rc: %d)\n", rc);
-        return rc;
-    }
-
-    switch (client->mode)
+    switch (econtext->client->mode)
     {
     case UCX_LISTENER:
         break;
     default:
     {
         // OOB
-        client->conn_data.oob.addr_msg_str = strdup(UCX_ADDR_MSG);
-        client->conn_data.oob.tag = OOB_DEFAULT_TAG;
-        client->conn_data.oob.local_addr = NULL;
-        client->conn_data.oob.peer_addr = NULL;
-        client->conn_data.oob.local_addr_len = 0;
-        client->conn_data.oob.peer_addr_len = 0;
-        client->conn_data.oob.sock = -1;
+        econtext->client->conn_data.oob.addr_msg_str = strdup(UCX_ADDR_MSG);
+        econtext->client->conn_data.oob.tag = OOB_DEFAULT_TAG;
+        econtext->client->conn_data.oob.local_addr = NULL;
+        econtext->client->conn_data.oob.peer_addr = NULL;
+        econtext->client->conn_data.oob.local_addr_len = 0;
+        econtext->client->conn_data.oob.peer_addr_len = 0;
+        econtext->client->conn_data.oob.sock = -1;
 
-        ucs_status_t status = ucp_worker_get_address(client->ucp_worker, &(client->conn_data.oob.local_addr), &(client->conn_data.oob.local_addr_len));
-        if (status != UCS_OK)
-        {
-            fprintf(stderr, "ucp_worker_get_address() failed\n");
-            return -1;
-        }
+        ucs_status_t status = ucp_worker_get_address(econtext->client->ucp_worker,
+                                                     &(econtext->client->conn_data.oob.local_addr),
+                                                     &(econtext->client->conn_data.oob.local_addr_len));
+        CHECK_ERR_RETURN((status != UCS_OK), DO_ERROR, "ucp_worker_get_address() failed");
     }
     }
 
-    *c = client;
-    return 0;
+    return DO_SUCCESS;
 }
 
-static int ucx_listener_client_connect(dpu_offload_client_t *client)
+static dpu_offload_status_t ucx_listener_client_connect(dpu_offload_client_t *client)
 {
     set_sock_addr(client->conn_params.addr_str, client->conn_params.port, &(client->conn_data.ucx_listener.connect_addr));
 
@@ -440,17 +395,12 @@ static int ucx_listener_client_connect(dpu_offload_client_t *client)
     ep_params.flags = UCP_EP_PARAMS_FLAGS_CLIENT_SERVER;
     ep_params.sockaddr.addr = (struct sockaddr *)&(client->conn_data.ucx_listener.connect_addr);
     ep_params.sockaddr.addrlen = sizeof(client->conn_data.ucx_listener.connect_addr);
-    fprintf(stderr, "Connecting to %s:%s\n", client->conn_params.addr_str, client->conn_params.port_str);
+    DBG("Connecting to %s:%s", client->conn_params.addr_str, client->conn_params.port_str);
     ucs_status_t status = ucp_ep_create(client->ucp_worker, &ep_params, &(client->server_ep));
-    if (status != UCS_OK)
-    {
-        fprintf(stderr, "failed to connect to %s (%s)\n", client->conn_params.addr_str,
-                ucs_status_string(status));
-        return -1;
-    }
-    fprintf(stderr, "Endpoint %p successfully created\n", client->server_ep);
-
-    return 0;
+    CHECK_ERR_RETURN((status != UCS_OK), DO_ERROR, "failed to connect to %s (%s)", client->conn_params.addr_str,
+                     ucs_status_string(status));
+    DBG("Endpoint %p successfully created", client->server_ep);
+    return DO_SUCCESS;
 }
 
 static ucs_status_t ucx_wait(ucp_worker_h ucp_worker, struct ucx_context *request,
@@ -480,12 +430,11 @@ static ucs_status_t ucx_wait(ucp_worker_h ucp_worker, struct ucx_context *reques
 
     if (status != UCS_OK)
     {
-        fprintf(stderr, "unable to %s %s (%s)\n", op_str, data_str,
-                ucs_status_string(status));
+        ERR_MSG("unable to %s %s (%s)", op_str, data_str, ucs_status_string(status));
     }
     else
     {
-        fprintf(stderr, "%s of msg %s completed\n", op_str, data_str);
+        DBG("%s of msg %s completed", op_str, data_str);
     }
 
     return status;
@@ -498,35 +447,23 @@ static void oob_send_cb(void *request, ucs_status_t status, void *ctx)
 
     context->completed = 1;
 
-    printf("send handler called for \"%s\" with status %d (%s)\n",
-           str, status, ucs_status_string(status));
+    DBG("send handler called for \"%s\" with status %d (%s)", str, status, ucs_status_string(status));
 }
 
-static int oob_connect(dpu_offload_client_t *client)
+static dpu_offload_status_t oob_connect(dpu_offload_client_t *client)
 {
-    if (client->conn_data.oob.local_addr == NULL)
-    {
-        fprintf(stderr, "undefined local address\n");
-        return -1;
-    }
-    printf("local address length: %lu\n", client->conn_data.oob.local_addr_len);
+    CHECK_ERR_RETURN((client == NULL), DO_ERROR, "undefined client handle");
+    CHECK_ERR_RETURN((client->conn_data.oob.local_addr == NULL), DO_ERROR, "undefined local address");
+    DBG("local address length: %lu", client->conn_data.oob.local_addr_len);
 
     size_t addr_len;
     int rc = oob_client_connect(client, ai_family);
-    if (rc)
-    {
-        fprintf(stderr, "oob_client_connect() failed\n");
-        return -1;
-    }
+    CHECK_ERR_RETURN((rc), DO_ERROR, "oob_client_connect() failed");
     recv(client->conn_data.oob.sock, &addr_len, sizeof(addr_len), MSG_WAITALL);
-    fprintf(stderr, "Addr len received: %ld\n", addr_len);
+    DBG("Addr len received: %ld", addr_len);
     client->conn_data.oob.peer_addr_len = addr_len;
     client->conn_data.oob.peer_addr = malloc(client->conn_data.oob.peer_addr_len);
-    if (client->conn_data.oob.peer_addr == NULL)
-    {
-        fprintf(stderr, "Unable to allocate memory\n");
-        return -1;
-    }
+    CHECK_ERR_RETURN((client->conn_data.oob.peer_addr == NULL), DO_ERROR, "Unable to allocate memory");
     recv(client->conn_data.oob.sock, client->conn_data.oob.peer_addr, client->conn_data.oob.peer_addr_len, MSG_WAITALL);
     recv(client->conn_data.oob.sock, &(client->id), sizeof(client->id), MSG_WAITALL);
 
@@ -543,22 +480,14 @@ static int oob_connect(dpu_offload_client_t *client)
     ep_params.user_data = &(client->server_ep_status);
 
     ucs_status_t status = ucp_ep_create(client->ucp_worker, &ep_params, &client->server_ep);
-    if (status != UCS_OK)
-    {
-        fprintf(stderr, "l.%d ucp_ep_create() failed\n", __LINE__);
-        return -1;
-    }
+    CHECK_ERR_RETURN((status != UCS_OK), DO_ERROR, "ucp_ep_create() failed");
 
     size_t msg_len = sizeof(uint64_t) + client->conn_data.oob.local_addr_len;
-    fprintf(stderr, "Allocating msg (len: %ld)\n", msg_len);
+    DBG("Allocating msg (len: %ld)", msg_len);
     struct oob_msg *msg = malloc(msg_len);
-    if (msg == NULL)
-    {
-        fprintf(stderr, "Memory allocation failed for msg\n");
-        return -1;
-    }
+    CHECK_ERR_RETURN((msg == NULL), DO_ERROR, "Memory allocation failed for msg");
     memset(msg, 0, msg_len);
-    fprintf(stderr, "sending local addr to server, len=%ld\n", client->conn_data.oob.local_addr_len);
+    DBG("sending local addr to server, len=%ld", client->conn_data.oob.local_addr_len);
     msg->len = client->conn_data.oob.local_addr_len;
     memcpy(msg + 1, client->conn_data.oob.local_addr, client->conn_data.oob.local_addr_len);
 
@@ -572,35 +501,25 @@ static int oob_connect(dpu_offload_client_t *client)
                                &send_param);
     status = ucx_wait(client->ucp_worker, request, "send",
                       client->conn_data.oob.addr_msg_str);
-
-    return 0;
+    return DO_SUCCESS;
 }
 
-int offload_engine_init(offloading_engine_t **engine)
+dpu_offload_status_t offload_engine_init(offloading_engine_t **engine)
 {
     offloading_engine_t *d = malloc(sizeof(offloading_engine_t));
-    if (d == NULL)
-    {
-        fprintf(stderr, "Unable to allocate resources\n");
-        return -1;
-    }
+    CHECK_ERR_RETURN((d == NULL), DO_ERROR, "Unable to allocate resources");
     d->done = 0;
     d->client = NULL;
     d->num_max_servers = DEFAULT_MAX_NUM_SERVERS;
     d->num_servers = 0;
     d->servers = malloc(d->num_max_servers * sizeof(dpu_offload_server_t));
-    if (d->servers == NULL)
-    {
-        fprintf(stderr, "unable to allocate resources\n");
-        return -1;
-    }
+    CHECK_ERR_RETURN((d->servers == NULL), DO_ERROR, "unable to allocate resources");
     DYN_LIST_ALLOC(d->free_op_descs, 8, op_desc_t, item);
     *engine = d;
-
-    return 0;
+    return DO_SUCCESS;
 }
 
-static int execution_context_progress(execution_context_t *ctx)
+static dpu_offload_status_t execution_context_progress(execution_context_t *ctx)
 {
     // Progress the UCX worker to eventually complete some communications
     ucp_worker_progress(GET_WORKER(ctx));
@@ -614,78 +533,46 @@ static int execution_context_progress(execution_context_t *ctx)
             event_return(ctx->event_channels, &ev);
         }
     }
+
+    return DO_SUCCESS;
 }
 
-static int execution_context_init(offloading_engine_t *offload_engine, uint64_t type, execution_context_t **econtext)
+static dpu_offload_status_t execution_context_init(offloading_engine_t *offload_engine, uint64_t type, execution_context_t **econtext)
 {
     execution_context_t *ctx = malloc(sizeof(execution_context_t));
-    if (ctx == NULL)
-    {
-        fprintf(stderr, "unable to allocate execution context\n");
-        goto error_out;
-    }
+    CHECK_ERR_GOTO((ctx == NULL), error_out, "unable to allocate execution context");
     ctx->type = CONTEXT_CLIENT;
     ctx->engine = offload_engine;
     ctx->progress = execution_context_progress;
     ucs_list_head_init(&(ctx->ongoing_events));
     *econtext = ctx;
-    return 0;
+    return DO_SUCCESS;
 error_out:
-    return -1;
+    return DO_ERROR;
 }
 
 execution_context_t *client_init(offloading_engine_t *offload_engine)
 {
-    if (offload_engine == NULL)
-    {
-        fprintf(stderr, "Undefined handle\n");
-        goto error_out;
-    }
-
-    if (offload_engine->client != NULL)
-    {
-        fprintf(stderr, "offload engine already initialized as a client\n");
-        goto error_out;
-    }
+    CHECK_ERR_GOTO((offload_engine == NULL), error_out, "Undefined handle");
+    CHECK_ERR_GOTO((offload_engine->client != NULL), error_out, "offload engine already initialized as a client");
 
     execution_context_t *ctx;
     int rc = execution_context_init(offload_engine, CONTEXT_CLIENT, &ctx);
-    if (rc != 0 || ctx == NULL)
-    {
-        fprintf(stderr, "execution_context_init() failed\n");
-        goto error_out;
-    }
+    CHECK_ERR_GOTO((rc != 0 || ctx == NULL), error_out, "execution_context_init() failed");
 
     ucs_status_t status;
-    dpu_offload_client_t *_client;
-    rc = client_init_context(&_client);
-    if (rc)
-    {
-        fprintf(stderr, "init_client_context() failed\n");
-        goto error_out;
-    }
-    if (_client == NULL)
-    {
-        fprintf(stderr, "client handle is undefined\n");
-        goto error_out;
-    }
-    ctx->client = _client;
+    rc = client_init_context(ctx);
+    CHECK_ERR_GOTO((rc), error_out, "init_client_context() failed");
+    CHECK_ERR_GOTO((ctx->client == NULL), error_out, "client handle is undefined");
 
-    rc = event_channels_init(&(_client->event_channels), ctx);
-    if (rc)
-    {
-        fprintf(stderr, "event_channel_init() failed\n");
-        goto error_out;
-    }
-    ctx->event_channels = _client->event_channels;
+    rc = event_channels_init(ctx);
+    CHECK_ERR_GOTO((rc), error_out, "event_channel_init() failed");
+    CHECK_ERR_GOTO((ctx->event_channels == NULL), error_out, "event channel object is undefined");
+    ctx->client->event_channels = ctx->event_channels;
 
     /* Initialize Active Message data handler */
     int ret = dpu_offload_set_am_recv_handlers(ctx);
-    if (ret)
-    {
-        fprintf(stderr, "dpu_offload_set_am_recv_handlers() failed\n");
-        goto error_out;
-    }
+    CHECK_ERR_GOTO((ret), error_out, "dpu_offload_set_am_recv_handlers() failed");
 
     switch (ctx->client->mode)
     {
@@ -736,19 +623,11 @@ static ucs_status_t request_wait(ucp_worker_h ucp_worker, void *request, am_req_
     return status;
 }
 
-static int request_finalize(ucp_worker_h ucp_worker, void *request, am_req_t *ctx)
+static dpu_offload_status_t request_finalize(ucp_worker_h ucp_worker, void *request, am_req_t *ctx)
 {
-    int ret = 0;
-    ucs_status_t status;
-
-    status = request_wait(ucp_worker, request, ctx);
-    if (status != UCS_OK)
-    {
-        fprintf(stderr, "request failed: %s\n", ucs_status_string(status));
-        return -1;
-    }
-
-    return 0;
+    ucs_status_t status = request_wait(ucp_worker, request, ctx);
+    CHECK_ERR_RETURN((status != UCS_OK), DO_ERROR, "request failed: %s", ucs_status_string(status));
+    return DO_SUCCESS;
 }
 
 void offload_engine_fini(offloading_engine_t **offload_engine)
@@ -768,11 +647,11 @@ void client_fini(execution_context_t **exec_ctx)
     execution_context_t *context = *exec_ctx;
     if (context->type != CONTEXT_CLIENT)
     {
-        fprintf(stderr, "invalid type\n");
+        ERR_MSG("invalid type");
         return;
     }
 
-    fprintf(stderr, "Sending termination message to associated server...\n");
+    DBG("Sending termination message to associated server...");
     void *term_msg;
     size_t msg_length = 0;
     ucp_request_param_t params;
@@ -832,18 +711,16 @@ static void server_conn_handle_cb(ucp_conn_request_h conn_request, void *arg)
     char ip_str[IP_STRING_LEN];
     char port_str[PORT_STRING_LEN];
     ucs_status_t status;
-    fprintf(stderr, "Connection handler invoked\n");
+    DBG("Connection handler invoked");
     attr.field_mask = UCP_CONN_REQUEST_ATTR_FIELD_CLIENT_ADDR;
     status = ucp_conn_request_query(conn_request, &attr);
     if (status == UCS_OK)
     {
-        printf("Server received a connection request from client at address %s:%s\n",
-               ip_str, port_str);
+        DBG("Server received a connection request from client at address %s:%s", ip_str, port_str);
     }
     else if (status != UCS_ERR_UNSUPPORTED)
     {
-        fprintf(stderr, "failed to query the connection request (%s)\n",
-                ucs_status_string(status));
+        DBG("failed to query the connection request (%s)", ucs_status_string(status));
     }
     if (context->conn_request == NULL)
     {
@@ -853,18 +730,16 @@ static void server_conn_handle_cb(ucp_conn_request_h conn_request, void *arg)
     {
         /* The server is already handling a connection request from a client,
          * reject this new one */
-        printf("Rejecting a connection request. "
-               "Only one client at a time is supported.\n");
+        DBG("Rejecting a connection request. Only one client at a time is supported.\n");
         status = ucp_listener_reject(context->listener, conn_request);
         if (status != UCS_OK)
         {
-            fprintf(stderr, "server failed to reject a connection request: (%s)\n",
-                    ucs_status_string(status));
+            ERR_MSG("server failed to reject a connection request: (%s)", ucs_status_string(status));
         }
     }
 }
 
-static int ucx_listener_server(dpu_offload_server_t *server)
+static dpu_offload_status_t ucx_listener_server(dpu_offload_server_t *server)
 {
     struct sockaddr_storage listen_addr;
     ucp_listener_params_t params;
@@ -879,40 +754,34 @@ static int ucx_listener_server(dpu_offload_server_t *server)
     params.conn_handler.cb = server_conn_handle_cb;
     params.conn_handler.arg = &(server->conn_data.ucx_listener.context);
     /* Create a listener on the server side to listen on the given address.*/
-    fprintf(stderr, "Creating listener on %s:%s\n", server->conn_params.addr_str, port_str);
+    DBG("Creating listener on %s:%s", server->conn_params.addr_str, port_str);
     status = ucp_listener_create(server->ucp_worker, &params, &(server->conn_data.ucx_listener.context.listener));
-    if (status != UCS_OK)
-    {
-        fprintf(stderr, "failed to listen (%s)\n", ucs_status_string(status));
-        return -1;
-    }
+    CHECK_ERR_RETURN((status != UCS_OK), DO_ERROR, "failed to listen (%s)", ucs_status_string(status));
+
     /* Query the created listener to get the port it is listening on. */
     attr.field_mask = UCP_LISTENER_ATTR_FIELD_SOCKADDR;
     status = ucp_listener_query(server->conn_data.ucx_listener.context.listener, &attr);
     if (status != UCS_OK)
     {
-        fprintf(stderr, "failed to query the listener (%s)\n",
-                ucs_status_string(status));
+        ERR_MSG("failed to query the listener (%s)", ucs_status_string(status));
         ucp_listener_destroy(server->conn_data.ucx_listener.context.listener);
-        return -1;
+        return DO_ERROR;
     }
-    fprintf(stderr, "server is listening on IP %s port %s\n",
-            server->conn_params.addr_str, port_str);
-    return 0;
+    DBG("server is listening on IP %s port %s", server->conn_params.addr_str, port_str);
+    return DO_SUCCESS;
 }
 
 static void oob_recv_handler(void *request, ucs_status_t status,
                              ucp_tag_recv_info_t *info)
 {
     struct ucx_context *context = (struct ucx_context *)request;
-
     context->completed = 1;
 
-    printf("receive handler called with status %d (%s), length %lu\n",
-           status, ucs_status_string(status), info->length);
+    DBG("receive handler called with status %d (%s), length %lu",
+        status, ucs_status_string(status), info->length);
 }
 
-static inline int oob_server_ucx_client_connection(execution_context_t *econtext)
+static inline dpu_offload_status_t oob_server_ucx_client_connection(execution_context_t *econtext)
 {
     struct oob_msg *msg = NULL;
     struct ucx_context *request = NULL;
@@ -924,18 +793,10 @@ static inline int oob_server_ucx_client_connection(execution_context_t *econtext
     ucp_tag_message_h msg_tag;
     int ret;
 
-    if (econtext == NULL)
-    {
-        fprintf(stderr, "undefined execution context\n");
-        return -1;
-    }
+    CHECK_ERR_RETURN((econtext == NULL), DO_ERROR, "undefined execution context");
 
     dpu_offload_server_t *server = econtext->server;
-    if (server == NULL)
-    {
-        fprintf(stderr, "server handle is undefined\n");
-        return -1;
-    }
+    CHECK_ERR_RETURN((server == NULL), DO_ERROR, "server handle is undefined");
 
     /* Receive client UCX address */
     do
@@ -950,13 +811,9 @@ static inline int oob_server_ucx_client_connection(execution_context_t *econtext
     } while (msg_tag == NULL);
 
     pthread_mutex_lock(&(econtext->server->mutex));
-    fprintf(stderr, "allocating space for message to receive: %ld\n", info_tag.length);
+    DBG("allocating space for message to receive: %ld", info_tag.length);
     msg = malloc(info_tag.length);
-    if (msg == NULL)
-    {
-        fprintf(stderr, "unable to allocate memory\n");
-        return -1;
-    }
+    CHECK_ERR_RETURN((msg == NULL), DO_ERROR, "unable to allocate memory");
     request = ucp_tag_msg_recv_nb(server->ucp_worker, msg, info_tag.length,
                                   ucp_dt_make_contig(1), msg_tag, oob_recv_handler);
     status = ucx_wait(server->ucp_worker, request, "receive", server->conn_data.oob.addr_msg_str);
@@ -968,11 +825,7 @@ static inline int oob_server_ucx_client_connection(execution_context_t *econtext
 
     server->conn_data.oob.peer_addr_len = msg->len;
     server->conn_data.oob.peer_addr = malloc(server->conn_data.oob.peer_addr_len);
-    if (server->conn_data.oob.peer_addr == NULL)
-    {
-        fprintf(stderr, "unable to allocate memory for peer address\n");
-        return -1;
-    }
+    CHECK_ERR_RETURN((server->conn_data.oob.peer_addr == NULL), DO_ERROR, "unable to allocate memory for peer address");
 
     memcpy(server->conn_data.oob.peer_addr, msg + 1, server->conn_data.oob.peer_addr_len);
     free(msg);
@@ -987,24 +840,15 @@ static inline int oob_server_ucx_client_connection(execution_context_t *econtext
     ep_params.address = server->conn_data.oob.peer_addr;
     ep_params.user_data = &(server->connected_clients.clients[server->connected_clients.num_connected_clients].ep_status);
     ucp_worker_h worker = server->ucp_worker;
-    if (worker == NULL)
-    {
-        fprintf(stderr, "undefined worker\n");
-        return -1;
-    }
+    CHECK_ERR_RETURN((worker == NULL), DO_ERROR, "undefined worker");
     ucp_ep_h client_ep;
     status = ucp_ep_create(worker, &ep_params, &client_ep);
-    if (status != UCS_OK)
-    {
-        fprintf(stderr, "ucp_ep_create() failed: %s\n", ucs_status_string(status));
-        return -1;
-    }
+    CHECK_ERR_RETURN((status != UCS_OK), DO_ERROR, "ucp_ep_create() failed: %s", ucs_status_string(status));
     server->connected_clients.clients[server->connected_clients.num_connected_clients].ep = client_ep;
     server->connected_clients.num_connected_clients++;
     pthread_mutex_unlock(&(econtext->server->mutex));
-    fprintf(stderr, "Endpoint to client successfully created\n");
-
-    return 0;
+    DBG("Endpoint to client successfully created");
+    return DO_SUCCESS;
 }
 
 static inline uint64_t generate_unique_client_id(execution_context_t *econtext)
@@ -1013,7 +857,7 @@ static inline uint64_t generate_unique_client_id(execution_context_t *econtext)
     return (uint64_t)econtext->server->connected_clients.num_connected_clients;
 }
 
-static int oob_server_listen(execution_context_t *econtext)
+static dpu_offload_status_t oob_server_listen(execution_context_t *econtext)
 {
     /* OOB connection establishment */
     econtext->server->conn_data.oob.sock = oob_server_accept(econtext->server->conn_params.port, ai_family);
@@ -1023,13 +867,9 @@ static int oob_server_listen(execution_context_t *econtext)
     send(econtext->server->conn_data.oob.sock, &client_id, sizeof(uint64_t), 0);
 
     int rc = oob_server_ucx_client_connection(econtext);
-    if (rc)
-    {
-        fprintf(stderr, "oob_server_ucx_client_connection() failed\n");
-        return rc;
-    }
+    CHECK_ERR_RETURN((rc), DO_ERROR, "oob_server_ucx_client_connection() failed");
 
-    return 0;
+    return DO_SUCCESS;
 }
 
 static void *connect_thread(void *arg)
@@ -1037,7 +877,7 @@ static void *connect_thread(void *arg)
     execution_context_t *econtext = (execution_context_t *)arg;
     if (econtext == NULL)
     {
-        fprintf(stderr, "Execution context is NULL\n");
+        ERR_MSG("Execution context is NULL");
         pthread_exit(NULL);
     }
 
@@ -1048,10 +888,10 @@ static void *connect_thread(void *arg)
         case UCX_LISTENER:
         {
             ucx_listener_server(econtext->server);
-            fprintf(stderr, "Waiting for connection on UCX listener...\n");
+            DBG("Waiting for connection on UCX listener...");
             while (econtext->server->conn_data.ucx_listener.context.conn_request == NULL)
             {
-                fprintf(stderr, "Progressing worker...\n");
+                DBG("Progressing worker...");
                 ucp_worker_progress(econtext->server->ucp_worker);
             }
             break;
@@ -1061,7 +901,7 @@ static void *connect_thread(void *arg)
             int rc = oob_server_listen(econtext);
             if (rc)
             {
-                fprintf(stderr, "oob_server_listen() failed\n");
+                ERR_MSG("oob_server_listen() failed");
                 pthread_exit(NULL);
             }
         }
@@ -1071,25 +911,13 @@ static void *connect_thread(void *arg)
     pthread_exit(NULL);
 }
 
-static int start_server(execution_context_t *econtext)
+static dpu_offload_status_t start_server(execution_context_t *econtext)
 {
-    if (econtext == NULL)
-    {
-        fprintf(stderr, "undefined execution context\n");
-        return -1;
-    }
-
-    if (econtext->server == NULL)
-    {
-        fprintf(stderr, "undefined server handle\n");
-        return -1;
-    }
+    CHECK_ERR_RETURN((econtext == NULL), DO_ERROR, "undefined execution context");
+    CHECK_ERR_RETURN((econtext->server == NULL), DO_ERROR, "undefined server handle");
 
     int rc = pthread_create(&econtext->server->connect_tid, NULL, &connect_thread, econtext);
-    if (rc)
-    {
-        fprintf(stderr, "unable to start connection thread\n");
-    }
+    CHECK_ERR_RETURN((rc), DO_ERROR, "unable to start connection thread");
 
     // Wait for at least one client to connect
     bool client_connected = false;
@@ -1101,76 +929,63 @@ static int start_server(execution_context_t *econtext)
         pthread_mutex_unlock(&(econtext->server->mutex));
     }
 
-    return 0;
+    return DO_SUCCESS;
 }
 
-int server_init_context(dpu_offload_server_t **s, conn_params_t *conn_params)
+dpu_offload_status_t server_init_context(execution_context_t *econtext, conn_params_t *conn_params)
 {
-    dpu_offload_server_t *server = malloc(sizeof(dpu_offload_server_t));
-    if (server == NULL)
-    {
-        fprintf(stderr, "Unable to allocate server handle\n");
-        return -1;
-    }
-
-    server->mode = OOB; // By default, we connect with the OOB mode
-    server->connected_clients.clients = malloc(DEFAULT_MAX_NUM_CLIENTS * sizeof(connected_client_t));
+    int ret;
+    econtext->type = CONTEXT_SERVER;
+    econtext->server = malloc(sizeof(dpu_offload_server_t));
+    CHECK_ERR_RETURN((econtext->server == NULL), DO_ERROR, "Unable to allocate server handle");
+    econtext->server->mode = OOB; // By default, we connect with the OOB mode
+    econtext->server->connected_clients.clients = malloc(DEFAULT_MAX_NUM_CLIENTS * sizeof(connected_client_t));
     if (conn_params == NULL)
-        get_env_config(&(server->conn_params));
+    {
+        ret = get_env_config(&(econtext->server->conn_params));
+        CHECK_ERR_RETURN((ret), DO_ERROR, "get_env_config() failed");
+    }
     else
     {
-        server->conn_params.addr_str = conn_params->addr_str;
-        server->conn_params.port = conn_params->port;
-        server->conn_params.port_str = NULL;
+        econtext->server->conn_params.addr_str = conn_params->addr_str;
+        econtext->server->conn_params.port = conn_params->port;
+        econtext->server->conn_params.port_str = NULL;
     }
 
-    int ret = pthread_mutex_init(&(server->mutex), &(server->mattr));
-    if (ret)
-    {
-        fprintf(stderr, "pthread_mutex_init() failed\n");
-        return -1;
-    }
-    if (server->connected_clients.clients == NULL)
-    {
-        fprintf(stderr, "Unable to allocate resources for list of connected clients\n");
-        return -1;
-    }
+    ret = pthread_mutex_init(&(econtext->server->mutex), &(econtext->server->mattr));
+    CHECK_ERR_RETURN((ret), DO_ERROR, "pthread_mutex_init() failed");
+    CHECK_ERR_RETURN((econtext->server->connected_clients.clients == NULL), DO_ERROR, "Unable to allocate resources for list of connected clients");
 
-    ret = init_context(&(server->ucp_context), &(server->ucp_worker));
-    if (ret != 0)
-    {
-        fprintf(stderr, "init_context() failed\n");
-        return -1;
-    }
+    ret = init_context(&(econtext->server->ucp_context), &(econtext->server->ucp_worker));
+    CHECK_ERR_RETURN((ret != 0), DO_ERROR, "init_context() failed");
+    DBG("context successfully initialized (worker=%p)", econtext->server->ucp_worker);
 
-    switch (server->mode)
+    switch (econtext->server->mode)
     {
     case UCX_LISTENER:
     {
-        server->conn_data.ucx_listener.context.conn_request = NULL;
+        econtext->server->conn_data.ucx_listener.context.conn_request = NULL;
         break;
     }
     default:
     {
         // OOB
-        server->conn_data.oob.tag = OOB_DEFAULT_TAG;
-        server->conn_data.oob.tag_mask = UINT64_MAX;
-        server->conn_data.oob.addr_msg_str = strdup(UCX_ADDR_MSG);
-        server->conn_data.oob.peer_addr = NULL;
-        server->conn_data.oob.local_addr = NULL;
-        server->conn_data.oob.local_addr_len = 0;
-        server->conn_data.oob.peer_addr_len = 0;
-        ucs_status_t status = ucp_worker_get_address(server->ucp_worker, &(server->conn_data.oob.local_addr), &(server->conn_data.oob.local_addr_len));
-        if (status != UCS_OK)
-        {
-            fprintf(stderr, "ucp_worker_get_address() failed\n");
-            return -1;
-        }
+        DBG("server initialized with OOB backend");
+        econtext->server->conn_data.oob.tag = OOB_DEFAULT_TAG;
+        econtext->server->conn_data.oob.tag_mask = UINT64_MAX;
+        econtext->server->conn_data.oob.addr_msg_str = strdup(UCX_ADDR_MSG);
+        econtext->server->conn_data.oob.peer_addr = NULL;
+        econtext->server->conn_data.oob.local_addr = NULL;
+        econtext->server->conn_data.oob.local_addr_len = 0;
+        econtext->server->conn_data.oob.peer_addr_len = 0;
+        ucs_status_t status = ucp_worker_get_address(econtext->server->ucp_worker,
+                                                     &(econtext->server->conn_data.oob.local_addr),
+                                                     &(econtext->server->conn_data.oob.local_addr_len));
+        CHECK_ERR_RETURN((status != UCS_OK), DO_ERROR, "ucp_worker_get_address() failed");
     }
     }
 
-    *s = server;
-    return 0;
+    return DO_SUCCESS;
 }
 
 static ucs_status_t server_create_ep(ucp_worker_h data_worker,
@@ -1189,11 +1004,8 @@ static ucs_status_t server_create_ep(ucp_worker_h data_worker,
     ep_params.err_handler.cb = err_cb;
     ep_params.err_handler.arg = NULL;
     status = ucp_ep_create(data_worker, &ep_params, server_ep);
-    if (status != UCS_OK)
-    {
-        fprintf(stderr, "failed to create an endpoint on the server: (%s)\n",
-                ucs_status_string(status));
-    }
+    CHECK_ERR_RETURN((status != UCS_OK), DO_ERROR, "failed to create an endpoint on the server: (%s)",
+                     ucs_status_string(status));
     return status;
 }
 
@@ -1206,56 +1018,31 @@ static ucs_status_t server_create_ep(ucp_worker_h data_worker,
  */
 execution_context_t *server_init(offloading_engine_t *offloading_engine, conn_params_t *conn_params)
 {
-    assert(offloading_engine);
-    if (offloading_engine == NULL)
-    {
-        fprintf(stderr, "Handle is NULL\n");
-        goto error_out;
-    }
+    CHECK_ERR_GOTO((offloading_engine == NULL), error_out, "Handle is NULL");
 
     execution_context_t *execution_context;
     int rc = execution_context_init(offloading_engine, CONTEXT_SERVER, &execution_context);
-    if (rc)
-    {
-        fprintf(stderr, "execution_context_init() failed\n");
-        goto error_out;
-    }
+    CHECK_ERR_GOTO((rc), error_out, "execution_context_init() failed");
 
-    dpu_offload_server_t *server;
-    int ret = server_init_context(&server, conn_params);
-    if (ret)
-    {
-        fprintf(stderr, "server_init_context() failed\n");
-        goto error_out;
-    }
-    offloading_engine->servers[offloading_engine->num_servers] = server;
+    int ret = server_init_context(execution_context, conn_params);
+    CHECK_ERR_GOTO((ret), error_out, "server_init_context() failed");
+    DBG("server handle successfully created (worker=%p)", execution_context->server->ucp_worker);
+    offloading_engine->servers[offloading_engine->num_servers] = execution_context->server;
     offloading_engine->num_servers++;
-    execution_context->server = server;
 
-    ret = event_channels_init(&(server->event_channels), execution_context);
-    if (ret)
-    {
-        fprintf(stderr, "event_channel_init() failed\n");
-        goto error_out;
-    }
-    execution_context->event_channels = server->event_channels;
+    ret = event_channels_init(execution_context);
+    CHECK_ERR_GOTO((ret), error_out, "event_channel_init() failed");
+    CHECK_ERR_GOTO((execution_context->event_channels == NULL), error_out, "event channel handle is undefined");
+    execution_context->server->event_channels = execution_context->event_channels;
 
     /* Initialize Active Message data handler */
     ret = dpu_offload_set_am_recv_handlers(execution_context);
-    if (ret)
-    {
-        fprintf(stderr, "dpu_offload_set_am_recv_handlers() failed\n");
-        goto error_out;
-    }
+    CHECK_ERR_GOTO((ret), error_out, "dpu_offload_set_am_recv_handlers() failed");
 
     ucs_status_t status = start_server(execution_context);
-    if (status != UCS_OK)
-    {
-        fprintf(stderr, "start_server() failed\n");
-        goto error_out;
-    }
+    CHECK_ERR_GOTO((status != UCS_OK), error_out, "start_server() failed");
 
-    fprintf(stderr, "Connection accepted\n");
+    DBG("Connection accepted\n");
     return execution_context;
 
 error_out:
@@ -1274,7 +1061,7 @@ void server_fini(execution_context_t **exec_ctx)
     execution_context_t *context = *exec_ctx;
     if (context->type == CONTEXT_SERVER)
     {
-        fprintf(stderr, "invalid context\n");
+        ERR_MSG("invalid context");
         return;
     }
 

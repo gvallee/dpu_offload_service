@@ -12,6 +12,7 @@
 #include "dpu_offload_types.h"
 #include "dpu_offload_mem_mgt.h"
 #include "dpu_offload_event_channels.h"
+#include "dpu_offload_debug.h"
 
 #define DEFAULT_NUM_EVTS (32)
 #define DEFAULT_NUM_NOTIFICATION_CALLBACKS (8)
@@ -23,29 +24,20 @@ static ucs_status_t am_notification_msg_cb(void *arg, const void *header, size_t
     assert(header_length == sizeof(am_header_t));
     fprintf(stderr, "Notification received, dispatching...\n");
     execution_context_t *econtext = (execution_context_t *)arg;
-    if (header == NULL)
-    {
-        fprintf(stderr, "header is undefined\n");
-        return UCS_ERR_NO_MESSAGE;
-    }
+    CHECK_ERR_RETURN((header == NULL), UCS_ERR_NO_MESSAGE, "header is undefined");
+
     am_header_t *hdr = (am_header_t *)header;
-    assert(hdr);
-    if (hdr->type >= econtext->event_channels->num_notification_callbacks)
-    {
-        fprintf(stderr, "notification callback %" PRIu64 " is out of range\n", hdr->type);
-        return UCS_ERR_NO_MESSAGE;
-    }
+    CHECK_ERR_RETURN((hdr == NULL), UCS_ERR_NO_MESSAGE, "header is NULL");
+    CHECK_ERR_RETURN((hdr->type >= econtext->event_channels->num_notification_callbacks), UCS_ERR_NO_MESSAGE, "notification callback %" PRIu64 " is out of range", hdr->type);
+
     notification_callback_entry_t *entry = &(econtext->event_channels->notification_callbacks[hdr->type]);
     if (entry->set == false)
     {
         pending_notification_t *pending_notif;
         fprintf(stderr, "callback not available for %" PRIu64 "\n", hdr->type);
         DYN_LIST_GET(econtext->event_channels->free_pending_notifications, pending_notification_t, item, pending_notif);
-        if (pending_notif == NULL)
-        {
-            fprintf(stderr, "unable to get pending notification object\n");
-            return UCS_ERR_NO_MESSAGE;
-        }
+        CHECK_ERR_RETURN((pending_notif == NULL), UCS_ERR_NO_MESSAGE, "unable to get pending notification object");
+
         pending_notif->type = hdr->type;
         pending_notif->client_id = hdr->id;
         pending_notif->data_size = length;
@@ -74,47 +66,34 @@ static ucs_status_t am_notification_msg_cb(void *arg, const void *header, size_t
     }
 
     notification_cb cb = entry->cb;
-    if (cb == NULL)
-    {
-        fprintf(stderr, "Callback is undefined\n");
-        return UCS_ERR_NO_MESSAGE;
-    }
+    CHECK_ERR_RETURN((cb == NULL), UCS_ERR_NO_MESSAGE, "Callback is undefined");
     struct dpu_offload_ev_sys *ev_sys = EV_SYS(econtext);
     cb(ev_sys, econtext, data);
     return UCS_OK;
 }
 
-int event_channels_init(dpu_offload_ev_sys_t **e, execution_context_t *econtext)
+dpu_offload_status_t event_channels_init(execution_context_t *econtext)
 {
-    if (econtext == NULL)
-    {
-        fprintf(stderr, "Undefined execution context\n");
-        return -1;
-    }
+    CHECK_ERR_RETURN((econtext == NULL), DO_ERROR, "Undefined execution context");
+    CHECK_ERR_RETURN((GET_WORKER(econtext) == NULL), DO_ERROR, "Undefined worker");
 
-    dpu_offload_ev_sys_t *new_ev_sys = malloc(sizeof(dpu_offload_ev_sys_t));
-    if (new_ev_sys == NULL)
-    {
-        fprintf(stderr, "Resource allocation failed\n");
-        return -1;
-    }
+    econtext->event_channels = malloc(sizeof(dpu_offload_ev_sys_t));
+    CHECK_ERR_RETURN((econtext->event_channels == NULL), DO_ERROR, "Resource allocation failed");
+
     size_t num_evts = DEFAULT_NUM_EVTS;
     size_t num_free_pending_notifications = DEFAULT_NUM_NOTIFICATION_CALLBACKS;
-    DYN_LIST_ALLOC(new_ev_sys->free_evs, num_evts, dpu_offload_event_t, item);
-    DYN_LIST_ALLOC(new_ev_sys->free_pending_notifications, num_free_pending_notifications, pending_notification_t, item);
-    ucs_list_head_init(&(new_ev_sys->pending_notifications));
-    new_ev_sys->num_used_evs = 0;
+    DYN_LIST_ALLOC(econtext->event_channels->free_evs, num_evts, dpu_offload_event_t, item);
+    DYN_LIST_ALLOC(econtext->event_channels->free_pending_notifications, num_free_pending_notifications, pending_notification_t, item);
+    ucs_list_head_init(&(econtext->event_channels->pending_notifications));
+    econtext->event_channels->num_used_evs = 0;
     size_t num_notifications_cbs = DEFAULT_NUM_NOTIFICATION_CALLBACKS;
-    new_ev_sys->notification_callbacks = malloc(num_notifications_cbs * sizeof(notification_callback_entry_t));
-    if (new_ev_sys->notification_callbacks == NULL)
-    {
-        fprintf(stderr, "Resource allocation failed\n");
-        return -1;
-    }
+    econtext->event_channels->notification_callbacks = malloc(num_notifications_cbs * sizeof(notification_callback_entry_t));
+    CHECK_ERR_RETURN((econtext->event_channels->notification_callbacks == NULL), DO_ERROR, "Resource allocation failed");
+
     uint64_t i;
     for (i = 0; i < num_notifications_cbs; i++)
     {
-        notification_callback_entry_t *entry = &(new_ev_sys->notification_callbacks[i]);
+        notification_callback_entry_t *entry = &(econtext->event_channels->notification_callbacks[i]);
         entry->set = false;
     }
 
@@ -126,37 +105,19 @@ int event_channels_init(dpu_offload_ev_sys_t **e, execution_context_t *econtext)
     ev_param.id = AM_EVENT_MSG_ID;
     ev_param.cb = am_notification_msg_cb;
     ev_param.arg = econtext;
-    fprintf(stderr, "Registering AM callback for notifications\n");
+    DBG("Registering AM callback for notifications (econtext=%p, worker=%p, ev_param=%p)", econtext, GET_WORKER(econtext), &ev_param);
     ucs_status_t status = ucp_worker_set_am_recv_handler(GET_WORKER(econtext), &ev_param);
-    if (status != UCS_OK)
-    {
-        return -1;
-    }
-
-    *e = new_ev_sys;
-    return 0;
+    CHECK_ERR_RETURN((status != UCS_OK), DO_ERROR, "unable to set AM recv handler");
+    return DO_SUCCESS;
 }
 
-int event_channel_register(dpu_offload_ev_sys_t *ev_sys, uint64_t type, notification_cb cb)
+dpu_offload_status_t event_channel_register(dpu_offload_ev_sys_t *ev_sys, uint64_t type, notification_cb cb)
 {
-    if (ev_sys == NULL)
-    {
-        fprintf(stderr, "undefined event system\n");
-        return -1;
-    }
-
-    if (ev_sys->num_notification_callbacks <= type)
-    {
-        fprintf(stderr, "type %" PRIu64 " is out of range\n", type);
-        return -1;
-    }
+    CHECK_ERR_RETURN((ev_sys == NULL), DO_ERROR, "undefined event system");
+    CHECK_ERR_RETURN((ev_sys->num_notification_callbacks <= type), DO_ERROR, "type %" PRIu64 " is out of range", type);
 
     notification_callback_entry_t *entry = &(ev_sys->notification_callbacks[type]);
-    if (entry->set == true)
-    {
-        fprintf(stderr, "type %" PRIu64 " is already set\n", type);
-        return -1;
-    }
+    CHECK_ERR_RETURN((entry->set == true), DO_ERROR, "type %" PRIu64 " is already set", type);
 
     entry->cb = cb;
     entry->set = true;
@@ -173,33 +134,19 @@ int event_channel_register(dpu_offload_ev_sys_t *ev_sys, uint64_t type, notifica
         }
     }
 
-    return 0;
+    return DO_SUCCESS;
 }
 
-int event_channel_deregister(dpu_offload_ev_sys_t *ev_sys, uint64_t type)
+dpu_offload_status_t event_channel_deregister(dpu_offload_ev_sys_t *ev_sys, uint64_t type)
 {
-    if (ev_sys == NULL)
-    {
-        fprintf(stderr, "undefined event system\n");
-        return -1;
-    }
-
-    if (ev_sys->num_notification_callbacks <= type)
-    {
-        fprintf(stderr, "type %" PRIu64 " is out of range\n", type);
-        return -1;
-    }
+    CHECK_ERR_RETURN((ev_sys == NULL), DO_ERROR, "undefined event system");
+    CHECK_ERR_RETURN((ev_sys->num_notification_callbacks <= type), DO_ERROR, "type %" PRIu64 " is out of range", type);
 
     notification_callback_entry_t *entry = &(ev_sys->notification_callbacks[type]);
-    if (entry->set == false)
-    {
-        fprintf(stderr, "type %" PRIu64 " is not registered\n", type);
-        return -1;
-    }
+    CHECK_ERR_RETURN((entry->set == false), DO_ERROR, "type %" PRIu64 " is not registered", type);
 
     entry->set = false;
-
-    return 0;
+    return DO_SUCCESS;
 }
 
 static void notification_emit_cb(void *user_data, const char *type_str)
@@ -207,17 +154,17 @@ static void notification_emit_cb(void *user_data, const char *type_str)
     am_req_t *ctx;
     if (user_data == NULL)
     {
-        fprintf(stderr, "user_data passed to %s mustn't be NULL\n", type_str);
+        ERR_MSG("user_data passed to %s mustn't be NULL", type_str);
         return;
     }
     ctx = (am_req_t *)user_data;
     ctx->complete = 1;
 }
 
-int event_channel_emit(dpu_offload_event_t *ev, uint64_t client_id, uint64_t type, ucp_ep_h dest_ep, void *ctx, void *payload, size_t payload_size)
+dpu_offload_status_t event_channel_emit(dpu_offload_event_t *ev, uint64_t client_id, uint64_t type, ucp_ep_h dest_ep, void *ctx, void *payload, size_t payload_size)
 {
     ucp_request_param_t params;
-    fprintf(stderr, "Sending notification of type %" PRIu64 " (client_id=%" PRIu64 ")\n", type, client_id);
+    DBG("Sending notification of type %" PRIu64 " (client_id=%" PRIu64 ")", type, client_id);
     ev->ctx.complete = 0;
     ev->ctx.hdr.type = type;
     ev->ctx.hdr.id = client_id;
@@ -241,11 +188,11 @@ int event_channel_emit(dpu_offload_event_t *ev, uint64_t client_id, uint64_t typ
     return EVENT_INPROGRESS;
 }
 
-int event_channels_fini(dpu_offload_ev_sys_t **ev_sys)
+dpu_offload_status_t event_channels_fini(dpu_offload_ev_sys_t **ev_sys)
 {
     if ((*ev_sys)->num_used_evs > 0)
     {
-        fprintf(stderr, "[WARN] %ld events objects have not been returned\n", (*ev_sys)->num_used_evs);
+        WARN_MSG("[WARN] %ld events objects have not been returned", (*ev_sys)->num_used_evs);
     }
 
     DYN_LIST_FREE((*ev_sys)->free_evs, dpu_offload_event_t, item);
@@ -254,7 +201,7 @@ int event_channels_fini(dpu_offload_ev_sys_t **ev_sys)
     *ev_sys = NULL;
 }
 
-int event_get(dpu_offload_ev_sys_t *ev_sys, dpu_offload_event_t **ev)
+dpu_offload_status_t event_get(dpu_offload_ev_sys_t *ev_sys, dpu_offload_event_t **ev)
 {
     dpu_offload_event_t *_ev;
     DYN_LIST_GET(ev_sys->free_evs, dpu_offload_event_t, item, _ev);
@@ -264,10 +211,10 @@ int event_get(dpu_offload_ev_sys_t *ev_sys, dpu_offload_event_t **ev)
         _ev->ctx.complete = 0;
     }
     *ev = _ev;
-    return 0;
+    return DO_SUCCESS;
 }
 
-int event_return(dpu_offload_ev_sys_t *ev_sys, dpu_offload_event_t **ev)
+dpu_offload_status_t event_return(dpu_offload_ev_sys_t *ev_sys, dpu_offload_event_t **ev)
 {
     if (!(*ev)->ctx.complete)
         return EVENT_INPROGRESS;
@@ -275,14 +222,14 @@ int event_return(dpu_offload_ev_sys_t *ev_sys, dpu_offload_event_t **ev)
     DYN_LIST_RETURN(ev_sys->free_evs, (*ev), item);
     ev_sys->num_used_evs--;
     *ev = NULL; // so it cannot be used any longer
-    return 0;
+    return DO_SUCCESS;
 }
 
 /********************/
 /* DEFAULT HANDLERS */
 /********************/
 
-static int op_completion_cb(struct dpu_offload_ev_sys *ev_sys, void *context, void *data)
+static dpu_offload_status_t op_completion_cb(struct dpu_offload_ev_sys *ev_sys, void *context, void *data)
 {
     execution_context_t *econtext = (execution_context_t *)context;
     uint64_t *_data = (uint64_t *)data;
@@ -298,20 +245,16 @@ static int op_completion_cb(struct dpu_offload_ev_sys *ev_sys, void *context, vo
         }
     }
 
-    if (op == NULL)
-    {
-        fprintf(stderr, "%s(): unable to look up operation\n", __func__);
-        return -1;
-    }
+    CHECK_ERR_RETURN((op == NULL), DO_ERROR, "unable to look up operation");
 
     op->completed = true;
     if (op->op_definition->op_complete != NULL)
         op->op_definition->op_complete();
 
-    return 0;
+    return DO_SUCCESS;
 }
 
-static int op_start_cb(struct dpu_offload_ev_sys *ev_sys, void *context, void *data)
+static dpu_offload_status_t op_start_cb(struct dpu_offload_ev_sys *ev_sys, void *context, void *data)
 {
     assert(context);
     assert(data);
@@ -331,20 +274,12 @@ static int op_start_cb(struct dpu_offload_ev_sys *ev_sys, void *context, void *d
         }
     }
 
-    if (op_cfg == NULL)
-    {
-        fprintf(stderr, "%s(): unable to find a matching registered function\n", __func__);
-        return -1;
-    }
+    CHECK_ERR_RETURN((op_cfg == NULL), DO_ERROR, "unable to find a matching registered function");
 
     // Instantiate the operation
     op_desc_t *op_desc;
     DYN_LIST_GET(econtext->engine->free_op_descs, op_desc_t, item, op_desc);
-    if (op_desc == NULL)
-    {
-        fprintf(stderr, "%s(): unable to get a free operation descriptor\n", __func__);
-        return -1;
-    }
+    CHECK_ERR_RETURN((op_desc == NULL), DO_ERROR, "unable to get a free operation descriptor");
 
     op_desc->id = _data[0];
     op_desc->completed = false;
@@ -355,48 +290,36 @@ static int op_start_cb(struct dpu_offload_ev_sys *ev_sys, void *context, void *d
     // Call the init function of the operation
     op_cfg->op_init();
 
-    return 0;
+    return DO_SUCCESS;
 }
 
-static int xgvmi_key_revoke_cb(struct dpu_offload_ev_sys *ev_sys, void *context, void *data)
+static dpu_offload_status_t xgvmi_key_revoke_cb(struct dpu_offload_ev_sys *ev_sys, void *context, void *data)
 {
     // todo
+    return DO_ERROR;
 }
 
 static int xgvmi_key_recv_cb(struct dpu_offload_ev_sys *ev_sys, void *context, void *data)
 {
     // todo
+    return DO_ERROR;
 }
 
-int register_default_notifications(dpu_offload_ev_sys_t *ev_sys)
+dpu_offload_status_t register_default_notifications(dpu_offload_ev_sys_t *ev_sys)
 {
+    CHECK_ERR_RETURN((ev_sys == NULL), DO_ERROR, "Undefined event channels");
+    
     int rc = event_channel_register(ev_sys, AM_OP_START_MSG_ID, op_start_cb);
-    if (rc)
-    {
-        fprintf(stderr, "event_channel_register() failed, cannot register handler to start operations\n");
-        return -1;
-    }
+    CHECK_ERR_RETURN(rc, DO_ERROR, "cannot register handler to start operations");
 
     rc = event_channel_register(ev_sys, AM_OP_COMPLETION_MSG_ID, op_completion_cb);
-    if (rc)
-    {
-        fprintf(stderr, "event_channel_register() failed, cannot register handler for operation completion\n");
-        return -1;
-    }
+    CHECK_ERR_RETURN(rc, DO_ERROR, "cannot register handler for operation completion");
 
     rc = event_channel_register(ev_sys, AM_XGVMI_ADD_MSG_ID, xgvmi_key_recv_cb);
-    if (rc)
-    {
-        fprintf(stderr, "event_channel_register() failed, cannot register handler for receiving XGVMI keys\n");
-        return -1;
-    }
+    CHECK_ERR_RETURN(rc, DO_ERROR, "cannot register handler for receiving XGVMI keys");
 
     rc = event_channel_register(ev_sys, AM_XGVMI_DEL_MSG_ID, xgvmi_key_revoke_cb);
-    if (rc)
-    {
-        fprintf(stderr, "event_channel_register() failed, cannot register handler for revoke XGVMI keys\n");
-        return -1;
-    }
+    CHECK_ERR_RETURN(rc, DO_ERROR, "cannot register handler for revoke XGVMI keys");
 
-    return 0;
+    return DO_ERROR;
 }

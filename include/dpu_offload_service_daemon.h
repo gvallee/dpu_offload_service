@@ -55,7 +55,7 @@ enum
     UCX_LISTENER
 } conn_mode_t;
 
-int offload_engine_init(offloading_engine_t **engine);
+dpu_offload_status_t offload_engine_init(offloading_engine_t **engine);
 void offload_engine_fini(offloading_engine_t **engine);
 
 execution_context_t* server_init(offloading_engine_t *, conn_params_t *);
