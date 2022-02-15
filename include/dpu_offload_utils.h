@@ -15,5 +15,4 @@
 #    define _EXTERN_C_END
 #endif
 
-
 #endif // DPU_OFFLOAD_UTILS_H

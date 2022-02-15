@@ -34,8 +34,9 @@ extern "C"
 
     typedef enum
     {
-        DO_ERROR = UCS_ERR_NO_MESSAGE,
-        DO_SUCCESS = UCS_OK
+        DO_ERROR = UCS_ERR_NO_MESSAGE, // DPU offload generic error
+        DO_SUCCESS = UCS_OK, // DPU offload ok
+        DO_NOT_APPLICABLE = UCS_ERR_LAST - 1 // DPU offload not applicable feature
     } dpu_offload_status_t;
 
 #define DPU_OFFLOAD_SUCCESS DO_SUCCESS
