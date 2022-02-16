@@ -61,7 +61,9 @@ void offload_engine_fini(offloading_engine_t **engine);
 execution_context_t* server_init(offloading_engine_t *, conn_params_t *);
 void server_fini(execution_context_t **);
 
-execution_context_t* client_init(offloading_engine_t *);
+execution_context_t* client_init(offloading_engine_t *, conn_params_t *);
 void client_fini(execution_context_t **);
+
+dpu_offload_status_t inter_dpus_connect_mgr(offloading_engine_t *, char *, char *);
 
 #endif // DPU_OFFLOAD_SERVICE_DAEMON_H_

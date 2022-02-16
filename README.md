@@ -5,7 +5,7 @@
 The following packages and versions are required:
 - UCX 1.12 or newer
 - openpmix 4.1.0 or newer
-- PRTE 2.0.0 or newerr
+- PRTE 2.0.0 or newer
 
 ## Compilation
 
