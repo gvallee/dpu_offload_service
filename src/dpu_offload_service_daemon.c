@@ -145,6 +145,8 @@ static dpu_offload_status_t oob_server_accept(uint16_t server_port, sa_family_t 
     return connfd;
 }
 
+#define MAX_RETRY (5)
+
 dpu_offload_status_t oob_client_connect(dpu_offload_client_t *client, sa_family_t af)
 {
     int listenfd = -1;
@@ -166,6 +168,7 @@ dpu_offload_status_t oob_client_connect(dpu_offload_client_t *client, sa_family_
     CHECK_ERR_RETURN((ret < 0), DO_ERROR, "getaddrinfo() failed");
 
     bool connected = false;
+    int retry;
     for (t = res; t != NULL; t = t->ai_next)
     {
         client->conn_data.oob.sock = socket(t->ai_family, t->ai_socktype, t->ai_protocol);
@@ -175,21 +178,30 @@ dpu_offload_status_t oob_client_connect(dpu_offload_client_t *client, sa_family_
         }
 
         DBG("Connecting to server...");
-        int rc = connect(client->conn_data.oob.sock, t->ai_addr, t->ai_addrlen);
-        if (rc == 0)
+        do
         {
-            struct sockaddr_in conn_addr;
-            socklen_t conn_addr_len = sizeof(conn_addr);
-            memset(&conn_addr, 0, sizeof(conn_addr));
-            getsockname(client->conn_data.oob.sock, (struct sockaddr *)&conn_addr, &conn_addr_len);
-            char conn_ip[16];
-            inet_ntop(AF_INET, &(conn_addr.sin_addr), conn_ip, sizeof(conn_ip));
-            int conn_port;
-            conn_port = ntohs(conn_addr.sin_port);
-            DBG("Connection established, fd = %d, addr=%s:%d", client->conn_data.oob.sock, conn_ip, conn_port);
-            break;
-        }
-        else
+            int rc = connect(client->conn_data.oob.sock, t->ai_addr, t->ai_addrlen);
+            if (rc == 0)
+            {
+                struct sockaddr_in conn_addr;
+                socklen_t conn_addr_len = sizeof(conn_addr);
+                memset(&conn_addr, 0, sizeof(conn_addr));
+                getsockname(client->conn_data.oob.sock, (struct sockaddr *)&conn_addr, &conn_addr_len);
+                char conn_ip[16];
+                inet_ntop(AF_INET, &(conn_addr.sin_addr), conn_ip, sizeof(conn_ip));
+                int conn_port;
+                conn_port = ntohs(conn_addr.sin_port);
+                DBG("Connection established, fd = %d, addr=%s:%d", client->conn_data.oob.sock, conn_ip, conn_port);
+                break;
+            }
+            else
+            {
+                retry++;
+                DBG("Connection failed, retrying in %d seconds...", retry);
+                sleep(retry);
+            }
+        } while (rc != 0 && retry < MAX_RETRY);
+        if (rc != 0)
         {
             ERR_MSG("Connection failed (rc: %d)", rc);
         }
@@ -331,13 +343,24 @@ static void send_cb(void *request, ucs_status_t status, void *user_data)
     common_cb(user_data, "send_cb");
 }
 
-dpu_offload_status_t client_init_context(execution_context_t *econtext)
+dpu_offload_status_t client_init_context(execution_context_t *econtext, conn_params_t *conn_params)
 {
+    dpu_offload_status_t rc;
     econtext->type = CONTEXT_CLIENT;
     econtext->client = malloc(sizeof(dpu_offload_client_t));
     CHECK_ERR_RETURN((econtext->client == NULL), DO_ERROR, "Unable to allocate client handle\n");
-    int rc = get_env_config(&(econtext->client->conn_params));
-    CHECK_ERR_RETURN((rc), DO_ERROR, "get_env_config() failed");
+    if (conn_params == NULL)
+    {
+        rc = get_env_config(&(econtext->client->conn_params));
+        CHECK_ERR_RETURN((rc), DO_ERROR, "get_env_config() failed");
+    }
+    else
+    {
+        CHECK_ERR_RETURN((conn_params->addr_str == NULL), DO_ERROR, "undefined address");
+        econtext->client->conn_params.addr_str = conn_params->addr_str;
+        econtext->client->conn_params.port_str = conn_params->port_str;
+        econtext->client->conn_params.port = conn_params->port;
+    }
     rc = init_context(&(econtext->client->ucp_context), &(econtext->client->ucp_worker));
     CHECK_ERR_RETURN((rc), DO_ERROR, "init_context() failed (rc: %d)", rc);
 
@@ -513,6 +536,9 @@ dpu_offload_status_t offload_engine_init(offloading_engine_t **engine)
     d->num_max_servers = DEFAULT_MAX_NUM_SERVERS;
     d->num_servers = 0;
     d->servers = malloc(d->num_max_servers * sizeof(dpu_offload_server_t));
+    d->num_inter_dpus_clients = 0;
+    d->num_max_inter_dpus_clients = DEFAULT_MAX_NUM_SERVERS;
+    d->inter_dpus_clients = malloc(d->num_max_inter_dpus_clients * sizeof(execution_context_t));
     CHECK_ERR_RETURN((d->servers == NULL), DO_ERROR, "unable to allocate resources");
     DYN_LIST_ALLOC(d->free_op_descs, 8, op_desc_t, item);
     *engine = d;
@@ -551,7 +577,7 @@ error_out:
     return DO_ERROR;
 }
 
-execution_context_t *client_init(offloading_engine_t *offload_engine)
+execution_context_t *client_init(offloading_engine_t *offload_engine, conn_params_t *conn_params)
 {
     CHECK_ERR_GOTO((offload_engine == NULL), error_out, "Undefined handle");
     CHECK_ERR_GOTO((offload_engine->client != NULL), error_out, "offload engine already initialized as a client");
@@ -561,7 +587,7 @@ execution_context_t *client_init(offloading_engine_t *offload_engine)
     CHECK_ERR_GOTO((rc != 0 || ctx == NULL), error_out, "execution_context_init() failed");
 
     ucs_status_t status;
-    rc = client_init_context(ctx);
+    rc = client_init_context(ctx, conn_params);
     CHECK_ERR_GOTO((rc), error_out, "init_client_context() failed");
     CHECK_ERR_GOTO((ctx->client == NULL), error_out, "client handle is undefined");
 
@@ -634,6 +660,15 @@ void offload_engine_fini(offloading_engine_t **offload_engine)
 {
     DYN_LIST_FREE((*offload_engine)->free_op_descs, op_desc_t, item);
     free((*offload_engine)->client);
+    int i;
+    for (i = 0; i < (*offload_engine)->num_servers; i++)
+    {
+        //server_fini() fixme
+    }
+    for (i = 0; i < (*offload_engine)->num_inter_dpus_clients; i++)
+    {
+        client_fini(&((*offload_engine)->inter_dpus_clients[i]));
+    }
     free((*offload_engine)->servers);
     free(*offload_engine);
     *offload_engine = NULL;

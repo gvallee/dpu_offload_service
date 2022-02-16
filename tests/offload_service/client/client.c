@@ -41,7 +41,7 @@ int main(int argc, char **argv)
     }
 
     
-    execution_context_t *client = client_init(offload_engine);
+    execution_context_t *client = client_init(offload_engine, NULL);
     if (client == NULL)
     {
         fprintf(stderr, "client handle is undefined\n");

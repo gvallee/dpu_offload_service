@@ -12,6 +12,7 @@
 #include "dpu_offload_debug.h"
 
 extern execution_context_t* server_init(offloading_engine_t *, conn_params_t *);
+extern execution_context_t* client_init(offloading_engine_t *, conn_params_t *);
 
 typedef enum {
     CONNECT_STATUS_UNKNOWN = 0,
@@ -25,6 +26,7 @@ typedef struct remote_dpu_info
     conn_params_t conn_params;
     connect_status_t conn_status;
     pthread_t connection_tid;
+    offloading_engine_t *offload_engine;
 } remote_dpu_info_t;
 
 typedef struct dpu_inter_connect_info
@@ -48,7 +50,8 @@ typedef struct dpu_inter_connect_info
  * @return dpu_offload_status_t
  */
 static dpu_offload_status_t
-dpu_offload_parse_list_dpus(char *dpu_hostname,
+dpu_offload_parse_list_dpus(offloading_engine_t *offload_engine,
+                            char *dpu_hostname,
                             char *list,
                             dpu_inter_connect_info_t *info_connecting_to,
                             size_t *num_connecting_from)
@@ -63,9 +66,12 @@ dpu_offload_parse_list_dpus(char *dpu_hostname,
 
     while (token != NULL)
     {
-        if (strcmp(token, dpu_hostname) == 0)
+        DBG("Checking hostname %s", token);
+        if (strncmp(token, dpu_hostname, strlen(token)) == 0)
         {
+            DBG("%s is me", token);
             pre = false;
+            token = strtok(NULL, ",");
             continue;
         }
 
@@ -77,14 +83,17 @@ dpu_offload_parse_list_dpus(char *dpu_hostname,
             DYN_LIST_GET(info_connecting_to->pool_remote_dpu_info, remote_dpu_info_t, item, new_conn_to);
             DBG("Adding DPU %s to the list of DPUs to connect to", token);
             new_conn_to->conn_params.addr_str = token;
+            new_conn_to->offload_engine = offload_engine;
             ucs_list_add_tail(&(info_connecting_to->connect_to), &(new_conn_to->item));
             info_connecting_to->num_connect_to++;
         }
+        token = strtok(NULL, ",");
     }
 
-    if (pre == false)
+    if (pre == true)
     {
         // The hostname of the current system was not in the list. The list is not applicable.
+        DBG("I am not in the list of DPUs, not applicable to me");
         n_connecting_from = 0;
     }
 
@@ -101,7 +110,20 @@ static void *connect_thread(void *arg)
         ERR_MSG("Remote DPU info is NULL");
         pthread_exit(NULL);
     }
-
+    offloading_engine_t *offload_engine = remote_dpu_info->offload_engine;
+    if (offload_engine == NULL)
+    {
+        ERR_MSG("undefined offload_engine");
+        pthread_exit(NULL);
+    }
+    DBG("connecting to DPU server %s", remote_dpu_info->conn_params.addr_str);
+    execution_context_t *client = client_init(offload_engine, &(remote_dpu_info->conn_params));
+    if (client == NULL)
+    {
+        ERR_MSG("Unable to connect to %s\n", remote_dpu_info->conn_params.addr_str);
+        pthread_exit(NULL);
+    }
+    offload_engine->inter_dpus_clients[offload_engine->num_inter_dpus_clients] = client;
 }
 
 static dpu_offload_status_t
@@ -125,8 +147,9 @@ dpu_offload_status_t inter_dpus_connect_mgr(offloading_engine_t *offload_engine,
     ucs_list_head_init(&(info_connect_to.connect_to));
     DYN_LIST_ALLOC(info_connect_to.pool_remote_dpu_info, 32, remote_dpu_info_t, item);
 
-    dpu_offload_status_t rc = dpu_offload_parse_list_dpus(dpu_hostname, list_dpus, &info_connect_to, &num_dpus_connecting_from);
+    dpu_offload_status_t rc = dpu_offload_parse_list_dpus(offload_engine, dpu_hostname, list_dpus, &info_connect_to, &num_dpus_connecting_from);
     CHECK_ERR_RETURN((rc == DO_ERROR), DO_ERROR, "dpu_offload_parse_list_dpus() failed");
+    DBG("number of DPUs to connect to: %ld; number of expected incoming connections: %ld\n", info_connect_to.num_connect_to, num_dpus_connecting_from);
 
     if (rc == DO_NOT_APPLICABLE)
     {

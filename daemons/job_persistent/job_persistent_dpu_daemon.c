@@ -12,33 +12,13 @@
 #include "dpu_offload_service_daemon.h"
 #include "dpu_offload_envvars.h"
 
-static inline bool req_completed(struct ucx_context *req)
-{
-    if (req == NULL)
-        return true;
-
-    ucs_status_t status = ucp_request_check_status(req);
-    if (status == UCS_INPROGRESS)
-        return false;
-    return true;
-}
-
-static void recv_cb(void *request, ucs_status_t status, ucp_tag_recv_info_t *info)
-{
-    fprintf(stderr, "pong successfully received\n");
-}
-
-void send_cb(void *request, ucs_status_t status)
-{
-    fprintf(stderr, "ping msg from client successfully sent\n");
-}
-
 int main(int argc, char **argv)
 {
     /*
      * BOOTSTRAPPING: WE CREATE A CLIENT THAT CONNECT TO THE INITIATOR ON THE HOST
      * AND INITIALIZE THE OFFLOADING SERVICE.
      */
+    fprintf(stderr, "Creating offload engine...\n");
     offloading_engine_t *offload_engine;
     dpu_offload_status_t rc = offload_engine_init(&offload_engine);
     if (rc || offload_engine == NULL)
@@ -50,6 +30,7 @@ int main(int argc, char **argv)
     /*
      * INITIATE CONNECTION BETWEEN DPUS.
      */
+    fprintf(stderr, "Getting configuration...\n");
     char *list_dpus = getenv(LIST_DPUS_ENVVAR);
     if (list_dpus == NULL)
     {
@@ -57,10 +38,13 @@ int main(int argc, char **argv)
         return EXIT_FAILURE;
     }
 
+    fprintf(stderr, "Getting hostname...\n");
     char hostname[1024];
     hostname[1023] = '\0';
     gethostname(hostname, 1023);
+    fprintf(stderr, "hostname=%s\n", hostname);
 
+    fprintf(stderr, "Initiating connections between DPUs\n");
     rc = inter_dpus_connect_mgr(offload_engine, list_dpus, hostname);
     if (rc)
     {
@@ -71,10 +55,13 @@ int main(int argc, char **argv)
     /*
      * CREATE A SERVER SO THAT PROCESSES RUNNING ON THE HOST CAN CONNECT.
      */
-
+    fprintf(stderr, "Creating server for processes on the DPU\n");
     conn_params_t server_params;
-    server_params.addr_str = NULL; // fixme
-    server_params.port = 11111; // fixme
+    char *port_str = getenv(INTER_DPU_PORT_ENVVAR);
+    server_params.addr_str = NULL; // The infrastructure will figure it out
+    server_params.port = DEFAULT_INTER_DPU_CONNECT_PORT;
+    if (port_str)
+        server_params.port = atoi(port_str);
     execution_context_t *service_server = server_init(offload_engine, &server_params);
 
     /*
