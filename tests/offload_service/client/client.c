@@ -40,7 +40,6 @@ int main(int argc, char **argv)
         return EXIT_FAILURE;
     }
 
-    
     execution_context_t *client = client_init(offload_engine, NULL);
     if (client == NULL)
     {

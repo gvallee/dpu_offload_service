@@ -231,18 +231,25 @@ typedef struct ucx_server_ctx
     ucp_listener_h listener;
 } ucx_server_ctx_t;
 
-typedef struct connected_client
+typedef struct rank_info
+{
+    uint32_t group_id;
+    uint32_t group_rank;
+} rank_info_t;
+
+typedef struct peer_info
 {
     ucp_ep_h ep;
     ucs_status_t ep_status;
-} connected_client_t;
+    rank_info_t rank;
+} peer_info_t;
 
 typedef struct connected_clients
 {
     dpu_offload_ev_sys_t *event_channels;
     size_t num_max_connected_clients;
     size_t num_connected_clients;
-    connected_client_t *clients;
+    peer_info_t *clients;
 } connected_clients_t;
 
 typedef struct conn_params
@@ -252,6 +259,13 @@ typedef struct conn_params
     int port;
     struct sockaddr_storage saddr;
 } conn_params_t;
+
+typedef struct init_params
+{
+    conn_params_t *conn_params;
+    rank_info_t *proc_info;
+    ucp_worker_h worker;
+} init_params_t;
 
 typedef struct dpu_offload_server_t
 {
@@ -337,6 +351,7 @@ typedef struct execution_context
     dpu_offload_ev_sys_t *event_channels;
     ucs_list_link_t ongoing_events;
     execution_context_progress_fn progress;
+    rank_info_t rank;
     union
     {
         dpu_offload_client_t *client;

@@ -11,10 +11,11 @@
 #include "dpu_offload_types.h"
 #include "dpu_offload_debug.h"
 
-extern execution_context_t* server_init(offloading_engine_t *, conn_params_t *);
-extern execution_context_t* client_init(offloading_engine_t *, conn_params_t *);
+extern execution_context_t *server_init(offloading_engine_t *, init_params_t *);
+extern execution_context_t *client_init(offloading_engine_t *, init_params_t *, rank_info_t *);
 
-typedef enum {
+typedef enum
+{
     CONNECT_STATUS_UNKNOWN = 0,
     CONNECT_STATUS_CONNECTED,
     CONNECT_STATUS_DISCONNECTED
@@ -104,7 +105,7 @@ dpu_offload_parse_list_dpus(offloading_engine_t *offload_engine,
 
 static void *connect_thread(void *arg)
 {
-    remote_dpu_info_t *remote_dpu_info = (remote_dpu_info_t*)arg;
+    remote_dpu_info_t *remote_dpu_info = (remote_dpu_info_t *)arg;
     if (remote_dpu_info == NULL)
     {
         ERR_MSG("Remote DPU info is NULL");
@@ -117,7 +118,7 @@ static void *connect_thread(void *arg)
         pthread_exit(NULL);
     }
     DBG("connecting to DPU server %s", remote_dpu_info->conn_params.addr_str);
-    execution_context_t *client = client_init(offload_engine, &(remote_dpu_info->conn_params));
+    execution_context_t *client = client_init(offload_engine, &(remote_dpu_info->conn_params), NULL);
     if (client == NULL)
     {
         ERR_MSG("Unable to connect to %s\n", remote_dpu_info->conn_params.addr_str);
@@ -162,7 +163,7 @@ dpu_offload_status_t inter_dpus_connect_mgr(offloading_engine_t *offload_engine,
         // Some DPUs will be connecting to us so we start a new server.
         execution_context_t *server = server_init(offload_engine, NULL);
         CHECK_ERR_RETURN((server == NULL), DO_ERROR, "server_init() failed");
-        CHECK_ERR_RETURN((offload_engine->num_servers+1 < offload_engine->num_max_servers), DO_ERROR, "max number of server has been reached");
+        CHECK_ERR_RETURN((offload_engine->num_servers + 1 < offload_engine->num_max_servers), DO_ERROR, "max number of server has been reached");
         offload_engine->servers[offload_engine->num_servers] = server->server;
         offload_engine->num_servers++;
         // Nothing else to do in this context.
