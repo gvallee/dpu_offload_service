@@ -59,11 +59,12 @@ int main(int argc, char **argv)
     fprintf(stderr, "Creating server for processes on the DPU\n");
     init_params_t init_params;
     conn_params_t server_params;
-    init_params.conn_params = &server_params;
+    init_params.worker = NULL;
     init_params.proc_info = NULL;
     char *port_str = getenv(INTER_DPU_PORT_ENVVAR);
     server_params.addr_str = NULL; // The infrastructure will figure it out
     server_params.port = DEFAULT_INTER_DPU_CONNECT_PORT;
+    init_params.conn_params = &server_params;
     if (port_str)
         server_params.port = atoi(port_str);
     execution_context_t *service_server = server_init(offload_engine, &init_params);
