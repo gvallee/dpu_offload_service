@@ -10,6 +10,8 @@
 #include <assert.h>
 #include <signal.h>
 
+#include <pmix.h>
+
 #include "dpu_offload_common.h"
 #include "dpu_offload_types.h"
 #include "dpu_offload_envvars.h"

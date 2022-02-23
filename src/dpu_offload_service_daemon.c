@@ -17,8 +17,9 @@
 #include "dpu_offload_comm_channels.h"
 #include "dpu_offload_event_channels.h"
 #include "dpu_offload_envvars.h"
-#include "dynamic_list.h"
+#include "dynamic_structs.h"
 #include "dpu_offload_debug.h"
+#include "dpu_offload_mem_mgt.h"
 
 // A lot of the code is from ucp_client_serrver.c from UCX
 
@@ -31,6 +32,12 @@ static sa_family_t ai_family = AF_INET;
 #define PORT_STRING_LEN 8
 #define OOB_DEFAULT_TAG 0x1337a880u
 #define UCX_ADDR_MSG "UCX address message"
+
+static struct err_handling
+{
+    ucp_err_handling_mode_t ucp_err_mode;
+    failure_mode_t failure_mode;
+} err_handling_opt;
 
 typedef struct am_msg_t
 {
@@ -46,6 +53,9 @@ struct oob_msg
 };
 
 am_msg_t am_data_desc = {0, 0, NULL, NULL};
+
+#define GET_PEER_DATA_HANDLE(_pool_free_peer_descs, _peer_data) \
+    DYN_LIST_GET(_pool_free_peer_descs, peer_cache_entry_t, item, _peer_data);
 
 dpu_offload_status_t get_env_config(conn_params_t *params)
 {
@@ -343,26 +353,38 @@ static void send_cb(void *request, ucs_status_t status, void *user_data)
     common_cb(user_data, "send_cb");
 }
 
-dpu_offload_status_t client_init_context(execution_context_t *econtext, conn_params_t *conn_params)
+dpu_offload_status_t client_init_context(execution_context_t *econtext, init_params_t *init_params)
 {
     dpu_offload_status_t rc;
     econtext->type = CONTEXT_CLIENT;
     econtext->client = malloc(sizeof(dpu_offload_client_t));
     CHECK_ERR_RETURN((econtext->client == NULL), DO_ERROR, "Unable to allocate client handle\n");
-    if (conn_params == NULL)
+
+    // If the connection parameters were not passed in, we get everything using environment variables
+    if (init_params == NULL || init_params->conn_params == NULL)
     {
         rc = get_env_config(&(econtext->client->conn_params));
         CHECK_ERR_RETURN((rc), DO_ERROR, "get_env_config() failed");
     }
     else
     {
-        CHECK_ERR_RETURN((conn_params->addr_str == NULL), DO_ERROR, "undefined address");
-        econtext->client->conn_params.addr_str = conn_params->addr_str;
-        econtext->client->conn_params.port_str = conn_params->port_str;
-        econtext->client->conn_params.port = conn_params->port;
+        CHECK_ERR_RETURN((init_params->conn_params->addr_str == NULL), DO_ERROR, "undefined address");
+        econtext->client->conn_params.addr_str = init_params->conn_params->addr_str;
+        econtext->client->conn_params.port_str = init_params->conn_params->port_str;
+        econtext->client->conn_params.port = init_params->conn_params->port;
     }
-    rc = init_context(&(econtext->client->ucp_context), &(econtext->client->ucp_worker));
-    CHECK_ERR_RETURN((rc), DO_ERROR, "init_context() failed (rc: %d)", rc);
+
+    // If we are not using a worker that was passed in, we create a new one.
+    if (init_params == NULL || init_params->worker == NULL)
+    {
+        rc = init_context(&(econtext->client->ucp_context), &(econtext->client->ucp_worker));
+        CHECK_ERR_RETURN((rc), DO_ERROR, "init_context() failed (rc: %d)", rc);
+    }
+    else
+    {
+        econtext->client->ucp_context = NULL;
+        econtext->client->ucp_worker = init_params->worker;
+    }
 
     switch (econtext->client->mode)
     {
@@ -457,7 +479,10 @@ static ucs_status_t ucx_wait(ucp_worker_h ucp_worker, struct ucx_context *reques
     }
     else
     {
-        DBG("%s of msg %s completed", op_str, data_str);
+        if (data_str != NULL)
+            DBG("%s completed, data=%s", op_str, data_str);
+        else
+            DBG("%s completed", op_str);
     }
 
     return status;
@@ -473,9 +498,10 @@ static void oob_send_cb(void *request, ucs_status_t status, void *ctx)
     DBG("send handler called for \"%s\" with status %d (%s)", str, status, ucs_status_string(status));
 }
 
-static dpu_offload_status_t oob_connect(dpu_offload_client_t *client)
+static dpu_offload_status_t oob_connect(execution_context_t *econtext)
 {
-    CHECK_ERR_RETURN((client == NULL), DO_ERROR, "undefined client handle");
+    CHECK_ERR_RETURN((econtext == NULL), DO_ERROR, "undefined client handle");
+    dpu_offload_client_t *client = econtext->client;
     CHECK_ERR_RETURN((client->conn_data.oob.local_addr == NULL), DO_ERROR, "undefined local address");
     DBG("local address length: %lu", client->conn_data.oob.local_addr_len);
 
@@ -514,19 +540,30 @@ static dpu_offload_status_t oob_connect(dpu_offload_client_t *client)
     msg->len = client->conn_data.oob.local_addr_len;
     memcpy(msg + 1, client->conn_data.oob.local_addr, client->conn_data.oob.local_addr_len);
 
-    struct ucx_context *request;
+    struct ucx_context *addr_request, *rank_request;
     ucp_request_param_t send_param;
     send_param.op_attr_mask = UCP_OP_ATTR_FIELD_CALLBACK |
                               UCP_OP_ATTR_FIELD_USER_DATA;
     send_param.cb.send = oob_send_cb;
     send_param.user_data = (void *)client->conn_data.oob.addr_msg_str;
-    request = ucp_tag_send_nbx(client->server_ep, msg, msg_len, client->conn_data.oob.tag,
-                               &send_param);
-    status = ucx_wait(client->ucp_worker, request, "send",
-                      client->conn_data.oob.addr_msg_str);
+    // We send everything required to create an endpoint to the server
+    addr_request = ucp_tag_send_nbx(client->server_ep, msg, msg_len, client->conn_data.oob.tag,
+                                    &send_param);
+    // We send our "rank", i.e., unique application ID
+    rank_request = ucp_tag_send_nbx(client->server_ep, &(econtext->rank), sizeof(rank_info_t), client->conn_data.oob.tag,
+                                    &send_param);
+
+    // Because this is part of the bootstrapping, we wait for the sends to complete
+    ucx_wait(client->ucp_worker, addr_request, "send",
+             client->conn_data.oob.addr_msg_str);
+    ucx_wait(client->ucp_worker, rank_request, "send", NULL);
+
+    free(msg);
+    msg = NULL;
     return DO_SUCCESS;
 }
 
+#define DEFAULT_NUM_PEERS (10000)
 dpu_offload_status_t offload_engine_init(offloading_engine_t **engine)
 {
     offloading_engine_t *d = malloc(sizeof(offloading_engine_t));
@@ -541,6 +578,9 @@ dpu_offload_status_t offload_engine_init(offloading_engine_t **engine)
     d->inter_dpus_clients = malloc(d->num_max_inter_dpus_clients * sizeof(execution_context_t));
     CHECK_ERR_RETURN((d->servers == NULL), DO_ERROR, "unable to allocate resources");
     DYN_LIST_ALLOC(d->free_op_descs, 8, op_desc_t, item);
+    DYN_LIST_ALLOC(d->free_peer_cache_entries, DEFAULT_NUM_PEERS, peer_cache_entry_t, item);
+    DYN_LIST_ALLOC(d->free_peer_descs, DEFAULT_NUM_PEERS, peer_data_t, item);
+    GROUPS_CACHE_INIT((&(d->procs_cache)));
     *engine = d;
     return DO_SUCCESS;
 }
@@ -577,7 +617,15 @@ error_out:
     return DO_ERROR;
 }
 
-execution_context_t *client_init(offloading_engine_t *offload_engine, conn_params_t *conn_params)
+/**
+ * @brief client_init initialize the datastructure representing a client and perform the bootstrapping
+ * procedure
+ *
+ * @param offload_engine offloading engine the client is associated with.
+ * @param init_params Handle gathering all the initialization parameters that can be customized by the caller. Can be NULL to use defaults.
+ * @return execution_context_t*
+ */
+execution_context_t *client_init(offloading_engine_t *offload_engine, init_params_t *init_params)
 {
     CHECK_ERR_GOTO((offload_engine == NULL), error_out, "Undefined handle");
     CHECK_ERR_GOTO((offload_engine->client != NULL), error_out, "offload engine already initialized as a client");
@@ -585,20 +633,34 @@ execution_context_t *client_init(offloading_engine_t *offload_engine, conn_param
     execution_context_t *ctx;
     int rc = execution_context_init(offload_engine, CONTEXT_CLIENT, &ctx);
     CHECK_ERR_GOTO((rc != 0 || ctx == NULL), error_out, "execution_context_init() failed");
+    if (init_params != NULL && init_params->proc_info != NULL)
+    {
+        ctx->rank.group_id = init_params->proc_info->group_id;
+        ctx->rank.group_rank = init_params->proc_info->group_rank;
+    }
+    else
+    {
+        ctx->rank.group_id = INVALID_GROUP;
+        ctx->rank.group_rank = INVALID_RANK;
+    }
+    DBG("execution context successfully initialized");
 
     ucs_status_t status;
-    rc = client_init_context(ctx, conn_params);
+    rc = client_init_context(ctx, init_params);
     CHECK_ERR_GOTO((rc), error_out, "init_client_context() failed");
     CHECK_ERR_GOTO((ctx->client == NULL), error_out, "client handle is undefined");
+    DBG("client context successfully initialized");
 
     rc = event_channels_init(ctx);
     CHECK_ERR_GOTO((rc), error_out, "event_channel_init() failed");
     CHECK_ERR_GOTO((ctx->event_channels == NULL), error_out, "event channel object is undefined");
     ctx->client->event_channels = ctx->event_channels;
+    DBG("event channels successfully initialized");
 
     /* Initialize Active Message data handler */
-    int ret = dpu_offload_set_am_recv_handlers(ctx);
+    dpu_offload_status_t ret = dpu_offload_set_am_recv_handlers(ctx);
     CHECK_ERR_GOTO((ret), error_out, "dpu_offload_set_am_recv_handlers() failed");
+    DBG("Active messages successfully initialized");
 
     switch (ctx->client->mode)
     {
@@ -609,7 +671,8 @@ execution_context_t *client_init(offloading_engine_t *offload_engine, conn_param
     }
     default:
     {
-        oob_connect(ctx->client);
+        ret = oob_connect(ctx);
+        CHECK_ERR_GOTO((ret), error_out, "oob_connect() failed");
     }
     }
 
@@ -658,12 +721,14 @@ static dpu_offload_status_t request_finalize(ucp_worker_h ucp_worker, void *requ
 
 void offload_engine_fini(offloading_engine_t **offload_engine)
 {
+    // todo: free proc cache
     DYN_LIST_FREE((*offload_engine)->free_op_descs, op_desc_t, item);
+    DYN_LIST_FREE((*offload_engine)->free_peer_cache_entries, peer_cache_entry_t, item);
     free((*offload_engine)->client);
     int i;
     for (i = 0; i < (*offload_engine)->num_servers; i++)
     {
-        //server_fini() fixme
+        // server_fini() fixme
     }
     for (i = 0; i < (*offload_engine)->num_inter_dpus_clients; i++)
     {
@@ -819,7 +884,8 @@ static void oob_recv_handler(void *request, ucs_status_t status,
 static inline dpu_offload_status_t oob_server_ucx_client_connection(execution_context_t *econtext)
 {
     struct oob_msg *msg = NULL;
-    struct ucx_context *request = NULL;
+    struct ucx_context *addr_request = NULL;
+    struct ucx_context *rank_request = NULL;
     size_t msg_len = 0;
     ucp_request_param_t send_param;
     ucp_tag_recv_info_t info_tag;
@@ -849,9 +915,14 @@ static inline dpu_offload_status_t oob_server_ucx_client_connection(execution_co
     DBG("allocating space for message to receive: %ld", info_tag.length);
     msg = malloc(info_tag.length);
     CHECK_ERR_RETURN((msg == NULL), DO_ERROR, "unable to allocate memory");
-    request = ucp_tag_msg_recv_nb(server->ucp_worker, msg, info_tag.length,
-                                  ucp_dt_make_contig(1), msg_tag, oob_recv_handler);
-    status = ucx_wait(server->ucp_worker, request, "receive", server->conn_data.oob.addr_msg_str);
+    addr_request = ucp_tag_msg_recv_nb(server->ucp_worker, msg, info_tag.length,
+                                       ucp_dt_make_contig(1), msg_tag, oob_recv_handler);
+    // rank_info_t client_rank;
+    peer_data_t *peer_data;
+    rank_request = ucp_tag_msg_recv_nb(server->ucp_worker, &peer_data, sizeof(peer_data_t),
+                                       ucp_dt_make_contig(1), msg_tag, oob_recv_handler);
+
+    status = ucx_wait(server->ucp_worker, addr_request, "receive", server->conn_data.oob.addr_msg_str);
     if (status != UCS_OK)
     {
         free(msg);
@@ -880,6 +951,18 @@ static inline dpu_offload_status_t oob_server_ucx_client_connection(execution_co
     status = ucp_ep_create(worker, &ep_params, &client_ep);
     CHECK_ERR_RETURN((status != UCS_OK), DO_ERROR, "ucp_ep_create() failed: %s", ucs_status_string(status));
     server->connected_clients.clients[server->connected_clients.num_connected_clients].ep = client_ep;
+
+    ucx_wait(server->ucp_worker, rank_request, "receive", NULL);
+    if (IS_A_VALID_PEER_DATA(peer_data))
+    {
+        // Update the pointer to track cache entries, i.e., groups/ranks, for the peer
+        peer_cache_entry_t *cache_entry;
+        cache_entry->peer.proc_info.group_id = peer_data->proc_info.group_id;
+        cache_entry->peer.proc_info.group_rank = peer_data->proc_info.group_rank;
+        GET_PEER_DATA_HANDLE(econtext->engine->free_peer_cache_entries, cache_entry);
+        server->connected_clients.clients[server->connected_clients.num_connected_clients].cache_entries[0] = cache_entry;
+    }
+
     server->connected_clients.num_connected_clients++;
     pthread_mutex_unlock(&(econtext->server->mutex));
     DBG("Endpoint to client successfully created");
@@ -967,23 +1050,23 @@ static dpu_offload_status_t start_server(execution_context_t *econtext)
     return DO_SUCCESS;
 }
 
-dpu_offload_status_t server_init_context(execution_context_t *econtext, conn_params_t *conn_params)
+dpu_offload_status_t server_init_context(execution_context_t *econtext, init_params_t *init_params)
 {
     int ret;
     econtext->type = CONTEXT_SERVER;
     econtext->server = malloc(sizeof(dpu_offload_server_t));
     CHECK_ERR_RETURN((econtext->server == NULL), DO_ERROR, "Unable to allocate server handle");
     econtext->server->mode = OOB; // By default, we connect with the OOB mode
-    econtext->server->connected_clients.clients = malloc(DEFAULT_MAX_NUM_CLIENTS * sizeof(connected_client_t));
-    if (conn_params == NULL)
+    econtext->server->connected_clients.clients = malloc(DEFAULT_MAX_NUM_CLIENTS * sizeof(peer_info_t));
+    if (init_params == NULL || init_params->conn_params == NULL)
     {
         ret = get_env_config(&(econtext->server->conn_params));
         CHECK_ERR_RETURN((ret), DO_ERROR, "get_env_config() failed");
     }
     else
     {
-        econtext->server->conn_params.addr_str = conn_params->addr_str;
-        econtext->server->conn_params.port = conn_params->port;
+        econtext->server->conn_params.addr_str = init_params->conn_params->addr_str;
+        econtext->server->conn_params.port = init_params->conn_params->port;
         econtext->server->conn_params.port_str = NULL;
     }
 
@@ -991,9 +1074,17 @@ dpu_offload_status_t server_init_context(execution_context_t *econtext, conn_par
     CHECK_ERR_RETURN((ret), DO_ERROR, "pthread_mutex_init() failed");
     CHECK_ERR_RETURN((econtext->server->connected_clients.clients == NULL), DO_ERROR, "Unable to allocate resources for list of connected clients");
 
-    ret = init_context(&(econtext->server->ucp_context), &(econtext->server->ucp_worker));
-    CHECK_ERR_RETURN((ret != 0), DO_ERROR, "init_context() failed");
-    DBG("context successfully initialized (worker=%p)", econtext->server->ucp_worker);
+    if (init_params == NULL || init_params->worker == NULL)
+    {
+        ret = init_context(&(econtext->server->ucp_context), &(econtext->server->ucp_worker));
+        CHECK_ERR_RETURN((ret != 0), DO_ERROR, "init_context() failed");
+        DBG("context successfully initialized (worker=%p)", econtext->server->ucp_worker);
+    }
+    else
+    {
+        econtext->server->ucp_context = NULL;
+        econtext->server->ucp_worker = init_params->worker;
+    }
 
     switch (econtext->server->mode)
     {
@@ -1051,7 +1142,7 @@ static ucs_status_t server_create_ep(ucp_worker_h data_worker,
  * @param conn_params Connection parameters, e.g., port to use to listen for connections. If NULL, the configuration will be pulled from environment variables.
  * @return execution_context_t*
  */
-execution_context_t *server_init(offloading_engine_t *offloading_engine, conn_params_t *conn_params)
+execution_context_t *server_init(offloading_engine_t *offloading_engine, init_params_t *init_params)
 {
     CHECK_ERR_GOTO((offloading_engine == NULL), error_out, "Handle is NULL");
 
@@ -1059,7 +1150,7 @@ execution_context_t *server_init(offloading_engine_t *offloading_engine, conn_pa
     int rc = execution_context_init(offloading_engine, CONTEXT_SERVER, &execution_context);
     CHECK_ERR_GOTO((rc), error_out, "execution_context_init() failed");
 
-    int ret = server_init_context(execution_context, conn_params);
+    int ret = server_init_context(execution_context, init_params);
     CHECK_ERR_GOTO((ret), error_out, "server_init_context() failed");
     DBG("server handle successfully created (worker=%p)", execution_context->server->ucp_worker);
     offloading_engine->servers[offloading_engine->num_servers] = execution_context->server;

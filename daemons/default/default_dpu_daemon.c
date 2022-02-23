@@ -66,10 +66,13 @@ int main(int argc, char **argv)
     int bootstrap_conn_port;
     bootstrap_conn_port = ntohs(bootstrap_conn_addr.sin_port);
 
+    init_params_t init_params;
     conn_params_t server_params;
     server_params.addr_str = strdup(bootstrap_conn_ip);
     server_params.port = bootstrap_conn_port+1;
-    execution_context_t *service_server = server_init(offload_engine, &server_params);
+    init_params.conn_params = &server_params;
+    init_params.proc_info = NULL;
+    execution_context_t *service_server = server_init(offload_engine, &init_params);
 
     while(!service_server->server->done)
     {

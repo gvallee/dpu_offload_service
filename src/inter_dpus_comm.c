@@ -11,10 +11,11 @@
 #include "dpu_offload_types.h"
 #include "dpu_offload_debug.h"
 
-extern execution_context_t* server_init(offloading_engine_t *, conn_params_t *);
-extern execution_context_t* client_init(offloading_engine_t *, conn_params_t *);
+extern execution_context_t *server_init(offloading_engine_t *, init_params_t *);
+extern execution_context_t *client_init(offloading_engine_t *, init_params_t *);
 
-typedef enum {
+typedef enum
+{
     CONNECT_STATUS_UNKNOWN = 0,
     CONNECT_STATUS_CONNECTED,
     CONNECT_STATUS_DISCONNECTED
@@ -23,7 +24,7 @@ typedef enum {
 typedef struct remote_dpu_info
 {
     ucs_list_link_t item;
-    conn_params_t conn_params;
+    init_params_t init_params;
     connect_status_t conn_status;
     pthread_t connection_tid;
     offloading_engine_t *offload_engine;
@@ -82,7 +83,9 @@ dpu_offload_parse_list_dpus(offloading_engine_t *offload_engine,
             remote_dpu_info_t *new_conn_to;
             DYN_LIST_GET(info_connecting_to->pool_remote_dpu_info, remote_dpu_info_t, item, new_conn_to);
             DBG("Adding DPU %s to the list of DPUs to connect to", token);
-            new_conn_to->conn_params.addr_str = token;
+            new_conn_to->init_params.conn_params = malloc(sizeof(conn_params_t)); // fixme: avoid malloc here
+            CHECK_ERR_RETURN((new_conn_to->init_params.conn_params == NULL), DO_ERROR, "resource allocation failed");
+            new_conn_to->init_params.conn_params->addr_str = token;
             new_conn_to->offload_engine = offload_engine;
             ucs_list_add_tail(&(info_connecting_to->connect_to), &(new_conn_to->item));
             info_connecting_to->num_connect_to++;
@@ -104,7 +107,7 @@ dpu_offload_parse_list_dpus(offloading_engine_t *offload_engine,
 
 static void *connect_thread(void *arg)
 {
-    remote_dpu_info_t *remote_dpu_info = (remote_dpu_info_t*)arg;
+    remote_dpu_info_t *remote_dpu_info = (remote_dpu_info_t *)arg;
     if (remote_dpu_info == NULL)
     {
         ERR_MSG("Remote DPU info is NULL");
@@ -116,11 +119,11 @@ static void *connect_thread(void *arg)
         ERR_MSG("undefined offload_engine");
         pthread_exit(NULL);
     }
-    DBG("connecting to DPU server %s", remote_dpu_info->conn_params.addr_str);
-    execution_context_t *client = client_init(offload_engine, &(remote_dpu_info->conn_params));
+    DBG("connecting to DPU server %s", remote_dpu_info->init_params.conn_params->addr_str);
+    execution_context_t *client = client_init(offload_engine, &(remote_dpu_info->init_params));
     if (client == NULL)
     {
-        ERR_MSG("Unable to connect to %s\n", remote_dpu_info->conn_params.addr_str);
+        ERR_MSG("Unable to connect to %s\n", remote_dpu_info->init_params.conn_params->addr_str);
         pthread_exit(NULL);
     }
     offload_engine->inter_dpus_clients[offload_engine->num_inter_dpus_clients] = client;
@@ -162,7 +165,7 @@ dpu_offload_status_t inter_dpus_connect_mgr(offloading_engine_t *offload_engine,
         // Some DPUs will be connecting to us so we start a new server.
         execution_context_t *server = server_init(offload_engine, NULL);
         CHECK_ERR_RETURN((server == NULL), DO_ERROR, "server_init() failed");
-        CHECK_ERR_RETURN((offload_engine->num_servers+1 < offload_engine->num_max_servers), DO_ERROR, "max number of server has been reached");
+        CHECK_ERR_RETURN((offload_engine->num_servers + 1 < offload_engine->num_max_servers), DO_ERROR, "max number of server has been reached");
         offload_engine->servers[offload_engine->num_servers] = server->server;
         offload_engine->num_servers++;
         // Nothing else to do in this context.

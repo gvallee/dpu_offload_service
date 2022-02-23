@@ -9,7 +9,7 @@
 # $HEADER$
 #
 
-SUBDIRS = src daemons tests
+SUBDIRS = src daemons tests include
 
 EXTRA_DIST =    \
     COPYING     \

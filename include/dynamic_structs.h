@@ -20,6 +20,10 @@ typedef struct mem_chunk
     void *ptr;
 } mem_chunk_t;
 
+/****************/
+/* DYNAMIC LIST */
+/****************/
+
 typedef struct dyn_list
 {
     size_t num_elts;
@@ -103,5 +107,73 @@ typedef struct dyn_list
         ucs_list_add_tail(&(_dyn_list->list), &(_item->_elt)); \
     } while (0)
 int dynamic_list_return();
+
+/*****************/
+/* DYNAMIC ARRAY */
+/*****************/
+
+typedef struct dyn_array
+{
+    void *base;
+    size_t num_elts;
+    size_t num_elts_alloc;
+} dyn_array_t;
+
+#define DYN_ARRAY_ALLOC(_dyn_array, _num_elts_alloc, _type)               \
+    do                                                                    \
+    {                                                                     \
+        _dyn_array = malloc(sizeof(dyn_array_t));                         \
+        if (_dyn_array != NULL)                                           \
+        {                                                                 \
+            _dyn_array->num_elts_alloc = _num_elts_alloc;                 \
+            _dyn_array->num_elts = _num_elts_alloc;                       \
+            _dyn_array->base = malloc(_num_elts_alloc * sizeof(_type));   \
+            assert(_dyn_array->base);                                     \
+            memset(_dyn_array->base, 0, _num_elts_alloc * sizeof(_type)); \
+        }                                                                 \
+    } while (0)
+
+#define DYN_ARRAY_FREE(_dyn_array, _type) \
+    do                                    \
+    {                                     \
+        assert(_dyn_array);               \
+        assert(_dyn_array->base);         \
+        free(_dyn_array->base);           \
+        free(_dyn_array);                 \
+        _dyn_array = NULL;                \
+    } while (0)
+
+#define DYN_ARRAY_GET_ELT(_dyn_array, _idx, _type, _elt)                       \
+    do                                                                         \
+    {                                                                          \
+        assert(_dyn_array);                                                    \
+        if ((_dyn_array)->num_elts >= _idx)                                    \
+        {                                                                      \
+            ERR_MSG("requested idx %" PRId64 " is beyond end of array", _idx); \
+            _elt = NULL;                                                       \
+        }                                                                      \
+        _type *_ptr = (_type *)((_dyn_array)->base);                           \
+        _elt = (_type *)&(_ptr[_idx]);                                         \
+    } while (0)
+
+#define DYN_ARRAY_SET_ELT(_dyn_array, _idx, _type, _elt)                 \
+    do                                                                   \
+    {                                                                    \
+        assert(_dyn_array);                                              \
+        if ((_dyn_array)->num_elts >= _idx)                              \
+        {                                                                \
+            /* Grow the array */                                         \
+            size_t _cur_size = _dyn_array->num_elts * size(_type);       \
+            size_t _new_size = _cur_size;                                \
+            while (_new_size < _idx * sizeof(type))                      \
+            {                                                            \
+                _new_size += _dyn_array->new_elts_alloc * sizeof(_type); \
+            }                                                            \
+            _dyn_array->base = realloc(_new_size);                       \
+            assert(_dyn_array->base);                                    \
+        }                                                                \
+        _type *_ptr = (_type *)(_dyn_array->base);                       \
+        memcpy(&(_ptr[_idx]), _elt, sizeof(_idx));                       \
+    } while (0)
 
 #endif // DPU_OFFLOAD_DYNAMIC_LIST_H
