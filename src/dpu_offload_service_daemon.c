@@ -1082,6 +1082,7 @@ dpu_offload_status_t server_init_context(execution_context_t *econtext, init_par
     }
     else
     {
+        DBG("re-using UCP worker for new execution context");
         econtext->server->ucp_context = NULL;
         econtext->server->ucp_worker = init_params->worker;
     }
