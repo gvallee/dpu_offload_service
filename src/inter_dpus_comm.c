@@ -142,7 +142,7 @@ connect_to_dpus(offloading_engine_t *offload_engine, dpu_inter_connect_info_t *i
     return DO_SUCCESS;
 }
 
-dpu_offload_status_t inter_dpus_connect_mgr(offloading_engine_t *offload_engine, char *list_dpus, char *dpu_hostname)
+dpu_offload_status_t inter_dpus_connect_mgr(offloading_engine_t *offload_engine, char *list_dpus, char *dpu_hostname, init_params_t *init_params)
 {
     size_t num_dpus_connecting_from;
     dpu_inter_connect_info_t info_connect_to;
@@ -163,7 +163,7 @@ dpu_offload_status_t inter_dpus_connect_mgr(offloading_engine_t *offload_engine,
     if (num_dpus_connecting_from > 0)
     {
         // Some DPUs will be connecting to us so we start a new server.
-        execution_context_t *server = server_init(offload_engine, NULL);
+        execution_context_t *server = server_init(offload_engine, init_params);
         CHECK_ERR_RETURN((server == NULL), DO_ERROR, "server_init() failed");
         CHECK_ERR_RETURN((offload_engine->num_servers + 1 < offload_engine->num_max_servers), DO_ERROR, "max number of server has been reached");
         offload_engine->servers[offload_engine->num_servers] = server->server;

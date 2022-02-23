@@ -63,7 +63,8 @@ dpu_offload_status_t get_env_config(conn_params_t *params)
     char *server_addr = getenv(SERVER_IP_ADDR_ENVVAR);
     int port = -1;
 
-    CHECK_ERR_RETURN((!server_addr), DO_ERROR, "Invalid server address, please make sure the environment variable %s is correctly set", SERVER_IP_ADDR_ENVVAR);
+    CHECK_ERR_RETURN((!server_addr), DO_ERROR,
+                     "Invalid server address, please make sure the environment variable %s or %s is correctly set", SERVER_IP_ADDR_ENVVAR, INTER_DPU_ADDR_ENVVAR);
 
     if (server_port_envvar)
     {
@@ -155,7 +156,7 @@ static dpu_offload_status_t oob_server_accept(uint16_t server_port, sa_family_t 
     return connfd;
 }
 
-#define MAX_RETRY (5)
+#define MAX_RETRY (300) // Never try to connect for more than 5 minutes
 
 dpu_offload_status_t oob_client_connect(dpu_offload_client_t *client, sa_family_t af)
 {
@@ -178,7 +179,7 @@ dpu_offload_status_t oob_client_connect(dpu_offload_client_t *client, sa_family_
     CHECK_ERR_RETURN((ret < 0), DO_ERROR, "getaddrinfo() failed");
 
     bool connected = false;
-    int retry = 0;
+    int retry = 1;
     for (t = res; t != NULL; t = t->ai_next)
     {
         client->conn_data.oob.sock = socket(t->ai_family, t->ai_socktype, t->ai_protocol);
@@ -206,18 +207,15 @@ dpu_offload_status_t oob_client_connect(dpu_offload_client_t *client, sa_family_
             }
             else
             {
-                retry++;
+                retry *= 2;
                 DBG("Connection failed, retrying in %d seconds...", retry);
                 sleep(retry);
             }
         } while (rc != 0 && retry < MAX_RETRY);
-        if (rc != 0)
-        {
-            ERR_MSG("Connection failed (rc: %d)", rc);
-        }
+        CHECK_ERR_GOTO((rc != 0), err_close_sockfd, "Connection failed (rc: %d)", rc);
     }
 
-    CHECK_ERR_RETURN((client->conn_data.oob.sock < 0), DO_ERROR, "Unable to connect to server: invalid file descriptor (%d)", client->conn_data.oob.sock);
+    CHECK_ERR_GOTO((client->conn_data.oob.sock < 0), err_close_sockfd, "Unable to connect to server: invalid file descriptor (%d)", client->conn_data.oob.sock);
 
 out_free_res:
     freeaddrinfo(res);
@@ -225,7 +223,7 @@ out:
     return rc;
 err_close_sockfd:
     close(client->conn_data.oob.sock);
-    rc = -1;
+    rc = DO_ERROR;
     goto out_free_res;
 }
 
@@ -1060,6 +1058,7 @@ dpu_offload_status_t server_init_context(execution_context_t *econtext, init_par
     econtext->server->connected_clients.clients = malloc(DEFAULT_MAX_NUM_CLIENTS * sizeof(peer_info_t));
     if (init_params == NULL || init_params->conn_params == NULL)
     {
+        DBG("no initialization parameters specified, try to gather parameters from environment...");
         ret = get_env_config(&(econtext->server->conn_params));
         CHECK_ERR_RETURN((ret), DO_ERROR, "get_env_config() failed");
     }
