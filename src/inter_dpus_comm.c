@@ -12,7 +12,7 @@
 #include "dpu_offload_debug.h"
 
 extern execution_context_t *server_init(offloading_engine_t *, init_params_t *);
-extern execution_context_t *client_init(offloading_engine_t *, init_params_t *, rank_info_t *);
+extern execution_context_t *client_init(offloading_engine_t *, init_params_t *);
 
 typedef enum
 {
@@ -24,7 +24,7 @@ typedef enum
 typedef struct remote_dpu_info
 {
     ucs_list_link_t item;
-    conn_params_t conn_params;
+    init_params_t init_params;
     connect_status_t conn_status;
     pthread_t connection_tid;
     offloading_engine_t *offload_engine;
@@ -83,7 +83,9 @@ dpu_offload_parse_list_dpus(offloading_engine_t *offload_engine,
             remote_dpu_info_t *new_conn_to;
             DYN_LIST_GET(info_connecting_to->pool_remote_dpu_info, remote_dpu_info_t, item, new_conn_to);
             DBG("Adding DPU %s to the list of DPUs to connect to", token);
-            new_conn_to->conn_params.addr_str = token;
+            new_conn_to->init_params.conn_params = malloc(sizeof(conn_params_t)); // fixme: avoid malloc here
+            CHECK_ERR_RETURN((new_conn_to->init_params.conn_params == NULL), DO_ERROR, "resource allocation failed");
+            new_conn_to->init_params.conn_params->addr_str = token;
             new_conn_to->offload_engine = offload_engine;
             ucs_list_add_tail(&(info_connecting_to->connect_to), &(new_conn_to->item));
             info_connecting_to->num_connect_to++;
@@ -117,11 +119,11 @@ static void *connect_thread(void *arg)
         ERR_MSG("undefined offload_engine");
         pthread_exit(NULL);
     }
-    DBG("connecting to DPU server %s", remote_dpu_info->conn_params.addr_str);
-    execution_context_t *client = client_init(offload_engine, &(remote_dpu_info->conn_params), NULL);
+    DBG("connecting to DPU server %s", remote_dpu_info->init_params.conn_params->addr_str);
+    execution_context_t *client = client_init(offload_engine, &(remote_dpu_info->init_params));
     if (client == NULL)
     {
-        ERR_MSG("Unable to connect to %s\n", remote_dpu_info->conn_params.addr_str);
+        ERR_MSG("Unable to connect to %s\n", remote_dpu_info->init_params.conn_params->addr_str);
         pthread_exit(NULL);
     }
     offload_engine->inter_dpus_clients[offload_engine->num_inter_dpus_clients] = client;

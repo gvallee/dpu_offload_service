@@ -17,8 +17,9 @@
 #include "dpu_offload_comm_channels.h"
 #include "dpu_offload_event_channels.h"
 #include "dpu_offload_envvars.h"
-#include "dynamic_list.h"
+#include "dynamic_structs.h"
 #include "dpu_offload_debug.h"
+#include "dpu_offload_mem_mgt.h"
 
 // A lot of the code is from ucp_client_serrver.c from UCX
 
@@ -31,6 +32,12 @@ static sa_family_t ai_family = AF_INET;
 #define PORT_STRING_LEN 8
 #define OOB_DEFAULT_TAG 0x1337a880u
 #define UCX_ADDR_MSG "UCX address message"
+
+static struct err_handling
+{
+    ucp_err_handling_mode_t ucp_err_mode;
+    failure_mode_t failure_mode;
+} err_handling_opt;
 
 typedef struct am_msg_t
 {
@@ -46,6 +53,9 @@ struct oob_msg
 };
 
 am_msg_t am_data_desc = {0, 0, NULL, NULL};
+
+#define GET_PEER_DATA_HANDLE(_pool_free_peer_descs, _peer_data) \
+    DYN_LIST_GET(_pool_free_peer_descs, peer_cache_entry_t, item, _peer_data);
 
 dpu_offload_status_t get_env_config(conn_params_t *params)
 {
@@ -553,6 +563,7 @@ static dpu_offload_status_t oob_connect(execution_context_t *econtext)
     return DO_SUCCESS;
 }
 
+#define DEFAULT_NUM_PEERS (10000)
 dpu_offload_status_t offload_engine_init(offloading_engine_t **engine)
 {
     offloading_engine_t *d = malloc(sizeof(offloading_engine_t));
@@ -567,6 +578,9 @@ dpu_offload_status_t offload_engine_init(offloading_engine_t **engine)
     d->inter_dpus_clients = malloc(d->num_max_inter_dpus_clients * sizeof(execution_context_t));
     CHECK_ERR_RETURN((d->servers == NULL), DO_ERROR, "unable to allocate resources");
     DYN_LIST_ALLOC(d->free_op_descs, 8, op_desc_t, item);
+    DYN_LIST_ALLOC(d->free_peer_cache_entries, DEFAULT_NUM_PEERS, peer_cache_entry_t, item);
+    DYN_LIST_ALLOC(d->free_peer_descs, DEFAULT_NUM_PEERS, peer_data_t, item);
+    GROUPS_CACHE_INIT((&(d->procs_cache)));
     *engine = d;
     return DO_SUCCESS;
 }
@@ -623,6 +637,11 @@ execution_context_t *client_init(offloading_engine_t *offload_engine, init_param
     {
         ctx->rank.group_id = init_params->proc_info->group_id;
         ctx->rank.group_rank = init_params->proc_info->group_rank;
+    }
+    else
+    {
+        ctx->rank.group_id = INVALID_GROUP;
+        ctx->rank.group_rank = INVALID_RANK;
     }
     DBG("execution context successfully initialized");
 
@@ -702,7 +721,9 @@ static dpu_offload_status_t request_finalize(ucp_worker_h ucp_worker, void *requ
 
 void offload_engine_fini(offloading_engine_t **offload_engine)
 {
+    // todo: free proc cache
     DYN_LIST_FREE((*offload_engine)->free_op_descs, op_desc_t, item);
+    DYN_LIST_FREE((*offload_engine)->free_peer_cache_entries, peer_cache_entry_t, item);
     free((*offload_engine)->client);
     int i;
     for (i = 0; i < (*offload_engine)->num_servers; i++)
@@ -896,8 +917,9 @@ static inline dpu_offload_status_t oob_server_ucx_client_connection(execution_co
     CHECK_ERR_RETURN((msg == NULL), DO_ERROR, "unable to allocate memory");
     addr_request = ucp_tag_msg_recv_nb(server->ucp_worker, msg, info_tag.length,
                                        ucp_dt_make_contig(1), msg_tag, oob_recv_handler);
-    rank_info_t client_rank;
-    rank_request = ucp_tag_msg_recv_nb(server->ucp_worker, &client_rank, sizeof(rank_info_t),
+    // rank_info_t client_rank;
+    peer_data_t *peer_data;
+    rank_request = ucp_tag_msg_recv_nb(server->ucp_worker, &peer_data, sizeof(peer_data_t),
                                        ucp_dt_make_contig(1), msg_tag, oob_recv_handler);
 
     status = ucx_wait(server->ucp_worker, addr_request, "receive", server->conn_data.oob.addr_msg_str);
@@ -931,8 +953,15 @@ static inline dpu_offload_status_t oob_server_ucx_client_connection(execution_co
     server->connected_clients.clients[server->connected_clients.num_connected_clients].ep = client_ep;
 
     ucx_wait(server->ucp_worker, rank_request, "receive", NULL);
-    server->connected_clients.clients[server->connected_clients.num_connected_clients].rank.group_id = client_rank.group_id;
-    server->connected_clients.clients[server->connected_clients.num_connected_clients].rank.group_rank = client_rank.group_rank;
+    if (IS_A_VALID_PEER_DATA(peer_data))
+    {
+        // Update the pointer to track cache entries, i.e., groups/ranks, for the peer
+        peer_cache_entry_t *cache_entry;
+        cache_entry->peer.proc_info.group_id = peer_data->proc_info.group_id;
+        cache_entry->peer.proc_info.group_rank = peer_data->proc_info.group_rank;
+        GET_PEER_DATA_HANDLE(econtext->engine->free_peer_cache_entries, cache_entry);
+        server->connected_clients.clients[server->connected_clients.num_connected_clients].cache_entries[0] = cache_entry;
+    }
 
     server->connected_clients.num_connected_clients++;
     pthread_mutex_unlock(&(econtext->server->mutex));

@@ -33,7 +33,7 @@ void send_cb(void *request, ucs_status_t status)
 int main(int argc, char **argv)
 {
     offloading_engine_t *offload_engine;
-    int rc = offload_engine_init(&offload_engine);
+    dpu_offload_status_t rc = offload_engine_init(&offload_engine);
     if (rc || offload_engine == NULL)
     {
         fprintf(stderr, "offload_engine_init() failed\n");

@@ -43,13 +43,7 @@ typedef enum
     FAILURE_MODE_KEEPALIVE /* fail without communication on client */
 } failure_mode_t;
 
-static struct err_handling
-{
-    ucp_err_handling_mode_t ucp_err_mode;
-    failure_mode_t failure_mode;
-} err_handling_opt;
-
-enum
+typedef enum
 {
     OOB,
     UCX_LISTENER

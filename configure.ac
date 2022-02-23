@@ -149,6 +149,7 @@ AC_CHECK_LIB([prrte],[prte],,AC_MSG_ERROR([Cannot use PRRTE lib]))
 # Generate Makefiles
 AC_CONFIG_FILES([Makefile 
                  src/Makefile
+                 include/Makefile
                  daemons/Makefile
                  daemons/default/Makefile
                  daemons/job_persistent/Makefile

@@ -23,7 +23,7 @@ dpu_offload_status_t send_key_to_dpu(execution_context_t *econtext, cgmk_mr_cros
     CHECK_ERR_RETURN((econtext->type != CONTEXT_CLIENT), DO_ERROR, "Only a client running on the host can send a key to a server on a DPU");
 
     dpu_offload_event_t *key_send_ev;
-    int rc = event_get(econtext->event_channels, &key_send_ev);
+    dpu_offload_status_t rc = event_get(econtext->event_channels, &key_send_ev);
     CHECK_ERR_RETURN((rc || !key_send_ev), DO_ERROR, "event_get() failed");
 
     rc = event_channel_emit(key_send_ev, econtext->client->id, AM_XGVMI_ADD_MSG_ID, GET_SERVER_EP(econtext), NULL, mr, mr_size);

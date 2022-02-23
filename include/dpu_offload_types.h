@@ -12,7 +12,7 @@
 
 #include <ucs/datastruct/list.h>
 
-#include "dynamic_list.h"
+#include "dynamic_structs.h"
 #include "dpu_offload_common.h"
 #include "dpu_offload_utils.h"
 
@@ -26,7 +26,7 @@ typedef enum
     CONTEXT_SERVER
 } daemon_type_t;
 
-#define MY_ID(_exec_ctx) ({                \
+#define ECONTEXT_ID(_exec_ctx) ({          \
     uint64_t _my_id;                       \
     if (_exec_ctx->type == CONTEXT_CLIENT) \
     {                                      \
@@ -190,7 +190,7 @@ typedef struct active_ops
 /* NOTIFICATIONS */
 
 struct dpu_offload_ev_sys;
-typedef int (*notification_cb)(struct dpu_offload_ev_sys *ev_sys, void *context, void *data);
+typedef int (*notification_cb)(struct dpu_offload_ev_sys *ev_sys, void *context, void *data, size_t data_size);
 
 typedef struct notification_callback_entry
 {
@@ -225,6 +225,16 @@ typedef struct dpu_offload_ev_sys
 
 /* OFFLOADING ENGINE, CLIENTS/SERVERS */
 
+#define INVALID_GROUP (-1)
+#define INVALID_RANK (-1)
+
+#define IS_A_VALID_PEER_DATA(_peer_data) ({                                                                  \
+    bool _valid = false;                                                                                     \
+    if (_peer_data->proc_info.group_id != INVALID_GROUP && _peer_data->proc_info.group_rank != INVALID_RANK) \
+        _valid = true;                                                                                       \
+    _valid;                                                                                                  \
+})
+
 typedef struct ucx_server_ctx
 {
     volatile ucp_conn_request_h conn_request;
@@ -233,15 +243,51 @@ typedef struct ucx_server_ctx
 
 typedef struct rank_info
 {
-    uint32_t group_id;
-    uint32_t group_rank;
+    int64_t group_id;
+    int64_t group_rank;
 } rank_info_t;
+
+// fixme: long term, we do not want to have a limit on the length of the address
+// but this will require a new smart way to manage the memory used by cache entries
+// and avoid expensive copies when exchanging cache entries between DPUs and
+// application processes
+#define MAX_ADDR_LEN (2048)
+
+#define MAX_SHADOW_DPUS (8)
+
+// peer_data_t stores all the information related to a rank in a group,
+// it is designed in a way it can be directly sent without requiring
+// memory copies.
+typedef struct peer_data
+{
+    ucs_list_link_t item;
+    rank_info_t proc_info;
+    size_t addr_len;
+    char addr[MAX_ADDR_LEN]; // ultimately ucp_address_t * when using UCX
+} peer_data_t;
+
+typedef struct shadow_dpu_info
+{
+    peer_data_t shadow_data; // Can be NULL if applied to DPU specific data
+    ucp_ep_h shadow_ep;      // endpoint to reach the attached DPU
+} shadow_dpu_info_t;
+
+typedef struct peer_cache_entry
+{
+    ucs_list_link_t item;
+    peer_data_t peer;
+    ucp_ep_h ep;
+    size_t num_shadow_dpus;
+    shadow_dpu_info_t shadow_dpus[MAX_SHADOW_DPUS]; // Array of DPUs (when applicable)
+} peer_cache_entry_t;
 
 typedef struct peer_info
 {
     ucp_ep_h ep;
     ucs_status_t ep_status;
-    rank_info_t rank;
+    // rank_info_t rank;
+    //  Array of group/proc entries, one per group. A rank can belong to multiple groups but have a single endpoint.
+    peer_cache_entry_t **cache_entries;
 } peer_info_t;
 
 typedef struct connected_clients
@@ -249,6 +295,7 @@ typedef struct connected_clients
     dpu_offload_ev_sys_t *event_channels;
     size_t num_max_connected_clients;
     size_t num_connected_clients;
+    // Array of structures to track connected clients
     peer_info_t *clients;
 } connected_clients_t;
 
@@ -393,6 +440,45 @@ typedef enum
 
 /* OFFLOADING ENGINE */
 
+typedef struct cache
+{
+    size_t size; // not used at the moment
+
+    /* data is a dynamic array for all the groups */
+    dyn_array_t data;
+} cache_t;
+
+#define SET_PEER_CACHE_ENTRY_FROM_PEER_DATA(_peer_cache, _peer_data)                              \
+    do                                                                                            \
+    {                                                                                             \
+        if (_peer_cache[_peer_data->group_id] == NULL)                                            \
+        {                                                                                         \
+            /* Cache for the group is empty */                                                    \
+            dyn_array_t *_dyn_array;                                                              \
+            DYN_ARRAY_ALLOC(_dyn_array, DEFAULT_NUM_RANKS_IN_GROUP, peer_cache_entry_t);          \
+            DYN_ARRAY_SET_ELT(_peer_cache[_peer_data->group_id], peer_cache_entry_t, _dyn_array); \
+        }                                                                                         \
+        dyn_array_t *_ptr = (dyn_array_t *)_peer_cache[_peer_data->group_id];                     \
+        cache_entry_t *_cache = (cache_entry_t *)_ptr->base;                                      \
+        _cache[_peer_data->group_rank].peer.proc_info.group_id = _peer_data->group_id;            \
+        _cache[_peer_data->group_rank].peer.proc_info.group_rank = _peer_data->group_rank;        \
+    } while (0)
+
+#define SET_PEER_CACHE_ENTRY(_peer_cache, _entry)                                        \
+    do                                                                                   \
+    {                                                                                    \
+        int32_t _gp_id = _entry->peer.proc_info.group_id;                                \
+        if (_peer_cache[_gp_id] == NULL)                                                 \
+        {                                                                                \
+            /* Cache for the group is empty */                                           \
+            dyn_array_t *_dyn_array;                                                     \
+            DYN_ARRAY_ALLOC(_dyn_array, DEFAULT_NUM_RANKS_IN_GROUP, peer_cache_entry_t); \
+            DYN_ARRAY_SET_ELT(_gp_id], peer_cache_entry_t, _dyn_array);                  \
+        }                                                                                \
+        dyn_array_t *_ptr = (dyn_array_t *)_peer_cache[_gp_id];                          \
+        memcpy(_ptr, _entry, sizeof(peer_cache_entry_t));                                \
+    } while (0)
+
 typedef struct offloading_engine
 {
     int done;
@@ -417,6 +503,11 @@ typedef struct offloading_engine
     size_t num_registered_ops;
     offload_op_t *registered_ops;
     dyn_list_t *free_op_descs;
+
+    /* Cache for groups/rank so we can propagate rank and DPU related data */
+    cache_t procs_cache;
+    dyn_list_t *free_peer_cache_entries; // pool of peer descriptors that can also be used directly into a cache
+    dyn_list_t *free_peer_descs;         // pool of peer data descriptirs
 } offloading_engine_t;
 
 typedef enum
@@ -427,6 +518,8 @@ typedef enum
     AM_OP_COMPLETION_MSG_ID,
     AM_XGVMI_ADD_MSG_ID,
     AM_XGVMI_DEL_MSG_ID,
+    AM_PEER_CACHE_REQ_MSG_ID,
+    AM_PEER_CACHE_ENTRIES_MSG_ID,
     AM_TEST_MSG_ID
 } am_id_t;
 

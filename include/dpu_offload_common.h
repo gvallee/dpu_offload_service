@@ -4,7 +4,6 @@
 // See LICENSE.txt for license information
 //
 
-#include <pmix.h>
 #include <ucp/api/ucp.h>
 
 #ifndef DPU_OFFLOAD_COMMON_H
@@ -24,7 +23,7 @@ extern "C"
 {
 #endif
 
-    typedef pmix_info_t dpu_offload_info_t;
+    //typedef pmix_info_t dpu_offload_info_t;
 
 #define DPU_OFFLOAD_INFO_CREATE PMIX_INFO_CREATE
 #define DPU_OFFLOAD_INFO_LOAD PMIX_INFO_LOAD

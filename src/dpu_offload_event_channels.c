@@ -68,7 +68,7 @@ static ucs_status_t am_notification_msg_cb(void *arg, const void *header, size_t
     notification_cb cb = entry->cb;
     CHECK_ERR_RETURN((cb == NULL), UCS_ERR_NO_MESSAGE, "Callback is undefined");
     struct dpu_offload_ev_sys *ev_sys = EV_SYS(econtext);
-    cb(ev_sys, econtext, data);
+    cb(ev_sys, econtext, data, length);
     return UCS_OK;
 }
 
@@ -130,7 +130,7 @@ dpu_offload_status_t event_channel_register(dpu_offload_ev_sys_t *ev_sys, uint64
         if (pending_notif->type == type)
         {
             ucs_list_del(&(pending_notif->item));
-            cb((struct dpu_offload_ev_sys *)ev_sys, pending_notif->arg, pending_notif->data);
+            cb((struct dpu_offload_ev_sys *)ev_sys, pending_notif->arg, pending_notif->data, pending_notif->data_size);
         }
     }
 
@@ -229,7 +229,7 @@ dpu_offload_status_t event_return(dpu_offload_ev_sys_t *ev_sys, dpu_offload_even
 /* DEFAULT HANDLERS */
 /********************/
 
-static dpu_offload_status_t op_completion_cb(struct dpu_offload_ev_sys *ev_sys, void *context, void *data)
+static dpu_offload_status_t op_completion_cb(struct dpu_offload_ev_sys *ev_sys, void *context, void *data, size_t data_len)
 {
     execution_context_t *econtext = (execution_context_t *)context;
     uint64_t *_data = (uint64_t *)data;
@@ -254,7 +254,7 @@ static dpu_offload_status_t op_completion_cb(struct dpu_offload_ev_sys *ev_sys, 
     return DO_SUCCESS;
 }
 
-static dpu_offload_status_t op_start_cb(struct dpu_offload_ev_sys *ev_sys, void *context, void *data)
+static dpu_offload_status_t op_start_cb(struct dpu_offload_ev_sys *ev_sys, void *context, void *data, size_t data_len)
 {
     assert(context);
     assert(data);
@@ -293,22 +293,84 @@ static dpu_offload_status_t op_start_cb(struct dpu_offload_ev_sys *ev_sys, void 
     return DO_SUCCESS;
 }
 
-static dpu_offload_status_t xgvmi_key_revoke_cb(struct dpu_offload_ev_sys *ev_sys, void *context, void *data)
+static dpu_offload_status_t xgvmi_key_revoke_cb(struct dpu_offload_ev_sys *ev_sys, void *context, void *data, size_t data_len)
 {
     // todo
     return DO_ERROR;
 }
 
-static int xgvmi_key_recv_cb(struct dpu_offload_ev_sys *ev_sys, void *context, void *data)
+static int xgvmi_key_recv_cb(struct dpu_offload_ev_sys *ev_sys, void *context, void *data, size_t data_len)
 {
     // todo
     return DO_ERROR;
+}
+
+static inline bool is_in_cache(cache_t *cache, int64_t gp_id, int64_t rank_id)
+{
+    dyn_array_t *gp_data, *gps_data = &(cache->data);
+    DYN_ARRAY_GET_ELT(gps_data, gp_id, dyn_array_t, gp_data);
+    if (gp_data == NULL)
+    {
+        return false;
+    }
+    else
+    {
+        if (gp_data->num_elts <= rank_id)
+        {
+            return false;
+        }
+        else
+        {
+            peer_cache_entry_t *entries;
+            dyn_array_t *rank_array = (dyn_array_t *)gp_data->base;
+            DYN_ARRAY_GET_ELT(rank_array, rank_id, peer_cache_entry_t, entries);
+            if (entries[rank_id].peer.proc_info.group_id == INVALID_GROUP ||
+                entries[rank_id].peer.proc_info.group_rank == INVALID_RANK)
+            {
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
+static int peer_cache_entries_recv_cb(struct dpu_offload_ev_sys *ev_sys, void *context, void *data, size_t data_len)
+{
+    assert(context);
+    assert(data);
+
+    execution_context_t *econtext = (execution_context_t *)context;
+    offloading_engine_t *engine = (offloading_engine_t *)econtext->engine;
+    peer_cache_entry_t *entries = (peer_cache_entry_t *)data;
+    size_t cur_size = 0;
+    size_t idx = 0;
+    int64_t group_id = INVALID_GROUP;
+    while (cur_size < data_len)
+    {
+        cache_t *cache = &(engine->procs_cache);
+        // Make sure we know the group ID of what we receive otherwise we do not know what to do
+        if (group_id == INVALID_GROUP)
+            group_id = entries[idx].peer.proc_info.group_id;
+
+        // Now that we know for sure we have the group ID, we can move the received data into the local cache
+        bool in_cache;
+        int64_t group_rank = entries[idx].peer.proc_info.group_rank;
+        if (!is_in_cache(cache, group_id, group_rank))
+        {
+            // SET_PEER_CACHE_ENTRY(cache, entries[idx]);
+        }
+
+        cur_size += sizeof(peer_cache_entry_t);
+        idx++;
+    }
+
+    return DO_SUCCESS;
 }
 
 dpu_offload_status_t register_default_notifications(dpu_offload_ev_sys_t *ev_sys)
 {
     CHECK_ERR_RETURN((ev_sys == NULL), DO_ERROR, "Undefined event channels");
-    
+
     int rc = event_channel_register(ev_sys, AM_OP_START_MSG_ID, op_start_cb);
     CHECK_ERR_RETURN(rc, DO_ERROR, "cannot register handler to start operations");
 
@@ -320,6 +382,9 @@ dpu_offload_status_t register_default_notifications(dpu_offload_ev_sys_t *ev_sys
 
     rc = event_channel_register(ev_sys, AM_XGVMI_DEL_MSG_ID, xgvmi_key_revoke_cb);
     CHECK_ERR_RETURN(rc, DO_ERROR, "cannot register handler for revoke XGVMI keys");
+
+    rc = event_channel_register(ev_sys, AM_PEER_CACHE_ENTRIES_MSG_ID, peer_cache_entries_recv_cb);
+    CHECK_ERR_RETURN(rc, DO_ERROR, "cannot register handler for receiving peer cache entries");
 
     return DO_ERROR;
 }
