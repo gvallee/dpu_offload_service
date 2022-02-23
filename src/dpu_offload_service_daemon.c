@@ -191,7 +191,7 @@ dpu_offload_status_t oob_client_connect(dpu_offload_client_t *client, sa_family_
         DBG("Connecting to server...");
         do
         {
-            int rc = connect(client->conn_data.oob.sock, t->ai_addr, t->ai_addrlen);
+            rc = connect(client->conn_data.oob.sock, t->ai_addr, t->ai_addrlen);
             if (rc == 0)
             {
                 struct sockaddr_in conn_addr;
