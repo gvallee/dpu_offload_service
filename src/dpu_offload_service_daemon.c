@@ -178,7 +178,7 @@ dpu_offload_status_t oob_client_connect(dpu_offload_client_t *client, sa_family_
     CHECK_ERR_RETURN((ret < 0), DO_ERROR, "getaddrinfo() failed");
 
     bool connected = false;
-    int retry;
+    int retry = 0;
     for (t = res; t != NULL; t = t->ai_next)
     {
         client->conn_data.oob.sock = socket(t->ai_family, t->ai_socktype, t->ai_protocol);
