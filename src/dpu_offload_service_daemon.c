@@ -63,7 +63,8 @@ dpu_offload_status_t get_env_config(conn_params_t *params)
     char *server_addr = getenv(SERVER_IP_ADDR_ENVVAR);
     int port = -1;
 
-    CHECK_ERR_RETURN((!server_addr), DO_ERROR, "Invalid server address, please make sure the environment variable %s is correctly set", SERVER_IP_ADDR_ENVVAR);
+    CHECK_ERR_RETURN((!server_addr), DO_ERROR,
+                     "Invalid server address, please make sure the environment variable %s or %s is correctly set", SERVER_IP_ADDR_ENVVAR, INTER_DPU_ADDR_ENVVAR);
 
     if (server_port_envvar)
     {
@@ -155,7 +156,7 @@ static dpu_offload_status_t oob_server_accept(uint16_t server_port, sa_family_t 
     return connfd;
 }
 
-#define MAX_RETRY (5)
+#define MAX_RETRY (300) // Never try to connect for more than 5 minutes
 
 dpu_offload_status_t oob_client_connect(dpu_offload_client_t *client, sa_family_t af)
 {
@@ -178,7 +179,7 @@ dpu_offload_status_t oob_client_connect(dpu_offload_client_t *client, sa_family_
     CHECK_ERR_RETURN((ret < 0), DO_ERROR, "getaddrinfo() failed");
 
     bool connected = false;
-    int retry;
+    int retry = 1;
     for (t = res; t != NULL; t = t->ai_next)
     {
         client->conn_data.oob.sock = socket(t->ai_family, t->ai_socktype, t->ai_protocol);
@@ -190,7 +191,7 @@ dpu_offload_status_t oob_client_connect(dpu_offload_client_t *client, sa_family_
         DBG("Connecting to server...");
         do
         {
-            int rc = connect(client->conn_data.oob.sock, t->ai_addr, t->ai_addrlen);
+            rc = connect(client->conn_data.oob.sock, t->ai_addr, t->ai_addrlen);
             if (rc == 0)
             {
                 struct sockaddr_in conn_addr;
@@ -206,18 +207,15 @@ dpu_offload_status_t oob_client_connect(dpu_offload_client_t *client, sa_family_
             }
             else
             {
-                retry++;
+                retry *= 2;
                 DBG("Connection failed, retrying in %d seconds...", retry);
                 sleep(retry);
             }
         } while (rc != 0 && retry < MAX_RETRY);
-        if (rc != 0)
-        {
-            ERR_MSG("Connection failed (rc: %d)", rc);
-        }
+        CHECK_ERR_GOTO((rc != 0), err_close_sockfd, "Connection failed (rc: %d)", rc);
     }
 
-    CHECK_ERR_RETURN((client->conn_data.oob.sock < 0), DO_ERROR, "Unable to connect to server: invalid file descriptor (%d)", client->conn_data.oob.sock);
+    CHECK_ERR_GOTO((client->conn_data.oob.sock < 0), err_close_sockfd, "Unable to connect to server: invalid file descriptor (%d)", client->conn_data.oob.sock);
 
 out_free_res:
     freeaddrinfo(res);
@@ -225,7 +223,7 @@ out:
     return rc;
 err_close_sockfd:
     close(client->conn_data.oob.sock);
-    rc = -1;
+    rc = DO_ERROR;
     goto out_free_res;
 }
 
@@ -452,6 +450,9 @@ static ucs_status_t ucx_wait(ucp_worker_h ucp_worker, struct ucx_context *reques
                              const char *op_str, const char *data_str)
 {
     ucs_status_t status;
+
+    assert(request);
+    assert(ucp_worker);
 
     if (UCS_PTR_IS_ERR(request))
     {
@@ -915,13 +916,17 @@ static inline dpu_offload_status_t oob_server_ucx_client_connection(execution_co
     DBG("allocating space for message to receive: %ld", info_tag.length);
     msg = malloc(info_tag.length);
     CHECK_ERR_RETURN((msg == NULL), DO_ERROR, "unable to allocate memory");
+    assert(server->ucp_worker);
     addr_request = ucp_tag_msg_recv_nb(server->ucp_worker, msg, info_tag.length,
                                        ucp_dt_make_contig(1), msg_tag, oob_recv_handler);
-    // rank_info_t client_rank;
-    peer_data_t *peer_data;
+    peer_data_t peer_data;
     rank_request = ucp_tag_msg_recv_nb(server->ucp_worker, &peer_data, sizeof(peer_data_t),
                                        ucp_dt_make_contig(1), msg_tag, oob_recv_handler);
-
+    assert(addr_request);
+    assert(server);
+    assert(server->ucp_worker);
+    assert(server->conn_data.oob.addr_msg_str);
+    
     status = ucx_wait(server->ucp_worker, addr_request, "receive", server->conn_data.oob.addr_msg_str);
     if (status != UCS_OK)
     {
@@ -953,13 +958,15 @@ static inline dpu_offload_status_t oob_server_ucx_client_connection(execution_co
     server->connected_clients.clients[server->connected_clients.num_connected_clients].ep = client_ep;
 
     ucx_wait(server->ucp_worker, rank_request, "receive", NULL);
-    if (IS_A_VALID_PEER_DATA(peer_data))
+    if (IS_A_VALID_PEER_DATA((&peer_data)))
     {
         // Update the pointer to track cache entries, i.e., groups/ranks, for the peer
         peer_cache_entry_t *cache_entry;
-        cache_entry->peer.proc_info.group_id = peer_data->proc_info.group_id;
-        cache_entry->peer.proc_info.group_rank = peer_data->proc_info.group_rank;
         GET_PEER_DATA_HANDLE(econtext->engine->free_peer_cache_entries, cache_entry);
+        cache_entry->peer.proc_info.group_id = peer_data.proc_info.group_id;
+        cache_entry->peer.proc_info.group_rank = peer_data.proc_info.group_rank;
+        assert(server->connected_clients.clients);
+        assert(server->connected_clients.clients[server->connected_clients.num_connected_clients].cache_entries);
         server->connected_clients.clients[server->connected_clients.num_connected_clients].cache_entries[0] = cache_entry;
     }
 
@@ -1050,6 +1057,7 @@ static dpu_offload_status_t start_server(execution_context_t *econtext)
     return DO_SUCCESS;
 }
 
+#define MAX_CACHE_ENTRIES_PER_PROC (8)
 dpu_offload_status_t server_init_context(execution_context_t *econtext, init_params_t *init_params)
 {
     int ret;
@@ -1058,8 +1066,16 @@ dpu_offload_status_t server_init_context(execution_context_t *econtext, init_par
     CHECK_ERR_RETURN((econtext->server == NULL), DO_ERROR, "Unable to allocate server handle");
     econtext->server->mode = OOB; // By default, we connect with the OOB mode
     econtext->server->connected_clients.clients = malloc(DEFAULT_MAX_NUM_CLIENTS * sizeof(peer_info_t));
+    CHECK_ERR_RETURN((econtext->server->connected_clients.clients == NULL), DO_ERROR, "Unable to allocate resources to track connected clients");
+    int i;
+    for (i = 0; i < DEFAULT_MAX_NUM_CLIENTS; i++)
+    {
+        econtext->server->connected_clients.clients[i].cache_entries = malloc(MAX_CACHE_ENTRIES_PER_PROC * sizeof(peer_cache_entry_t*));
+        CHECK_ERR_RETURN((econtext->server->connected_clients.clients[i].cache_entries == NULL), DO_ERROR, "Unable to allocate resource to track ranks' cache entries");
+    }
     if (init_params == NULL || init_params->conn_params == NULL)
     {
+        DBG("no initialization parameters specified, try to gather parameters from environment...");
         ret = get_env_config(&(econtext->server->conn_params));
         CHECK_ERR_RETURN((ret), DO_ERROR, "get_env_config() failed");
     }
@@ -1082,6 +1098,7 @@ dpu_offload_status_t server_init_context(execution_context_t *econtext, init_par
     }
     else
     {
+        DBG("re-using UCP worker for new execution context");
         econtext->server->ucp_context = NULL;
         econtext->server->ucp_worker = init_params->worker;
     }

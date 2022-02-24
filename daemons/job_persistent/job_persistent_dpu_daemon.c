@@ -9,6 +9,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <unistd.h>
+#include <assert.h>
 
 #include "dpu_offload_service_daemon.h"
 #include "dpu_offload_envvars.h"
@@ -39,6 +40,22 @@ int main(int argc, char **argv)
         return EXIT_FAILURE;
     }
 
+    init_params_t init_params;
+    conn_params_t server_params;
+    init_params.worker = NULL;
+    init_params.proc_info = NULL;
+    char *port_str = getenv(INTER_DPU_PORT_ENVVAR);
+    server_params.addr_str = getenv(INTER_DPU_ADDR_ENVVAR);
+    if (server_params.addr_str == NULL)
+    {
+        fprintf(stderr, "%s is not set, please set it\n", INTER_DPU_ADDR_ENVVAR);
+        return EXIT_FAILURE;
+    }
+    server_params.port = DEFAULT_INTER_DPU_CONNECT_PORT;
+    init_params.conn_params = &server_params;
+    if (port_str)
+        server_params.port = atoi(port_str);
+
     fprintf(stderr, "Getting hostname...\n");
     char hostname[1024];
     hostname[1023] = '\0';
@@ -46,7 +63,7 @@ int main(int argc, char **argv)
     fprintf(stderr, "hostname=%s\n", hostname);
 
     fprintf(stderr, "Initiating connections between DPUs\n");
-    rc = inter_dpus_connect_mgr(offload_engine, list_dpus, hostname);
+    rc = inter_dpus_connect_mgr(offload_engine, list_dpus, hostname, &init_params);
     if (rc)
     {
         fprintf(stderr, "inter_dpus_connect_mgr() failed\n");
@@ -57,25 +74,25 @@ int main(int argc, char **argv)
      * CREATE A SERVER SO THAT PROCESSES RUNNING ON THE HOST CAN CONNECT.
      */
     fprintf(stderr, "Creating server for processes on the DPU\n");
-    init_params_t init_params;
-    conn_params_t server_params;
-    init_params.conn_params = &server_params;
-    init_params.proc_info = NULL;
-    char *port_str = getenv(INTER_DPU_PORT_ENVVAR);
-    server_params.addr_str = NULL; // The infrastructure will figure it out
-    server_params.port = DEFAULT_INTER_DPU_CONNECT_PORT;
-    if (port_str)
-        server_params.port = atoi(port_str);
-    execution_context_t *service_server = server_init(offload_engine, &init_params);
+    // We let the system figure out the configuration to use to let ranks connect
+    execution_context_t *service_server = server_init(offload_engine, NULL);
+    if (service_server == NULL)
+    {
+        fprintf(stderr, "service_server is undefined\n");
+        return EXIT_FAILURE;
+    }
+    fprintf(stderr, "server for application processes to connect has been successfully created\n");
 
     /*
      * PROGRESS UNTIL ALL PROCESSES ON THE HOST SEND A TERMINATION MESSAGE
      */
-
-    while (!service_server->server->done)
+    fprintf(stderr, "%s: progressing...\n", argv[0]);
+    while (!EXECUTION_CONTEXT_DONE(service_server))
     {
-        ucp_worker_progress(service_server->server->ucp_worker);
+        service_server->progress(service_server);
     }
+
+    fprintf(stderr, "%s: server done, finalizing...\n", argv[0]);
 
     offload_engine_fini(&offload_engine);
     fprintf(stderr, "client all done, exiting successfully\n");

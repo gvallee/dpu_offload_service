@@ -63,7 +63,6 @@ AC_ARG_ENABLE(debug,
 if test "x$enable_debug" = xyes; then
     AC_MSG_RESULT([yes])
     CFLAGS="-g"
-    AC_DEFINE([NDEBUG], [0], [NDEBUG set to 0 (debug enabled)])
 else
     AC_MSG_RESULT([no])
     AC_DEFINE([NDEBUG], [1], [NDEBUG set to 1 (debug disabled)])    

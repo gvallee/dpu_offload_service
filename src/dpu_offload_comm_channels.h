@@ -31,15 +31,15 @@ static ucs_status_t am_term_msg_cb(void *arg, const void *header, size_t header_
         d->server->connected_clients.clients[idx].status = DISCONNECTED;
 #endif
         d->server->connected_clients.num_connected_clients--;
-        fprintf(stderr, "Remaining number of connected clients: %ld\n", d->server->connected_clients.num_connected_clients);
+        DBG("Remaining number of connected clients: %ld", d->server->connected_clients.num_connected_clients);
         if (d->server->connected_clients.num_connected_clients == 0)
         {
-            fprintf(stderr, "server is now done\n");
+            DBG("server is now done");
             d->server->done = true;
         }
         break;
     default:
-        fprintf(stderr, "invalid type\n");
+        ERR_MSG("invalid type");
         return UCS_ERR_NO_MESSAGE;
     }
     return UCS_OK;
@@ -47,18 +47,10 @@ static ucs_status_t am_term_msg_cb(void *arg, const void *header, size_t header_
 
 static dpu_offload_status_t dpu_offload_set_am_recv_handlers(execution_context_t *ctx)
 {
+    CHECK_ERR_RETURN((ctx == NULL), DO_ERROR, "undefined context");
     ucp_worker_h worker = GET_WORKER(ctx);
-    if (worker == NULL)
-    {
-        fprintf(stderr, "undefined worker\n");
-        return -1;
-    }
+    CHECK_ERR_RETURN((worker == NULL), DO_ERROR, "undefined worker");
 
-    if (ctx == NULL)
-    {
-        fprintf(stderr, "undefined context\n");
-        return -1;
-    }
     ucp_am_handler_param_t term_param;
     term_param.field_mask = UCP_AM_HANDLER_PARAM_FIELD_ID |
                             UCP_AM_HANDLER_PARAM_FIELD_CB |
@@ -72,7 +64,7 @@ static dpu_offload_status_t dpu_offload_set_am_recv_handlers(execution_context_t
         return -1;
     }
 
-    fprintf(stderr, "AM recv handlers successfully registered\n");
+    DBG("AM recv handlers successfully registered");
 
     return 0;
 }
