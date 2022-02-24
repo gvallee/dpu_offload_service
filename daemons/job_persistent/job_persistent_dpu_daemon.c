@@ -80,15 +80,18 @@ int main(int argc, char **argv)
         fprintf(stderr, "service_server is undefined\n");
         return EXIT_FAILURE;
     }
+    fprintf(stderr, "server for application processes to connect has been successfully created\n");
 
     /*
      * PROGRESS UNTIL ALL PROCESSES ON THE HOST SEND A TERMINATION MESSAGE
      */
-
+    fprintf(stderr, "%s: progressing...\n", argv[0]);
     while (!EXECUTION_CONTEXT_DONE(service_server))
     {
         service_server->progress(service_server);
     }
+
+    fprintf(stderr, "%s: server done, finalizing...\n", argv[0]);
 
     offload_engine_fini(&offload_engine);
     fprintf(stderr, "client all done, exiting successfully\n");
