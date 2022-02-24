@@ -89,8 +89,13 @@ dpu_offload_parse_list_dpus(offloading_engine_t *offload_engine,
             new_conn_to->init_params.conn_params = malloc(sizeof(conn_params_t)); // fixme: avoid malloc here
             CHECK_ERR_RETURN((new_conn_to->init_params.conn_params == NULL), DO_ERROR, "resource allocation failed");
             new_conn_to->init_params.conn_params->addr_str = token;
-            new_conn_to->init_params.conn_params->port_str = strdup(init_params->conn_params->port_str);
-            new_conn_to->init_params.conn_params->port = init_params->conn_params->port;
+            if (init_params != NULL && init_params->conn_params != NULL)
+            {
+                // fixme: this is not working right now but not really needed for our current use cases
+                //if (init_params->conn_params->port_str != NULL)
+                //    new_conn_to->init_params.conn_params->port_str = strdup(init_params->conn_params->port_str);
+                new_conn_to->init_params.conn_params->port = init_params->conn_params->port;
+            }
             new_conn_to->offload_engine = offload_engine;
             ucs_list_add_tail(&(info_connecting_to->connect_to), &(new_conn_to->item));
             info_connecting_to->num_connect_to++;
@@ -171,7 +176,10 @@ dpu_offload_status_t inter_dpus_connect_mgr(offloading_engine_t *offload_engine,
         // Some DPUs will be connecting to us so we start a new server.
         execution_context_t *server = server_init(offload_engine, init_params);
         CHECK_ERR_RETURN((server == NULL), DO_ERROR, "server_init() failed");
-        CHECK_ERR_RETURN((offload_engine->num_servers + 1 < offload_engine->num_max_servers), DO_ERROR, "max number of server has been reached");
+        CHECK_ERR_RETURN((offload_engine->num_servers + 1 >= offload_engine->num_max_servers),
+                         DO_ERROR,
+                         "max number of server (%d) has been reached",
+                         offload_engine->num_max_servers);
         offload_engine->servers[offload_engine->num_servers] = server->server;
         offload_engine->num_servers++;
         // Nothing else to do in this context.

@@ -9,6 +9,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <unistd.h>
+#include <assert.h>
 
 #include "dpu_offload_service_daemon.h"
 #include "dpu_offload_envvars.h"
