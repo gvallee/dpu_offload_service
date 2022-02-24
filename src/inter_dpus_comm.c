@@ -1,3 +1,5 @@
+#define _POSIX_C_SOURCE 200809L
+
 //
 // Copyright (c) 2022, NVIDIA CORPORATION. All rights reserved.
 //
@@ -54,6 +56,7 @@ static dpu_offload_status_t
 dpu_offload_parse_list_dpus(offloading_engine_t *offload_engine,
                             char *dpu_hostname,
                             char *list,
+                            init_params_t *init_params,
                             dpu_inter_connect_info_t *info_connecting_to,
                             size_t *num_connecting_from)
 {
@@ -86,6 +89,8 @@ dpu_offload_parse_list_dpus(offloading_engine_t *offload_engine,
             new_conn_to->init_params.conn_params = malloc(sizeof(conn_params_t)); // fixme: avoid malloc here
             CHECK_ERR_RETURN((new_conn_to->init_params.conn_params == NULL), DO_ERROR, "resource allocation failed");
             new_conn_to->init_params.conn_params->addr_str = token;
+            new_conn_to->init_params.conn_params->port_str = strdup(init_params->conn_params->port_str);
+            new_conn_to->init_params.conn_params->port = init_params->conn_params->port;
             new_conn_to->offload_engine = offload_engine;
             ucs_list_add_tail(&(info_connecting_to->connect_to), &(new_conn_to->item));
             info_connecting_to->num_connect_to++;
@@ -126,11 +131,12 @@ static void *connect_thread(void *arg)
         ERR_MSG("Unable to connect to %s\n", remote_dpu_info->init_params.conn_params->addr_str);
         pthread_exit(NULL);
     }
+    DBG("Connection successfully established");
     offload_engine->inter_dpus_clients[offload_engine->num_inter_dpus_clients] = client;
 }
 
 static dpu_offload_status_t
-connect_to_dpus(offloading_engine_t *offload_engine, dpu_inter_connect_info_t *info_connect_to)
+connect_to_dpus(offloading_engine_t *offload_engine, dpu_inter_connect_info_t *info_connect_to, init_params_t *init_params)
 {
     // Create a connection thread for all the required connection
     remote_dpu_info_t *conn_info, *conn_info_next;
@@ -150,7 +156,7 @@ dpu_offload_status_t inter_dpus_connect_mgr(offloading_engine_t *offload_engine,
     ucs_list_head_init(&(info_connect_to.connect_to));
     DYN_LIST_ALLOC(info_connect_to.pool_remote_dpu_info, 32, remote_dpu_info_t, item);
 
-    dpu_offload_status_t rc = dpu_offload_parse_list_dpus(offload_engine, dpu_hostname, list_dpus, &info_connect_to, &num_dpus_connecting_from);
+    dpu_offload_status_t rc = dpu_offload_parse_list_dpus(offload_engine, dpu_hostname, list_dpus, init_params, &info_connect_to, &num_dpus_connecting_from);
     CHECK_ERR_RETURN((rc == DO_ERROR), DO_ERROR, "dpu_offload_parse_list_dpus() failed");
     DBG("number of DPUs to connect to: %ld; number of expected incoming connections: %ld\n", info_connect_to.num_connect_to, num_dpus_connecting_from);
 
@@ -173,7 +179,7 @@ dpu_offload_status_t inter_dpus_connect_mgr(offloading_engine_t *offload_engine,
     if (info_connect_to.num_connect_to > 0)
     {
         // We need to connect to one or more other DPUs
-        rc = connect_to_dpus(offload_engine, &info_connect_to);
+        rc = connect_to_dpus(offload_engine, &info_connect_to, init_params);
         CHECK_ERR_RETURN((rc), DO_ERROR, "connect_to_dpus() failed");
     }
 
