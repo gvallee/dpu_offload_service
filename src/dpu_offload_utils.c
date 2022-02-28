@@ -15,19 +15,7 @@
 #include "dpu_offload_event_channels.h"
 #include "dpu_offload_envvars.h"
 
-typedef struct dpu_config
-{
-    union
-    {
-        struct
-        {
-            char *hostname;
-            char *addr;
-            int rank_port;
-            int interdpu_port;
-        } version_1;
-    };
-} dpu_config_t;
+
 
 const char *config_file_version_token = "Format version:";
 
