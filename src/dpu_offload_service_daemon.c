@@ -57,29 +57,7 @@ am_msg_t am_data_desc = {0, 0, NULL, NULL};
 #define GET_PEER_DATA_HANDLE(_pool_free_peer_descs, _peer_data) \
     DYN_LIST_GET(_pool_free_peer_descs, peer_cache_entry_t, item, _peer_data);
 
-dpu_offload_status_t get_env_config(conn_params_t *params)
-{
-    char *server_port_envvar = getenv(SERVER_PORT_ENVVAR);
-    char *server_addr = getenv(SERVER_IP_ADDR_ENVVAR);
-    int port = -1;
-
-    CHECK_ERR_RETURN((!server_addr), DO_ERROR,
-                     "Invalid server address, please make sure the environment variable %s or %s is correctly set", SERVER_IP_ADDR_ENVVAR, INTER_DPU_ADDR_ENVVAR);
-
-    if (server_port_envvar)
-    {
-        port = (uint16_t)atoi(server_port_envvar);
-    }
-
-    CHECK_ERR_RETURN((port < 0), DO_ERROR, "Invalid server port (%s), please specify the environment variable %s",
-                     server_port_envvar, SERVER_PORT_ENVVAR);
-
-    params->addr_str = server_addr;
-    params->port_str = server_port_envvar;
-    params->port = port;
-
-    return DO_SUCCESS;
-}
+extern dpu_offload_status_t get_env_config(conn_params_t *params);
 
 dpu_offload_status_t set_sock_addr(char *addr, uint16_t port, struct sockaddr_storage *saddr)
 {

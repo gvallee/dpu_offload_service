@@ -40,3 +40,6 @@ export DPU_OFFLOAD_SERVER_ADDR=192.168.131.121
 Finally, you can start the provided daemon:
 
 ./daemons/job_persistent/job_persistent_dpu_daemon
+
+### Start an MPI application with collective offloading
+
