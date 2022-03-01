@@ -118,6 +118,18 @@ dpu_offload_status_t config_version_1_parse_dpu_data(char *str, dpu_config_t *dp
 bool parse_line_version_1(int format_version, char *target_hostname, char *line, dpu_config_t **config)
 {
     int idx = 0;
+
+    // For now we do not try to be smart and optimize things: first figure out how many DPUs are defined
+    size_t num_dpus = 0;
+    size_t line_idx = 0;
+    while (line_idx != strlen(line))
+    {
+        if (line[line_idx] == ',')
+            num_dpus++;
+        line_idx++;
+    }
+    DBG("%ld DPU(s) is/are specified for %s", num_dpus, target_hostname);
+
     while (line[idx] == ' ')
         idx++;
 
@@ -129,17 +141,6 @@ bool parse_line_version_1(int format_version, char *target_hostname, char *line,
         // We found the hostname
 
         // Next tokens are the local DPUs' data
-        // For now we do not try to be smart and optimize things: first figure out how many DPUs are defined
-        size_t num_dpus;
-        size_t line_idx = 0;
-        while (line_idx != strlen(line))
-        {
-            if (line[line_idx] == ',')
-                num_dpus++;
-            line_idx++;
-        }
-        DBG("%ld DPUs are specified for %s", num_dpus, target_hostname);
-
         dpu_config_t *dpus_config = calloc(num_dpus, sizeof(dpu_config_t));
         CHECK_ERR_RETURN((dpus_config == NULL), DO_ERROR, "unable to allocate resources for DPUs' configuration");
         *config = dpus_config;
