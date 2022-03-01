@@ -123,6 +123,7 @@ bool parse_line_version_1(int format_version, char *target_hostname, char *line,
 
     char *ptr = &(line[idx]);
     char *token = strtok(line, ",");
+    DBG("Checking entry for %s", token);
     if (strncmp(token, target_hostname, strlen(token)) == 0)
     {
         // We found the hostname
@@ -165,7 +166,7 @@ bool parse_line(int format_version, char *target_hostname, char *line, dpu_confi
     case 1:
         return parse_line_version_1(format_version, target_hostname, line, config);
     default:
-        ERR_MSG("supported format (version=%d)", format_version);
+        ERR_MSG("supported format (%s: version=%d)", line, format_version);
     }
     return false;
 }
@@ -177,7 +178,7 @@ dpu_offload_status_t find_config_from_platform_configfile(char *filepath, char *
     size_t len = 0;
     ssize_t read;
     dpu_offload_status_t rc = DO_ERROR;
-    bool first_line;
+    bool first_line = true;
     int version = 0;
 
     file = fopen(filepath, "r");
@@ -188,6 +189,8 @@ dpu_offload_status_t find_config_from_platform_configfile(char *filepath, char *
         {
             rc = check_config_file_version(line, &version);
             CHECK_ERR_GOTO((rc), error_out, "check_config_file_version() failed");
+            CHECK_ERR_GOTO((version <= 0), error_out, "invalid version: %d", version);
+            DBG("Configuration file based on format version %d", version);
             first_line = false;
             continue;
         }
