@@ -510,6 +510,22 @@ typedef struct offloading_engine
     dyn_list_t *free_peer_descs;         // pool of peer data descriptirs
 } offloading_engine_t;
 
+typedef struct dpu_config
+{
+    union
+    {
+        struct
+        {
+            char *hostname;
+            char *addr;
+            int rank_port;
+            int interdpu_port;
+        } version_1;
+    };
+} dpu_config_t;
+
+dpu_offload_status_t find_config_from_platform_configfile(char *, char *, dpu_config_t **);
+
 typedef enum
 {
     AM_TERM_MSG_ID = 33, // 33 to make it easier to see corruptions (dbg)

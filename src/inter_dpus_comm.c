@@ -178,7 +178,7 @@ dpu_offload_status_t inter_dpus_connect_mgr(offloading_engine_t *offload_engine,
         CHECK_ERR_RETURN((server == NULL), DO_ERROR, "server_init() failed");
         CHECK_ERR_RETURN((offload_engine->num_servers + 1 >= offload_engine->num_max_servers),
                          DO_ERROR,
-                         "max number of server (%d) has been reached",
+                         "max number of server (%ld) has been reached",
                          offload_engine->num_max_servers);
         offload_engine->servers[offload_engine->num_servers] = server->server;
         offload_engine->num_servers++;
