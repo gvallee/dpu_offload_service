@@ -9,7 +9,19 @@ The following packages and versions are required:
 
 ## Compilation
 
-./autogen.sh && ./configure --with-pmix=<PMIX/INSTALL/DIR> --with-prrte=<PRRTE/INSTALL/DIR> --with-ucx=<UCX/INSTALL/DIR> && make
+### Standard mode
+
+```
+./autogen.sh && ./configure --prefix=<PREFIX> --with-pmix=<PMIX/INSTALL/DIR> --with-prrte=<PRRTE/INSTALL/DIR> --with-ucx=<UCX/INSTALL/DIR> && make -j install
+```
+
+### Debug mode
+
+```
+./autogen.sh && ./configure --prefix=<PREFIX> --with-pmix=<PMIX/INSTALL/DIR> --with-prrte=<PRRTE/INSTALL/DIR> --with-ucx=<UCX/INSTALL/DIR> --enable-debug && make -j install
+```
+
+Note that this also enables tracing, developers will be able to see debug messages for the main capabilities of the library.
 
 ## Execution
 
@@ -43,3 +55,8 @@ Finally, you can start the provided daemon:
 
 ### Start an MPI application with collective offloading
 
+Assuming a version of UCC supported DPU offloading has been installed, i.e., successfully configured with the `--with-dpu-offload=<DIR>` option, and installed, the recommanded way to execute an application is the following. Examples are based on MPI but applications using UCC directly can do similar things.
+
+1. Create a configuration file for your platform. An example is in `etc/platforms/thor.cfg`.
+
+2. Execute your application setting the environment variable `OFFLOAD_CONFIG_FILE_PATH` to the configuration file. The configuration file has all the required information to set the entire infrastructure and let the ranks connected to the service running on the DPUs.
