@@ -59,4 +59,4 @@ Assuming a version of UCC supported DPU offloading has been installed, i.e., suc
 
 1. Create a configuration file for your platform. An example is in `etc/platforms/thor.cfg`.
 
-2. Execute your application setting the environment variable `OFFLOAD_CONFIG_FILE_PATH` to the configuration file. The configuration file has all the required information to set the entire infrastructure and let the ranks connected to the service running on the DPUs.
+2. Execute your application setting the environment variable `OFFLOAD_CONFIG_FILE_PATH` to the configuration file. The configuration file has all the required information to set the entire infrastructure and let the ranks connected to the service running on the DPUs. Also make sure your MPI implementation is using the UCC collective. In the context of Open MPI, it means the `--mca coll_ucc_enable 1 --mca coll_ucc_priority 100` must be added to the `mpirun` command.
