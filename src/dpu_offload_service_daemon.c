@@ -559,6 +559,7 @@ dpu_offload_status_t offload_engine_init(offloading_engine_t **engine)
     DYN_LIST_ALLOC(d->free_op_descs, 8, op_desc_t, item);
     DYN_LIST_ALLOC(d->free_peer_cache_entries, DEFAULT_NUM_PEERS, peer_cache_entry_t, item);
     DYN_LIST_ALLOC(d->free_peer_descs, DEFAULT_NUM_PEERS, peer_data_t, item);
+    DYN_LIST_ALLOC(d->pool_conn_params, 32, conn_params_t, item);
     GROUPS_CACHE_INIT((&(d->procs_cache)));
     *engine = d;
     return DO_SUCCESS;
