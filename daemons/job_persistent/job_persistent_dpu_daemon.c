@@ -53,13 +53,14 @@ int main(int argc, char **argv)
         fprintf(stderr, "inter_dpus_connect_mgr() failed\n");
         return EXIT_FAILURE;
     }
+    fprintf(stderr, "Connections between DPUs successfully initialized\n");
 
     /*
      * CREATE A SERVER SO THAT PROCESSES RUNNING ON THE HOST CAN CONNECT.
      */
     fprintf(stderr, "Creating server for processes on the DPU\n");
     // We let the system figure out the configuration to use to let ranks connect
-    execution_context_t *service_server = server_init(offload_engine, NULL);
+    execution_context_t *service_server = server_init(offload_engine, &(config_data.local_dpu.host_init_params));
     if (service_server == NULL)
     {
         fprintf(stderr, "service_server is undefined\n");

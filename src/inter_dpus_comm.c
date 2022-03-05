@@ -24,15 +24,11 @@ extern execution_context_t *client_init(offloading_engine_t *, init_params_t *);
  * it, those after, the DPU will connect to them. If the hostname of the system is not in the list,
  * the list is assumed not applicable and DO_NOT_APPLICABLE is returned.
  *
- * @param dpu_hostname Hostname of the current DPU.
- * @param list Comma separated list that includes the DPU hostname.
- * @param num_connecting_to Number of DPUs we need to connect to.
- * @param num_connecting_from Numer of DPUs that will be connecting to us.
- * @param dpu_to_connect_to Initialized dynamic list that will be populated with the list of DPUs we need to connect to.
+ * @param config_data All the configuration details from which we get the list of DPUs and where the result is stored
  * @return dpu_offload_status_t
  */
 static dpu_offload_status_t
-dpu_offload_parse_list_dpus(dpu_config_t *config_data, char *list)
+dpu_offload_parse_list_dpus(dpu_config_t *config_data)
 {
     bool pre = true;
     bool list_connect_to_set = false;
@@ -40,11 +36,17 @@ dpu_offload_parse_list_dpus(dpu_config_t *config_data, char *list)
     size_t n_connecting_from = 0;
     size_t n_connecting_to = 0;
 
-    token = strtok(list, ",");
+    token = strtok(config_data->list_dpus, ",");
 
     while (token != NULL)
     {
-        DBG("Checking hostname %s", token);
+        dpu_config_data_t *dpu_config;
+        DYN_ARRAY_GET_ELT(&(config_data->dpus_config), config_data->num_dpus, dpu_config_data_t, dpu_config);
+        assert(dpu_config);
+        dpu_config->version_1.hostname = strdup(token); // todo: correctly free
+        config_data->num_dpus++;
+
+        DBG("Checking hostname %s (i am %s)", token, config_data->local_dpu.hostname);
         if (strncmp(token, config_data->local_dpu.hostname, strlen(token)) == 0)
         {
             DBG("%s is me", token);
@@ -57,7 +59,7 @@ dpu_offload_parse_list_dpus(dpu_config_t *config_data, char *list)
             n_connecting_from++;
         else
         {
-            SET_DPU_TO_CONNECT_TO(config_data);
+            SET_DPU_TO_CONNECT_TO(config_data, dpu_config->version_1.hostname);
         }
         token = strtok(NULL, ",");
     }
@@ -88,7 +90,7 @@ static void *connect_thread(void *arg)
         ERR_MSG("undefined offload_engine");
         pthread_exit(NULL);
     }
-    DBG("connecting to DPU server %s", remote_dpu_info->init_params.conn_params->addr_str);
+    DBG("connecting to DPU server %s at %s", remote_dpu_info->hostname, remote_dpu_info->init_params.conn_params->addr_str);
     execution_context_t *client = client_init(offload_engine, &(remote_dpu_info->init_params));
     if (client == NULL)
     {
@@ -114,9 +116,13 @@ connect_to_dpus(offloading_engine_t *offload_engine, dpu_inter_connect_info_t *i
 
 dpu_offload_status_t inter_dpus_connect_mgr(dpu_config_t *cfg)
 {
+    DBG("Connection manager: expecting %ld inbound connections and %ld outbound connections", cfg->num_connecting_dpus, cfg->info_connecting_to.num_connect_to);
     if (cfg->num_connecting_dpus > 0)
     {
         // Some DPUs will be connecting to us so we start a new server.
+        DBG("Starting server to let other DPUs connect to us (init_params=%p, conn_params=%p)...",
+            &(cfg->local_dpu.interdpu_init_params),
+            &(cfg->local_dpu.interdpu_init_params.conn_params));
         execution_context_t *server = server_init(cfg->offloading_engine, &(cfg->local_dpu.interdpu_init_params));
         CHECK_ERR_RETURN((server == NULL), DO_ERROR, "server_init() failed");
         CHECK_ERR_RETURN((cfg->offloading_engine->num_servers + 1 >= cfg->offloading_engine->num_max_servers),
@@ -125,13 +131,14 @@ dpu_offload_status_t inter_dpus_connect_mgr(dpu_config_t *cfg)
                          cfg->offloading_engine->num_max_servers);
         cfg->offloading_engine->servers[cfg->offloading_engine->num_servers] = server->server;
         cfg->offloading_engine->num_servers++;
+        DBG("Server successfully started");
         // Nothing else to do in this context.
     }
 
-    if (cfg->info_connecting_to->num_connect_to > 0)
+    if (cfg->info_connecting_to.num_connect_to > 0)
     {
         // We need to connect to one or more other DPUs
-        dpu_offload_status_t rc = connect_to_dpus(cfg->offloading_engine, cfg->info_connecting_to, &(cfg->local_dpu.interdpu_init_params));
+        dpu_offload_status_t rc = connect_to_dpus(cfg->offloading_engine, &(cfg->info_connecting_to), &(cfg->local_dpu.interdpu_init_params));
         CHECK_ERR_RETURN((rc), DO_ERROR, "connect_to_dpus() failed");
     }
 
@@ -140,10 +147,19 @@ dpu_offload_status_t inter_dpus_connect_mgr(dpu_config_t *cfg)
 
 dpu_offload_status_t get_config(dpu_config_t *config_data)
 {
+    dpu_offload_status_t rc;
     char *config_file = getenv(OFFLOAD_CONFIG_FILE_PATH_ENVVAR);
 
     config_data->local_dpu.hostname[1023] = '\0';
     gethostname(config_data->local_dpu.hostname, 1023);
+
+    config_data->list_dpus = getenv(LIST_DPUS_ENVVAR);
+    CHECK_ERR_RETURN((config_data->list_dpus == NULL), DO_ERROR, "Unable to get list of DPUs via %s environmnent variable\n", LIST_DPUS_ENVVAR);
+    rc = dpu_offload_parse_list_dpus(config_data);
+    CHECK_ERR_RETURN((rc == DO_ERROR), DO_ERROR, "dpu_offload_parse_list_dpus() failed");
+    DBG("number of DPUs to connect to: %ld; number of expected incoming connections: %ld\n",
+        config_data->info_connecting_to.num_connect_to,
+        config_data->num_connecting_dpus);
 
     config_data->local_dpu.interdpu_init_params.worker = NULL;
     config_data->local_dpu.interdpu_init_params.proc_info = NULL;
@@ -155,8 +171,9 @@ dpu_offload_status_t get_config(dpu_config_t *config_data)
     if (config_file != NULL)
     {
         dpu_config_t *my_config;
-        bool found = find_dpu_config_from_platform_configfile(config_file, config_data);
-        assert(found == true);
+        DBG("Looking for %s's configuration data from %s", config_data->local_dpu.hostname, config_file);
+        rc = find_dpu_config_from_platform_configfile(config_file, config_data);
+        CHECK_ERR_RETURN((rc), DO_ERROR, "find_dpu_config_from_platform_configfile() failed");
         assert(my_config != NULL);
     }
     else
@@ -167,22 +184,17 @@ dpu_offload_status_t get_config(dpu_config_t *config_data)
 
         config_data->local_dpu.interdpu_conn_params.port = DEFAULT_INTER_DPU_CONNECT_PORT;
         if (port_str)
-            config_data->local_dpu.interdpu_conn_params.port = atoi(port_str);
-
-        char *list_dpus = getenv(LIST_DPUS_ENVVAR);
-        if (list_dpus == NULL)
-        {
-            fprintf(stderr, "Unable to get list of DPUs via %s environmnent variable\n", LIST_DPUS_ENVVAR);
-            return -1;
-        }
-        // Transform the list of dpus into an array of DPU configurations
-        dpu_offload_status_t rc = dpu_offload_parse_list_dpus(config_data,
-                                                              list_dpus);
-        CHECK_ERR_RETURN((rc == DO_ERROR), DO_ERROR, "dpu_offload_parse_list_dpus() failed");
-        DBG("number of DPUs to connect to: %ld; number of expected incoming connections: %ld\n", config_data->info_connecting_to->num_connect_to, config_data->num_connecting_dpus);
+            config_data->local_dpu.interdpu_conn_params.port = atoi(port_str);        
     }
 
-    DBG("%ld DPU configuration(s) detected", config_data->dpus_config.num_elts);
+    DBG("%ld DPU configuration(s) detected, connecting to %ld DPUs and expecting %ld inbound connections",
+        config_data->num_dpus,
+        config_data->info_connecting_to.num_connect_to,
+        config_data->num_connecting_dpus);
+    DBG("My configuration: addr: %s, inter-dpu port: %d, host port: %d",
+        config_data->local_dpu.interdpu_conn_params.addr_str,
+        config_data->local_dpu.interdpu_conn_params.port,
+        config_data->local_dpu.host_conn_params.port);
 
     return 0;
 }

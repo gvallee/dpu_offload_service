@@ -143,17 +143,19 @@ typedef struct dyn_array
         _dyn_array = NULL;                \
     } while (0)
 
-#define DYN_ARRAY_GET_ELT(_dyn_array, _idx, _type, _elt)                       \
-    do                                                                         \
-    {                                                                          \
-        assert(_dyn_array);                                                    \
-        if ((_dyn_array)->num_elts >= _idx)                                    \
-        {                                                                      \
-            ERR_MSG("requested idx %" PRId64 " is beyond end of array", _idx); \
-            _elt = NULL;                                                       \
-        }                                                                      \
-        _type *_ptr = (_type *)((_dyn_array)->base);                           \
-        _elt = (_type *)&(_ptr[_idx]);                                         \
+// TODO: grow the array when an element behind the current limit is requested
+#define DYN_ARRAY_GET_ELT(_dyn_array, _idx, _type, _elt)                            \
+    do                                                                              \
+    {                                                                               \
+        assert(_dyn_array);                                                         \
+        if ((_dyn_array)->num_elts <= _idx)                                         \
+        {                                                                           \
+            ERR_MSG("requested idx %" PRId64 " is beyond end of array (%"PRIu64")", \
+            _idx, (_dyn_array)->num_elts);                                          \
+            _elt = NULL;                                                            \
+        }                                                                           \
+        _type *_ptr = (_type *)((_dyn_array)->base);                                \
+        _elt = (_type *)&(_ptr[_idx]);                                              \
     } while (0)
 
 #define DYN_ARRAY_SET_ELT(_dyn_array, _idx, _type, _elt)                 \

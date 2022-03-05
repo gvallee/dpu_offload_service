@@ -1060,13 +1060,16 @@ dpu_offload_status_t server_init_context(execution_context_t *econtext, init_par
     }
     else
     {
+        DBG("using connection parameters that have been passed in (init_params=%p, conn_params=%p, econtext=%p, econtext->conn_params=%p, addr=%s)",
+            init_params, init_params->conn_params, econtext, econtext->server->conn_params, init_params->conn_params->addr_str);
         econtext->server->conn_params.addr_str = init_params->conn_params->addr_str;
         econtext->server->conn_params.port = init_params->conn_params->port;
         econtext->server->conn_params.port_str = NULL;
     }
 
-    ret = pthread_mutex_init(&(econtext->server->mutex), &(econtext->server->mattr));
-    CHECK_ERR_RETURN((ret), DO_ERROR, "pthread_mutex_init() failed");
+    DBG("starting server connection thread");
+    ret = pthread_mutex_init(&(econtext->server->mutex), NULL);
+    CHECK_ERR_RETURN((ret), DO_ERROR, "pthread_mutex_init() failed: %s", );
     CHECK_ERR_RETURN((econtext->server->connected_clients.clients == NULL), DO_ERROR, "Unable to allocate resources for list of connected clients");
 
     if (init_params == NULL || init_params->worker == NULL)
@@ -1143,9 +1146,11 @@ execution_context_t *server_init(offloading_engine_t *offloading_engine, init_pa
     CHECK_ERR_GOTO((offloading_engine == NULL), error_out, "Handle is NULL");
 
     execution_context_t *execution_context;
+    DBG("initializing execution context...");
     int rc = execution_context_init(offloading_engine, CONTEXT_SERVER, &execution_context);
     CHECK_ERR_GOTO((rc), error_out, "execution_context_init() failed");
 
+    DBG("initializing server context...");
     int ret = server_init_context(execution_context, init_params);
     CHECK_ERR_GOTO((ret), error_out, "server_init_context() failed");
     DBG("server handle successfully created (worker=%p)", execution_context->server->ucp_worker);
