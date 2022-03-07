@@ -119,41 +119,35 @@ typedef struct dyn_array
     size_t num_elts_alloc;
 } dyn_array_t;
 
-#define DYN_ARRAY_ALLOC(_dyn_array, _num_elts_alloc, _type)               \
-    do                                                                    \
-    {                                                                     \
-        _dyn_array = malloc(sizeof(dyn_array_t));                         \
-        if (_dyn_array != NULL)                                           \
-        {                                                                 \
-            _dyn_array->num_elts_alloc = _num_elts_alloc;                 \
-            _dyn_array->num_elts = _num_elts_alloc;                       \
-            _dyn_array->base = malloc(_num_elts_alloc * sizeof(_type));   \
-            assert(_dyn_array->base);                                     \
-            memset(_dyn_array->base, 0, _num_elts_alloc * sizeof(_type)); \
-        }                                                                 \
+#define DYN_ARRAY_ALLOC(_dyn_array, _num_elts_alloc, _type)           \
+    do                                                                \
+    {                                                                 \
+        _dyn_array->num_elts_alloc = _num_elts_alloc;                 \
+        _dyn_array->num_elts = _num_elts_alloc;                       \
+        _dyn_array->base = malloc(_num_elts_alloc * sizeof(_type));   \
+        assert(_dyn_array->base);                                     \
+        memset(_dyn_array->base, 0, _num_elts_alloc * sizeof(_type)); \
     } while (0)
 
 #define DYN_ARRAY_FREE(_dyn_array, _type) \
     do                                    \
     {                                     \
-        assert(_dyn_array);               \
         assert(_dyn_array->base);         \
         free(_dyn_array->base);           \
-        free(_dyn_array);                 \
-        _dyn_array = NULL;                \
+        _dyn_array->base = NULL;          \
     } while (0)
 
-#define DYN_ARRAY_GET_ELT(_dyn_array, _idx, _type, _elt)                       \
-    do                                                                         \
-    {                                                                          \
-        assert(_dyn_array);                                                    \
-        if ((_dyn_array)->num_elts >= _idx)                                    \
-        {                                                                      \
-            ERR_MSG("requested idx %" PRId64 " is beyond end of array", _idx); \
-            _elt = NULL;                                                       \
-        }                                                                      \
-        _type *_ptr = (_type *)((_dyn_array)->base);                           \
-        _elt = (_type *)&(_ptr[_idx]);                                         \
+// TODO: grow the array when an element behind the current limit is requested
+#define DYN_ARRAY_GET_ELT(_dyn_array, _idx, _type, _elt)                            \
+    do                                                                              \
+    {                                                                               \
+        assert(_dyn_array);                                                         \
+        if ((_dyn_array)->num_elts <= _idx)                                         \
+        {                                                                           \
+            _elt = NULL;                                                            \
+        }                                                                           \
+        _type *_ptr = (_type *)((_dyn_array)->base);                                \
+        _elt = (_type *)&(_ptr[_idx]);                                              \
     } while (0)
 
 #define DYN_ARRAY_SET_ELT(_dyn_array, _idx, _type, _elt)                 \

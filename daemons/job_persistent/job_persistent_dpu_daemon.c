@@ -30,52 +30,37 @@ int main(int argc, char **argv)
     }
 
     /*
-     * INITIATE CONNECTION BETWEEN DPUS.
+     * GET THE CONFIGURATION.
      */
     fprintf(stderr, "Getting configuration...\n");
-    char *list_dpus = getenv(LIST_DPUS_ENVVAR);
-    if (list_dpus == NULL)
+    dpu_config_t config_data;
+    INIT_DPU_CONFIG_DATA(&config_data);
+    config_data.offloading_engine = offload_engine;
+    int ret = get_dpu_config(&config_data);
+    if (ret)
     {
-        fprintf(stderr, "Unable to get list of DPUs via %s environmnent variable\n", LIST_DPUS_ENVVAR);
+        fprintf(stderr, "get_config() failed\n");
         return EXIT_FAILURE;
     }
 
-    init_params_t init_params;
-    conn_params_t server_params;
-    init_params.worker = NULL;
-    init_params.proc_info = NULL;
-    char *port_str = getenv(INTER_DPU_PORT_ENVVAR);
-    server_params.addr_str = getenv(INTER_DPU_ADDR_ENVVAR);
-    if (server_params.addr_str == NULL)
-    {
-        fprintf(stderr, "%s is not set, please set it\n", INTER_DPU_ADDR_ENVVAR);
-        return EXIT_FAILURE;
-    }
-    server_params.port = DEFAULT_INTER_DPU_CONNECT_PORT;
-    init_params.conn_params = &server_params;
-    if (port_str)
-        server_params.port = atoi(port_str);
-
-    fprintf(stderr, "Getting hostname...\n");
-    char hostname[1024];
-    hostname[1023] = '\0';
-    gethostname(hostname, 1023);
-    fprintf(stderr, "hostname=%s\n", hostname);
-
+    /*
+     * INITIATE CONNECTION BETWEEN DPUS.
+     */
     fprintf(stderr, "Initiating connections between DPUs\n");
-    rc = inter_dpus_connect_mgr(offload_engine, list_dpus, hostname, &init_params);
+    rc = inter_dpus_connect_mgr(&config_data);
     if (rc)
     {
         fprintf(stderr, "inter_dpus_connect_mgr() failed\n");
         return EXIT_FAILURE;
     }
+    fprintf(stderr, "Connections between DPUs successfully initialized\n");
 
     /*
      * CREATE A SERVER SO THAT PROCESSES RUNNING ON THE HOST CAN CONNECT.
      */
     fprintf(stderr, "Creating server for processes on the DPU\n");
     // We let the system figure out the configuration to use to let ranks connect
-    execution_context_t *service_server = server_init(offload_engine, NULL);
+    execution_context_t *service_server = server_init(offload_engine, &(config_data.local_dpu.host_init_params));
     if (service_server == NULL)
     {
         fprintf(stderr, "service_server is undefined\n");

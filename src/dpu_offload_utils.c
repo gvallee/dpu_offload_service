@@ -8,14 +8,15 @@
 
 #include <string.h>
 #include <stdio.h>
+#include <stdio.h>
+#include <assert.h>
+#include <unistd.h>
 
 #include "dpu_offload_types.h"
 #include "dpu_offload_mem_mgt.h"
 #include "dpu_offload_debug.h"
 #include "dpu_offload_event_channels.h"
 #include "dpu_offload_envvars.h"
-
-
 
 const char *config_file_version_token = "Format version:";
 
@@ -83,96 +84,294 @@ bool line_is_comment(char *line)
 }
 
 // <dpu_hostname:interdpu-port:rank-conn-port>
-dpu_offload_status_t config_version_1_parse_dpu_data(char *str, dpu_config_t *dpu_data)
+static inline bool parse_dpu_cfg(char *str, char **hostname, char **addr, int *interdpu_conn_port, int *host_conn_port)
 {
-    CHECK_ERR_RETURN((str == NULL), DO_ERROR, "undefined string");
-    CHECK_ERR_RETURN((dpu_data == NULL), DO_ERROR, "undefined DPU data structure");
+    assert(hostname);
+    assert(addr);
+    assert(interdpu_conn_port);
+    assert(host_conn_port);
 
+    char *rest = str;
+    char *token = strtok_r(rest, ":", &rest);
+    assert(token);
     int step = 0;
-    char *token = strtok(str, ":");
+    *hostname = strdup(token); // fixme: correctly free
+    token = strtok_r(rest, ":", &rest);
+    assert(token);
     while (token != NULL)
     {
         switch (step)
         {
         case 0:
-            dpu_data->version_1.hostname = strdup(token);
+            DBG("-> addr is %s", token);
+            *addr = strdup(token); // fixme: correctly free
+            step++;
             break;
         case 1:
-            dpu_data->version_1.addr = strdup(token);
+            DBG("-> inter-DPU port is %s", token);
+            *interdpu_conn_port = atoi(token);
+            step++;
             break;
         case 2:
-            dpu_data->version_1.interdpu_port = atoi(token);
-            break;
-        case 3:
-            dpu_data->version_1.rank_port = atoi(token);
-            break;
+            DBG("-> port to connect with host is %s", token);
+            *host_conn_port = atoi(token);
+            return true;
         }
-
-        step++;
-        token = strtok(NULL, ":");
+        token = strtok_r(rest, ":", &rest);
     }
-    return DO_SUCCESS;
+
+    DBG("unable to parse entry, stopping at step %d", step);
+    return false;
 }
 
-// <host name>,<dpu1:interdpu-port:rank-conn-port>,...
-bool parse_line_version_1(int format_version, char *target_hostname, char *line, dpu_config_t **config)
+// <host name>,<dpu1_hostname:dpu_conn_addr:interdpu-port:rank-conn-port>,...
+// bool parse_line_dpu_version_1(int format_version, char *dpu_hostname, char *line, dpu_config_t **local_dpu_config, dyn_array_t *dpus, size_t *num_dpus_connecting_from)
+bool parse_line_dpu_version_1(dpu_config_t *data, char *line)
 {
     int idx = 0;
-
-    // For now we do not try to be smart and optimize things: first figure out how many DPUs are defined
+    bool rc = false;
     size_t num_dpus = 0;
-    size_t line_idx = 0;
-    while (line_idx != strlen(line))
-    {
-        if (line[line_idx] == ',')
-            num_dpus++;
-        line_idx++;
-    }
-    DBG("%ld DPU(s) is/are specified for %s", num_dpus, target_hostname);
+    char *rest_line = line;
 
     while (line[idx] == ' ')
         idx++;
 
     char *ptr = &(line[idx]);
-    char *token = strtok(line, ",");
+    char *token = strtok_r(rest_line, ",", &rest_line);
+
+    // The host's name does not really matter here, moving to the DPU(s) configuration
+    token = strtok_r(rest_line, ",", &rest_line);
+    assert(token);
+    while (token != NULL)
+    {
+        bool target_dpu = false;
+        size_t i;
+        DBG("-> DPU data: %s", token);
+
+        /* if the DPU is not part of the list of DPUs to use, we skip it */
+        dpu_config_data_t *list_dpus_from_list = (dpu_config_data_t*)data->dpus_config.base;
+        for(i = 0; i < data->num_dpus; i++)
+        {
+            // We do not expect users to be super strict in the way they create the list of DPUs
+            size_t _strlen = strlen(token);
+            if (_strlen > strlen(list_dpus_from_list[i].version_1.hostname))
+                _strlen = strlen(list_dpus_from_list[i].version_1.hostname);
+            if (strncmp(list_dpus_from_list[i].version_1.hostname, token, _strlen) == 0)
+            {
+                target_dpu = true;
+                DBG("Found the configuration for %s", list_dpus_from_list[i].version_1.hostname);
+                break;
+            }
+        }
+
+        if (target_dpu)
+        {
+            int interdpu_conn_port, host_conn_port;
+            bool parsing_okay = parse_dpu_cfg(token,
+                                              &(list_dpus_from_list[i].version_1.hostname),
+                                              &(list_dpus_from_list[i].version_1.addr),
+                                              &interdpu_conn_port,
+                                              &host_conn_port);
+            CHECK_ERR_RETURN((parsing_okay == false), false, "unable to parse config file entry");
+            DBG("-> DPU %s found (%s:%d:%d)", list_dpus_from_list[i].version_1.hostname, list_dpus_from_list[i].version_1.addr, interdpu_conn_port, host_conn_port);
+            list_dpus_from_list[i].version_1.interdpu_port = interdpu_conn_port;
+            list_dpus_from_list[i].version_1.rank_port = host_conn_port;
+        
+            if (strncmp(data->local_dpu.hostname, list_dpus_from_list[i].version_1.hostname, strlen(list_dpus_from_list[i].version_1.hostname)) == 0)
+            {
+                // This is the DPU's configuration we were looking for
+                DBG("-> This is my configuration");
+                data->dpu_found = true;
+                data->local_dpu.config = &(list_dpus_from_list[i]);
+                data->local_dpu.interdpu_conn_params.addr_str = data->local_dpu.config->version_1.addr;
+                data->local_dpu.interdpu_conn_params.port = data->local_dpu.config->version_1.interdpu_port;
+                data->local_dpu.interdpu_conn_params.port_str = NULL;
+                data->local_dpu.host_conn_params.addr_str = data->local_dpu.config->version_1.addr;
+                data->local_dpu.host_conn_params.port = data->local_dpu.config->version_1.rank_port;
+                data->local_dpu.host_conn_params.port_str = NULL;
+                rc = true;
+            }
+
+            // Is it in outbound connection? If so we need to save the configuration details
+            remote_dpu_info_t *connect_to, *next_connect_to;
+            ucs_list_for_each_safe(connect_to, next_connect_to, &(data->info_connecting_to.connect_to), item)
+            {
+                DBG("Check DPU %s that we need to connect to (with %s)", connect_to->hostname, list_dpus_from_list[i].version_1.hostname);
+                if (strncmp(list_dpus_from_list[i].version_1.hostname, connect_to->hostname, strlen(connect_to->hostname)) == 0)
+                {
+                    DBG("Saving connection parameters to connect to %s (%p)", connect_to->hostname, connect_to);
+                    connect_to->init_params.conn_params = &(data->local_dpu.interdpu_conn_params);
+                }
+            }
+        }
+        else
+        {
+            DBG("%s is not to be used", token);
+        }
+        token = strtok_r(rest_line, ",", &rest_line);
+    }
+    return rc;
+}
+
+// <host name>,<dpu1_hostname:dpu_conn_addr:interdpu-port:rank-conn-port>,...
+bool parse_line_version_1(char *target_hostname, dpu_config_t *data, char *line)
+{
+    int idx = 0;
+    char *rest = line;
+
+    while (line[idx] == ' ')
+        idx++;
+
+    char *ptr = &(line[idx]);
+    char *token = strtok_r(rest, ",", &rest);
     DBG("Checking entry for %s", token);
     if (strncmp(token, target_hostname, strlen(token)) == 0)
     {
         // We found the hostname
 
         // Next tokens are the local DPUs' data
-        dpu_config_t *dpus_config = calloc(num_dpus, sizeof(dpu_config_t));
-        CHECK_ERR_RETURN((dpus_config == NULL), DO_ERROR, "unable to allocate resources for DPUs' configuration");
-        *config = dpus_config;
-
-        // Then get the DPUs configuration one-by-one.
+        // We get the DPUs configuration one-by-one.
         size_t dpu_idx = 0;
-        token = strtok(NULL, ",");
+        token = strtok_r(rest, ",", &rest);
         while (token != NULL)
         {
-            dpu_offload_status_t rc = config_version_1_parse_dpu_data(token, &(dpus_config[dpu_idx]));
-            CHECK_ERR_RETURN((rc), DO_ERROR, "config_version_1_parse_dpu_data() failed");
-            token = strtok(NULL, ",");
-            dpu_idx++;
+            dpu_config_data_t *dpu_config;
+            //DYN_ARRAY_GET_ELT(&(data->dpus_config), data->num_dpus, dpu_config_data_t, dpu_config);
+            dpu_config = data->dpus_config.base;
+            assert(dpu_config);
+            CHECK_ERR_RETURN((dpu_config == NULL), DO_ERROR, "unable to allocate resources for DPUs' configuration");
+
+            dpu_offload_status_t rc = parse_dpu_cfg(token,
+                                                    &(dpu_config[0].version_1.hostname),
+                                                    &(dpu_config[0].version_1.addr),
+                                                    &(dpu_config[0].version_1.interdpu_port),
+                                                    &(dpu_config[0].version_1.rank_port));
+            CHECK_ERR_RETURN((rc), DO_ERROR, "parse_dpu_cfg() failed");
+            data->num_dpus++;
+            token = strtok_r(rest, ",", &rest);
         }
+        DBG("%ld DPU(s) is/are specified for %s", data->num_dpus, target_hostname);
         return true;
     }
     return false;
 }
 
-bool parse_line(int format_version, char *target_hostname, char *line, dpu_config_t **config)
+/**
+ * @brief parse_line parses a line of the configuration file looking for a specific host name. It shall not be used to seek the configuration of a DPU.
+ *
+ * @param target_hostname Host's name
+ * @param line Line from the configuration file that is being parsed
+ * @param data Configuration data
+ * @return true when the line includes the host's configuration
+ * @return false when the lines does not include the host's configuration
+ */
+bool parse_line(char *target_hostname, char *line, dpu_config_t *data)
 {
-    switch (format_version)
+    switch (data->format_version)
     {
     case 1:
-        return parse_line_version_1(format_version, target_hostname, line, config);
+        return parse_line_version_1(target_hostname, data, line);
     default:
-        ERR_MSG("supported format (%s: version=%d)", line, format_version);
+        ERR_MSG("supported format (%s: version=%d)", line, data->format_version);
     }
     return false;
 }
 
-dpu_offload_status_t find_config_from_platform_configfile(char *filepath, char *hostname, dpu_config_t **config)
+/**
+ * @brief parse_line_for_dpu_cfg parses a line of the configuration file looking for a specific DPU. It shall not be used to seek the configuration of a host.
+ *
+ * @param data Data gathered while parsing the configuration file
+ * @param line Line from the configuration file that is being parsed
+ * @return true when the line includes the host's configuration
+ * @return false when the lines does not include the host's configuration
+ */
+bool parse_line_for_dpu_cfg(dpu_config_t *data, char *line)
+{
+    switch (data->format_version)
+    {
+    case 1:
+        return parse_line_dpu_version_1(data, line);
+    default:
+        ERR_MSG("supported format (%s: version=%d)", line, data->format_version);
+    }
+    return false;
+}
+
+/**
+ * @brief find_dpu_config_from_platform_configfile extracts a DPU's configuration from a platform configuration file.
+ * It shall not be used to extract the configuration of a host.
+ *
+ * @param filepath Path the configuration file
+ * @param config_data Object where all the configuration details are stored
+ * @return dpu_offload_status_t
+ */
+dpu_offload_status_t find_dpu_config_from_platform_configfile(char *filepath, dpu_config_t *config_data)
+{
+    size_t len = 0;
+    ssize_t read;
+    dpu_offload_status_t rc = DO_ERROR;
+    bool first_line = true;
+    bool found_self = false;
+
+    // Read the entire file so we can go over the content quickly. Configure files are not expected to get huge
+    FILE *file = fopen(filepath, "rb");
+    fseek(file, 0, SEEK_END);
+    len = ftell(file);
+    fseek(file, 0, SEEK_SET);  /* same as rewind(f); */
+
+    char *content = malloc(len + 1);
+    fread(content, len, 1, file);
+    fclose(file);
+    content[len] = '\0';
+    char *rest_content = content;
+
+    DBG("Configuration:\n%s", content);
+
+    // We will get through the content line by line
+    char *line = strtok_r(rest_content, "\n", &rest_content);
+
+    // Get the format version from the first line
+    rc = check_config_file_version(line, &(config_data->format_version));
+    CHECK_ERR_GOTO((rc), error_out, "check_config_file_version() failed");
+    CHECK_ERR_GOTO((config_data->format_version <= 0), error_out, "invalid version: %d", config_data->format_version);
+    DBG("Configuration file based on format version %d", config_data->format_version);
+
+    line = strtok_r(rest_content, "\n", &rest_content);
+    while (line != NULL)
+    {
+        if (line_is_comment(line))
+        {
+            line = strtok_r(rest_content, "\n", &rest_content);
+            continue;
+        }
+
+        DBG("Looking at %s", line);
+        if (parse_line_for_dpu_cfg(config_data, line) == true)
+            found_self = true;
+
+        line = strtok_r(rest_content, "\n", &rest_content);
+    }
+    DBG("done parsing the configuration file");
+
+    rc = DO_SUCCESS;
+
+error_out:
+    if (content)
+        free(content);
+
+    return rc;
+}
+
+/**
+ * @brief find_config_from_platform_configfile extracts a host's configuration from a platform configuration file.
+ * It shall not be used to extract the configuration of a DPU.
+ *
+ * @param filepath Path to the configuration file
+ * @param hostname Name of the host to look up
+ * @param data Configuration data of the host's local DPUs
+ * @return dpu_offload_status_t
+ */
+dpu_offload_status_t find_config_from_platform_configfile(char *filepath, char *hostname, dpu_config_t *data)
 {
     FILE *file = NULL;
     char *line = NULL;
@@ -188,10 +387,10 @@ dpu_offload_status_t find_config_from_platform_configfile(char *filepath, char *
     {
         if (first_line)
         {
-            rc = check_config_file_version(line, &version);
+            rc = check_config_file_version(line, &(data->format_version));
             CHECK_ERR_GOTO((rc), error_out, "check_config_file_version() failed");
-            CHECK_ERR_GOTO((version <= 0), error_out, "invalid version: %d", version);
-            DBG("Configuration file based on format version %d", version);
+            CHECK_ERR_GOTO((data->format_version <= 0), error_out, "invalid version: %d", data->format_version);
+            DBG("Configuration file based on format version %d", data->format_version);
             first_line = false;
             continue;
         }
@@ -199,7 +398,7 @@ dpu_offload_status_t find_config_from_platform_configfile(char *filepath, char *
         if (line_is_comment(line))
             continue;
 
-        if (parse_line(version, hostname, line, config))
+        if (parse_line(hostname, line, data))
         {
             // We found the configuration for the hostname
             break;
@@ -223,7 +422,8 @@ dpu_offload_status_t get_env_config(conn_params_t *params)
     int port = -1;
 
     CHECK_ERR_RETURN((!server_addr), DO_ERROR,
-                     "Invalid server address, please make sure the environment variable %s or %s is correctly set", SERVER_IP_ADDR_ENVVAR, INTER_DPU_ADDR_ENVVAR);
+                     "Invalid server address, please make sure the environment variable %s or %s is correctly set", 
+                     SERVER_IP_ADDR_ENVVAR, INTER_DPU_ADDR_ENVVAR);
 
     if (server_port_envvar)
     {
@@ -236,6 +436,46 @@ dpu_offload_status_t get_env_config(conn_params_t *params)
     params->addr_str = server_addr;
     params->port_str = server_port_envvar;
     params->port = port;
+
+    return DO_SUCCESS;
+}
+
+dpu_offload_status_t get_host_config(dpu_config_t *config_data)
+{
+    dpu_offload_status_t rc;
+    char hostname[1024];
+
+    config_data->config_file = getenv(OFFLOAD_CONFIG_FILE_PATH_ENVVAR);
+    hostname[1023] = '\0';
+    gethostname(hostname, 1023);
+
+    config_data->list_dpus = NULL; // Not used on host
+    config_data->local_dpu.interdpu_init_params.worker = NULL; // Not used on host
+    config_data->local_dpu.interdpu_init_params.proc_info = NULL; // Not used on host
+    config_data->local_dpu.host_init_params.worker = NULL; // Not used on host
+    config_data->local_dpu.host_init_params.proc_info = NULL; // Not used on host
+
+    /* First, we check whether we know about a configuration file. If so, we load all the configuration details from it */
+    /* If there is no configuration file, we try to configuration from environment variables */
+    if (config_data->config_file != NULL)
+    {
+        //dpu_config_t *my_config;
+        DBG("Looking for %s's configuration data from %s", hostname, config_data->config_file);
+        rc = find_config_from_platform_configfile(config_data->config_file, hostname, config_data);
+        CHECK_ERR_RETURN((rc), DO_ERROR, "find_dpu_config_from_platform_configfile() failed");
+    }
+    else
+    {
+        DBG("No configuration file");
+        assert(0); // fixme: may need to rethink that code path
+        char *port_str = getenv(INTER_DPU_PORT_ENVVAR);
+        config_data->local_dpu.interdpu_conn_params.addr_str = getenv(INTER_DPU_ADDR_ENVVAR);
+        CHECK_ERR_RETURN((config_data->local_dpu.interdpu_conn_params.addr_str == NULL), DO_ERROR, "%s is not set, please set it\n", INTER_DPU_ADDR_ENVVAR);
+
+        config_data->local_dpu.interdpu_conn_params.port = DEFAULT_INTER_DPU_CONNECT_PORT;
+        if (port_str)
+            config_data->local_dpu.interdpu_conn_params.port = atoi(port_str);        
+    }
 
     return DO_SUCCESS;
 }

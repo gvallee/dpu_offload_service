@@ -301,6 +301,7 @@ typedef struct connected_clients
 
 typedef struct conn_params
 {
+    ucs_list_link_t item;
     char *addr_str;
     char *port_str;
     int port;
@@ -508,9 +509,33 @@ typedef struct offloading_engine
     cache_t procs_cache;
     dyn_list_t *free_peer_cache_entries; // pool of peer descriptors that can also be used directly into a cache
     dyn_list_t *free_peer_descs;         // pool of peer data descriptirs
+
+    /* Objects used during wire-up */
+    dyn_list_t *pool_conn_params;
 } offloading_engine_t;
 
-typedef struct dpu_config
+/*********************/
+/* DPU CONFIGURATION */
+/*********************/
+
+typedef enum
+{
+    CONNECT_STATUS_UNKNOWN = 0,
+    CONNECT_STATUS_CONNECTED,
+    CONNECT_STATUS_DISCONNECTED
+} connect_status_t;
+
+typedef struct remote_dpu_info
+{
+    ucs_list_link_t item;
+    char *hostname;
+    init_params_t init_params;
+    connect_status_t conn_status;
+    pthread_t connection_tid;
+    offloading_engine_t *offload_engine;
+} remote_dpu_info_t;
+
+typedef struct dpu_config_data
 {
     union
     {
@@ -522,9 +547,95 @@ typedef struct dpu_config
             int interdpu_port;
         } version_1;
     };
+} dpu_config_data_t;
+
+typedef struct dpu_inter_connect_info
+{
+    dyn_list_t *pool_remote_dpu_info;
+    ucs_list_link_t connect_to;
+    size_t num_connect_to;
+} dpu_inter_connect_info_t;
+
+typedef struct dpu_config
+{
+    char *list_dpus;
+    char *config_file;
+    int format_version;
+    offloading_engine_t *offloading_engine;
+    bool dpu_found;
+    size_t num_connecting_dpus;
+    dpu_inter_connect_info_t info_connecting_to;
+    size_t num_dpus;
+    dyn_array_t dpus_config;
+    struct
+    {
+        dpu_config_data_t *config;
+        char hostname[1024];
+        conn_params_t interdpu_conn_params;
+        conn_params_t host_conn_params;
+        init_params_t interdpu_init_params; // Parameters used to connect to other DPUs, or other DPUS connect to the DPU
+        init_params_t host_init_params;     // Parameters used to let the host connect to the DPU
+    } local_dpu;
 } dpu_config_t;
 
-dpu_offload_status_t find_config_from_platform_configfile(char *, char *, dpu_config_t **);
+dpu_offload_status_t get_dpu_config(dpu_config_t *);
+dpu_offload_status_t get_host_config(dpu_config_t *);
+dpu_offload_status_t find_dpu_config_from_platform_configfile(char *, dpu_config_t *);
+dpu_offload_status_t find_config_from_platform_configfile(char *, char *, dpu_config_t *);
+
+#define INIT_DPU_CONFIG_DATA(_data)                                                                       \
+    do                                                                                                    \
+    {                                                                                                     \
+        (_data)->offloading_engine = NULL;                                                                \
+        (_data)->num_dpus = 0;                                                                            \
+        (_data)->dpu_found = false;                                                                       \
+        (_data)->info_connecting_to.num_connect_to = 0;                                                   \
+        (_data)->num_connecting_dpus = 0;                                                                 \
+        (_data)->local_dpu.config = NULL;                                                                 \
+        (_data)->local_dpu.hostname[0] = '\0';                                                            \
+        (_data)->local_dpu.interdpu_conn_params.port = -1;                                                \
+        (_data)->local_dpu.interdpu_conn_params.port_str = NULL;                                          \
+        (_data)->local_dpu.interdpu_conn_params.addr_str = NULL;                                          \
+        (_data)->local_dpu.host_conn_params.port = -1;                                                    \
+        (_data)->local_dpu.host_conn_params.port_str = NULL;                                              \
+        (_data)->local_dpu.host_conn_params.addr_str = NULL;                                              \
+        dyn_array_t *array = &((_data)->dpus_config);                                                     \
+        DYN_ARRAY_ALLOC(array, 32, dpu_config_data_t);                                                    \
+        (_data)->local_dpu.interdpu_init_params.conn_params = &((_data)->local_dpu.interdpu_conn_params); \
+        (_data)->local_dpu.host_init_params.conn_params = &((_data)->local_dpu.host_conn_params);         \
+        ucs_list_link_t *_list = &((_data)->info_connecting_to.connect_to);                               \
+        ucs_list_head_init(_list);                                                                        \
+        DYN_LIST_ALLOC((_data)->info_connecting_to.pool_remote_dpu_info, 32, remote_dpu_info_t, item);    \
+    } while (0)
+
+#define SET_DPU_TO_CONNECT_TO(_cfg, _dpu_hostname)                                                                  \
+    do                                                                                                              \
+    {                                                                                                               \
+        remote_dpu_info_t *new_conn_to;                                                                             \
+        DYN_LIST_GET(_cfg->info_connecting_to.pool_remote_dpu_info, remote_dpu_info_t, item, new_conn_to);          \
+        assert(new_conn_to);                                                                                        \
+        conn_params_t *new_conn_params;                                                                             \
+        DYN_LIST_GET(_cfg->offloading_engine->pool_conn_params, conn_params_t, item, new_conn_params);              \
+        assert(new_conn_params);                                                                                    \
+        new_conn_to->hostname = _dpu_hostname;                                                                      \
+        new_conn_to->init_params.conn_params = new_conn_params;                                                     \
+        new_conn_to->init_params.conn_params->addr_str = token;                                                     \
+        if (_cfg->local_dpu.interdpu_conn_params.port > 0)                                                          \
+        {                                                                                                           \
+            /* fixme: this is not working right now but not really needed for our current use cases */              \
+            /* if (init_params->conn_params->port_str != NULL) */                                                   \
+            /*      new_conn_to->init_params.conn_params->port_str = strdup(init_params->conn_params->port_str); */ \
+            new_conn_to->init_params.conn_params->port_str = NULL;                                                  \
+            new_conn_to->init_params.conn_params->port = _cfg->local_dpu.interdpu_conn_params.port;                 \
+        }                                                                                                           \
+        new_conn_to->offload_engine = _cfg->offloading_engine;                                                      \
+        ucs_list_add_tail(&(_cfg->info_connecting_to.connect_to), &(new_conn_to->item));                            \
+        _cfg->info_connecting_to.num_connect_to++;                                                                  \
+    } while (0)
+
+/**********************/
+/* ACTIVE MESSAGE IDS */
+/**********************/
 
 typedef enum
 {
