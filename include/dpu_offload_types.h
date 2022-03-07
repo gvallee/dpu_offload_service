@@ -487,12 +487,12 @@ typedef struct offloading_engine
     /* client here is used to track the bootstrapping as a client. */
     /* it can only be at most one (the offload engine bootstraps only once */
     /* for both host process and the DPU daemon) */
-    dpu_offload_client_t *client; // fixme: should be a pointer to execution_context_t so we can cleanup during termination
+    execution_context_t *client; 
 
     /* we can have as many servers as we want, each server having multiple clients */
     size_t num_max_servers;
     size_t num_servers;
-    dpu_offload_server_t **servers; // fixme: should be a pointer to execution_context_t so we can cleanup during termination
+    execution_context_t **servers; 
 
     /* we track the clients used for inter-DPU connection separately. Servers are at the */
     /* moment in the servers list. */

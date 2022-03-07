@@ -90,7 +90,11 @@ static void *connect_thread(void *arg)
         ERR_MSG("undefined offload_engine");
         pthread_exit(NULL);
     }
-    DBG("connecting to DPU server %s at %s", remote_dpu_info->hostname, remote_dpu_info->init_params.conn_params->addr_str);
+
+    DBG("connecting to DPU server %s at %s:%d",
+        remote_dpu_info->hostname,
+        remote_dpu_info->init_params.conn_params->addr_str,
+        remote_dpu_info->init_params.conn_params->port);
     execution_context_t *client = client_init(offload_engine, &(remote_dpu_info->init_params));
     if (client == NULL)
     {
@@ -129,7 +133,7 @@ dpu_offload_status_t inter_dpus_connect_mgr(dpu_config_t *cfg)
                          DO_ERROR,
                          "max number of server (%ld) has been reached",
                          cfg->offloading_engine->num_max_servers);
-        cfg->offloading_engine->servers[cfg->offloading_engine->num_servers] = server->server;
+        cfg->offloading_engine->servers[cfg->offloading_engine->num_servers] = server;
         cfg->offloading_engine->num_servers++;
         DBG("Server successfully started");
         // Nothing else to do in this context.

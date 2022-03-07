@@ -200,7 +200,11 @@ bool parse_line_dpu_version_1(dpu_config_t *data, char *line)
                 if (strncmp(list_dpus_from_list[i].version_1.hostname, connect_to->hostname, strlen(connect_to->hostname)) == 0)
                 {
                     DBG("Saving connection parameters to connect to %s (%p)", connect_to->hostname, connect_to);
-                    connect_to->init_params.conn_params = &(data->local_dpu.interdpu_conn_params);
+                    conn_params_t *new_conn_params;
+                    DYN_LIST_GET(data->offloading_engine->pool_conn_params, conn_params_t, item, new_conn_params); // fixme: properly return it
+                    connect_to->init_params.conn_params = new_conn_params; 
+                    connect_to->init_params.conn_params->addr_str = list_dpus_from_list[i].version_1.addr;
+                    connect_to->init_params.conn_params->port = list_dpus_from_list[i].version_1.interdpu_port;
                 }
             }
         }
