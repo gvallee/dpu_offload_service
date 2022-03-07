@@ -12,6 +12,7 @@
 #include <stdbool.h>
 #include <inttypes.h>
 #include <string.h>
+#include <errno.h>
 
 #include "dpu_offload_service_daemon.h"
 #include "dpu_offload_comm_channels.h"
@@ -109,11 +110,12 @@ dpu_offload_status_t set_sock_addr(char *addr, uint16_t port, struct sockaddr_st
     return DO_SUCCESS;
 }
 
-static dpu_offload_status_t oob_server_accept(uint16_t server_port, sa_family_t af)
+static int oob_server_accept(uint16_t server_port, sa_family_t af, int *fd)
 {
     int listenfd, connfd;
     struct sockaddr_in servaddr;
     int optval = 1;
+    int rc;
 
     listenfd = socket(AF_INET, SOCK_STREAM, 0);
 
@@ -124,14 +126,17 @@ static dpu_offload_status_t oob_server_accept(uint16_t server_port, sa_family_t 
 
     setsockopt(listenfd, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval));
 
-    bind(listenfd, (struct sockaddr *)&servaddr, sizeof(servaddr));
-    listen(listenfd, 1024);
+    rc = bind(listenfd, (struct sockaddr *)&servaddr, sizeof(servaddr));
+    CHECK_ERR_RETURN((rc), DO_ERROR, "bind() failed");
+    rc = listen(listenfd, 1024);
+    CHECK_ERR_RETURN((rc), DO_ERROR, "listen() failed");
 
     DBG("Accepting connection on port %" PRIu16 "...", server_port);
     connfd = accept(listenfd, (struct sockaddr *)NULL, NULL);
     DBG("Connection acception on fd=%d", connfd);
+    *fd = connfd;
 
-    return connfd;
+    return DO_SUCCESS;
 }
 
 #define MAX_RETRY (300) // Never try to connect for more than 5 minutes
@@ -186,7 +191,11 @@ dpu_offload_status_t oob_client_connect(dpu_offload_client_t *client, sa_family_
             else
             {
                 retry *= 2;
-                DBG("Connection failed, retrying in %d seconds...", retry);
+                DBG("Connection to %s:%d failed (%s), retrying in %d seconds...",
+                    client->conn_params.addr_str,
+                    client->conn_params.port,
+                    strerror(errno),
+                    retry);
                 sleep(retry);
             }
         } while (rc != 0 && retry < MAX_RETRY);
@@ -879,6 +888,8 @@ static inline dpu_offload_status_t oob_server_ucx_client_connection(execution_co
     dpu_offload_server_t *server = econtext->server;
     CHECK_ERR_RETURN((server == NULL), DO_ERROR, "server handle is undefined");
 
+    DBG("Waiting for client's UCX info\n");
+
     /* Receive client UCX address */
     do
     {
@@ -894,7 +905,7 @@ static inline dpu_offload_status_t oob_server_ucx_client_connection(execution_co
     pthread_mutex_lock(&(econtext->server->mutex));
     DBG("allocating space for message to receive: %ld", info_tag.length);
     msg = malloc(info_tag.length);
-    CHECK_ERR_RETURN((msg == NULL), DO_ERROR, "unable to allocate memory");
+    CHECK_ERR_GOTO((msg == NULL), error_out, "unable to allocate memory");
     assert(server->ucp_worker);
     addr_request = ucp_tag_msg_recv_nb(server->ucp_worker, msg, info_tag.length,
                                        ucp_dt_make_contig(1), msg_tag, oob_recv_handler);
@@ -905,7 +916,7 @@ static inline dpu_offload_status_t oob_server_ucx_client_connection(execution_co
     assert(server);
     assert(server->ucp_worker);
     assert(server->conn_data.oob.addr_msg_str);
-    
+
     status = ucx_wait(server->ucp_worker, addr_request, "receive", server->conn_data.oob.addr_msg_str);
     if (status != UCS_OK)
     {
@@ -915,7 +926,7 @@ static inline dpu_offload_status_t oob_server_ucx_client_connection(execution_co
 
     server->conn_data.oob.peer_addr_len = msg->len;
     server->conn_data.oob.peer_addr = malloc(server->conn_data.oob.peer_addr_len);
-    CHECK_ERR_RETURN((server->conn_data.oob.peer_addr == NULL), DO_ERROR, "unable to allocate memory for peer address");
+    CHECK_ERR_GOTO((server->conn_data.oob.peer_addr == NULL), error_out, "unable to allocate memory for peer address");
 
     memcpy(server->conn_data.oob.peer_addr, msg + 1, server->conn_data.oob.peer_addr_len);
     free(msg);
@@ -930,10 +941,10 @@ static inline dpu_offload_status_t oob_server_ucx_client_connection(execution_co
     ep_params.address = server->conn_data.oob.peer_addr;
     ep_params.user_data = &(server->connected_clients.clients[server->connected_clients.num_connected_clients].ep_status);
     ucp_worker_h worker = server->ucp_worker;
-    CHECK_ERR_RETURN((worker == NULL), DO_ERROR, "undefined worker");
+    CHECK_ERR_GOTO((worker == NULL), error_out, "undefined worker");
     ucp_ep_h client_ep;
     status = ucp_ep_create(worker, &ep_params, &client_ep);
-    CHECK_ERR_RETURN((status != UCS_OK), DO_ERROR, "ucp_ep_create() failed: %s", ucs_status_string(status));
+    CHECK_ERR_GOTO((status != UCS_OK), error_out, "ucp_ep_create() failed: %s", ucs_status_string(status));
     server->connected_clients.clients[server->connected_clients.num_connected_clients].ep = client_ep;
 
     ucx_wait(server->ucp_worker, rank_request, "receive", NULL);
@@ -953,6 +964,10 @@ static inline dpu_offload_status_t oob_server_ucx_client_connection(execution_co
     pthread_mutex_unlock(&(econtext->server->mutex));
     DBG("Endpoint to client successfully created");
     return DO_SUCCESS;
+
+error_out:
+    pthread_mutex_unlock(&(econtext->server->mutex));
+    return DO_ERROR;
 }
 
 static inline uint64_t generate_unique_client_id(execution_context_t *econtext)
@@ -964,13 +979,15 @@ static inline uint64_t generate_unique_client_id(execution_context_t *econtext)
 static dpu_offload_status_t oob_server_listen(execution_context_t *econtext)
 {
     /* OOB connection establishment */
-    econtext->server->conn_data.oob.sock = oob_server_accept(econtext->server->conn_params.port, ai_family);
+    dpu_offload_status_t rc = oob_server_accept(econtext->server->conn_params.port, ai_family, &(econtext->server->conn_data.oob.sock));
+    CHECK_ERR_RETURN((rc), DO_ERROR, "oob_server_accept() failed");
+    DBG("Sending my worker's data...\n");
     send(econtext->server->conn_data.oob.sock, &(econtext->server->conn_data.oob.local_addr_len), sizeof(econtext->server->conn_data.oob.local_addr_len), 0);
     send(econtext->server->conn_data.oob.sock, econtext->server->conn_data.oob.local_addr, econtext->server->conn_data.oob.local_addr_len, 0);
     uint64_t client_id = generate_unique_client_id(econtext);
     send(econtext->server->conn_data.oob.sock, &client_id, sizeof(uint64_t), 0);
 
-    int rc = oob_server_ucx_client_connection(econtext);
+    rc = oob_server_ucx_client_connection(econtext);
     CHECK_ERR_RETURN((rc), DO_ERROR, "oob_server_ucx_client_connection() failed");
 
     return DO_SUCCESS;
@@ -1052,6 +1069,7 @@ dpu_offload_status_t server_init_context(execution_context_t *econtext, init_par
         econtext->server->connected_clients.clients[i].cache_entries = malloc(MAX_CACHE_ENTRIES_PER_PROC * sizeof(peer_cache_entry_t*));
         CHECK_ERR_RETURN((econtext->server->connected_clients.clients[i].cache_entries == NULL), DO_ERROR, "Unable to allocate resource to track ranks' cache entries");
     }
+
     if (init_params == NULL || init_params->conn_params == NULL)
     {
         DBG("no initialization parameters specified, try to gather parameters from environment...");
@@ -1154,7 +1172,7 @@ execution_context_t *server_init(offloading_engine_t *offloading_engine, init_pa
     int ret = server_init_context(execution_context, init_params);
     CHECK_ERR_GOTO((ret), error_out, "server_init_context() failed");
     DBG("server handle successfully created (worker=%p)", execution_context->server->ucp_worker);
-    offloading_engine->servers[offloading_engine->num_servers] = execution_context->server;
+    offloading_engine->servers[offloading_engine->num_servers] = execution_context;
     offloading_engine->num_servers++;
 
     ret = event_channels_init(execution_context);
@@ -1169,7 +1187,7 @@ execution_context_t *server_init(offloading_engine_t *offloading_engine, init_pa
     ucs_status_t status = start_server(execution_context);
     CHECK_ERR_GOTO((status != UCS_OK), error_out, "start_server() failed");
 
-    DBG("Connection accepted on %s:%d\n", init_params->conn_params->addr_str, init_params->conn_params->port);
+    DBG("Server created on %s:%d\n", init_params->conn_params->addr_str, init_params->conn_params->port);
     return execution_context;
 
 error_out:

@@ -133,7 +133,7 @@ dpu_offload_status_t inter_dpus_connect_mgr(dpu_config_t *cfg)
                          DO_ERROR,
                          "max number of server (%ld) has been reached",
                          cfg->offloading_engine->num_max_servers);
-        cfg->offloading_engine->servers[cfg->offloading_engine->num_servers] = server->server;
+        cfg->offloading_engine->servers[cfg->offloading_engine->num_servers] = server;
         cfg->offloading_engine->num_servers++;
         DBG("Server successfully started");
         // Nothing else to do in this context.
