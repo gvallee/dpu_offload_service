@@ -1169,7 +1169,7 @@ execution_context_t *server_init(offloading_engine_t *offloading_engine, init_pa
     ucs_status_t status = start_server(execution_context);
     CHECK_ERR_GOTO((status != UCS_OK), error_out, "start_server() failed");
 
-    DBG("Connection accepted\n");
+    DBG("Connection accepted on %s:%d\n", init_params->conn_params->addr_str, init_params->conn_params->port);
     return execution_context;
 
 error_out:
