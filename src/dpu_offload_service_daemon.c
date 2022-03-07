@@ -945,6 +945,10 @@ static inline dpu_offload_status_t oob_server_ucx_client_connection(execution_co
     ucp_ep_h client_ep;
     status = ucp_ep_create(worker, &ep_params, &client_ep);
     CHECK_ERR_GOTO((status != UCS_OK), error_out, "ucp_ep_create() failed: %s", ucs_status_string(status));
+    CHECK_ERR_GOTO((server->connected_clients.num_connected_clients >= DEFAULT_MAX_NUM_CLIENTS),
+                   error_out,
+                   "max number of clients (%d) has been reached",
+                   DEFAULT_MAX_NUM_CLIENTS);
     server->connected_clients.clients[server->connected_clients.num_connected_clients].ep = client_ep;
 
     ucx_wait(server->ucp_worker, rank_request, "receive", NULL);
@@ -1062,6 +1066,7 @@ dpu_offload_status_t server_init_context(execution_context_t *econtext, init_par
     CHECK_ERR_RETURN((econtext->server == NULL), DO_ERROR, "Unable to allocate server handle");
     econtext->server->mode = OOB; // By default, we connect with the OOB mode
     econtext->server->connected_clients.clients = malloc(DEFAULT_MAX_NUM_CLIENTS * sizeof(peer_info_t));
+    econtext->server->connected_clients.num_connected_clients = 0;
     CHECK_ERR_RETURN((econtext->server->connected_clients.clients == NULL), DO_ERROR, "Unable to allocate resources to track connected clients");
     int i;
     for (i = 0; i < DEFAULT_MAX_NUM_CLIENTS; i++)
