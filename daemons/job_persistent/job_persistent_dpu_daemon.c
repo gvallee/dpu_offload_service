@@ -36,7 +36,7 @@ int main(int argc, char **argv)
     dpu_config_t config_data;
     INIT_DPU_CONFIG_DATA(&config_data);
     config_data.offloading_engine = offload_engine;
-    int ret = get_config(&config_data);
+    int ret = get_dpu_config(&config_data);
     if (ret)
     {
         fprintf(stderr, "get_config() failed\n");

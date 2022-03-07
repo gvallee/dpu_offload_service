@@ -145,18 +145,22 @@ dpu_offload_status_t inter_dpus_connect_mgr(dpu_config_t *cfg)
     return DO_SUCCESS;
 }
 
-dpu_offload_status_t get_config(dpu_config_t *config_data)
+dpu_offload_status_t get_dpu_config(dpu_config_t *config_data)
 {
     dpu_offload_status_t rc;
-    char *config_file = getenv(OFFLOAD_CONFIG_FILE_PATH_ENVVAR);
+    config_data->config_file = getenv(OFFLOAD_CONFIG_FILE_PATH_ENVVAR);
 
     config_data->local_dpu.hostname[1023] = '\0';
     gethostname(config_data->local_dpu.hostname, 1023);
 
     config_data->list_dpus = getenv(LIST_DPUS_ENVVAR);
-    CHECK_ERR_RETURN((config_data->list_dpus == NULL), DO_ERROR, "Unable to get list of DPUs via %s environmnent variable\n", LIST_DPUS_ENVVAR);
+    CHECK_ERR_RETURN((config_data->list_dpus == NULL),
+                     DO_ERROR,
+                     "Unable to get list of DPUs via %s environmnent variable\n",
+                     LIST_DPUS_ENVVAR);
     rc = dpu_offload_parse_list_dpus(config_data);
     CHECK_ERR_RETURN((rc == DO_ERROR), DO_ERROR, "dpu_offload_parse_list_dpus() failed");
+
     DBG("number of DPUs to connect to: %ld; number of expected incoming connections: %ld\n",
         config_data->info_connecting_to.num_connect_to,
         config_data->num_connecting_dpus);
@@ -168,23 +172,22 @@ dpu_offload_status_t get_config(dpu_config_t *config_data)
 
     /* First, we check whether we know about a configuration file. If so, we load all the configuration details from it */
     /* If there is no configuration file, we try to configuration from environment variables */
-    if (config_file != NULL)
+    if (config_data->config_file != NULL)
     {
-        dpu_config_t *my_config;
-        DBG("Looking for %s's configuration data from %s", config_data->local_dpu.hostname, config_file);
-        rc = find_dpu_config_from_platform_configfile(config_file, config_data);
+        DBG("Looking for %s's configuration data from %s", config_data->local_dpu.hostname, config_data->config_file);
+        rc = find_dpu_config_from_platform_configfile(config_data->config_file, config_data);
         CHECK_ERR_RETURN((rc), DO_ERROR, "find_dpu_config_from_platform_configfile() failed");
-        assert(my_config != NULL);
     }
     else
     {
+        DBG("No configuration file");
         char *port_str = getenv(INTER_DPU_PORT_ENVVAR);
         config_data->local_dpu.interdpu_conn_params.addr_str = getenv(INTER_DPU_ADDR_ENVVAR);
         CHECK_ERR_RETURN((config_data->local_dpu.interdpu_conn_params.addr_str == NULL), DO_ERROR, "%s is not set, please set it\n", INTER_DPU_ADDR_ENVVAR);
 
         config_data->local_dpu.interdpu_conn_params.port = DEFAULT_INTER_DPU_CONNECT_PORT;
         if (port_str)
-            config_data->local_dpu.interdpu_conn_params.port = atoi(port_str);        
+            config_data->local_dpu.interdpu_conn_params.port = atoi(port_str);
     }
 
     DBG("%ld DPU configuration(s) detected, connecting to %ld DPUs and expecting %ld inbound connections",
@@ -196,5 +199,5 @@ dpu_offload_status_t get_config(dpu_config_t *config_data)
         config_data->local_dpu.interdpu_conn_params.port,
         config_data->local_dpu.host_conn_params.port);
 
-    return 0;
+    return DO_SUCCESS;
 }

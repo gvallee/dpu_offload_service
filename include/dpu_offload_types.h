@@ -559,6 +559,7 @@ typedef struct dpu_inter_connect_info
 typedef struct dpu_config
 {
     char *list_dpus;
+    char *config_file;
     int format_version;
     offloading_engine_t *offloading_engine;
     bool dpu_found;
@@ -577,7 +578,8 @@ typedef struct dpu_config
     } local_dpu;
 } dpu_config_t;
 
-dpu_offload_status_t get_config(dpu_config_t *);
+dpu_offload_status_t get_dpu_config(dpu_config_t *);
+dpu_offload_status_t get_host_config(dpu_config_t *);
 dpu_offload_status_t find_dpu_config_from_platform_configfile(char *, dpu_config_t *);
 dpu_offload_status_t find_config_from_platform_configfile(char *, char *, dpu_config_t *);
 
@@ -600,7 +602,6 @@ dpu_offload_status_t find_config_from_platform_configfile(char *, char *, dpu_co
         dyn_array_t *array = &((_data)->dpus_config);                                                     \
         DYN_ARRAY_ALLOC(array, 32, dpu_config_data_t);                                                    \
         (_data)->local_dpu.interdpu_init_params.conn_params = &((_data)->local_dpu.interdpu_conn_params); \
-        fprintf(stderr, "inter-dpu conn params = %p\n", &((_data)->local_dpu.interdpu_conn_params));      \
         (_data)->local_dpu.host_init_params.conn_params = &((_data)->local_dpu.host_conn_params);         \
         ucs_list_link_t *_list = &((_data)->info_connecting_to.connect_to);                               \
         ucs_list_head_init(_list);                                                                        \

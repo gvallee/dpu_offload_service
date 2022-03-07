@@ -10,6 +10,7 @@
 #include <stdio.h>
 #include <stdio.h>
 #include <assert.h>
+#include <unistd.h>
 
 #include "dpu_offload_types.h"
 #include "dpu_offload_mem_mgt.h"
@@ -83,43 +84,20 @@ bool line_is_comment(char *line)
 }
 
 // <dpu_hostname:interdpu-port:rank-conn-port>
-dpu_offload_status_t config_version_1_parse_dpu_data(char *str, dpu_config_data_t *dpu_data)
+static inline bool parse_dpu_cfg(char *str, char **hostname, char **addr, int *interdpu_conn_port, int *host_conn_port)
 {
-    CHECK_ERR_RETURN((str == NULL), DO_ERROR, "undefined string");
-    CHECK_ERR_RETURN((dpu_data == NULL), DO_ERROR, "undefined DPU data structure");
+    assert(hostname);
+    assert(addr);
+    assert(interdpu_conn_port);
+    assert(host_conn_port);
 
-    int step = 0;
-    char *token = strtok(str, ":");
-    while (token != NULL)
-    {
-        switch (step)
-        {
-        case 0:
-            dpu_data->version_1.hostname = strdup(token); // fixme: make sure it is freed
-            break;
-        case 1:
-            dpu_data->version_1.addr = strdup(token); // fixme: make sure it is freed
-            break;
-        case 2:
-            dpu_data->version_1.interdpu_port = atoi(token);
-            break;
-        case 3:
-            dpu_data->version_1.rank_port = atoi(token);
-            break;
-        }
-
-        step++;
-        token = strtok(NULL, ":");
-    }
-    return DO_SUCCESS;
-}
-
-static inline bool parse_dpu_cfg(char *dpu_hostname, char *str, char **hostname, char **addr, int *interdpu_conn_port, int *host_conn_port)
-{
-    char *token = strtok(str, ":");
+    char *rest = str;
+    char *token = strtok_r(rest, ":", &rest);
+    assert(token);
     int step = 0;
     *hostname = strdup(token); // fixme: correctly free
-    token = strtok(NULL, ":");
+    token = strtok_r(rest, ":", &rest);
+    assert(token);
     while (token != NULL)
     {
         switch (step)
@@ -139,7 +117,7 @@ static inline bool parse_dpu_cfg(char *dpu_hostname, char *str, char **hostname,
             *host_conn_port = atoi(token);
             return true;
         }
-        token = strtok(NULL, ":");
+        token = strtok_r(rest, ":", &rest);
     }
 
     DBG("unable to parse entry, stopping at step %d", step);
@@ -189,8 +167,7 @@ bool parse_line_dpu_version_1(dpu_config_t *data, char *line)
         if (target_dpu)
         {
             int interdpu_conn_port, host_conn_port;
-            bool parsing_okay = parse_dpu_cfg(data->local_dpu.hostname,
-                                              token,
+            bool parsing_okay = parse_dpu_cfg(token,
                                               &(list_dpus_from_list[i].version_1.hostname),
                                               &(list_dpus_from_list[i].version_1.addr),
                                               &interdpu_conn_port,
@@ -240,12 +217,13 @@ bool parse_line_dpu_version_1(dpu_config_t *data, char *line)
 bool parse_line_version_1(char *target_hostname, dpu_config_t *data, char *line)
 {
     int idx = 0;
+    char *rest = line;
 
     while (line[idx] == ' ')
         idx++;
 
     char *ptr = &(line[idx]);
-    char *token = strtok(line, ",");
+    char *token = strtok_r(rest, ",", &rest);
     DBG("Checking entry for %s", token);
     if (strncmp(token, target_hostname, strlen(token)) == 0)
     {
@@ -254,18 +232,23 @@ bool parse_line_version_1(char *target_hostname, dpu_config_t *data, char *line)
         // Next tokens are the local DPUs' data
         // We get the DPUs configuration one-by-one.
         size_t dpu_idx = 0;
-        token = strtok(NULL, ",");
+        token = strtok_r(rest, ",", &rest);
         while (token != NULL)
         {
             dpu_config_data_t *dpu_config;
-            DYN_ARRAY_GET_ELT(&(data->dpus_config), data->num_dpus, dpu_config_data_t, dpu_config);
+            //DYN_ARRAY_GET_ELT(&(data->dpus_config), data->num_dpus, dpu_config_data_t, dpu_config);
+            dpu_config = data->dpus_config.base;
             assert(dpu_config);
             CHECK_ERR_RETURN((dpu_config == NULL), DO_ERROR, "unable to allocate resources for DPUs' configuration");
 
-            dpu_offload_status_t rc = config_version_1_parse_dpu_data(token, dpu_config);
-            CHECK_ERR_RETURN((rc), DO_ERROR, "config_version_1_parse_dpu_data() failed");
+            dpu_offload_status_t rc = parse_dpu_cfg(token,
+                                                    &(dpu_config[0].version_1.hostname),
+                                                    &(dpu_config[0].version_1.addr),
+                                                    &(dpu_config[0].version_1.interdpu_port),
+                                                    &(dpu_config[0].version_1.rank_port));
+            CHECK_ERR_RETURN((rc), DO_ERROR, "parse_dpu_cfg() failed");
             data->num_dpus++;
-            token = strtok(NULL, ",");
+            token = strtok_r(rest, ",", &rest);
         }
         DBG("%ld DPU(s) is/are specified for %s", data->num_dpus, target_hostname);
         return true;
@@ -453,6 +436,46 @@ dpu_offload_status_t get_env_config(conn_params_t *params)
     params->addr_str = server_addr;
     params->port_str = server_port_envvar;
     params->port = port;
+
+    return DO_SUCCESS;
+}
+
+dpu_offload_status_t get_host_config(dpu_config_t *config_data)
+{
+    dpu_offload_status_t rc;
+    char hostname[1024];
+
+    config_data->config_file = getenv(OFFLOAD_CONFIG_FILE_PATH_ENVVAR);
+    hostname[1023] = '\0';
+    gethostname(hostname, 1023);
+
+    config_data->list_dpus = NULL; // Not used on host
+    config_data->local_dpu.interdpu_init_params.worker = NULL; // Not used on host
+    config_data->local_dpu.interdpu_init_params.proc_info = NULL; // Not used on host
+    config_data->local_dpu.host_init_params.worker = NULL; // Not used on host
+    config_data->local_dpu.host_init_params.proc_info = NULL; // Not used on host
+
+    /* First, we check whether we know about a configuration file. If so, we load all the configuration details from it */
+    /* If there is no configuration file, we try to configuration from environment variables */
+    if (config_data->config_file != NULL)
+    {
+        //dpu_config_t *my_config;
+        DBG("Looking for %s's configuration data from %s", hostname, config_data->config_file);
+        rc = find_config_from_platform_configfile(config_data->config_file, hostname, config_data);
+        CHECK_ERR_RETURN((rc), DO_ERROR, "find_dpu_config_from_platform_configfile() failed");
+    }
+    else
+    {
+        DBG("No configuration file");
+        assert(0); // fixme: may need to rethink that code path
+        char *port_str = getenv(INTER_DPU_PORT_ENVVAR);
+        config_data->local_dpu.interdpu_conn_params.addr_str = getenv(INTER_DPU_ADDR_ENVVAR);
+        CHECK_ERR_RETURN((config_data->local_dpu.interdpu_conn_params.addr_str == NULL), DO_ERROR, "%s is not set, please set it\n", INTER_DPU_ADDR_ENVVAR);
+
+        config_data->local_dpu.interdpu_conn_params.port = DEFAULT_INTER_DPU_CONNECT_PORT;
+        if (port_str)
+            config_data->local_dpu.interdpu_conn_params.port = atoi(port_str);        
+    }
 
     return DO_SUCCESS;
 }
