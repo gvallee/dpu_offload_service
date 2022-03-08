@@ -345,6 +345,7 @@ typedef struct dpu_offload_server_t
             void *peer_addr;
             size_t peer_addr_len;
             int sock;
+            int listenfd;
             int tag;
             char *addr_msg_str;
             ucp_tag_t tag_mask;

@@ -18,6 +18,10 @@
 #include "dpu_offload_event_channels.h"
 #include "dpu_offload_envvars.h"
 
+#if !NDEBUG
+char *my_hostname = NULL;
+#endif // !NDEBUG
+
 const char *config_file_version_token = "Format version:";
 
 int send_cache_entry(execution_context_t *econtext, ucp_ep_h ep, peer_cache_entry_t *cache_entry)
@@ -245,12 +249,12 @@ bool parse_line_version_1(char *target_hostname, dpu_config_t *data, char *line)
             assert(dpu_config);
             CHECK_ERR_RETURN((dpu_config == NULL), DO_ERROR, "unable to allocate resources for DPUs' configuration");
 
-            dpu_offload_status_t rc = parse_dpu_cfg(token,
-                                                    &(dpu_config[0].version_1.hostname),
-                                                    &(dpu_config[0].version_1.addr),
-                                                    &(dpu_config[0].version_1.interdpu_port),
-                                                    &(dpu_config[0].version_1.rank_port));
-            CHECK_ERR_RETURN((rc), DO_ERROR, "parse_dpu_cfg() failed");
+            bool rc = parse_dpu_cfg(token,
+                                    &(dpu_config[0].version_1.hostname),
+                                    &(dpu_config[0].version_1.addr),
+                                    &(dpu_config[0].version_1.interdpu_port),
+                                    &(dpu_config[0].version_1.rank_port));
+            CHECK_ERR_RETURN((rc == false), DO_ERROR, "parse_dpu_cfg() failed");
             data->num_dpus++;
             token = strtok_r(rest, ",", &rest);
         }

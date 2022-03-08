@@ -110,31 +110,35 @@ dpu_offload_status_t set_sock_addr(char *addr, uint16_t port, struct sockaddr_st
     return DO_SUCCESS;
 }
 
-static int oob_server_accept(uint16_t server_port, sa_family_t af, int *fd)
+static int oob_server_accept(execution_context_t *econtext)
 {
-    int listenfd, connfd;
+    int connfd;
     struct sockaddr_in servaddr;
     int optval = 1;
     int rc;
 
-    listenfd = socket(AF_INET, SOCK_STREAM, 0);
+    uint16_t server_port = econtext->server->conn_params.port;
 
-    memset(&servaddr, 0, sizeof(servaddr));
-    servaddr.sin_family = AF_INET;
-    servaddr.sin_addr.s_addr = htonl(INADDR_ANY);
-    servaddr.sin_port = htons(server_port);
+    if (econtext->server->conn_data.oob.listenfd == -1)
+    {
+        econtext->server->conn_data.oob.listenfd = socket(AF_INET, SOCK_STREAM, 0);
 
-    setsockopt(listenfd, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval));
+        memset(&servaddr, 0, sizeof(servaddr));
+        servaddr.sin_family = AF_INET;
+        servaddr.sin_addr.s_addr = htonl(INADDR_ANY);
+        servaddr.sin_port = htons(server_port);
 
-    rc = bind(listenfd, (struct sockaddr *)&servaddr, sizeof(servaddr));
-    CHECK_ERR_RETURN((rc), DO_ERROR, "bind() failed");
-    rc = listen(listenfd, 1024);
-    CHECK_ERR_RETURN((rc), DO_ERROR, "listen() failed");
+        setsockopt(econtext->server->conn_data.oob.listenfd, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval));
+
+        rc = bind(econtext->server->conn_data.oob.listenfd, (struct sockaddr *)&servaddr, sizeof(servaddr));
+        CHECK_ERR_RETURN((rc), DO_ERROR, "bind() failed: %s", strerror(errno));
+        rc = listen(econtext->server->conn_data.oob.listenfd, 1024);
+        CHECK_ERR_RETURN((rc), DO_ERROR, "listen() failed: %s", strerror(errno));
+    }
 
     DBG("Accepting connection on port %" PRIu16 "...", server_port);
-    connfd = accept(listenfd, (struct sockaddr *)NULL, NULL);
-    DBG("Connection acception on fd=%d", connfd);
-    *fd = connfd;
+    econtext->server->conn_data.oob.sock = accept(econtext->server->conn_data.oob.listenfd, (struct sockaddr *)NULL, NULL);
+    DBG("Connection accepted on fd=%d", econtext->server->conn_data.oob.sock);
 
     return DO_SUCCESS;
 }
@@ -983,7 +987,7 @@ static inline uint64_t generate_unique_client_id(execution_context_t *econtext)
 static dpu_offload_status_t oob_server_listen(execution_context_t *econtext)
 {
     /* OOB connection establishment */
-    dpu_offload_status_t rc = oob_server_accept(econtext->server->conn_params.port, ai_family, &(econtext->server->conn_data.oob.sock));
+    dpu_offload_status_t rc = oob_server_accept(econtext);
     CHECK_ERR_RETURN((rc), DO_ERROR, "oob_server_accept() failed");
     DBG("Sending my worker's data...\n");
     send(econtext->server->conn_data.oob.sock, &(econtext->server->conn_data.oob.local_addr_len), sizeof(econtext->server->conn_data.oob.local_addr_len), 0);
@@ -1126,6 +1130,7 @@ dpu_offload_status_t server_init_context(execution_context_t *econtext, init_par
         econtext->server->conn_data.oob.local_addr = NULL;
         econtext->server->conn_data.oob.local_addr_len = 0;
         econtext->server->conn_data.oob.peer_addr_len = 0;
+        econtext->server->conn_data.oob.listenfd = -1;
         ucs_status_t status = ucp_worker_get_address(econtext->server->ucp_worker,
                                                      &(econtext->server->conn_data.oob.local_addr),
                                                      &(econtext->server->conn_data.oob.local_addr_len));
