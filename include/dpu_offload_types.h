@@ -315,6 +315,24 @@ typedef struct init_params
     ucp_worker_h worker;
 } init_params_t;
 
+#define ECONTEXT_LOCK(_econtext)                             \
+    do                                                       \
+    {                                                        \
+        if (_econtext->type == CONTEXT_CLIENT)               \
+            pthread_mutex_lock(&(_econtext->client->mutex)); \
+        else                                                 \
+            pthread_mutex_lock(&(_econtext->server->mutex)); \
+    } while (0)
+
+#define ECONTEXT_UNLOCK(_econtext)                             \
+    do                                                         \
+    {                                                          \
+        if (_econtext->type == CONTEXT_CLIENT)                 \
+            pthread_mutex_unlock(&(_econtext->client->mutex)); \
+        else                                                   \
+            pthread_mutex_unlock(&(_econtext->server->mutex)); \
+    } while (0)
+
 typedef struct dpu_offload_server_t
 {
     int mode;
@@ -364,6 +382,7 @@ typedef struct dpu_offload_client_t
     ucp_context_h ucp_context;
     ucp_ep_h server_ep;
     ucs_status_t server_ep_status;
+    pthread_mutex_t mutex;
 
     dpu_offload_ev_sys_t *event_channels;
 
@@ -488,12 +507,12 @@ typedef struct offloading_engine
     /* client here is used to track the bootstrapping as a client. */
     /* it can only be at most one (the offload engine bootstraps only once */
     /* for both host process and the DPU daemon) */
-    execution_context_t *client; 
+    execution_context_t *client;
 
     /* we can have as many servers as we want, each server having multiple clients */
     size_t num_max_servers;
     size_t num_servers;
-    execution_context_t **servers; 
+    execution_context_t **servers;
 
     /* we track the clients used for inter-DPU connection separately. Servers are at the */
     /* moment in the servers list. */

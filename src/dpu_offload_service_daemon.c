@@ -344,10 +344,13 @@ static void send_cb(void *request, ucs_status_t status, void *user_data)
 
 dpu_offload_status_t client_init_context(execution_context_t *econtext, init_params_t *init_params)
 {
+    int ret;
     dpu_offload_status_t rc;
     econtext->type = CONTEXT_CLIENT;
     econtext->client = malloc(sizeof(dpu_offload_client_t));
     CHECK_ERR_RETURN((econtext->client == NULL), DO_ERROR, "Unable to allocate client handle\n");
+    ret = pthread_mutex_init(&(econtext->client->mutex), NULL);
+    CHECK_ERR_RETURN((ret), DO_ERROR, "pthread_mutex_init() failed: %s", strerror(errno));
 
     // If the connection parameters were not passed in, we get everything using environment variables
     if (init_params == NULL || init_params->conn_params == NULL)
@@ -581,7 +584,9 @@ dpu_offload_status_t offload_engine_init(offloading_engine_t **engine)
 static dpu_offload_status_t execution_context_progress(execution_context_t *ctx)
 {
     // Progress the UCX worker to eventually complete some communications
+    ECONTEXT_LOCK(ctx);
     ucp_worker_progress(GET_WORKER(ctx));
+    ECONTEXT_UNLOCK(ctx);
 
     // Progress the ingoing events
     dpu_offload_event_t *ev, *next_ev;
@@ -897,11 +902,11 @@ static inline dpu_offload_status_t oob_server_ucx_client_connection(execution_co
     /* Receive client UCX address */
     do
     {
+        pthread_mutex_lock(&(econtext->server->mutex));
         /* Progressing before probe to update the state */
         ucp_worker_progress(server->ucp_worker);
 
         /* Probing incoming events in non-block mode */
-        pthread_mutex_lock(&(econtext->server->mutex));
         msg_tag = ucp_tag_probe_nb(server->ucp_worker, server->conn_data.oob.tag, server->conn_data.oob.tag_mask, 1, &info_tag);
         pthread_mutex_unlock(&(econtext->server->mutex));
     } while (msg_tag == NULL);
@@ -1088,7 +1093,7 @@ dpu_offload_status_t server_init_context(execution_context_t *econtext, init_par
     else
     {
         DBG("using connection parameters that have been passed in (init_params=%p, conn_params=%p, econtext=%p, econtext->conn_params=%p, addr=%s)",
-            init_params, init_params->conn_params, econtext, econtext->server->conn_params, init_params->conn_params->addr_str);
+            init_params, init_params->conn_params, econtext, &(econtext->server->conn_params), init_params->conn_params->addr_str);
         econtext->server->conn_params.addr_str = init_params->conn_params->addr_str;
         econtext->server->conn_params.port = init_params->conn_params->port;
         econtext->server->conn_params.port_str = NULL;
@@ -1096,7 +1101,7 @@ dpu_offload_status_t server_init_context(execution_context_t *econtext, init_par
 
     DBG("starting server connection thread");
     ret = pthread_mutex_init(&(econtext->server->mutex), NULL);
-    CHECK_ERR_RETURN((ret), DO_ERROR, "pthread_mutex_init() failed: %s", );
+    CHECK_ERR_RETURN((ret), DO_ERROR, "pthread_mutex_init() failed: %s", strerror(errno));
     CHECK_ERR_RETURN((econtext->server->connected_clients.clients == NULL), DO_ERROR, "Unable to allocate resources for list of connected clients");
 
     if (init_params == NULL || init_params->worker == NULL)
