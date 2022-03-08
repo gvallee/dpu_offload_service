@@ -8,8 +8,18 @@
 #define _DPU_OFFLOAD_DEBUG_H
 
 #if !NDEBUG
-#define DBG(_dbg_fmt, ...)                                                                         \
-    fprintf(stdout, "[%s:l.%d:%s()] " _dbg_fmt "\n", __FILE__, __LINE__, __func__ __VA_OPT__(, ) __VA_ARGS__)
+#include <sys/types.h>
+#include <unistd.h>
+extern char *my_hostname;
+#define DBG(_dbg_fmt, ...) do {                                                              \
+    if (my_hostname == NULL) {                                                               \
+        my_hostname = malloc(1024); /* fixme: free properly */                               \
+        my_hostname[1023] = '\0';                                                            \
+        gethostname(my_hostname, 1023);                                                      \
+    }                                                                                        \
+    fprintf(stdout, "[%s:l.%d:%s():%s:pid=%d] " _dbg_fmt "\n",                               \
+            __FILE__, __LINE__, __func__, my_hostname, getpid() __VA_OPT__(, ) __VA_ARGS__); \
+} while(0)
 #else
 #define DO_DBG() \
     do           \

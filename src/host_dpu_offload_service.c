@@ -16,6 +16,10 @@
 #include "dpu_offload_types.h"
 #include "dpu_offload_envvars.h"
 
+#if !NDEBUG
+char *my_hostname = NULL;
+#endif // !NDEBUG
+
 static inline void
 check_config(offload_config_t *cfg)
 {
