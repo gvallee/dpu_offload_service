@@ -127,9 +127,9 @@ static int oob_server_accept(uint16_t server_port, sa_family_t af, int *fd)
     setsockopt(listenfd, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval));
 
     rc = bind(listenfd, (struct sockaddr *)&servaddr, sizeof(servaddr));
-    CHECK_ERR_RETURN((rc), DO_ERROR, "bind() failed");
+    CHECK_ERR_RETURN((rc), DO_ERROR, "bind() failed: %s", strerror(errno));
     rc = listen(listenfd, 1024);
-    CHECK_ERR_RETURN((rc), DO_ERROR, "listen() failed");
+    CHECK_ERR_RETURN((rc), DO_ERROR, "listen() failed: %s", strerror(errno));
 
     DBG("Accepting connection on port %" PRIu16 "...", server_port);
     connfd = accept(listenfd, (struct sockaddr *)NULL, NULL);
