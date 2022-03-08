@@ -18,6 +18,10 @@
 #include "dpu_offload_event_channels.h"
 #include "dpu_offload_envvars.h"
 
+#if !NDEBUG
+char *my_hostname = NULL;
+#endif // !NDEBUG
+
 const char *config_file_version_token = "Format version:";
 
 int send_cache_entry(execution_context_t *econtext, ucp_ep_h ep, peer_cache_entry_t *cache_entry)
