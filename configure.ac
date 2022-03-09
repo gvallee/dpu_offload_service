@@ -153,6 +153,7 @@ AC_CONFIG_FILES([Makefile
                  daemons/default/Makefile
                  daemons/job_persistent/Makefile
                  tests/Makefile
+                 tests/cache/Makefile
                  tests/process_spawn/Makefile
                  tests/offload_service/Makefile
                  tests/offload_service/server/Makefile

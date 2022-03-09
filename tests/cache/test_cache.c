@@ -8,7 +8,7 @@
 
 #include "dpu_offload_service_daemon.h"
 
-#define NUM_CACHE_ENTRIES (DEFAULT_NUM_PEERS)
+#define NUM_CACHE_ENTRIES (DEFAULT_NUM_PEERS * 2)
 
 int main(int argc, char **argv)
 {
