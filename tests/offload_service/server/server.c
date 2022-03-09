@@ -31,7 +31,7 @@ static void send_cb(void *request, ucs_status_t status)
 }
 
 bool notification_recvd = false;
-static int dummy_notification_cb(struct dpu_offload_ev_sys *ev_sys, void *context, void *data, size_t data_len)
+static int dummy_notification_cb(struct dpu_offload_ev_sys *ev_sys, void *context, am_header_t *hdr, size_t hdr_len, void *data, size_t data_len)
 {
     fprintf(stderr, "Notification successfully received\n");
     notification_recvd = true;

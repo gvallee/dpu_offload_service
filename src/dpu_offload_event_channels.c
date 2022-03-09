@@ -70,7 +70,7 @@ static ucs_status_t am_notification_msg_cb(void *arg, const void *header, size_t
     notification_cb cb = entry->cb;
     CHECK_ERR_RETURN((cb == NULL), UCS_ERR_NO_MESSAGE, "Callback is undefined");
     struct dpu_offload_ev_sys *ev_sys = EV_SYS(econtext);
-    cb(ev_sys, econtext, data, length);
+    cb(ev_sys, econtext, hdr, header_length, data, length);
     return UCS_OK;
 }
 
@@ -132,7 +132,7 @@ dpu_offload_status_t event_channel_register(dpu_offload_ev_sys_t *ev_sys, uint64
         if (pending_notif->type == type)
         {
             ucs_list_del(&(pending_notif->item));
-            cb((struct dpu_offload_ev_sys *)ev_sys, pending_notif->arg, pending_notif->data, pending_notif->data_size);
+            cb((struct dpu_offload_ev_sys *)ev_sys, pending_notif->arg, pending_notif->header, pending_notif->header_size, pending_notif->data, pending_notif->data_size);
         }
     }
 
@@ -231,7 +231,7 @@ dpu_offload_status_t event_return(dpu_offload_ev_sys_t *ev_sys, dpu_offload_even
 /* DEFAULT HANDLERS */
 /********************/
 
-static dpu_offload_status_t op_completion_cb(struct dpu_offload_ev_sys *ev_sys, void *context, void *data, size_t data_len)
+static dpu_offload_status_t op_completion_cb(struct dpu_offload_ev_sys *ev_sys, void *context, am_header_t *hdr, size_t hdr_size, void *data, size_t data_len)
 {
     execution_context_t *econtext = (execution_context_t *)context;
     uint64_t *_data = (uint64_t *)data;
@@ -256,7 +256,7 @@ static dpu_offload_status_t op_completion_cb(struct dpu_offload_ev_sys *ev_sys, 
     return DO_SUCCESS;
 }
 
-static dpu_offload_status_t op_start_cb(struct dpu_offload_ev_sys *ev_sys, void *context, void *data, size_t data_len)
+static dpu_offload_status_t op_start_cb(struct dpu_offload_ev_sys *ev_sys, void *context, am_header_t *hdr, size_t hdr_size, void *data, size_t data_len)
 {
     assert(context);
     assert(data);
@@ -295,13 +295,13 @@ static dpu_offload_status_t op_start_cb(struct dpu_offload_ev_sys *ev_sys, void 
     return DO_SUCCESS;
 }
 
-static dpu_offload_status_t xgvmi_key_revoke_cb(struct dpu_offload_ev_sys *ev_sys, void *context, void *data, size_t data_len)
+static dpu_offload_status_t xgvmi_key_revoke_cb(struct dpu_offload_ev_sys *ev_sys, void *context, am_header_t *hdr, size_t hdr_size, void *data, size_t data_len)
 {
     // todo
     return DO_ERROR;
 }
 
-static int xgvmi_key_recv_cb(struct dpu_offload_ev_sys *ev_sys, void *context, void *data, size_t data_len)
+static int xgvmi_key_recv_cb(struct dpu_offload_ev_sys *ev_sys, void *context, am_header_t *hdr, size_t hdr_size, void *data, size_t data_len)
 {
     // todo
     return DO_ERROR;
@@ -336,7 +336,7 @@ static inline bool is_in_cache(cache_t *cache, int64_t gp_id, int64_t rank_id)
     return true;
 }
 
-static int peer_cache_entries_recv_cb(struct dpu_offload_ev_sys *ev_sys, void *context, void *data, size_t data_len)
+static int peer_cache_entries_recv_cb(struct dpu_offload_ev_sys *ev_sys, void *context, am_header_t *hdr, size_t hdr_size, void *data, size_t data_len)
 {
     assert(context);
     assert(data);
