@@ -190,8 +190,24 @@ typedef struct active_ops
 
 /* NOTIFICATIONS */
 
+typedef struct am_header
+{
+    // For clients, id assigned by server during connection,
+    // used for triage when server has multiple clients
+    uint64_t id;
+
+    // Type associated to the payload, e.g., notification type.
+    uint64_t type;
+} am_header_t;
+
+typedef struct am_req
+{
+    am_header_t hdr;
+    int complete;
+} am_req_t;
+
 struct dpu_offload_ev_sys;
-typedef int (*notification_cb)(struct dpu_offload_ev_sys *ev_sys, void *context, void *data, size_t data_size);
+typedef int (*notification_cb)(struct dpu_offload_ev_sys *ev_sys, void *context, am_header_t *, size_t, void *data, size_t data_size);
 
 typedef struct notification_callback_entry
 {
@@ -427,22 +443,6 @@ typedef struct execution_context
         dpu_offload_server_t *server;
     };
 } execution_context_t;
-
-typedef struct am_header
-{
-    // For clients, id assigned by server during connection,
-    // used for triage when server has multiple clients
-    uint64_t id;
-
-    // Type associated to the payload, e.g., notification type.
-    uint64_t type;
-} am_header_t;
-
-typedef struct am_req
-{
-    am_header_t hdr;
-    int complete;
-} am_req_t;
 
 typedef struct dpu_offload_event
 {
