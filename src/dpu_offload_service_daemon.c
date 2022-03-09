@@ -558,7 +558,6 @@ static dpu_offload_status_t oob_connect(execution_context_t *econtext)
     return DO_SUCCESS;
 }
 
-#define DEFAULT_NUM_PEERS (10000)
 dpu_offload_status_t offload_engine_init(offloading_engine_t **engine)
 {
     offloading_engine_t *d = malloc(sizeof(offloading_engine_t));
@@ -574,9 +573,12 @@ dpu_offload_status_t offload_engine_init(offloading_engine_t **engine)
     CHECK_ERR_RETURN((d->servers == NULL), DO_ERROR, "unable to allocate resources");
     DYN_LIST_ALLOC(d->free_op_descs, 8, op_desc_t, item);
     DYN_LIST_ALLOC(d->free_peer_cache_entries, DEFAULT_NUM_PEERS, peer_cache_entry_t, item);
+    CHECK_ERR_RETURN((d->free_peer_cache_entries == NULL), DO_ERROR, "Allocation of pool of free cache entries failed");
     DYN_LIST_ALLOC(d->free_peer_descs, DEFAULT_NUM_PEERS, peer_data_t, item);
+    CHECK_ERR_RETURN((d->free_peer_descs == NULL), DO_ERROR, "Allocation of pool of proc descriptor failed");
     DYN_LIST_ALLOC(d->pool_conn_params, 32, conn_params_t, item);
-    GROUPS_CACHE_INIT((&(d->procs_cache)));
+    CHECK_ERR_RETURN((d->pool_conn_params == NULL), DO_ERROR, "Allocation of pool of connection parameter descriptors failed");
+    GROUPS_CACHE_INIT(&(d->procs_cache));
     *engine = d;
     return DO_SUCCESS;
 }
@@ -719,7 +721,7 @@ static dpu_offload_status_t request_finalize(ucp_worker_h ucp_worker, void *requ
 
 void offload_engine_fini(offloading_engine_t **offload_engine)
 {
-    // todo: free proc cache
+    GROUPS_CACHE_FINI(&((*offload_engine)->procs_cache));
     DYN_LIST_FREE((*offload_engine)->free_op_descs, op_desc_t, item);
     DYN_LIST_FREE((*offload_engine)->free_peer_cache_entries, peer_cache_entry_t, item);
     free((*offload_engine)->client);
