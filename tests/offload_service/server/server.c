@@ -9,6 +9,8 @@
 
 #include "dpu_offload_service_daemon.h"
 
+#include "../common_test_params.h"
+
 static inline bool req_completed(struct ucx_context *req)
 {
     if (req == NULL)
@@ -33,8 +35,11 @@ static void send_cb(void *request, ucs_status_t status)
 bool notification_recvd = false;
 static int dummy_notification_cb(struct dpu_offload_ev_sys *ev_sys, void *context, am_header_t *hdr, size_t hdr_len, void *data, size_t data_len)
 {
-    fprintf(stderr, "Notification successfully received\n");
-    notification_recvd = true;
+    assert(data);
+    int *msg = (int*)data;
+    fprintf(stderr, "Notification successfully received. Msg = %d\n", *msg);
+    if (*msg == NUM_TEST_EVTS)
+        notification_recvd = true;
 }
 
 int main(int argc, char **argv)

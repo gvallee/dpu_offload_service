@@ -9,6 +9,8 @@
 
 #include "dpu_offload_service_daemon.h"
 
+#include "../common_test_params.h"
+
 static inline bool req_completed(struct ucx_context *req)
 {
     if (req == NULL)
@@ -99,29 +101,51 @@ int main(int argc, char **argv)
         fprintf(stderr, "Successfully received the expected response from the server\n");
 
     // NOTIFICATION TEST
-    dpu_offload_event_t *ev;
-    rc = event_get(client->event_channels, &ev);
-    if (rc)
+    int i;
+    dpu_offload_event_t *evts = calloc(NUM_TEST_EVTS, sizeof(dpu_offload_event_t));
+    if (evts == NULL)
     {
-        fprintf(stderr, "event_get() failed\n");
+        fprintf(stderr, "unable to allocate events\n");
         return EXIT_FAILURE;
     }
 
-    rc = event_channel_emit(ev, client->client->id, AM_TEST_MSG_ID, GET_SERVER_EP(client), NULL, NULL, 0);
-    if (rc)
+    for (i = 0; i <= NUM_TEST_EVTS; i++)
     {
-        fprintf(stderr, "event_channel_emit() failed\n");
-        return EXIT_FAILURE;
+        dpu_offload_event_t *cur_evt = &(evts[i]);
+        rc = event_get(client->event_channels, &cur_evt);
+        if (rc)
+        {
+            fprintf(stderr, "event_get() failed\n");
+            return EXIT_FAILURE;
+        }
+
+        int notif_data = i;
+        rc = event_channel_emit(cur_evt, client->client->id, AM_TEST_MSG_ID, GET_SERVER_EP(client), NULL, &notif_data, sizeof(notif_data));
+        if (rc)
+        {
+            fprintf(stderr, "event_channel_emit() failed\n");
+            return EXIT_FAILURE;
+        }
     }
 
-    while(!ev->ctx.complete)
-        client->progress(client);
-
-    rc = event_return(client->event_channels, &ev);
-    if (rc)
+    // All the events have been emitted, now waiting for them to complete
+    for (i = 0; i <= NUM_TEST_EVTS; i++)
     {
-        fprintf(stderr, "event_return() failed\n");
-        return EXIT_FAILURE;
+        dpu_offload_event_t *cur_evt = &(evts[i]);
+        while(!cur_evt->ctx.complete)
+            client->progress(client);
+    }
+
+    // All events completed, we can safely return them
+    for (i = 0; i <= NUM_TEST_EVTS; i++)
+    {
+        dpu_offload_event_t *cur_evt = &(evts[i]);
+        rc = event_return(client->event_channels, &cur_evt);
+        if (rc)
+        {
+            fprintf(stderr, "event_return() failed\n");
+            return EXIT_FAILURE;
+        }
     }
 
     fprintf(stderr, "ALL TESTS COMPLETED\n");
