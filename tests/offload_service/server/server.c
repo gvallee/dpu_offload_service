@@ -114,7 +114,7 @@ int main(int argc, char **argv)
     }
 
     int msg = ping + 1;
-    ucp_ep_h ep = server->server->connected_clients.clients[0].ep;
+    ucp_ep_h ep = GET_CLIENT_EP(server, 0);
     struct ucx_context *send_req = ucp_tag_send_nb(ep, &msg, sizeof(msg), ucp_dt_make_contig(1), msg_tag, send_cb);
     if (UCS_PTR_IS_ERR(send_req))
     {
