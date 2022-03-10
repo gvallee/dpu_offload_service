@@ -136,22 +136,6 @@ typedef struct dyn_array
         (_dyn_array)->base = NULL;  \
     } while (0)
 
-// TODO: grow the array when an element behind the current limit is requested
-#define DYN_ARRAY_GET_ELT(_dyn_array, _idx, _type, _elt) \
-    do                                                   \
-    {                                                    \
-        assert(_dyn_array);                              \
-        if ((_dyn_array)->num_elts <= _idx)              \
-        {                                                \
-            _elt = NULL;                                 \
-        }                                                \
-        else                                             \
-        {                                                \
-            _type *_ptr = (_type *)((_dyn_array)->base); \
-            _elt = (_type *)&(_ptr[_idx]);               \
-        }                                                \
-    } while (0)
-
 #define DYN_ARRAY_GROW(_dyn_array, _type, _size)                                         \
     do                                                                                   \
     {                                                                                    \
@@ -163,6 +147,18 @@ typedef struct dyn_array
         (_dyn_array)->base = realloc((_dyn_array)->base, _new_num_elts * sizeof(_type)); \
         (_dyn_array)->num_elts = _new_num_elts;                                          \
         assert((_dyn_array)->base);                                                      \
+    } while (0)
+
+#define DYN_ARRAY_GET_ELT(_dyn_array, _idx, _type, _elt) \
+    do                                                   \
+    {                                                    \
+        assert(_dyn_array);                              \
+        if ((_dyn_array)->num_elts <= _idx)              \
+        {                                                \
+            DYN_ARRAY_GROW(_dyn_array, _type, _idx);     \
+        }                                                \
+        _type *_ptr = (_type *)((_dyn_array)->base);     \
+        _elt = (_type *)&(_ptr[_idx]);                   \
     } while (0)
 
 #define DYN_ARRAY_SET_ELT(_dyn_array, _idx, _type, _elt) \

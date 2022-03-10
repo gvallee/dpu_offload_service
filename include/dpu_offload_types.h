@@ -232,12 +232,11 @@ typedef struct dpu_offload_ev_sys
 {
     dyn_list_t *free_evs;
     size_t num_used_evs;
-    uint64_t num_notification_callbacks;
     ucs_list_link_t pending_notifications;
     dyn_list_t *free_pending_notifications;
 
-    // Array of callback functions, i.e., array of pointers
-    notification_callback_entry_t *notification_callbacks;
+    // Array of callback functions, i.e., array of pointers, organized based on the notification type, a.k.a. notification ID
+    dyn_array_t notification_callbacks;
 } dpu_offload_ev_sys_t;
 
 /* OFFLOADING ENGINE, CLIENTS/SERVERS */

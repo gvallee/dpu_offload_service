@@ -17,7 +17,7 @@
 #include "dpu_offload_debug.h"
 
 #define DEFAULT_NUM_EVTS (32)
-#define DEFAULT_NUM_NOTIFICATION_CALLBACKS (8)
+#define DEFAULT_NUM_NOTIFICATION_CALLBACKS (5000)
 
 static ucs_status_t am_notification_msg_cb(void *arg, const void *header, size_t header_length,
                                            void *data, size_t length,
@@ -28,13 +28,13 @@ static ucs_status_t am_notification_msg_cb(void *arg, const void *header, size_t
     execution_context_t *econtext = (execution_context_t *)arg;
     am_header_t *hdr = (am_header_t *)header;
     CHECK_ERR_RETURN((hdr == NULL), UCS_ERR_NO_MESSAGE, "header is NULL");
-    CHECK_ERR_RETURN((hdr->type >= econtext->event_channels->num_notification_callbacks), UCS_ERR_NO_MESSAGE, "notification callback %" PRIu64 " is out of range", hdr->type);
+    CHECK_ERR_RETURN((hdr->type >= econtext->event_channels->notification_callbacks.num_elts), UCS_ERR_NO_MESSAGE, "notification callback %" PRIu64 " is out of range", hdr->type);
 
     DBG("Notification of type %"PRIu64" received, dispatching...", hdr->type);
 
 
-    notification_callback_entry_t *entry = &(econtext->event_channels->notification_callbacks[hdr->type]);
-    if (entry->set == false)
+    notification_callback_entry_t *list_callbacks = (notification_callback_entry_t*)econtext->event_channels->notification_callbacks.base;
+    if (list_callbacks[hdr->type].set == false)
     {
         pending_notification_t *pending_notif;
         DBG("callback not available for %" PRIu64, hdr->type);
@@ -68,7 +68,7 @@ static ucs_status_t am_notification_msg_cb(void *arg, const void *header, size_t
         return UCS_OK;
     }
 
-    notification_cb cb = entry->cb;
+    notification_cb cb = list_callbacks[hdr->type].cb;
     CHECK_ERR_RETURN((cb == NULL), UCS_ERR_NO_MESSAGE, "Callback is undefined");
     struct dpu_offload_ev_sys *ev_sys = EV_SYS(econtext);
     cb(ev_sys, econtext, hdr, header_length, data, length);
@@ -89,16 +89,8 @@ dpu_offload_status_t event_channels_init(execution_context_t *econtext)
     DYN_LIST_ALLOC(econtext->event_channels->free_pending_notifications, num_free_pending_notifications, pending_notification_t, item);
     ucs_list_head_init(&(econtext->event_channels->pending_notifications));
     econtext->event_channels->num_used_evs = 0;
-    size_t num_notifications_cbs = DEFAULT_NUM_NOTIFICATION_CALLBACKS;
-    econtext->event_channels->notification_callbacks = malloc(num_notifications_cbs * sizeof(notification_callback_entry_t));
-    CHECK_ERR_RETURN((econtext->event_channels->notification_callbacks == NULL), DO_ERROR, "Resource allocation failed");
-
-    uint64_t i;
-    for (i = 0; i < num_notifications_cbs; i++)
-    {
-        notification_callback_entry_t *entry = &(econtext->event_channels->notification_callbacks[i]);
-        entry->set = false;
-    }
+    DYN_ARRAY_ALLOC(&(econtext->event_channels->notification_callbacks), DEFAULT_NUM_NOTIFICATION_CALLBACKS, notification_callback_entry_t);
+    CHECK_ERR_RETURN((econtext->event_channels->notification_callbacks.base == NULL), DO_ERROR, "Resource allocation failed");
 
     // Register the UCX AM handler used for all notifications
     ucp_am_handler_param_t ev_param;
@@ -118,9 +110,12 @@ dpu_offload_status_t event_channels_init(execution_context_t *econtext)
 dpu_offload_status_t event_channel_register(dpu_offload_ev_sys_t *ev_sys, uint64_t type, notification_cb cb)
 {
     CHECK_ERR_RETURN((ev_sys == NULL), DO_ERROR, "undefined event system");
-    CHECK_ERR_RETURN((ev_sys->num_notification_callbacks <= type), DO_ERROR, "type %" PRIu64 " is out of range", type);
+    CHECK_ERR_RETURN((ev_sys->notification_callbacks.num_elts <= type), DO_ERROR, "type %" PRIu64 " is out of range", type);
 
-    notification_callback_entry_t *entry = &(ev_sys->notification_callbacks[type]);
+    notification_callback_entry_t *list_callbacks = (notification_callback_entry_t*)ev_sys->notification_callbacks.base;
+    notification_callback_entry_t *entry;
+    DYN_ARRAY_GET_ELT(&(ev_sys->notification_callbacks), type, notification_callback_entry_t, entry);
+    CHECK_ERR_RETURN((entry == NULL), DO_ERROR, "unable to get callback %ld", type);
     CHECK_ERR_RETURN((entry->set == true), DO_ERROR, "type %" PRIu64 " is already set", type);
 
     entry->cb = cb;
@@ -135,6 +130,16 @@ dpu_offload_status_t event_channel_register(dpu_offload_ev_sys_t *ev_sys, uint64
         {
             ucs_list_del(&(pending_notif->item));
             cb((struct dpu_offload_ev_sys *)ev_sys, pending_notif->arg, pending_notif->header, pending_notif->header_size, pending_notif->data, pending_notif->data_size);
+            if (pending_notif->data != NULL)
+            {
+                free(pending_notif->data);
+                pending_notif->data = NULL;
+            }
+            if (pending_notif->header != NULL)
+            {
+                free(pending_notif->header);
+                pending_notif->header = NULL;
+            }
         }
     }
 
@@ -144,9 +149,10 @@ dpu_offload_status_t event_channel_register(dpu_offload_ev_sys_t *ev_sys, uint64
 dpu_offload_status_t event_channel_deregister(dpu_offload_ev_sys_t *ev_sys, uint64_t type)
 {
     CHECK_ERR_RETURN((ev_sys == NULL), DO_ERROR, "undefined event system");
-    CHECK_ERR_RETURN((ev_sys->num_notification_callbacks <= type), DO_ERROR, "type %" PRIu64 " is out of range", type);
+    CHECK_ERR_RETURN((ev_sys->notification_callbacks.num_elts <= type), DO_ERROR, "type %" PRIu64 " is out of range", type);
 
-    notification_callback_entry_t *entry = &(ev_sys->notification_callbacks[type]);
+    notification_callback_entry_t *list_callbacks = (notification_callback_entry_t *)ev_sys->notification_callbacks.base;
+    notification_callback_entry_t *entry = &(list_callbacks[type]);
     CHECK_ERR_RETURN((entry->set == false), DO_ERROR, "type %" PRIu64 " is not registered", type);
 
     entry->set = false;
