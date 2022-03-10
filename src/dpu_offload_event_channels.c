@@ -110,8 +110,6 @@ dpu_offload_status_t event_channels_init(execution_context_t *econtext)
 dpu_offload_status_t event_channel_register(dpu_offload_ev_sys_t *ev_sys, uint64_t type, notification_cb cb)
 {
     CHECK_ERR_RETURN((ev_sys == NULL), DO_ERROR, "undefined event system");
-    CHECK_ERR_RETURN((ev_sys->notification_callbacks.num_elts <= type), DO_ERROR, "type %" PRIu64 " is out of range", type);
-
     notification_callback_entry_t *list_callbacks = (notification_callback_entry_t*)ev_sys->notification_callbacks.base;
     notification_callback_entry_t *entry;
     DYN_ARRAY_GET_ELT(&(ev_sys->notification_callbacks), type, notification_callback_entry_t, entry);
@@ -375,6 +373,7 @@ static int peer_cache_entries_recv_cb(struct dpu_offload_ev_sys *ev_sys, void *c
         // Now that we know for sure we have the group ID, we can move the received data into the local cache
         bool in_cache;
         int64_t group_rank = entries[idx].peer.proc_info.group_rank;
+        DBG("Received a cache entry for rank:%ld, group:%ld", group_id, group_rank);
         if (!is_in_cache(cache, group_id, group_rank))
         {
             // SET_PEER_CACHE_ENTRY(cache, entries[idx]);
