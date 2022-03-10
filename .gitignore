@@ -41,6 +41,8 @@ tests/offload_service/client/client
 tests/offload_service/server/server
 tests/process_spawn/dpu_process_spawn
 tests/cache/test_cache
+tests/cache/cache_client
+tests/cache/cache_server
 
 # Debug files
 *.dSYM/
