@@ -41,6 +41,7 @@ int main(int argc, char **argv)
     }
 
     /* Progress until the last element in the cache is set */
+    fprintf(stderr, "Waiting for all the cache entries to arrive...\n");
     group_cache_t *groups_cache = (group_cache_t*)&(offload_engine->procs_cache.data.base);
     while (groups_cache[42].initialized == false)
         client->progress(client);

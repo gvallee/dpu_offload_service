@@ -69,6 +69,16 @@ int main(int argc, char **argv)
         return EXIT_FAILURE;
     }
 
+    // REGISTER A DUMMY CALLBACK WITH A CUSTOM ID (not a predefined one). We won't use it for now but this is a required feature.
+    int my_notif_id = 5000;
+    fprintf(stderr, "Registering callback for notifications of custom type %d\n", my_notif_id);
+    rc = event_channel_register(server->event_channels, my_notif_id, dummy_notification_cb);
+    if (rc)
+    {
+        fprintf(stderr, "event_channel_register() failed\n");
+        return EXIT_FAILURE;
+    }
+
     // PING_PONG TEST
     int msg_tag = 42;
     ucp_tag_t msg_tag_mask = (ucp_tag_t)-1;

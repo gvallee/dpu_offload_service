@@ -35,11 +35,18 @@ int main(int argc, char **argv)
         fprintf(stderr, "undefined destination endpoint\n");
         goto error_out;
     }
+
     rc = exchange_cache(server, &(offload_engine->procs_cache), remote_ep);
     if (rc != DO_SUCCESS)
     {
         fprintf(stderr, "exchange_cache() failed\n");
         goto error_out;
+    }
+
+    fprintf(stderr, "Waiting for client to terminate...\n");
+    while (!EXECUTION_CONTEXT_DONE(server))
+    {
+        server->progress(server);
     }
 
     offload_engine_fini(&offload_engine);
