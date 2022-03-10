@@ -153,6 +153,39 @@ int main(int argc, char **argv)
 
     free(evts);
 
+    /* Similar test but using the pending events queue */
+    evts = (dpu_offload_event_t **)calloc(NUM_TEST_EVTS + 1, sizeof(dpu_offload_event_t*));
+    if (evts == NULL)
+    {
+        fprintf(stderr, "unable to allocate events\n");
+        return EXIT_FAILURE;
+    }
+
+    for (i = 0; i <= NUM_TEST_EVTS; i++)
+    {
+        dpu_offload_event_t *cur_evt;
+        rc = event_get(client->event_channels, &cur_evt);
+        if (rc)
+        {
+            fprintf(stderr, "event_get() failed\n");
+            return EXIT_FAILURE;
+        }
+        evts[i] = cur_evt;
+
+        int notif_data = i;
+        rc = event_channel_emit(cur_evt, client->client->id, AM_TEST_MSG_ID, GET_SERVER_EP(client), NULL, &notif_data, sizeof(notif_data));
+        if (rc != EVENT_DONE && rc != EVENT_INPROGRESS)
+        {
+            fprintf(stderr, "event_channel_emit() failed\n");
+            return EXIT_FAILURE;
+        }
+        ucs_list_add_tail(&(client->ongoing_events), &(cur_evt->item));
+        fprintf(stderr, "Ev #%d = %p\n", i, cur_evt);
+    }
+
+    while (!ucs_list_is_empty(&(client->ongoing_events)) != 0)
+        client->progress(client);
+
     fprintf(stderr, "ALL TESTS COMPLETED\n");
 
 end_test:

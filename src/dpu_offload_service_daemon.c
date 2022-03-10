@@ -601,6 +601,8 @@ static dpu_offload_status_t execution_context_progress(execution_context_t *ctx)
     {
         if (ev->ctx.complete)
         {
+            ucs_list_del(&(ev->item));
+            DBG("event %p completed and removed from ongoing events list", ev);
             event_return(ctx->event_channels, &ev);
         }
     }

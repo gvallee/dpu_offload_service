@@ -32,14 +32,20 @@ static void send_cb(void *request, ucs_status_t status)
     fprintf(stderr, "pong successfully sent\n");
 }
 
-bool notification_recvd = false;
+bool first_notification_recvd = false;
+bool second_notification_recvd = false;
 static int dummy_notification_cb(struct dpu_offload_ev_sys *ev_sys, void *context, am_header_t *hdr, size_t hdr_len, void *data, size_t data_len)
 {
     assert(data);
     int *msg = (int*)data;
     fprintf(stderr, "Notification successfully received. Msg = %d\n", *msg);
     if (*msg == NUM_TEST_EVTS)
-        notification_recvd = true;
+    {
+        if (!first_notification_recvd)
+            first_notification_recvd = true;
+        else if (!second_notification_recvd)
+            second_notification_recvd = true;
+    }
     return 0;
 }
 
@@ -63,6 +69,16 @@ int main(int argc, char **argv)
     // REGISTER SOME EVENTS FOR TESTING
     fprintf(stderr, "Registering callback for notifications of type %d\n", AM_TEST_MSG_ID);
     rc = event_channel_register(server->event_channels, AM_TEST_MSG_ID, dummy_notification_cb);
+    if (rc)
+    {
+        fprintf(stderr, "event_channel_register() failed\n");
+        return EXIT_FAILURE;
+    }
+
+    // REGISTER A DUMMY CALLBACK WITH A CUSTOM ID (not a predefined one). We won't use it for now but this is a required feature.
+    int my_notif_id = 5000;
+    fprintf(stderr, "Registering callback for notifications of custom type %d\n", my_notif_id);
+    rc = event_channel_register(server->event_channels, my_notif_id, dummy_notification_cb);
     if (rc)
     {
         fprintf(stderr, "event_channel_register() failed\n");
@@ -114,7 +130,7 @@ int main(int argc, char **argv)
         send_req = NULL;
     }
 
-    while (!notification_recvd)
+    while (!second_notification_recvd)
     {
         server->progress(server);
     }

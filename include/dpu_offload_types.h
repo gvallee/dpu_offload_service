@@ -232,6 +232,8 @@ typedef struct dpu_offload_ev_sys
 {
     dyn_list_t *free_evs;
     size_t num_used_evs;
+
+    /* pending notifications are notifications that can be delivered upon reception because the callback is not registered yet */
     ucs_list_link_t pending_notifications;
     dyn_list_t *free_pending_notifications;
 
@@ -675,12 +677,12 @@ typedef enum
 {
     AM_TERM_MSG_ID = 33, // 33 to make it easier to see corruptions (dbg)
     AM_EVENT_MSG_ID,
-    AM_OP_START_MSG_ID,
+    AM_OP_START_MSG_ID, // 35
     AM_OP_COMPLETION_MSG_ID,
     AM_XGVMI_ADD_MSG_ID,
     AM_XGVMI_DEL_MSG_ID,
     AM_PEER_CACHE_REQ_MSG_ID,
-    AM_PEER_CACHE_ENTRIES_MSG_ID,
+    AM_PEER_CACHE_ENTRIES_MSG_ID, // 40
     AM_TEST_MSG_ID
 } am_id_t;
 
