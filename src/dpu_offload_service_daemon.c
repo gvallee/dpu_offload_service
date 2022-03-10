@@ -1237,7 +1237,7 @@ void server_fini(execution_context_t **exec_ctx)
         return;
 
     execution_context_t *context = *exec_ctx;
-    if (context->type == CONTEXT_SERVER)
+    if (context->type != CONTEXT_SERVER)
     {
         ERR_MSG("invalid context");
         return;

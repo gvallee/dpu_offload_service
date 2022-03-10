@@ -32,23 +32,6 @@ static void send_cb(void *request, ucs_status_t status)
     fprintf(stderr, "pong successfully sent\n");
 }
 
-bool first_notification_recvd = false;
-bool second_notification_recvd = false;
-static int dummy_notification_cb(struct dpu_offload_ev_sys *ev_sys, void *context, am_header_t *hdr, size_t hdr_len, void *data, size_t data_len)
-{
-    assert(data);
-    int *msg = (int*)data;
-    fprintf(stderr, "Notification successfully received. Msg = %d\n", *msg);
-    if (*msg == NUM_TEST_EVTS)
-    {
-        if (!first_notification_recvd)
-            first_notification_recvd = true;
-        else if (!second_notification_recvd)
-            second_notification_recvd = true;
-    }
-    return 0;
-}
-
 int main(int argc, char **argv)
 {
     offloading_engine_t *offload_engine;
@@ -67,23 +50,7 @@ int main(int argc, char **argv)
     }
 
     // REGISTER SOME EVENTS FOR TESTING
-    fprintf(stderr, "Registering callback for notifications of type %d\n", AM_TEST_MSG_ID);
-    rc = event_channel_register(server->event_channels, AM_TEST_MSG_ID, dummy_notification_cb);
-    if (rc)
-    {
-        fprintf(stderr, "event_channel_register() failed\n");
-        return EXIT_FAILURE;
-    }
-
-    // REGISTER A DUMMY CALLBACK WITH A CUSTOM ID (not a predefined one). We won't use it for now but this is a required feature.
-    int my_notif_id = 5000;
-    fprintf(stderr, "Registering callback for notifications of custom type %d\n", my_notif_id);
-    rc = event_channel_register(server->event_channels, my_notif_id, dummy_notification_cb);
-    if (rc)
-    {
-        fprintf(stderr, "event_channel_register() failed\n");
-        return EXIT_FAILURE;
-    }
+    REGISTER_NOTIF_CALLBACKS(server);
 
     // PING_PONG TEST
     int msg_tag = 42;
@@ -114,7 +81,7 @@ int main(int argc, char **argv)
     }
 
     int msg = ping + 1;
-    ucp_ep_h ep = server->server->connected_clients.clients[0].ep;
+    ucp_ep_h ep = GET_CLIENT_EP(server, 0);
     struct ucx_context *send_req = ucp_tag_send_nb(ep, &msg, sizeof(msg), ucp_dt_make_contig(1), msg_tag, send_cb);
     if (UCS_PTR_IS_ERR(send_req))
     {
@@ -130,10 +97,21 @@ int main(int argc, char **argv)
         send_req = NULL;
     }
 
-    while (!second_notification_recvd)
-    {
-        server->progress(server);
-    }
+    // NOTIFICATIONS TEST
+
+    /* First we are the receiving side of a bunch of events */
+    WAIT_FOR_ALL_EVENTS(server);
+
+    /* Then we become the sending side */
+
+    /* First with emitting a bunch of events and manually managing all of them */
+    EMIT_MANY_EVS_WITH_EXPLICIT_MGT(server);
+
+    /* Similar test but using the ongoing events queue, i.e, with implicit return of the event objects */
+    EMIT_MANY_EVTS_AND_USE_ONGOING_LIST(server);
+
+    /* Finally we do a notification-based ping-pong that we initiate */
+    INITIATE_PING_PONG_TEST(server);
 
     fprintf(stderr, "ALL TESTS COMPLETED\n");
 

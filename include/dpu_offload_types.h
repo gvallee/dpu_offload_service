@@ -55,7 +55,7 @@ typedef enum
 
 #define GET_CLIENT_EP(_exec_ctx, _client_id) ({                            \
     ucp_ep_h _ep;                                                          \
-    if (_exec_ctx->type == CONTEXT_CLIENT)                                 \
+    if (_exec_ctx->type == CONTEXT_SERVER)                                 \
     {                                                                      \
         _ep = _exec_ctx->server->connected_clients.clients[_client_id].ep; \
     }                                                                      \
