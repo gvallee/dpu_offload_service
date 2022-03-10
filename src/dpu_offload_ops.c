@@ -81,7 +81,7 @@ dpu_offload_status_t op_desc_submit(execution_context_t *econtext, op_desc_t *de
         peer_ep = NULL;
     }
     rc = event_channel_emit(start_ev, ECONTEXT_ID(econtext), AM_OP_START_MSG_ID, peer_ep, desc, ev_data, ev_data_len);
-    CHECK_ERR_GOTO((rc), error_out, "event_channel_emit() failed");
+    CHECK_ERR_GOTO((rc != EVENT_DONE && rc != EVENT_INPROGRESS), error_out, "event_channel_emit() failed");
 
     return DO_SUCCESS;
 

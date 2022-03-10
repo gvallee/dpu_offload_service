@@ -20,9 +20,27 @@ int main(int argc, char **argv)
         goto error_out;
     }
 
+    execution_context_t *server = server_init(offload_engine, NULL);
+    if (server == NULL)
+    {
+        fprintf(stderr, "server handle is undefined\n");
+        goto error_out;
+    }
+
     POPULATE_CACHE(offload_engine);
 
-    CHECK_CACHE(offload_engine);
+    ucp_ep_h remote_ep = server->server->connected_clients.clients[0].ep;
+    if (remote_ep == NULL)
+    {
+        fprintf(stderr, "undefined destination endpoint\n");
+        goto error_out;
+    }
+    rc = exchange_cache(server, &(offload_engine->procs_cache), remote_ep);
+    if (rc != DO_SUCCESS)
+    {
+        fprintf(stderr, "exchange_cache() failed\n");
+        goto error_out;
+    }
 
     offload_engine_fini(&offload_engine);
     fprintf(stdout, "%s: test successful\n", argv[0]);

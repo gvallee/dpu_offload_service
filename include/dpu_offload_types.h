@@ -244,11 +244,11 @@ typedef struct dpu_offload_ev_sys
 #define INVALID_GROUP (-1)
 #define INVALID_RANK (-1)
 
-#define IS_A_VALID_PEER_DATA(_peer_data) ({                                                                  \
-    bool _valid = false;                                                                                     \
-    if (_peer_data->proc_info.group_id != INVALID_GROUP && _peer_data->proc_info.group_rank != INVALID_RANK) \
-        _valid = true;                                                                                       \
-    _valid;                                                                                                  \
+#define IS_A_VALID_PEER_DATA(_peer_data) ({                                                                      \
+    bool _valid = false;                                                                                         \
+    if ((_peer_data)->proc_info.group_id != INVALID_GROUP && (_peer_data)->proc_info.group_rank != INVALID_RANK) \
+        _valid = true;                                                                                           \
+    _valid;                                                                                                      \
 })
 
 typedef struct ucx_server_ctx

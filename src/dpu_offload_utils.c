@@ -37,11 +37,45 @@ int send_cache_entry(execution_context_t *econtext, ucp_ep_h ep, peer_cache_entr
                             NULL,
                             &(cache_entry->peer),
                             sizeof(cache_entry->peer));
-    CHECK_ERR_RETURN((rc), DO_ERROR, "event_channel_emit() failed");
+    CHECK_ERR_RETURN((rc != EVENT_DONE && rc != EVENT_INPROGRESS), DO_ERROR, "event_channel_emit() failed");
 
     // Put the event on the ongoing events list used while progressing the execution context.
     // When event complete, we can safely return them.
     ucs_list_add_tail(&(econtext->ongoing_events), &(send_cache_entry_ev->item));
+
+    return DO_SUCCESS;
+}
+
+static dpu_offload_status_t exchange_group_cache(execution_context_t *econtext, ucp_ep_h dest, group_cache_t *gp_cache)
+{
+    peer_cache_entry_t *ranks_cache = (peer_cache_entry_t *)gp_cache->ranks.base;
+    size_t i;
+    for (i = 0; i < gp_cache->ranks.num_elts; i++)
+    {
+        if (IS_A_VALID_PEER_DATA(&(ranks_cache[i].peer)))
+        {
+            dpu_offload_status_t rc = send_cache_entry(econtext, dest, &(ranks_cache[i]));
+            CHECK_ERR_RETURN((rc), DO_ERROR, "send_cache_entry() failed");
+        }
+    }
+    return DO_SUCCESS;
+}
+
+dpu_offload_status_t exchange_cache(execution_context_t *econtext, cache_t *cache,ucp_ep_h dest)
+{
+    // Note: it is all done using the notification channels so there is not
+    // need to post receives. Simply send the data if anything needs to be sent
+    dpu_offload_status_t rc;
+    group_cache_t *groups_cache = (group_cache_t *)cache->data.base;
+    size_t i;
+    for (i = 0; i < cache->data.num_elts; i++)
+    {
+        if (groups_cache[i].initialized)
+        {
+            rc = exchange_group_cache(econtext, dest, &(groups_cache[i]));
+            CHECK_ERR_RETURN((rc), DO_ERROR, "exchange_group_cache() failed\n");
+        }
+    }
 
     return DO_SUCCESS;
 }
@@ -153,8 +187,8 @@ bool parse_line_dpu_version_1(dpu_config_t *data, char *line)
         DBG("-> DPU data: %s", token);
 
         /* if the DPU is not part of the list of DPUs to use, we skip it */
-        dpu_config_data_t *list_dpus_from_list = (dpu_config_data_t*)data->dpus_config.base;
-        for(i = 0; i < data->num_dpus; i++)
+        dpu_config_data_t *list_dpus_from_list = (dpu_config_data_t *)data->dpus_config.base;
+        for (i = 0; i < data->num_dpus; i++)
         {
             // We do not expect users to be super strict in the way they create the list of DPUs
             size_t _strlen = strlen(token);
@@ -180,7 +214,7 @@ bool parse_line_dpu_version_1(dpu_config_t *data, char *line)
             DBG("-> DPU %s found (%s:%d:%d)", list_dpus_from_list[i].version_1.hostname, list_dpus_from_list[i].version_1.addr, interdpu_conn_port, host_conn_port);
             list_dpus_from_list[i].version_1.interdpu_port = interdpu_conn_port;
             list_dpus_from_list[i].version_1.rank_port = host_conn_port;
-        
+
             if (strncmp(data->local_dpu.hostname, list_dpus_from_list[i].version_1.hostname, strlen(list_dpus_from_list[i].version_1.hostname)) == 0)
             {
                 // This is the DPU's configuration we were looking for
@@ -206,7 +240,7 @@ bool parse_line_dpu_version_1(dpu_config_t *data, char *line)
                     DBG("Saving connection parameters to connect to %s (%p)", connect_to->hostname, connect_to);
                     conn_params_t *new_conn_params;
                     DYN_LIST_GET(data->offloading_engine->pool_conn_params, conn_params_t, item, new_conn_params); // fixme: properly return it
-                    connect_to->init_params.conn_params = new_conn_params; 
+                    connect_to->init_params.conn_params = new_conn_params;
                     connect_to->init_params.conn_params->addr_str = list_dpus_from_list[i].version_1.addr;
                     connect_to->init_params.conn_params->port = list_dpus_from_list[i].version_1.interdpu_port;
                 }
@@ -244,7 +278,6 @@ bool parse_line_version_1(char *target_hostname, dpu_config_t *data, char *line)
         while (token != NULL)
         {
             dpu_config_data_t *dpu_config;
-            //DYN_ARRAY_GET_ELT(&(data->dpus_config), data->num_dpus, dpu_config_data_t, dpu_config);
             dpu_config = data->dpus_config.base;
             assert(dpu_config);
             CHECK_ERR_RETURN((dpu_config == NULL), DO_ERROR, "unable to allocate resources for DPUs' configuration");
@@ -325,7 +358,7 @@ dpu_offload_status_t find_dpu_config_from_platform_configfile(char *filepath, dp
     FILE *file = fopen(filepath, "rb");
     fseek(file, 0, SEEK_END);
     len = ftell(file);
-    fseek(file, 0, SEEK_SET);  /* same as rewind(f); */
+    fseek(file, 0, SEEK_SET); /* same as rewind(f); */
 
     char *content = malloc(len + 1);
     fread(content, len, 1, file);
@@ -430,7 +463,7 @@ dpu_offload_status_t get_env_config(conn_params_t *params)
     int port = -1;
 
     CHECK_ERR_RETURN((!server_addr), DO_ERROR,
-                     "Invalid server address, please make sure the environment variable %s or %s is correctly set", 
+                     "Invalid server address, please make sure the environment variable %s or %s is correctly set",
                      SERVER_IP_ADDR_ENVVAR, INTER_DPU_ADDR_ENVVAR);
 
     if (server_port_envvar)
@@ -457,17 +490,16 @@ dpu_offload_status_t get_host_config(dpu_config_t *config_data)
     hostname[1023] = '\0';
     gethostname(hostname, 1023);
 
-    config_data->list_dpus = NULL; // Not used on host
-    config_data->local_dpu.interdpu_init_params.worker = NULL; // Not used on host
+    config_data->list_dpus = NULL;                                // Not used on host
+    config_data->local_dpu.interdpu_init_params.worker = NULL;    // Not used on host
     config_data->local_dpu.interdpu_init_params.proc_info = NULL; // Not used on host
-    config_data->local_dpu.host_init_params.worker = NULL; // Not used on host
-    config_data->local_dpu.host_init_params.proc_info = NULL; // Not used on host
+    config_data->local_dpu.host_init_params.worker = NULL;        // Not used on host
+    config_data->local_dpu.host_init_params.proc_info = NULL;     // Not used on host
 
     /* First, we check whether we know about a configuration file. If so, we load all the configuration details from it */
     /* If there is no configuration file, we try to configuration from environment variables */
     if (config_data->config_file != NULL)
     {
-        //dpu_config_t *my_config;
         DBG("Looking for %s's configuration data from %s", hostname, config_data->config_file);
         rc = find_config_from_platform_configfile(config_data->config_file, hostname, config_data);
         CHECK_ERR_RETURN((rc), DO_ERROR, "find_dpu_config_from_platform_configfile() failed");
@@ -475,14 +507,13 @@ dpu_offload_status_t get_host_config(dpu_config_t *config_data)
     else
     {
         DBG("No configuration file");
-        assert(0); // fixme: may need to rethink that code path
         char *port_str = getenv(INTER_DPU_PORT_ENVVAR);
         config_data->local_dpu.interdpu_conn_params.addr_str = getenv(INTER_DPU_ADDR_ENVVAR);
         CHECK_ERR_RETURN((config_data->local_dpu.interdpu_conn_params.addr_str == NULL), DO_ERROR, "%s is not set, please set it\n", INTER_DPU_ADDR_ENVVAR);
 
         config_data->local_dpu.interdpu_conn_params.port = DEFAULT_INTER_DPU_CONNECT_PORT;
         if (port_str)
-            config_data->local_dpu.interdpu_conn_params.port = atoi(port_str);        
+            config_data->local_dpu.interdpu_conn_params.port = atoi(port_str);
     }
 
     return DO_SUCCESS;

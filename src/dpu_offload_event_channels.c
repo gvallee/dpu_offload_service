@@ -175,13 +175,13 @@ static void notification_emit_cb(void *user_data, const char *type_str)
     DBG("evt %p now completed", ev);
 }
 
-dpu_offload_status_t event_channel_emit(dpu_offload_event_t *ev, uint64_t client_id, uint64_t type, ucp_ep_h dest_ep, void *ctx, void *payload, size_t payload_size)
+int event_channel_emit(dpu_offload_event_t *ev, uint64_t my_id, uint64_t type, ucp_ep_h dest_ep, void *ctx, void *payload, size_t payload_size)
 {
     ucp_request_param_t params;
-    DBG("Sending notification of type %" PRIu64 " (client_id=%" PRIu64 ")", type, client_id);
+    DBG("Sending notification of type %" PRIu64 " (client_id=%" PRIu64 ")", type, my_id);
     ev->ctx.complete = 0;
     ev->ctx.hdr.type = type;
-    ev->ctx.hdr.id = client_id;
+    ev->ctx.hdr.id = my_id;
     ev->user_context = ctx;
     params.op_attr_mask = UCP_OP_ATTR_FIELD_CALLBACK |
                           UCP_OP_ATTR_FIELD_DATATYPE |
@@ -321,6 +321,10 @@ static int xgvmi_key_recv_cb(struct dpu_offload_ev_sys *ev_sys, void *context, a
     return DO_ERROR;
 }
 
+/************************************/
+/* Endpoint cache related functions */
+/************************************/
+
 static inline bool is_in_cache(cache_t *cache, int64_t gp_id, int64_t rank_id)
 {
     dyn_array_t *gp_data, *gps_data = &(cache->data);
@@ -382,6 +386,10 @@ static int peer_cache_entries_recv_cb(struct dpu_offload_ev_sys *ev_sys, void *c
 
     return DO_SUCCESS;
 }
+
+/*************************************/
+/* Registration of all the callbacks */
+/*************************************/
 
 dpu_offload_status_t register_default_notifications(dpu_offload_ev_sys_t *ev_sys)
 {
