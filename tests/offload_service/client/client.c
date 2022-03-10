@@ -102,7 +102,7 @@ int main(int argc, char **argv)
 
     // NOTIFICATION TEST
     int i;
-    dpu_offload_event_t *evts = calloc(NUM_TEST_EVTS, sizeof(dpu_offload_event_t));
+    dpu_offload_event_t **evts = (dpu_offload_event_t **)calloc(NUM_TEST_EVTS + 1, sizeof(dpu_offload_event_t*));
     if (evts == NULL)
     {
         fprintf(stderr, "unable to allocate events\n");
@@ -111,13 +111,14 @@ int main(int argc, char **argv)
 
     for (i = 0; i <= NUM_TEST_EVTS; i++)
     {
-        dpu_offload_event_t *cur_evt = &(evts[i]);
+        dpu_offload_event_t *cur_evt;
         rc = event_get(client->event_channels, &cur_evt);
         if (rc)
         {
             fprintf(stderr, "event_get() failed\n");
             return EXIT_FAILURE;
         }
+        evts[i] = cur_evt;
 
         int notif_data = i;
         rc = event_channel_emit(cur_evt, client->client->id, AM_TEST_MSG_ID, GET_SERVER_EP(client), NULL, &notif_data, sizeof(notif_data));
@@ -126,12 +127,14 @@ int main(int argc, char **argv)
             fprintf(stderr, "event_channel_emit() failed\n");
             return EXIT_FAILURE;
         }
+        fprintf(stderr, "Ev #%d = %p\n", i, cur_evt);
     }
 
     // All the events have been emitted, now waiting for them to complete
     for (i = 0; i <= NUM_TEST_EVTS; i++)
     {
-        dpu_offload_event_t *cur_evt = &(evts[i]);
+        dpu_offload_event_t *cur_evt = evts[i];
+        fprintf(stderr, "Waiting for event #%d (%p) to complete\n", i, cur_evt);
         while(!cur_evt->ctx.complete)
             client->progress(client);
     }
@@ -139,7 +142,7 @@ int main(int argc, char **argv)
     // All events completed, we can safely return them
     for (i = 0; i <= NUM_TEST_EVTS; i++)
     {
-        dpu_offload_event_t *cur_evt = &(evts[i]);
+        dpu_offload_event_t *cur_evt = evts[i];
         rc = event_return(client->event_channels, &cur_evt);
         if (rc)
         {
@@ -147,6 +150,8 @@ int main(int argc, char **argv)
             return EXIT_FAILURE;
         }
     }
+
+    free(evts);
 
     fprintf(stderr, "ALL TESTS COMPLETED\n");
 
