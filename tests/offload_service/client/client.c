@@ -122,7 +122,7 @@ int main(int argc, char **argv)
 
         int notif_data = i;
         rc = event_channel_emit(cur_evt, client->client->id, AM_TEST_MSG_ID, GET_SERVER_EP(client), NULL, &notif_data, sizeof(notif_data));
-        if (rc)
+        if (rc != EVENT_DONE && rc != EVENT_INPROGRESS)
         {
             fprintf(stderr, "event_channel_emit() failed\n");
             return EXIT_FAILURE;

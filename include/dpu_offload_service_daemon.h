@@ -60,4 +60,6 @@ void client_fini(execution_context_t **);
 
 dpu_offload_status_t inter_dpus_connect_mgr(dpu_config_t *);
 
+dpu_offload_status_t exchange_cache(execution_context_t *, cache_t *, ucp_ep_h);
+
 #endif // DPU_OFFLOAD_SERVICE_DAEMON_H_
