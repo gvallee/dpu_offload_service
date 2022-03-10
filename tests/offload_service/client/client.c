@@ -49,7 +49,10 @@ int main(int argc, char **argv)
         return EXIT_FAILURE;
     }
 
-    /* ping-pong with the server */
+    // REGISTER SOME EVENTS FOR TESTING
+    REGISTER_NOTIF_CALLBACKS(client);
+
+    /* ping-pong with the server using point-to-point tag based communications */
     int msg_tag = 42;
     ucp_tag_t msg_tag_mask = (ucp_tag_t)-1;
     int msg = 99;
@@ -100,7 +103,7 @@ int main(int argc, char **argv)
     else
         fprintf(stderr, "Successfully received the expected response from the server\n");
 
-    // NOTIFICATION TEST
+    // NOTIFICATIONS TEST
 
     /* First with emitting a bunch of events and manually managing all of them */
     EMIT_MANY_EVS_WITH_EXPLICIT_MGT(client);
@@ -109,6 +112,10 @@ int main(int argc, char **argv)
     EMIT_MANY_EVTS_AND_USE_ONGOING_LIST(client);
 
     /* Then we become the receiving side for the same tests */
+    WAIT_FOR_ALL_EVENTS(client);
+
+    /* Finally we do a notification-based ping-pong that we initiate */
+    INITIATE_PING_PONG_TEST(client);
 
     fprintf(stderr, "ALL TESTS COMPLETED\n");
 
