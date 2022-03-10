@@ -40,6 +40,7 @@ static int dummy_notification_cb(struct dpu_offload_ev_sys *ev_sys, void *contex
     fprintf(stderr, "Notification successfully received. Msg = %d\n", *msg);
     if (*msg == NUM_TEST_EVTS)
         notification_recvd = true;
+    return 0;
 }
 
 int main(int argc, char **argv)
@@ -121,12 +122,12 @@ int main(int argc, char **argv)
     fprintf(stderr, "ALL TESTS COMPLETED\n");
 
     fprintf(stderr, "Waiting for client to terminate...\n");
-
     while (!EXECUTION_CONTEXT_DONE(server))
     {
         server->progress(server);
     }
 
+    fprintf(stderr, "Finalizing...\n");
     server_fini(&server);
     offload_engine_fini(&offload_engine);
 

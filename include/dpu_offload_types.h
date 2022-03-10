@@ -452,6 +452,7 @@ typedef struct dpu_offload_event
     void *req;
     void *context;
     void *data;
+    void *user_context;
 } dpu_offload_event_t;
 
 typedef enum

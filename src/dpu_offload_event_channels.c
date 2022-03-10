@@ -23,20 +23,21 @@ static ucs_status_t am_notification_msg_cb(void *arg, const void *header, size_t
                                            void *data, size_t length,
                                            const ucp_am_recv_param_t *param)
 {
-    assert(header_length == sizeof(am_header_t));
-    fprintf(stderr, "Notification received, dispatching...\n");
-    execution_context_t *econtext = (execution_context_t *)arg;
     CHECK_ERR_RETURN((header == NULL), UCS_ERR_NO_MESSAGE, "header is undefined");
-
+    CHECK_ERR_RETURN((header_length != sizeof(am_header_t)), UCS_ERR_NO_MESSAGE, "header len is invalid");
+    execution_context_t *econtext = (execution_context_t *)arg;
     am_header_t *hdr = (am_header_t *)header;
     CHECK_ERR_RETURN((hdr == NULL), UCS_ERR_NO_MESSAGE, "header is NULL");
     CHECK_ERR_RETURN((hdr->type >= econtext->event_channels->num_notification_callbacks), UCS_ERR_NO_MESSAGE, "notification callback %" PRIu64 " is out of range", hdr->type);
+
+    DBG("Notification of type %"PRIu64" received, dispatching...", hdr->type);
+
 
     notification_callback_entry_t *entry = &(econtext->event_channels->notification_callbacks[hdr->type]);
     if (entry->set == false)
     {
         pending_notification_t *pending_notif;
-        fprintf(stderr, "callback not available for %" PRIu64 "\n", hdr->type);
+        DBG("callback not available for %" PRIu64, hdr->type);
         DYN_LIST_GET(econtext->event_channels->free_pending_notifications, pending_notification_t, item, pending_notif);
         CHECK_ERR_RETURN((pending_notif == NULL), UCS_ERR_NO_MESSAGE, "unable to get pending notification object");
 
@@ -103,11 +104,12 @@ dpu_offload_status_t event_channels_init(execution_context_t *econtext)
     ucp_am_handler_param_t ev_param;
     ev_param.field_mask = UCP_AM_HANDLER_PARAM_FIELD_ID |
                           UCP_AM_HANDLER_PARAM_FIELD_CB |
-                          UCP_AM_HANDLER_PARAM_FIELD_ARG;
+                          UCP_AM_HANDLER_PARAM_FIELD_ARG|
+                          UCP_AM_FLAG_WHOLE_MSG;
     ev_param.id = AM_EVENT_MSG_ID;
     ev_param.cb = am_notification_msg_cb;
     ev_param.arg = econtext;
-    DBG("Registering AM callback for notifications (econtext=%p, worker=%p, ev_param=%p)", econtext, GET_WORKER(econtext), &ev_param);
+    DBG("Registering AM callback for notifications (type=%d, econtext=%p, worker=%p, ev_param=%p)", AM_EVENT_MSG_ID, econtext, GET_WORKER(econtext), &ev_param);
     ucs_status_t status = ucp_worker_set_am_recv_handler(GET_WORKER(econtext), &ev_param);
     CHECK_ERR_RETURN((status != UCS_OK), DO_ERROR, "unable to set AM recv handler");
     return DO_SUCCESS;
@@ -153,14 +155,18 @@ dpu_offload_status_t event_channel_deregister(dpu_offload_ev_sys_t *ev_sys, uint
 
 static void notification_emit_cb(void *user_data, const char *type_str)
 {
+    dpu_offload_event_t *ev;
     am_req_t *ctx;
     if (user_data == NULL)
     {
         ERR_MSG("user_data passed to %s mustn't be NULL", type_str);
         return;
     }
-    ctx = (am_req_t *)user_data;
-    ctx->complete = 1;
+    ev = (dpu_offload_event_t*)user_data;
+    if (ev == NULL)
+        return;
+    ev->ctx.complete = 1;
+    DBG("evt %p now completed", ev);
 }
 
 dpu_offload_status_t event_channel_emit(dpu_offload_event_t *ev, uint64_t client_id, uint64_t type, ucp_ep_h dest_ep, void *ctx, void *payload, size_t payload_size)
@@ -170,13 +176,15 @@ dpu_offload_status_t event_channel_emit(dpu_offload_event_t *ev, uint64_t client
     ev->ctx.complete = 0;
     ev->ctx.hdr.type = type;
     ev->ctx.hdr.id = client_id;
+    ev->user_context = ctx;
     params.op_attr_mask = UCP_OP_ATTR_FIELD_CALLBACK |
                           UCP_OP_ATTR_FIELD_DATATYPE |
                           UCP_OP_ATTR_FIELD_USER_DATA;
     params.datatype = ucp_dt_make_contig(1);
-    params.user_data = &ctx;
+    params.user_data = &ev;
     params.cb.send = (ucp_send_nbx_callback_t)notification_emit_cb;
     ev->req = ucp_am_send_nbx(dest_ep, AM_EVENT_MSG_ID, &(ev->ctx.hdr), sizeof(am_header_t), payload, payload_size, &params);
+    DBG("Event %p successfully emitted", ev);
     if (ev->req == NULL)
     {
         // Immediate completion, the callback is *not* invoked

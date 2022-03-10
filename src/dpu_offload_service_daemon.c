@@ -134,12 +134,13 @@ static int oob_server_accept(execution_context_t *econtext)
         CHECK_ERR_RETURN((rc), DO_ERROR, "bind() failed: %s", strerror(errno));
         rc = listen(econtext->server->conn_data.oob.listenfd, 1024);
         CHECK_ERR_RETURN((rc), DO_ERROR, "listen() failed: %s", strerror(errno));
+
+        // fixme: debug when multi-connections are required
+        DBG("Accepting connection on port %" PRIu16 "...", server_port);
+        econtext->server->conn_data.oob.sock = accept(econtext->server->conn_data.oob.listenfd, (struct sockaddr *)NULL, NULL);
+        DBG("Connection accepted on fd=%d", econtext->server->conn_data.oob.sock);
     }
-
-    DBG("Accepting connection on port %" PRIu16 "...", server_port);
-    econtext->server->conn_data.oob.sock = accept(econtext->server->conn_data.oob.listenfd, (struct sockaddr *)NULL, NULL);
-    DBG("Connection accepted on fd=%d", econtext->server->conn_data.oob.sock);
-
+    
     return DO_SUCCESS;
 }
 
@@ -445,7 +446,11 @@ static ucs_status_t ucx_wait(ucp_worker_h ucp_worker, struct ucx_context *reques
 {
     ucs_status_t status;
 
-    assert(request);
+    if (request == NULL)
+    {
+        // The request completed right away, nothing to do.
+        return UCS_OK;
+    }
     assert(ucp_worker);
 
     if (UCS_PTR_IS_ERR(request))
@@ -767,6 +772,7 @@ void client_fini(execution_context_t **exec_ctx)
     void *request = ucp_am_send_nbx(client->server_ep, AM_TERM_MSG_ID, NULL, 0ul, term_msg,
                                     msg_length, &params);
     request_finalize(client->ucp_worker, request, &ctx);
+    DBG("Termination message successfully sent");
 
     ep_close(client->ucp_worker, client->server_ep);
     ucp_worker_destroy(client->ucp_worker);
@@ -936,8 +942,9 @@ static inline dpu_offload_status_t oob_server_ucx_client_connection(execution_co
     }
 
     server->conn_data.oob.peer_addr_len = msg->len;
+    CHECK_ERR_GOTO((msg <= 0), error_out, "invalid message length: %ld", msg->len);
     server->conn_data.oob.peer_addr = malloc(server->conn_data.oob.peer_addr_len);
-    CHECK_ERR_GOTO((server->conn_data.oob.peer_addr == NULL), error_out, "unable to allocate memory for peer address");
+    CHECK_ERR_GOTO((server->conn_data.oob.peer_addr == NULL), error_out, "unable to allocate memory for peer address (%ld bytes)", server->conn_data.oob.peer_addr_len);
 
     memcpy(server->conn_data.oob.peer_addr, msg + 1, server->conn_data.oob.peer_addr_len);
     free(msg);
@@ -1040,6 +1047,7 @@ static void *connect_thread(void *arg)
                 ERR_MSG("oob_server_listen() failed");
                 pthread_exit(NULL);
             }
+            pthread_exit(NULL); // fixme: properly support multiple connections
         }
         }
     }
@@ -1056,6 +1064,7 @@ static dpu_offload_status_t start_server(execution_context_t *econtext)
     CHECK_ERR_RETURN((rc), DO_ERROR, "unable to start connection thread");
 
     // Wait for at least one client to connect
+    DBG("Waiting for at least one client to connect...");
     bool client_connected = false;
     while (!client_connected)
     {
@@ -1064,6 +1073,7 @@ static dpu_offload_status_t start_server(execution_context_t *econtext)
             client_connected++;
         pthread_mutex_unlock(&(econtext->server->mutex));
     }
+    DBG("At least one client is now connected");
 
     return DO_SUCCESS;
 }
@@ -1204,7 +1214,11 @@ execution_context_t *server_init(offloading_engine_t *offloading_engine, init_pa
     ucs_status_t status = start_server(execution_context);
     CHECK_ERR_GOTO((status != UCS_OK), error_out, "start_server() failed");
 
-    DBG("Server created on %s:%d\n", init_params->conn_params->addr_str, init_params->conn_params->port);
+#if !NDEBUG
+    if (init_params != NULL && init_params->conn_params != NULL)
+        DBG("Server created on %s:%d\n", init_params->conn_params->addr_str, init_params->conn_params->port);
+#endif
+
     return execution_context;
 
 error_out:
