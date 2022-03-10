@@ -32,23 +32,6 @@ static void send_cb(void *request, ucs_status_t status)
     fprintf(stderr, "pong successfully sent\n");
 }
 
-bool first_notification_recvd = false;
-bool second_notification_recvd = false;
-static int dummy_notification_cb(struct dpu_offload_ev_sys *ev_sys, void *context, am_header_t *hdr, size_t hdr_len, void *data, size_t data_len)
-{
-    assert(data);
-    int *msg = (int*)data;
-    fprintf(stderr, "Notification successfully received. Msg = %d\n", *msg);
-    if (*msg == NUM_TEST_EVTS)
-    {
-        if (!first_notification_recvd)
-            first_notification_recvd = true;
-        else if (!second_notification_recvd)
-            second_notification_recvd = true;
-    }
-    return 0;
-}
-
 int main(int argc, char **argv)
 {
     offloading_engine_t *offload_engine;
@@ -130,11 +113,8 @@ int main(int argc, char **argv)
         send_req = NULL;
     }
 
-    while (!second_notification_recvd)
-    {
-        server->progress(server);
-    }
-
+    WAIT_FOR_ALL_EVENTS(server);
+    
     fprintf(stderr, "ALL TESTS COMPLETED\n");
 
     fprintf(stderr, "Waiting for client to terminate...\n");
