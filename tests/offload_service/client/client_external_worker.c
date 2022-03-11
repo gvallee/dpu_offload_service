@@ -39,6 +39,11 @@ int main(int argc, char **argv)
         fprintf(stderr, "init_worker() failed\n");
         return EXIT_FAILURE;
     }
+    if (ucp_worker == NULL)
+    {
+        fprintf(stderr, "undefined worker\n");
+        return EXIT_FAILURE;
+    }
 
     return run_client_test(ucp_worker);
 }
