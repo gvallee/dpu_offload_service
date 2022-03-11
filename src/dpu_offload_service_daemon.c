@@ -252,12 +252,12 @@ static dpu_offload_status_t init_worker(ucp_context_h ucp_context, ucp_worker_h 
 {
     ucp_worker_params_t worker_params;
     ucs_status_t status;
-    int ret = 0;
+    int ret = DO_SUCCESS;
     memset(&worker_params, 0, sizeof(worker_params));
     worker_params.field_mask = UCP_WORKER_PARAM_FIELD_THREAD_MODE;
     worker_params.thread_mode = UCS_THREAD_MODE_MULTI;
     status = ucp_worker_create(ucp_context, &worker_params, ucp_worker);
-    CHECK_ERR_RETURN((status != UCS_OK), DO_ERROR, "failed to ucp_worker_create (%s)", ucs_status_string(status));
+    CHECK_ERR_RETURN((status != UCS_OK), DO_ERROR, "ucp_worker_create() failed: %s", ucs_status_string(status));
     return ret;
 }
 
@@ -274,7 +274,7 @@ static dpu_offload_status_t init_context(ucp_context_h *ucp_context, ucp_worker_
     ucp_params.field_mask = UCP_PARAM_FIELD_FEATURES;
     ucp_params.features = UCP_FEATURE_TAG | UCP_FEATURE_AM;
     status = ucp_init(&ucp_params, config, ucp_context);
-    CHECK_ERR_GOTO((status != UCS_OK), err, "failed to ucp_init (%s)", ucs_status_string(status));
+    CHECK_ERR_GOTO((status != UCS_OK), err, "ucp_init() failed: %s", ucs_status_string(status));
     ucp_config_print(config, stdout, NULL, UCS_CONFIG_PRINT_CONFIG);
     ucp_config_release(config);
     ret = init_worker(*ucp_context, ucp_worker);

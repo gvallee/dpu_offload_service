@@ -18,7 +18,7 @@ dpu_offload_status_t event_channel_register(dpu_offload_ev_sys_t *ev_sys, uint64
 dpu_offload_status_t event_channel_deregister(dpu_offload_ev_sys_t *ev_sys, uint64_t type);
 
 /**
- * @brief event_emmit_channel triggers the communication associated to a previously locally defined event.
+ * @brief event_channel_emit triggers the communication associated to a previously locally defined event.
  * 
  * @param ev Event to be emitted. The object needs to be fully initialized prior the invokation of the function (see 'event_get()' and 'event_return()').
  * @param my_id The unique identifier to be used to send the event. It is used to identify the source of the event.
