@@ -11,6 +11,6 @@
 
 bin_PROGRAMS = server
 
-server_SOURCES = server.c
+server_SOURCES = server.c ../common_test_params.h
 AM_LDFLAGS = -ldpuoffloaddaemon
 AM_CFLAGS = -I@top_srcdir@/include -L@top_srcdir@/src/.libs
