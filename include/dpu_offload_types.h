@@ -511,26 +511,26 @@ typedef struct group_cache
         _cache[_peer_data->group_rank].set = true;                                                \
     } while (0)
 
-#define SET_PEER_CACHE_ENTRY(_peer_cache, _entry)                                               \
-    do                                                                                          \
-    {                                                                                           \
-        int32_t _gp_id = _entry->peer.proc_info.group_id;                                       \
-        if (_gp_id >= _peer_cache->data.num_elts)                                               \
-            DYN_ARRAY_GROW(&(_peer_cache->data), group_cache_t, _gp_id);                        \
-        group_cache_t *_gp_cache = (group_cache_t *)_peer_cache->data.base;                     \
-        dyn_array_t *_rank_cache = &(_gp_cache[_gp_id].ranks);                                  \
-        if (_gp_cache[_gp_id].initialized == false)                                             \
-        {                                                                                       \
-            /* Cache for the group is empty */                                                  \
-            DYN_ARRAY_ALLOC(_rank_cache, DEFAULT_NUM_PEERS, peer_cache_entry_t);                \
-            _gp_cache[_gp_id].initialized = true;                                               \
-            _peer_cache->size++;                                                                \
-        }                                                                                       \
-        if (_entry->peer.proc_info.group_rank >= _rank_cache->num_elts)                         \
-            DYN_ARRAY_GROW(_rank_cache, peer_cache_entry_t, _entry->peer.proc_info.group_rank); \
-        assert(_entry->peer.proc_info.group_rank < _rank_cache->num_elts);                      \
-        peer_cache_entry_t *_ptr = (peer_cache_entry_t *)_rank_cache->base;                     \
-        memcpy(&(_ptr[_entry->peer.proc_info.group_rank]), _entry, sizeof(peer_cache_entry_t)); \
+#define SET_PEER_CACHE_ENTRY(_peer_cache, _entry)                                                 \
+    do                                                                                            \
+    {                                                                                             \
+        int32_t _gp_id = (_entry)->peer.proc_info.group_id;                                       \
+        if (_gp_id >= _peer_cache->data.num_elts)                                                 \
+            DYN_ARRAY_GROW(&(_peer_cache->data), group_cache_t, _gp_id);                          \
+        group_cache_t *_gp_cache = (group_cache_t *)_peer_cache->data.base;                       \
+        dyn_array_t *_rank_cache = &(_gp_cache[_gp_id].ranks);                                    \
+        if (_gp_cache[_gp_id].initialized == false)                                               \
+        {                                                                                         \
+            /* Cache for the group is empty */                                                    \
+            DYN_ARRAY_ALLOC(_rank_cache, DEFAULT_NUM_PEERS, peer_cache_entry_t);                  \
+            _gp_cache[_gp_id].initialized = true;                                                 \
+            _peer_cache->size++;                                                                  \
+        }                                                                                         \
+        if ((_entry)->peer.proc_info.group_rank >= _rank_cache->num_elts)                         \
+            DYN_ARRAY_GROW(_rank_cache, peer_cache_entry_t, (_entry)->peer.proc_info.group_rank); \
+        assert((_entry)->peer.proc_info.group_rank < _rank_cache->num_elts);                      \
+        peer_cache_entry_t *_ptr = (peer_cache_entry_t *)_rank_cache->base;                       \
+        memcpy(&(_ptr[(_entry)->peer.proc_info.group_rank]), _entry, sizeof(peer_cache_entry_t)); \
     } while (0)
 
 typedef struct offloading_engine

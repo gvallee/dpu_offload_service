@@ -461,12 +461,12 @@ static int peer_cache_entries_recv_cb(struct dpu_offload_ev_sys *ev_sys, void *c
             group_id = entries[idx].peer.proc_info.group_id;
 
         // Now that we know for sure we have the group ID, we can move the received data into the local cache
-        bool in_cache;
         int64_t group_rank = entries[idx].peer.proc_info.group_rank;
-        DBG("Received a cache entry for rank:%ld, group:%ld (msg size=%ld)", group_id, group_rank, data_len);
+        DBG("Received a cache entry for rank:%ld, group:%ld (msg size=%ld)", group_rank, group_id, data_len);
         if (!is_in_cache(cache, group_id, group_rank))
         {
-            // SET_PEER_CACHE_ENTRY(cache, entries[idx]);
+            SET_PEER_CACHE_ENTRY(cache, &(entries[idx]));
+            group_cache_t *gp_caches = (group_cache_t*)cache->data.base;
         }
 
         cur_size += sizeof(peer_cache_entry_t);

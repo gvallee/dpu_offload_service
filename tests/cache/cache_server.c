@@ -50,11 +50,13 @@ int main(int argc, char **argv)
         server->progress(server);
     }
 
+    server_fini(&server);
     offload_engine_fini(&offload_engine);
     fprintf(stdout, "%s: test successful\n", argv[0]);
     return EXIT_SUCCESS;
 
 error_out:
+    server_fini(&server);
     offload_engine_fini(&offload_engine);
     fprintf(stderr, "%s: test failed\n", argv[0]);
     return EXIT_FAILURE;

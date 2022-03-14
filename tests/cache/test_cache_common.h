@@ -7,7 +7,7 @@
 #ifndef _TEST_CACHE_COMMON_H_
 #define _TEST_CACHE_COMMON_H_
 
-#define NUM_CACHE_ENTRIES (DEFAULT_NUM_PEERS * 2)
+#define NUM_CACHE_ENTRIES (10) //(DEFAULT_NUM_PEERS * 2)
 
 #define POPULATE_CACHE(_engine)                                                                  \
     do                                                                                           \

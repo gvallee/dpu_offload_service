@@ -559,7 +559,6 @@ static dpu_offload_status_t execution_context_progress(execution_context_t *ctx)
             event_return(ctx->event_channels, &ev);
         }
     }
-
     return DO_SUCCESS;
 }
 

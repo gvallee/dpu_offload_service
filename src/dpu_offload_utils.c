@@ -36,7 +36,7 @@ int send_cache_entry(execution_context_t *econtext, ucp_ep_h ep, peer_cache_entr
                             AM_PEER_CACHE_ENTRIES_MSG_ID,
                             ep,
                             NULL,
-                            &(cache_entry),
+                            cache_entry,
                             sizeof(peer_cache_entry_t));
     CHECK_ERR_RETURN((rc != EVENT_DONE && rc != EVENT_INPROGRESS), DO_ERROR, "event_channel_emit() failed");
 
