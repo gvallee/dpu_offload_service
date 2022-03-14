@@ -36,6 +36,7 @@ int main(int argc, char **argv)
         goto error_out;
     }
 
+    fprintf(stderr, "Exchanging cache...\n");
     rc = exchange_cache(server, &(offload_engine->procs_cache), remote_ep);
     if (rc != DO_SUCCESS)
     {

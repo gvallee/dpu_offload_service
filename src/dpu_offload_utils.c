@@ -30,13 +30,14 @@ int send_cache_entry(execution_context_t *econtext, ucp_ep_h ep, peer_cache_entr
     dpu_offload_status_t rc = event_get(econtext->event_channels, &send_cache_entry_ev);
     CHECK_ERR_RETURN((rc), DO_ERROR, "event_get() failed");
 
+    DBG("Sending cache entry for rank:%ld/gp:%ld (msg size=%ld)", cache_entry->peer.proc_info.group_rank, cache_entry->peer.proc_info.group_id, sizeof(peer_cache_entry_t));
     rc = event_channel_emit(send_cache_entry_ev,
                             ECONTEXT_ID(econtext),
                             AM_PEER_CACHE_ENTRIES_MSG_ID,
                             ep,
                             NULL,
-                            &(cache_entry->peer),
-                            sizeof(cache_entry->peer));
+                            &(cache_entry),
+                            sizeof(peer_cache_entry_t));
     CHECK_ERR_RETURN((rc != EVENT_DONE && rc != EVENT_INPROGRESS), DO_ERROR, "event_channel_emit() failed");
 
     // Put the event on the ongoing events list used while progressing the execution context.
@@ -52,8 +53,9 @@ static dpu_offload_status_t exchange_group_cache(execution_context_t *econtext, 
     size_t i;
     for (i = 0; i < gp_cache->ranks.num_elts; i++)
     {
-        if (IS_A_VALID_PEER_DATA(&(ranks_cache[i].peer)))
+        if (ranks_cache[i].set)
         {
+            DBG("sending cache entry for rank:%ld/gp:%ld", ranks_cache[i].peer.proc_info.group_rank, ranks_cache[i].peer.proc_info.group_id);
             dpu_offload_status_t rc = send_cache_entry(econtext, dest, &(ranks_cache[i]));
             CHECK_ERR_RETURN((rc), DO_ERROR, "send_cache_entry() failed");
         }
