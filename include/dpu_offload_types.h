@@ -66,17 +66,17 @@ typedef enum
     _ep;                                                                   \
 })
 
-#define GET_WORKER(_exec_ctx) ({            \
-    ucp_worker_h _w;                        \
-    if (_exec_ctx->type == CONTEXT_CLIENT)  \
-    {                                       \
-        _w = _exec_ctx->client->ucp_worker; \
-    }                                       \
-    else                                    \
-    {                                       \
-        _w = _exec_ctx->server->ucp_worker; \
-    }                                       \
-    _w;                                     \
+#define GET_WORKER(_exec_ctx) ({              \
+    ucp_worker_h _w;                          \
+    if ((_exec_ctx)->type == CONTEXT_CLIENT)  \
+    {                                         \
+        _w = (_exec_ctx)->client->ucp_worker; \
+    }                                         \
+    else                                      \
+    {                                         \
+        _w = (_exec_ctx)->server->ucp_worker; \
+    }                                         \
+    _w;                                       \
 })
 
 #define EV_SYS(_exec_ctx) ({                      \
@@ -293,6 +293,7 @@ typedef struct shadow_dpu_info
 typedef struct peer_cache_entry
 {
     ucs_list_link_t item;
+    bool set;
     peer_data_t peer;
     ucp_ep_h ep;
     size_t num_shadow_dpus;
@@ -438,12 +439,27 @@ typedef struct execution_context
     ucs_list_link_t ongoing_events;
     execution_context_progress_fn progress;
     rank_info_t rank;
+    dyn_list_t *free_pending_rdv_recv;
+    ucs_list_link_t pending_rdv_recvs;
     union
     {
         dpu_offload_client_t *client;
         dpu_offload_server_t *server;
     };
 } execution_context_t;
+
+typedef struct pending_am_rdv_recv
+{
+    ucs_list_link_t item;
+    execution_context_t *econtext;
+    size_t hdr_len;
+    am_header_t *hdr;
+    ucs_status_ptr_t req;
+    size_t payload_size;
+    size_t buff_size;
+    void *desc;
+    void *user_data;
+} pending_am_rdv_recv_t;
 
 typedef struct dpu_offload_event
 {
@@ -492,28 +508,29 @@ typedef struct group_cache
         cache_entry_t *_cache = (cache_entry_t *)_ptr->base;                                      \
         _cache[_peer_data->group_rank].peer.proc_info.group_id = _peer_data->group_id;            \
         _cache[_peer_data->group_rank].peer.proc_info.group_rank = _peer_data->group_rank;        \
+        _cache[_peer_data->group_rank].set = true;                                                \
     } while (0)
 
-#define SET_PEER_CACHE_ENTRY(_peer_cache, _entry)                                               \
-    do                                                                                          \
-    {                                                                                           \
-        int32_t _gp_id = _entry->peer.proc_info.group_id;                                       \
-        if (_gp_id >= _peer_cache->data.num_elts)                                               \
-            DYN_ARRAY_GROW(&(_peer_cache->data), group_cache_t, _gp_id);                        \
-        group_cache_t *_gp_cache = (group_cache_t *)_peer_cache->data.base;                     \
-        dyn_array_t *_rank_cache = &(_gp_cache[_gp_id].ranks);                                  \
-        if (_gp_cache[_gp_id].initialized == false)                                             \
-        {                                                                                       \
-            /* Cache for the group is empty */                                                  \
-            DYN_ARRAY_ALLOC(_rank_cache, DEFAULT_NUM_PEERS, peer_cache_entry_t);                \
-            _gp_cache[_gp_id].initialized = true;                                               \
-            _peer_cache->size++;                                                                \
-        }                                                                                       \
-        if (_entry->peer.proc_info.group_rank >= _rank_cache->num_elts)                         \
-            DYN_ARRAY_GROW(_rank_cache, peer_cache_entry_t, _entry->peer.proc_info.group_rank); \
-        assert(_entry->peer.proc_info.group_rank < _rank_cache->num_elts);                      \
-        peer_cache_entry_t *_ptr = (peer_cache_entry_t *)_rank_cache->base;                     \
-        memcpy(&(_ptr[_entry->peer.proc_info.group_rank]), _entry, sizeof(peer_cache_entry_t)); \
+#define SET_PEER_CACHE_ENTRY(_peer_cache, _entry)                                                 \
+    do                                                                                            \
+    {                                                                                             \
+        int32_t _gp_id = (_entry)->peer.proc_info.group_id;                                       \
+        if (_gp_id >= _peer_cache->data.num_elts)                                                 \
+            DYN_ARRAY_GROW(&(_peer_cache->data), group_cache_t, _gp_id);                          \
+        group_cache_t *_gp_cache = (group_cache_t *)_peer_cache->data.base;                       \
+        dyn_array_t *_rank_cache = &(_gp_cache[_gp_id].ranks);                                    \
+        if (_gp_cache[_gp_id].initialized == false)                                               \
+        {                                                                                         \
+            /* Cache for the group is empty */                                                    \
+            DYN_ARRAY_ALLOC(_rank_cache, DEFAULT_NUM_PEERS, peer_cache_entry_t);                  \
+            _gp_cache[_gp_id].initialized = true;                                                 \
+            _peer_cache->size++;                                                                  \
+        }                                                                                         \
+        if ((_entry)->peer.proc_info.group_rank >= _rank_cache->num_elts)                         \
+            DYN_ARRAY_GROW(_rank_cache, peer_cache_entry_t, (_entry)->peer.proc_info.group_rank); \
+        assert((_entry)->peer.proc_info.group_rank < _rank_cache->num_elts);                      \
+        peer_cache_entry_t *_ptr = (peer_cache_entry_t *)_rank_cache->base;                       \
+        memcpy(&(_ptr[(_entry)->peer.proc_info.group_rank]), _entry, sizeof(peer_cache_entry_t)); \
     } while (0)
 
 typedef struct offloading_engine

@@ -22,6 +22,8 @@
 #include "dpu_offload_debug.h"
 #include "dpu_offload_mem_mgt.h"
 
+extern dpu_offload_status_t register_default_notifications(dpu_offload_ev_sys_t *);
+
 // A lot of the code is from ucp_client_serrver.c from UCX
 
 static sa_family_t ai_family = AF_INET;
@@ -40,20 +42,10 @@ static struct err_handling
     failure_mode_t failure_mode;
 } err_handling_opt;
 
-typedef struct am_msg_t
-{
-    volatile int complete;
-    int is_rndv;
-    void *desc;
-    void *recv_buf;
-} am_msg_t;
-
 struct oob_msg
 {
     uint64_t len;
 };
-
-am_msg_t am_data_desc = {0, 0, NULL, NULL};
 
 #define GET_PEER_DATA_HANDLE(_pool_free_peer_descs, _peer_data) \
     DYN_LIST_GET(_pool_free_peer_descs, peer_cache_entry_t, item, _peer_data);
@@ -285,45 +277,6 @@ err_cleanup:
     ucp_cleanup(*ucp_context);
 err:
     return DO_ERROR;
-}
-
-ucs_status_t ucp_am_data_cb(void *arg, const void *header, size_t header_length,
-                            void *data, size_t length,
-                            const ucp_am_recv_param_t *param)
-{
-    ucp_dt_iov_t *iov;
-    size_t idx;
-    size_t offset;
-    static long iov_cnt = 1;
-    static long test_string_length = 16;
-
-    CHECK_ERR_RETURN((length != iov_cnt * test_string_length), UCS_ERR_NO_MESSAGE, "received wrong data length %ld (expected %ld)",
-                     length, iov_cnt * test_string_length);
-    CHECK_ERR_RETURN((header_length != 0), UCS_ERR_NO_MESSAGE, "received unexpected header, length %ld", header_length);
-    am_data_desc.complete = 1;
-    if (param->recv_attr & UCP_AM_RECV_ATTR_FLAG_RNDV)
-    {
-        /* Rendezvous request arrived, data contains an internal UCX descriptor,
-         * which has to be passed to ucp_am_recv_data_nbx function to confirm
-         * data transfer.
-         */
-        am_data_desc.is_rndv = 1;
-        am_data_desc.desc = data;
-        return UCS_INPROGRESS;
-    }
-    /* Message delivered with eager protocol, data should be available
-     * immediately
-     */
-    am_data_desc.is_rndv = 0;
-    iov = am_data_desc.recv_buf;
-    offset = 0;
-    for (idx = 0; idx < iov_cnt; idx++)
-    {
-        memcpy(iov[idx].buffer, UCS_PTR_BYTE_OFFSET(data, offset),
-               iov[idx].length);
-        offset += iov[idx].length;
-    }
-    return UCS_OK;
 }
 
 static void common_cb(void *user_data, const char *type_str)
@@ -606,7 +559,6 @@ static dpu_offload_status_t execution_context_progress(execution_context_t *ctx)
             event_return(ctx->event_channels, &ev);
         }
     }
-
     return DO_SUCCESS;
 }
 
@@ -618,10 +570,33 @@ static dpu_offload_status_t execution_context_init(offloading_engine_t *offload_
     ctx->engine = offload_engine;
     ctx->progress = execution_context_progress;
     ucs_list_head_init(&(ctx->ongoing_events));
+    DYN_LIST_ALLOC(ctx->free_pending_rdv_recv, 32, pending_am_rdv_recv_t, item);
+    ucs_list_head_init(&(ctx->pending_rdv_recvs));
     *econtext = ctx;
     return DO_SUCCESS;
 error_out:
     return DO_ERROR;
+}
+
+static void execution_context_fini(execution_context_t **ctx)
+{
+    size_t i;
+    assert(ucs_list_is_empty(&((*ctx)->pending_rdv_recvs)));
+    for (i = 0; i < (*ctx)->free_pending_rdv_recv->num_elts; i++)
+    {
+        pending_am_rdv_recv_t *elt;
+        DYN_LIST_GET((*ctx)->free_pending_rdv_recv, pending_am_rdv_recv_t, item, elt);
+        if (elt == NULL)
+            continue;
+        if (elt->buff_size > 0)
+        {
+            free(elt->user_data);
+            elt->buff_size = 0;
+        }
+    }
+
+    free(*ctx);
+    *ctx = NULL;
 }
 
 /**
@@ -682,6 +657,9 @@ execution_context_t *client_init(offloading_engine_t *offload_engine, init_param
         CHECK_ERR_GOTO((ret), error_out, "oob_connect() failed");
     }
     }
+
+    rc = register_default_notifications(ctx->event_channels);
+    CHECK_ERR_GOTO((rc), error_out, "register_default_notfications() failed");
 
     return ctx;
 error_out:
@@ -808,8 +786,7 @@ void client_fini(execution_context_t **exec_ctx)
     free(context->client);
     context->client = NULL;
 
-    free(*exec_ctx);
-    *exec_ctx = NULL;
+    execution_context_fini(&context);
 }
 
 static void server_conn_handle_cb(ucp_conn_request_h conn_request, void *arg)
@@ -979,6 +956,7 @@ static inline dpu_offload_status_t oob_server_ucx_client_connection(execution_co
         GET_PEER_DATA_HANDLE(econtext->engine->free_peer_cache_entries, cache_entry);
         cache_entry->peer.proc_info.group_id = peer_data.proc_info.group_id;
         cache_entry->peer.proc_info.group_rank = peer_data.proc_info.group_rank;
+        cache_entry->set = true;
         assert(server->connected_clients.clients);
         assert(server->connected_clients.clients[server->connected_clients.num_connected_clients].cache_entries);
         server->connected_clients.clients[server->connected_clients.num_connected_clients].cache_entries[0] = cache_entry;
@@ -1194,24 +1172,24 @@ execution_context_t *server_init(offloading_engine_t *offloading_engine, init_pa
 
     execution_context_t *execution_context;
     DBG("initializing execution context...");
-    int rc = execution_context_init(offloading_engine, CONTEXT_SERVER, &execution_context);
+    dpu_offload_status_t rc = execution_context_init(offloading_engine, CONTEXT_SERVER, &execution_context);
     CHECK_ERR_GOTO((rc), error_out, "execution_context_init() failed");
 
     DBG("initializing server context...");
-    int ret = server_init_context(execution_context, init_params);
-    CHECK_ERR_GOTO((ret), error_out, "server_init_context() failed");
+    rc = server_init_context(execution_context, init_params);
+    CHECK_ERR_GOTO((rc), error_out, "server_init_context() failed");
     DBG("server handle successfully created (worker=%p)", execution_context->server->ucp_worker);
     offloading_engine->servers[offloading_engine->num_servers] = execution_context;
     offloading_engine->num_servers++;
 
-    ret = event_channels_init(execution_context);
-    CHECK_ERR_GOTO((ret), error_out, "event_channel_init() failed");
+    rc = event_channels_init(execution_context);
+    CHECK_ERR_GOTO((rc), error_out, "event_channel_init() failed");
     CHECK_ERR_GOTO((execution_context->event_channels == NULL), error_out, "event channel handle is undefined");
     execution_context->server->event_channels = execution_context->event_channels;
 
     /* Initialize Active Message data handler */
-    ret = dpu_offload_set_am_recv_handlers(execution_context);
-    CHECK_ERR_GOTO((ret), error_out, "dpu_offload_set_am_recv_handlers() failed");
+    rc = dpu_offload_set_am_recv_handlers(execution_context);
+    CHECK_ERR_GOTO((rc), error_out, "dpu_offload_set_am_recv_handlers() failed");
 
     ucs_status_t status = start_server(execution_context);
     CHECK_ERR_GOTO((status != UCS_OK), error_out, "start_server() failed");
@@ -1220,6 +1198,9 @@ execution_context_t *server_init(offloading_engine_t *offloading_engine, init_pa
     if (init_params != NULL && init_params->conn_params != NULL)
         DBG("Server created on %s:%d\n", init_params->conn_params->addr_str, init_params->conn_params->port);
 #endif
+
+    rc = register_default_notifications(execution_context->event_channels);
+    CHECK_ERR_GOTO((rc), error_out, "register_default_notfications() failed");
 
     return execution_context;
 
@@ -1278,6 +1259,5 @@ void server_fini(execution_context_t **exec_ctx)
     free(context->server);
     context->server = NULL;
 
-    free(*exec_ctx);
-    *exec_ctx = NULL;
+    execution_context_fini(&context);
 }

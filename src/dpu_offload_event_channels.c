@@ -19,21 +19,10 @@
 #define DEFAULT_NUM_EVTS (32)
 #define DEFAULT_NUM_NOTIFICATION_CALLBACKS (5000)
 
-static ucs_status_t am_notification_msg_cb(void *arg, const void *header, size_t header_length,
-                                           void *data, size_t length,
-                                           const ucp_am_recv_param_t *param)
+static int handle_am_msg(execution_context_t *econtext, am_header_t *hdr, size_t header_length, void *data, size_t length)
 {
-    CHECK_ERR_RETURN((header == NULL), UCS_ERR_NO_MESSAGE, "header is undefined");
-    CHECK_ERR_RETURN((header_length != sizeof(am_header_t)), UCS_ERR_NO_MESSAGE, "header len is invalid");
-    execution_context_t *econtext = (execution_context_t *)arg;
-    am_header_t *hdr = (am_header_t *)header;
-    CHECK_ERR_RETURN((hdr == NULL), UCS_ERR_NO_MESSAGE, "header is NULL");
-    CHECK_ERR_RETURN((hdr->type >= econtext->event_channels->notification_callbacks.num_elts), UCS_ERR_NO_MESSAGE, "notification callback %" PRIu64 " is out of range", hdr->type);
-
-    DBG("Notification of type %"PRIu64" received, dispatching...", hdr->type);
-
-
-    notification_callback_entry_t *list_callbacks = (notification_callback_entry_t*)econtext->event_channels->notification_callbacks.base;
+    notification_callback_entry_t *list_callbacks = (notification_callback_entry_t *)econtext->event_channels->notification_callbacks.base;
+    DBG("Notification of type %" PRIu64 " received via RDV message, dispatching...", hdr->type);
     if (list_callbacks[hdr->type].set == false)
     {
         pending_notification_t *pending_notif;
@@ -45,7 +34,7 @@ static ucs_status_t am_notification_msg_cb(void *arg, const void *header, size_t
         pending_notif->client_id = hdr->id;
         pending_notif->data_size = length;
         pending_notif->header_size = header_length;
-        pending_notif->arg = arg;
+        pending_notif->arg = (void *)econtext;
         if (pending_notif->data_size > 0)
         {
             pending_notif->data = malloc(pending_notif->data_size);
@@ -58,7 +47,7 @@ static ucs_status_t am_notification_msg_cb(void *arg, const void *header, size_t
         if (pending_notif->header_size > 0)
         {
             pending_notif->header = malloc(pending_notif->header_size);
-            memcpy(pending_notif->header, header, pending_notif->header_size);
+            memcpy(pending_notif->header, hdr, pending_notif->header_size);
         }
         else
         {
@@ -73,6 +62,96 @@ static ucs_status_t am_notification_msg_cb(void *arg, const void *header, size_t
     struct dpu_offload_ev_sys *ev_sys = EV_SYS(econtext);
     cb(ev_sys, econtext, hdr, header_length, data, length);
     return UCS_OK;
+}
+
+static void am_rdv_recv_cb(void *request, ucs_status_t status, size_t length, void *user_data)
+{
+    pending_am_rdv_recv_t *recv_info = (pending_am_rdv_recv_t *)user_data;
+    int rc = handle_am_msg(recv_info->econtext, recv_info->hdr, recv_info->hdr_len, recv_info->user_data, recv_info->payload_size);
+    ucp_request_free(request);
+    ucs_list_del(&(recv_info->item));
+    DYN_LIST_RETURN(recv_info->econtext->free_pending_rdv_recv, recv_info, item);
+}
+
+static ucs_status_t am_notification_recv_rdv_msg(execution_context_t *econtext, am_header_t *hdr, size_t hdr_len, size_t payload_size, void *desc)
+{
+    ucp_request_param_t am_rndv_recv_request_params;
+    pending_am_rdv_recv_t *pending_recv;
+    DYN_LIST_GET(econtext->free_pending_rdv_recv, pending_am_rdv_recv_t, item, pending_recv);
+    assert(pending_recv);
+    DBG("RDV message to be received for type %ld", hdr->type);
+    // Make sure we have space for the payload, note that we do not know the data size to
+    // be received in advance but we do our best to avoid mallocs
+    if (pending_recv->buff_size == 0)
+    {
+        pending_recv->user_data = malloc(payload_size);
+        pending_recv->buff_size = payload_size;
+    }
+    if (pending_recv->buff_size < payload_size)
+    {
+        pending_recv->user_data = realloc(pending_recv->user_data, payload_size);
+        pending_recv->buff_size = payload_size;
+    }
+    assert(pending_recv->user_data);
+    pending_recv->hdr = hdr;
+    pending_recv->hdr_len = hdr_len;
+    pending_recv->econtext = econtext;
+    pending_recv->payload_size = payload_size;
+    am_rndv_recv_request_params.op_attr_mask = UCP_OP_ATTR_FIELD_CALLBACK |
+                                               UCP_OP_ATTR_FIELD_USER_DATA |
+                                               UCP_OP_ATTR_FIELD_DATATYPE |
+                                               UCP_OP_ATTR_FIELD_MEMORY_TYPE;
+    am_rndv_recv_request_params.cb.recv_am = &am_rdv_recv_cb;
+    am_rndv_recv_request_params.datatype = ucp_dt_make_contig(1);
+    am_rndv_recv_request_params.user_data = pending_recv;
+    am_rndv_recv_request_params.memory_type = UCS_MEMORY_TYPE_HOST;
+    am_rndv_recv_request_params.request = NULL;
+
+    ucs_status_ptr_t status;
+    status = ucp_am_recv_data_nbx(GET_WORKER(econtext), desc, pending_recv->user_data, payload_size,
+                                  &am_rndv_recv_request_params);
+    if (UCS_PTR_IS_ERR(status))
+    {
+        /* non-recoverable error */
+        ERR_MSG("ucp_am_recv_data_nbx() failed");
+    }
+    else if (UCS_PTR_IS_PTR(status))
+    {
+        /* request not yet completd */
+        DBG("ucp_am_recv_data_nbx() is INPROGRESS");
+        pending_recv->req = status;
+    }
+    else
+    {
+        DBG("ucp_am_recv_data_nbx() completed right away");
+        assert(NULL == status);
+        pending_recv->req = NULL;
+        handle_am_msg(econtext, hdr, hdr_len, pending_recv->user_data, payload_size);
+        ucp_request_free(am_rndv_recv_request_params.request);
+    }
+    return UCS_OK;
+}
+
+static ucs_status_t am_notification_msg_cb(void *arg, const void *header, size_t header_length,
+                                           void *data, size_t length,
+                                           const ucp_am_recv_param_t *param)
+{
+    CHECK_ERR_RETURN((header == NULL), UCS_ERR_NO_MESSAGE, "header is undefined");
+    CHECK_ERR_RETURN((header_length != sizeof(am_header_t)), UCS_ERR_NO_MESSAGE, "header len is invalid");
+    execution_context_t *econtext = (execution_context_t *)arg;
+    am_header_t *hdr = (am_header_t *)header;
+    CHECK_ERR_RETURN((hdr == NULL), UCS_ERR_NO_MESSAGE, "header is NULL");
+    CHECK_ERR_RETURN((hdr->type >= econtext->event_channels->notification_callbacks.num_elts), UCS_ERR_NO_MESSAGE, "notification callback %" PRIu64 " is out of range", hdr->type);
+
+    if (param->recv_attr & UCP_AM_RECV_ATTR_FLAG_RNDV)
+    {
+        // RDV message
+        am_notification_recv_rdv_msg(econtext, hdr, header_length, length, data);
+        return UCS_INPROGRESS;
+    }
+
+    DBG("Notification of type %" PRIu64 " received via eager message, dispatching...", hdr->type);
+    return handle_am_msg(econtext, hdr, header_length, data, length);
 }
 
 dpu_offload_status_t event_channels_init(execution_context_t *econtext)
@@ -92,25 +171,32 @@ dpu_offload_status_t event_channels_init(execution_context_t *econtext)
     DYN_ARRAY_ALLOC(&(econtext->event_channels->notification_callbacks), DEFAULT_NUM_NOTIFICATION_CALLBACKS, notification_callback_entry_t);
     CHECK_ERR_RETURN((econtext->event_channels->notification_callbacks.base == NULL), DO_ERROR, "Resource allocation failed");
 
-    // Register the UCX AM handler used for all notifications
-    ucp_am_handler_param_t ev_param;
-    ev_param.field_mask = UCP_AM_HANDLER_PARAM_FIELD_ID |
-                          UCP_AM_HANDLER_PARAM_FIELD_CB |
-                          UCP_AM_HANDLER_PARAM_FIELD_ARG|
-                          UCP_AM_FLAG_WHOLE_MSG;
-    ev_param.id = AM_EVENT_MSG_ID;
-    ev_param.cb = am_notification_msg_cb;
-    ev_param.arg = econtext;
-    DBG("Registering AM callback for notifications (type=%d, econtext=%p, worker=%p, ev_param=%p)", AM_EVENT_MSG_ID, econtext, GET_WORKER(econtext), &ev_param);
-    ucs_status_t status = ucp_worker_set_am_recv_handler(GET_WORKER(econtext), &ev_param);
-    CHECK_ERR_RETURN((status != UCS_OK), DO_ERROR, "unable to set AM recv handler");
+    // Register the UCX AM handler
+    ucp_am_handler_param_t ev_eager_param;
+    ev_eager_param.field_mask = UCP_AM_HANDLER_PARAM_FIELD_ID |
+                                UCP_AM_HANDLER_PARAM_FIELD_CB |
+                                UCP_AM_HANDLER_PARAM_FIELD_ARG |
+                                UCP_AM_FLAG_WHOLE_MSG;
+    ev_eager_param.id = AM_EVENT_MSG_ID;
+    // For all exchange, we receive the header first and from there post a receive for the either eager or RDV message.
+    ev_eager_param.cb = am_notification_msg_cb;
+    ev_eager_param.arg = econtext;
+    DBG("Registering AM eager callback for notifications (type=%d, econtext=%p, worker=%p, ev_param=%p)",
+        AM_EVENT_MSG_ID,
+        econtext,
+        GET_WORKER(econtext),
+        &ev_eager_param);
+    ucs_status_t status = ucp_worker_set_am_recv_handler(GET_WORKER(econtext),
+                                                         &ev_eager_param);
+    CHECK_ERR_RETURN((status != UCS_OK), DO_ERROR, "unable to set AM eager recv handler");
     return DO_SUCCESS;
 }
 
 dpu_offload_status_t event_channel_register(dpu_offload_ev_sys_t *ev_sys, uint64_t type, notification_cb cb)
 {
+    CHECK_ERR_RETURN((cb == NULL), DO_ERROR, "Undefined callback");
     CHECK_ERR_RETURN((ev_sys == NULL), DO_ERROR, "undefined event system");
-    notification_callback_entry_t *list_callbacks = (notification_callback_entry_t*)ev_sys->notification_callbacks.base;
+    notification_callback_entry_t *list_callbacks = (notification_callback_entry_t *)ev_sys->notification_callbacks.base;
     notification_callback_entry_t *entry;
     DYN_ARRAY_GET_ELT(&(ev_sys->notification_callbacks), type, notification_callback_entry_t, entry);
     CHECK_ERR_RETURN((entry == NULL), DO_ERROR, "unable to get callback %ld", type);
@@ -166,7 +252,7 @@ static void notification_emit_cb(void *user_data, const char *type_str)
         ERR_MSG("user_data passed to %s mustn't be NULL", type_str);
         return;
     }
-    ev = (dpu_offload_event_t*)user_data;
+    ev = (dpu_offload_event_t *)user_data;
     if (ev == NULL)
         return;
     ev->ctx.complete = 1;
@@ -342,8 +428,7 @@ static inline bool is_in_cache(cache_t *cache, int64_t gp_id, int64_t rank_id)
             peer_cache_entry_t *entries;
             dyn_array_t *rank_array = (dyn_array_t *)gp_data->base;
             DYN_ARRAY_GET_ELT(rank_array, rank_id, peer_cache_entry_t, entries);
-            if (entries[rank_id].peer.proc_info.group_id == INVALID_GROUP ||
-                entries[rank_id].peer.proc_info.group_rank == INVALID_RANK)
+            if (entries[rank_id].set)
             {
                 return false;
             }
@@ -371,17 +456,18 @@ static int peer_cache_entries_recv_cb(struct dpu_offload_ev_sys *ev_sys, void *c
             group_id = entries[idx].peer.proc_info.group_id;
 
         // Now that we know for sure we have the group ID, we can move the received data into the local cache
-        bool in_cache;
         int64_t group_rank = entries[idx].peer.proc_info.group_rank;
-        DBG("Received a cache entry for rank:%ld, group:%ld", group_id, group_rank);
+        DBG("Received a cache entry for rank:%ld, group:%ld (msg size=%ld)", group_rank, group_id, data_len);
         if (!is_in_cache(cache, group_id, group_rank))
         {
-            // SET_PEER_CACHE_ENTRY(cache, entries[idx]);
+            SET_PEER_CACHE_ENTRY(cache, &(entries[idx]));
+            group_cache_t *gp_caches = (group_cache_t*)cache->data.base;
         }
 
         cur_size += sizeof(peer_cache_entry_t);
         idx++;
     }
+    DBG("Reception completed");
 
     return DO_SUCCESS;
 }
@@ -409,5 +495,5 @@ dpu_offload_status_t register_default_notifications(dpu_offload_ev_sys_t *ev_sys
     rc = event_channel_register(ev_sys, AM_PEER_CACHE_ENTRIES_MSG_ID, peer_cache_entries_recv_cb);
     CHECK_ERR_RETURN(rc, DO_ERROR, "cannot register handler for receiving peer cache entries");
 
-    return DO_ERROR;
+    return DO_SUCCESS;
 }
