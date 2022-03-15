@@ -66,9 +66,7 @@ static int handle_am_msg(execution_context_t *econtext, am_header_t *hdr, size_t
 
 static void am_rdv_recv_cb(void *request, ucs_status_t status, size_t length, void *user_data)
 {
-    DBG("%s()", __func__);
     pending_am_rdv_recv_t *recv_info = (pending_am_rdv_recv_t *)user_data;
-    fprintf(stderr, "RDV message received freeing request %p (type: %ld)\n", request, recv_info->hdr->type);
     int rc = handle_am_msg(recv_info->econtext, recv_info->hdr, recv_info->hdr_len, recv_info->user_data, recv_info->payload_size);
     ucp_request_free(request);
     ucs_list_del(&(recv_info->item));
@@ -77,13 +75,12 @@ static void am_rdv_recv_cb(void *request, ucs_status_t status, size_t length, vo
 
 static ucs_status_t am_notification_recv_rdv_msg(execution_context_t *econtext, am_header_t *hdr, size_t hdr_len, size_t payload_size, void *desc)
 {
-    DBG("RDV message to be received for type %ld", hdr->type);
-
+    ucp_request_param_t am_rndv_recv_request_params;
     pending_am_rdv_recv_t *pending_recv;
     DYN_LIST_GET(econtext->free_pending_rdv_recv, pending_am_rdv_recv_t, item, pending_recv);
-    ucp_request_param_t am_rndv_recv_request_params;
     assert(pending_recv);
-    // Mkae sure we have space for the payload, note that we do not know the data size to
+    DBG("RDV message to be received for type %ld", hdr->type);
+    // Make sure we have space for the payload, note that we do not know the data size to
     // be received in advance but we do our best to avoid mallocs
     if (pending_recv->buff_size == 0)
     {
@@ -444,8 +441,6 @@ static int peer_cache_entries_recv_cb(struct dpu_offload_ev_sys *ev_sys, void *c
 {
     assert(context);
     assert(data);
-
-    DBG("%s() - data len: %ld", __func__, data_len);
 
     execution_context_t *econtext = (execution_context_t *)context;
     offloading_engine_t *engine = (offloading_engine_t *)econtext->engine;
