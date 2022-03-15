@@ -150,7 +150,7 @@
 
 static bool first_notification_recvd = false;
 static bool second_notification_recvd = false;
-static int basic_notification_cb(struct dpu_offload_ev_sys *ev_sys, void *context, am_header_t *hdr, size_t hdr_len, void *data, size_t data_len)
+static int basic_notification_cb(struct dpu_offload_ev_sys *ev_sys, execution_context_t *econtext, am_header_t *hdr, size_t hdr_len, void *data, size_t data_len)
 {
     assert(data);
     int *msg = (int *)data;
@@ -166,13 +166,12 @@ static int basic_notification_cb(struct dpu_offload_ev_sys *ev_sys, void *contex
 }
 
 static bool ping_pong_done = false;
-static int pingpong_notification_cb(struct dpu_offload_ev_sys *ev_sys, void *context, am_header_t *hdr, size_t hdr_len, void *data, size_t data_len)
+static int pingpong_notification_cb(struct dpu_offload_ev_sys *ev_sys, execution_context_t *econtext, am_header_t *hdr, size_t hdr_len, void *data, size_t data_len)
 {
     assert(data);
-    assert(context);
+    assert(econtext);
     int *msg = (int *)data;
     int val = *msg;
-    execution_context_t *econtext = (execution_context_t *)context;
     fprintf(stderr, "Ping-pong notification successfully received. Msg = %d\n", val);
 
     if (econtext->type == CONTEXT_SERVER)

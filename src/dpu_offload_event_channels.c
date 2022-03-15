@@ -31,10 +31,10 @@ static int handle_am_msg(execution_context_t *econtext, am_header_t *hdr, size_t
         CHECK_ERR_RETURN((pending_notif == NULL), UCS_ERR_NO_MESSAGE, "unable to get pending notification object");
 
         pending_notif->type = hdr->type;
-        pending_notif->client_id = hdr->id;
+        pending_notif->src_id = hdr->id;
         pending_notif->data_size = length;
         pending_notif->header_size = header_length;
-        pending_notif->arg = (void *)econtext;
+        pending_notif->econtext = econtext;
         if (pending_notif->data_size > 0)
         {
             pending_notif->data = malloc(pending_notif->data_size);
@@ -213,7 +213,12 @@ dpu_offload_status_t event_channel_register(dpu_offload_ev_sys_t *ev_sys, uint64
         if (pending_notif->type == type)
         {
             ucs_list_del(&(pending_notif->item));
-            cb((struct dpu_offload_ev_sys *)ev_sys, pending_notif->arg, pending_notif->header, pending_notif->header_size, pending_notif->data, pending_notif->data_size);
+            cb((struct dpu_offload_ev_sys *)ev_sys,
+               pending_notif->econtext,
+               pending_notif->header,
+               pending_notif->header_size,
+               pending_notif->data,
+               pending_notif->data_size);
             if (pending_notif->data != NULL)
             {
                 free(pending_notif->data);
@@ -329,7 +334,7 @@ dpu_offload_status_t event_return(dpu_offload_ev_sys_t *ev_sys, dpu_offload_even
 /* DEFAULT HANDLERS */
 /********************/
 
-static dpu_offload_status_t op_completion_cb(struct dpu_offload_ev_sys *ev_sys, void *context, am_header_t *hdr, size_t hdr_size, void *data, size_t data_len)
+static dpu_offload_status_t op_completion_cb(struct dpu_offload_ev_sys *ev_sys, execution_context_t *context, am_header_t *hdr, size_t hdr_size, void *data, size_t data_len)
 {
     execution_context_t *econtext = (execution_context_t *)context;
     uint64_t *_data = (uint64_t *)data;
@@ -354,7 +359,7 @@ static dpu_offload_status_t op_completion_cb(struct dpu_offload_ev_sys *ev_sys, 
     return DO_SUCCESS;
 }
 
-static dpu_offload_status_t op_start_cb(struct dpu_offload_ev_sys *ev_sys, void *context, am_header_t *hdr, size_t hdr_size, void *data, size_t data_len)
+static dpu_offload_status_t op_start_cb(struct dpu_offload_ev_sys *ev_sys, execution_context_t *context, am_header_t *hdr, size_t hdr_size, void *data, size_t data_len)
 {
     assert(context);
     assert(data);
@@ -393,13 +398,13 @@ static dpu_offload_status_t op_start_cb(struct dpu_offload_ev_sys *ev_sys, void 
     return DO_SUCCESS;
 }
 
-static dpu_offload_status_t xgvmi_key_revoke_cb(struct dpu_offload_ev_sys *ev_sys, void *context, am_header_t *hdr, size_t hdr_size, void *data, size_t data_len)
+static dpu_offload_status_t xgvmi_key_revoke_cb(struct dpu_offload_ev_sys *ev_sys, execution_context_t *context, am_header_t *hdr, size_t hdr_size, void *data, size_t data_len)
 {
     // todo
     return DO_ERROR;
 }
 
-static int xgvmi_key_recv_cb(struct dpu_offload_ev_sys *ev_sys, void *context, am_header_t *hdr, size_t hdr_size, void *data, size_t data_len)
+static int xgvmi_key_recv_cb(struct dpu_offload_ev_sys *ev_sys, execution_context_t *context, am_header_t *hdr, size_t hdr_size, void *data, size_t data_len)
 {
     // todo
     return DO_ERROR;
@@ -437,12 +442,11 @@ static inline bool is_in_cache(cache_t *cache, int64_t gp_id, int64_t rank_id)
     return true;
 }
 
-static int peer_cache_entries_recv_cb(struct dpu_offload_ev_sys *ev_sys, void *context, am_header_t *hdr, size_t hdr_size, void *data, size_t data_len)
+static int peer_cache_entries_recv_cb(struct dpu_offload_ev_sys *ev_sys, execution_context_t *econtext, am_header_t *hdr, size_t hdr_size, void *data, size_t data_len)
 {
-    assert(context);
+    assert(econtext);
     assert(data);
 
-    execution_context_t *econtext = (execution_context_t *)context;
     offloading_engine_t *engine = (offloading_engine_t *)econtext->engine;
     peer_cache_entry_t *entries = (peer_cache_entry_t *)data;
     size_t cur_size = 0;
@@ -461,7 +465,7 @@ static int peer_cache_entries_recv_cb(struct dpu_offload_ev_sys *ev_sys, void *c
         if (!is_in_cache(cache, group_id, group_rank))
         {
             SET_PEER_CACHE_ENTRY(cache, &(entries[idx]));
-            group_cache_t *gp_caches = (group_cache_t*)cache->data.base;
+            group_cache_t *gp_caches = (group_cache_t *)cache->data.base;
         }
 
         cur_size += sizeof(peer_cache_entry_t);

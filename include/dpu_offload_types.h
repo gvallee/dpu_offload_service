@@ -188,59 +188,6 @@ typedef struct active_ops
 } active_ops_t;
 #endif
 
-/* NOTIFICATIONS */
-
-typedef struct am_header
-{
-    // For clients, id assigned by server during connection,
-    // used for triage when server has multiple clients
-    uint64_t id;
-
-    // Type associated to the payload, e.g., notification type.
-    uint64_t type;
-} am_header_t;
-
-typedef struct am_req
-{
-    am_header_t hdr;
-    int complete;
-} am_req_t;
-
-struct dpu_offload_ev_sys;
-typedef int (*notification_cb)(struct dpu_offload_ev_sys *ev_sys, void *context, am_header_t *hdr, size_t hdr_size, void *data, size_t data_size);
-
-typedef struct notification_callback_entry
-{
-    bool set;
-    struct dpu_offload_ev_sys *ev_sys;
-    notification_cb cb;
-} notification_callback_entry_t;
-
-typedef struct pending_notification
-{
-    ucs_list_link_t item;
-    uint64_t type;
-    uint64_t client_id;
-    void *header;
-    size_t header_size;
-    void *data;
-    size_t data_size;
-    void *arg;
-} pending_notification_t;
-
-typedef struct dpu_offload_ev_sys
-{
-    dyn_list_t *free_evs;
-    size_t num_used_evs;
-
-    /* pending notifications are notifications that can be delivered upon reception because the callback is not registered yet */
-    ucs_list_link_t pending_notifications;
-    dyn_list_t *free_pending_notifications;
-
-    // Array of callback functions, i.e., array of pointers, organized based on the notification type, a.k.a. notification ID
-    dyn_array_t notification_callbacks;
-} dpu_offload_ev_sys_t;
-
 /* OFFLOADING ENGINE, CLIENTS/SERVERS */
 
 #define INVALID_GROUP (-1)
@@ -309,9 +256,67 @@ typedef struct peer_info
     peer_cache_entry_t **cache_entries;
 } peer_info_t;
 
+/**********************************************/
+/* PUBLIC STRUCTURES RELATED TO NOTIFICATIONS */
+/**********************************************/
+
+/**
+ * @brief am_header_t is the structure used to represent the header sent with UCX active messages
+ */
+typedef struct am_header
+{
+    // Unique identifier assigned at bootstrapping.
+    // For clients, id assigned by server during connection,
+    // used for triage when server has multiple clients
+    uint64_t id;
+
+    // Type associated to the payload, e.g., notification type.
+    // Used to identify the callback to invoke upon reception of a notification.
+    uint64_t type;
+} am_header_t;
+
+/**
+ * @brief am_req_t is the structure used to track completion of a notification.
+ */
+typedef struct am_req
+{
+    // Header associated to the notification.
+    am_header_t hdr;
+
+    // Is the operation completed or not.
+    // An example of a notification that does not complete right away
+    // is a notification requiring the exchange of a RDV message under
+    // the cover.
+    int complete;
+} am_req_t;
+
+/**
+ * @brief dpu_offload_ev_sys_t is the structure representing the event system used to implement notifications.
+ */
+typedef struct dpu_offload_ev_sys
+{
+    // Pool of available events from which objects are taken when invoking event_get().
+    // Once the object obtained, one can populate the event-specific data and emit the event.
+    // From a communication point-of-view, these objects are therefore used on the send side.
+    dyn_list_t *free_evs;
+
+    // Current number of event objects from the pool that are being used.
+    // Note that it means these objects are not in the pool and must be returned at some points.
+    size_t num_used_evs;
+
+    /* pending notifications are notifications that cannot be delivered upon reception because the callback is not registered yet */
+    ucs_list_link_t pending_notifications;
+
+    // free_pending_notifications is a pool oof pending notification objects that can be used when a notification is received and
+    // no callback is registered yet. It avoids allocating memory.
+    dyn_list_t *free_pending_notifications;
+
+    // Array of callback functions, i.e., array of pointers, organized based on the notification type, a.k.a. notification ID
+    dyn_array_t notification_callbacks;
+} dpu_offload_ev_sys_t;
+
 typedef struct connected_clients
 {
-    dpu_offload_ev_sys_t *event_channels;
     size_t num_max_connected_clients;
     size_t num_connected_clients;
     // Array of structures to track connected clients
@@ -566,6 +571,53 @@ typedef struct offloading_engine
     /* Objects used during wire-up */
     dyn_list_t *pool_conn_params;
 } offloading_engine_t;
+
+/***************************/
+/* NOTIFICATIONS INTERNALS */
+/***************************/
+
+struct dpu_offload_ev_sys;
+// notification_cb is the signature of all notification callbacks that are invoked when receiving a notification via the event system
+typedef int (*notification_cb)(struct dpu_offload_ev_sys *ev_sys, execution_context_t *context, am_header_t *hdr, size_t hdr_size, void *data, size_t data_size);
+
+/**
+ * @brief notification_callback_entry_t is the structure representing a callback. 
+ * The event system has a vector of such structures. The type associated to the callback is 
+ * its index in the vector used to track all callbacks (one and only one callback per type)
+ */
+typedef struct notification_callback_entry
+{
+    // Specify whether the callback has been set or not.
+    bool set;
+    // Pointer to the associated event system.
+    struct dpu_offload_ev_sys *ev_sys;
+    // Actually callback function
+    notification_cb cb;
+} notification_callback_entry_t;
+
+/**
+ * @brief pending_notification_t is the structure used to capture the data related to a event that
+ * has been received but cannot yet be delivered because a callback has not been registered yet.
+ */
+typedef struct pending_notification
+{
+    // Element used to be able to add/remove a pending notification to a list
+    ucs_list_link_t item;
+    // Event type
+    uint64_t type;
+    // src_id is the unique identifier of the sender of the notification
+    uint64_t src_id;
+    // header is the AM header associated to the AM message when the notification arrived
+    void *header;
+    // header_size is the length of the header
+    size_t header_size;
+    // AM msg and event payload
+    void *data;
+    // Size of the payload
+    size_t data_size;
+    // Associated execution context
+    execution_context_t *econtext;
+} pending_notification_t;
 
 /*********************/
 /* DPU CONFIGURATION */
