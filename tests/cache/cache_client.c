@@ -34,16 +34,31 @@ int main(int argc, char **argv)
         fprintf(stderr, "undefined destination endpoint\n");
         goto error_out;
     }
-    rc = exchange_cache(client, &(offload_engine->procs_cache), remote_ep);
+
+    dpu_offload_event_t *ev;
+    rc = event_get(client->event_channels, &ev);
     if (rc != DO_SUCCESS)
     {
-        fprintf(stderr, "exchange_cache() failed\n");
+        fprintf(stderr, "event_get() failed\n");
+        goto error_out;
+    }
+    if (ev == NULL)
+    {
+        fprintf(stderr, "undefined event\n");
+        goto error_out;
+    }
+    
+    rc = send_cache(client, &(offload_engine->procs_cache), remote_ep, ev);
+    if (rc != DO_SUCCESS)
+    {
+        fprintf(stderr, "send_cache() failed\n");
         goto error_out;
     }
 
     /* Progress until the last element in the cache is set */
     fprintf(stderr, "Waiting for all the cache entries to arrive...\n");
 
+    // todo: we should use the event to know when it is all completed
     int retry = 0;
     bool test_done = false;
     while (!test_done)
@@ -69,6 +84,8 @@ int main(int argc, char **argv)
 
     /* Check we got all the expected data in the cache */
     CHECK_CACHE(offload_engine);
+
+    event_return(client->event_channels, &ev);
 
     client_fini(&client);
     offload_engine_fini(&offload_engine);

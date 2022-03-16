@@ -132,7 +132,6 @@ static int oob_server_accept(execution_context_t *econtext)
         econtext->server->conn_data.oob.sock = accept(econtext->server->conn_data.oob.listenfd, (struct sockaddr *)NULL, NULL);
         DBG("Connection accepted on fd=%d", econtext->server->conn_data.oob.sock);
     }
-    
     return DO_SUCCESS;
 }
 
@@ -556,6 +555,11 @@ static dpu_offload_status_t execution_context_progress(execution_context_t *ctx)
         {
             ucs_list_del(&(ev->item));
             DBG("event %p completed and removed from ongoing events list", ev);
+            if (ev->req)
+            {
+                ucp_request_free(ev->req);
+                ev->req = NULL;
+            }
             event_return(ctx->event_channels, &ev);
         }
     }
@@ -1072,7 +1076,7 @@ dpu_offload_status_t server_init_context(execution_context_t *econtext, init_par
     int i;
     for (i = 0; i < DEFAULT_MAX_NUM_CLIENTS; i++)
     {
-        econtext->server->connected_clients.clients[i].cache_entries = malloc(MAX_CACHE_ENTRIES_PER_PROC * sizeof(peer_cache_entry_t*));
+        econtext->server->connected_clients.clients[i].cache_entries = malloc(MAX_CACHE_ENTRIES_PER_PROC * sizeof(peer_cache_entry_t *));
         CHECK_ERR_RETURN((econtext->server->connected_clients.clients[i].cache_entries == NULL), DO_ERROR, "Unable to allocate resource to track ranks' cache entries");
     }
 

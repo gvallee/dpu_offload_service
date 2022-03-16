@@ -330,6 +330,46 @@ dpu_offload_status_t event_return(dpu_offload_ev_sys_t *ev_sys, dpu_offload_even
     return DO_SUCCESS;
 }
 
+/**
+ * @brief event_completed is a helper function to check whether an event is completed
+ * The function is aware of sub-events. If all the sub-events are completed and the
+ * request of the event is NULL, the event is reported as completed.
+ *
+ * @param ev_sys Event system to use when events need to be returned
+ * @param ev Event to check for completion.
+ * @return true when the event is completed
+ * @return false when the event is still in progress
+ */
+bool event_completed(dpu_offload_ev_sys_t *ev_sys, dpu_offload_event_t *ev)
+{
+    if (ev->ctx.complete)
+        return true;
+
+    // Update the list of sub-event by removing the completed ones
+    if (ev->sub_events_initialized)
+    {
+        dpu_offload_event_t *subevt, *next;
+        ucs_list_for_each_safe(subevt, next, &(ev->sub_events), item)
+        {
+            if (subevt->ctx.complete)
+            {
+                ucs_list_del(&(subevt->item));
+                dpu_offload_status_t rc = event_return(ev_sys, &subevt);
+                CHECK_ERR_RETURN((rc), DO_ERROR, "event_return() failed");
+            }
+        }
+    }
+
+    // If there is no more sub-event and the request of the event is complete, it is all done
+    if (ev->sub_events_initialized && ucs_list_is_empty(&(ev->sub_events)) && ev->req == NULL)
+    {
+        ev->ctx.complete = true;
+        return true;
+    }
+
+    return false;
+}
+
 /********************/
 /* DEFAULT HANDLERS */
 /********************/

@@ -37,10 +37,22 @@ int main(int argc, char **argv)
     }
 
     fprintf(stderr, "Exchanging cache...\n");
-    rc = exchange_cache(server, &(offload_engine->procs_cache), remote_ep);
+    dpu_offload_event_t *ev;
+    rc = event_get(server->event_channels, &ev);
     if (rc != DO_SUCCESS)
     {
-        fprintf(stderr, "exchange_cache() failed\n");
+        fprintf(stderr, "event_get() failed\n");
+        goto error_out;
+    }
+    if (ev == NULL)
+    {
+        fprintf(stderr, "undefined event\n");
+        goto error_out;
+    }
+    rc = send_cache(server, &(offload_engine->procs_cache), remote_ep, ev);
+    if (rc != DO_SUCCESS)
+    {
+        fprintf(stderr, "send_cache() failed\n");
         goto error_out;
     }
 
@@ -49,6 +61,8 @@ int main(int argc, char **argv)
     {
         server->progress(server);
     }
+
+    event_return(server->event_channels, &ev);
 
     server_fini(&server);
     offload_engine_fini(&offload_engine);
