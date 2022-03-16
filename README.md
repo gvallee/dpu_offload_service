@@ -2,7 +2,7 @@
 
 ## Installation
 
-For installation instructions, please read the [INSTALL.md] documentation.
+For installation instructions, please read the [INSTALL.md](./INSTALL.md) documentation.
 
 ## Execution
 
