@@ -466,14 +466,29 @@ typedef struct pending_am_rdv_recv
     void *user_data;
 } pending_am_rdv_recv_t;
 
+/**
+ * @brief dpu_offload_event_t represents an event, i.e., the implementation of a notification
+ */
 typedef struct dpu_offload_event
 {
+    // item is used to be able to add/remove the event to lists, e.g., the list for ongoing events and the pool of free event objects.
     ucs_list_link_t item;
-    uint64_t id;
+    // sub_events is the list of sub-events composing this event. 
+    // The event that has sub-events is not considered completed unless all sub-events are completed. 
+    // event_completed() can be used to easily check for completion.
+    ucs_list_link_t sub_events;
+    // sub_events_initialized tracks whether the sub-event list has been initialized.
+    bool sub_events_initialized;
+    // ctx is the communication context associated to the event, used to track the status of the potential underlying UCX AM communication
     am_req_t ctx;
+    // req is the opaque request object used to track any potential underlying communication associated to the event.
+    // If more than one communication operation is required, please use sub-events.
     void *req;
+    // context is the user defined context of the event. Can be NULL.
     void *context;
+    // data is the payload associated to the event. Can be NULL.
     void *data;
+    // user_context is the user-defined context for the event. Can be NULL.
     void *user_context;
 } dpu_offload_event_t;
 

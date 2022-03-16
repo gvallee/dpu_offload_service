@@ -24,7 +24,11 @@ char *my_hostname = NULL;
 
 const char *config_file_version_token = "Format version:";
 
-int send_cache_entry(execution_context_t *econtext, ucp_ep_h ep, peer_cache_entry_t *cache_entry)
+/********************************************/
+/* FUNCTIONS RELATED TO THE ENDPOINT CACHES */
+/********************************************/
+
+int send_cache_entry(execution_context_t *econtext, ucp_ep_h ep, peer_cache_entry_t *cache_entry, dpu_offload_event_t **ev)
 {
     dpu_offload_event_t *send_cache_entry_ev;
     dpu_offload_status_t rc = event_get(econtext->event_channels, &send_cache_entry_ev);
@@ -44,10 +48,12 @@ int send_cache_entry(execution_context_t *econtext, ucp_ep_h ep, peer_cache_entr
     // When event complete, we can safely return them.
     ucs_list_add_tail(&(econtext->ongoing_events), &(send_cache_entry_ev->item));
 
+    *ev = send_cache_entry_ev;
+
     return DO_SUCCESS;
 }
 
-static dpu_offload_status_t exchange_group_cache(execution_context_t *econtext, ucp_ep_h dest, group_cache_t *gp_cache)
+static dpu_offload_status_t send_group_cache(execution_context_t *econtext, ucp_ep_h dest, group_cache_t *gp_cache, dpu_offload_event_t *metaev)
 {
     peer_cache_entry_t *ranks_cache = (peer_cache_entry_t *)gp_cache->ranks.base;
     size_t i;
@@ -56,31 +62,67 @@ static dpu_offload_status_t exchange_group_cache(execution_context_t *econtext, 
         if (ranks_cache[i].set)
         {
             DBG("sending cache entry for rank:%ld/gp:%ld", ranks_cache[i].peer.proc_info.group_rank, ranks_cache[i].peer.proc_info.group_id);
-            dpu_offload_status_t rc = send_cache_entry(econtext, dest, &(ranks_cache[i]));
+            dpu_offload_event_t *e;
+            dpu_offload_status_t rc = send_cache_entry(econtext, dest, &(ranks_cache[i]), &e);
             CHECK_ERR_RETURN((rc), DO_ERROR, "send_cache_entry() failed");
+            if (!metaev->sub_events_initialized)
+            {
+                ucs_list_head_init(&(metaev->sub_events));
+                metaev->sub_events_initialized = true;
+            }
+            ucs_list_add_tail(&(metaev->sub_events), &(e->item));
         }
     }
     return DO_SUCCESS;
 }
 
-dpu_offload_status_t exchange_cache(execution_context_t *econtext, cache_t *cache,ucp_ep_h dest)
+dpu_offload_status_t send_cache(execution_context_t *econtext, cache_t *cache, ucp_ep_h dest, dpu_offload_event_t *metaevt)
 {
     // Note: it is all done using the notification channels so there is not
     // need to post receives. Simply send the data if anything needs to be sent
     dpu_offload_status_t rc;
     group_cache_t *groups_cache = (group_cache_t *)cache->data.base;
     size_t i;
+    assert(metaevt);
     for (i = 0; i < cache->data.num_elts; i++)
     {
         if (groups_cache[i].initialized)
         {
-            rc = exchange_group_cache(econtext, dest, &(groups_cache[i]));
+
+            rc = send_group_cache(econtext, dest, &(groups_cache[i]), metaevt);
             CHECK_ERR_RETURN((rc), DO_ERROR, "exchange_group_cache() failed\n");
         }
     }
-
     return DO_SUCCESS;
 }
+
+dpu_offload_status_t exchange_cache(execution_context_t *econtext, dpu_config_t *cfg, cache_t *cache, dpu_offload_event_t *meta_evt)
+{
+    offloading_engine_t *offload_engine = econtext->engine;
+    dpu_offload_status_t rc;
+    size_t i;
+    for (i = 0; i < cfg->num_connecting_dpus; i++)
+    {
+        void *req;
+        dpu_offload_server_t *server = offload_engine->servers[i]->server;
+        ucp_ep_h dest_ep = server->connected_clients.clients[0].ep;
+        rc = send_cache(econtext, &(offload_engine->procs_cache), dest_ep, meta_evt);
+        CHECK_ERR_RETURN((rc), DO_ERROR, "send_cache() failed");
+    }
+
+    for (i = 0; i < cfg->info_connecting_to.num_connect_to; i++)
+    {
+        dpu_offload_client_t *client = offload_engine->inter_dpus_clients[offload_engine->num_inter_dpus_clients]->client;
+        ucp_ep_h dest_ep = client->server_ep;
+        rc = send_cache(econtext, &(econtext->engine->procs_cache), dest_ep, meta_evt);
+        CHECK_ERR_RETURN((rc), DO_ERROR, "send_cache() failed");
+    }
+    return DO_SUCCESS;
+}
+
+/******************************************/
+/* FUNCTIONS RELATED TO THE CONFIGURATION */
+/******************************************/
 
 dpu_offload_status_t check_config_file_version(char *line, int *version)
 {
