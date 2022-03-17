@@ -436,21 +436,59 @@ struct execution_context;
 typedef int (*execution_context_progress_fn)(struct execution_context *);
 
 struct offloading_engine; // forward declaration
+
+/**
+ * @brief execution_context_t is the structure holding all the information related to DPU offloading, both on the hosts and DPUs.
+ * The primary goal of the structure is too abstract whether the process is a client or server during bootstrapping
+ * and how many clients and servers are used for the deployment of the infrastructure.
+ * It recommanded to use the associated macros in order to make the code more abstract and mainly rely on execution contexts.
+ */
 typedef struct execution_context
 {
+    // type specifies if the execution context is a server or a client during the bootstrapping process
     int type;
+
+    // engine is the associated offloading engine
     struct offloading_engine *engine;
+    
+    // event_channels is the notification/event system of the execution context
     dpu_offload_ev_sys_t *event_channels;
+    
+    // ongoing_events is a list of ongoing events.
+    // During progress of the execution context, the status of the event on the list is checked and 
+    // if completed, resources are freed and events are returned to the list of free event in the notification system.
+    // In other words, once added to the list, there is no need to track the event and return them, it is all done implicitly.
     ucs_list_link_t ongoing_events;
+    
+    // progress function to invoke to progress the execution context
     execution_context_progress_fn progress;
+    
+    // rank is the process's group information optinally specified during bootstrapping.
+    // In the context of a execution context running on the host and in the context of
+    // an application, it can be the group/rank data from the runtime (e.g., MPI). This
+    // is used to map the unique identifier of the proc to the DPU offload library during
+    // bootstrapping.
     rank_info_t rank;
+
+    // free_pending_rdv_recv is a list of allocated descriptors used to track pending UCX AM RDV messages.
+    // This list prevents us from allocating memory while handling AM RDV messages.
     dyn_list_t *free_pending_rdv_recv;
+
+    // pending_rdv_recvs is the current list of pending AM RDV receives.
+    // Once completed, the element is returned to free_pending_rdv_recv.
     ucs_list_link_t pending_rdv_recvs;
+
+    // During bootstrapping, the execution context acts either as a client or server.
     union
     {
         dpu_offload_client_t *client;
         dpu_offload_server_t *server;
     };
+
+    // dpus is a vector of remote_dpu_info_t structure used on the DPUs
+    // to easily track all the DPU the execution context is connected to.
+    // This is at the moment not used on the host.
+    dyn_array_t dpus;
 } execution_context_t;
 
 typedef struct pending_am_rdv_recv
@@ -473,8 +511,8 @@ typedef struct dpu_offload_event
 {
     // item is used to be able to add/remove the event to lists, e.g., the list for ongoing events and the pool of free event objects.
     ucs_list_link_t item;
-    // sub_events is the list of sub-events composing this event. 
-    // The event that has sub-events is not considered completed unless all sub-events are completed. 
+    // sub_events is the list of sub-events composing this event.
+    // The event that has sub-events is not considered completed unless all sub-events are completed.
     // event_completed() can be used to easily check for completion.
     ucs_list_link_t sub_events;
     // sub_events_initialized tracks whether the sub-event list has been initialized.
@@ -596,8 +634,8 @@ struct dpu_offload_ev_sys;
 typedef int (*notification_cb)(struct dpu_offload_ev_sys *ev_sys, execution_context_t *context, am_header_t *hdr, size_t hdr_size, void *data, size_t data_size);
 
 /**
- * @brief notification_callback_entry_t is the structure representing a callback. 
- * The event system has a vector of such structures. The type associated to the callback is 
+ * @brief notification_callback_entry_t is the structure representing a callback.
+ * The event system has a vector of such structures. The type associated to the callback is
  * its index in the vector used to track all callbacks (one and only one callback per type)
  */
 typedef struct notification_callback_entry

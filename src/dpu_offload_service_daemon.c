@@ -576,6 +576,7 @@ static dpu_offload_status_t execution_context_init(offloading_engine_t *offload_
     ucs_list_head_init(&(ctx->ongoing_events));
     DYN_LIST_ALLOC(ctx->free_pending_rdv_recv, 32, pending_am_rdv_recv_t, item);
     ucs_list_head_init(&(ctx->pending_rdv_recvs));
+    DYN_ARRAY_ALLOC(&(ctx->dpus), 32, remote_dpu_info_t);
     *econtext = ctx;
     return DO_SUCCESS;
 error_out:
@@ -598,6 +599,9 @@ static void execution_context_fini(execution_context_t **ctx)
             elt->buff_size = 0;
         }
     }
+
+    DYN_ARRAY_FREE(&((*ctx)->dpus));
+    DYN_LIST_FREE((*ctx)->free_pending_rdv_recv, pending_am_rdv_recv_t, item);
 
     free(*ctx);
     *ctx = NULL;
