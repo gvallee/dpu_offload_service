@@ -535,6 +535,9 @@ dpu_offload_status_t offload_engine_init(offloading_engine_t **engine)
     CHECK_ERR_RETURN((d->free_peer_descs == NULL), DO_ERROR, "Allocation of pool of proc descriptor failed");
     DYN_LIST_ALLOC(d->pool_conn_params, 32, conn_params_t, item);
     CHECK_ERR_RETURN((d->pool_conn_params == NULL), DO_ERROR, "Allocation of pool of connection parameter descriptors failed");
+    // Note that engine->dpus is a vector of remote_dpu_info_t pointers.
+    // The actual object are from a dynamic array when parsing the configuration file
+    DYN_ARRAY_ALLOC(&(d->dpus), 32, remote_dpu_info_t *);
     GROUPS_CACHE_INIT(&(d->procs_cache));
     *engine = d;
     return DO_SUCCESS;
@@ -576,7 +579,6 @@ static dpu_offload_status_t execution_context_init(offloading_engine_t *offload_
     ucs_list_head_init(&(ctx->ongoing_events));
     DYN_LIST_ALLOC(ctx->free_pending_rdv_recv, 32, pending_am_rdv_recv_t, item);
     ucs_list_head_init(&(ctx->pending_rdv_recvs));
-    DYN_ARRAY_ALLOC(&(ctx->dpus), 32, remote_dpu_info_t);
     *econtext = ctx;
     return DO_SUCCESS;
 error_out:
@@ -600,9 +602,7 @@ static void execution_context_fini(execution_context_t **ctx)
         }
     }
 
-    DYN_ARRAY_FREE(&((*ctx)->dpus));
     DYN_LIST_FREE((*ctx)->free_pending_rdv_recv, pending_am_rdv_recv_t, item);
-
     free(*ctx);
     *ctx = NULL;
 }
@@ -717,6 +717,7 @@ void offload_engine_fini(offloading_engine_t **offload_engine)
     GROUPS_CACHE_FINI(&((*offload_engine)->procs_cache));
     DYN_LIST_FREE((*offload_engine)->free_op_descs, op_desc_t, item);
     DYN_LIST_FREE((*offload_engine)->free_peer_cache_entries, peer_cache_entry_t, item);
+    DYN_ARRAY_FREE(&((*offload_engine)->dpus));
     free((*offload_engine)->client);
     int i;
     for (i = 0; i < (*offload_engine)->num_servers; i++)
@@ -968,6 +969,23 @@ static inline dpu_offload_status_t oob_server_ucx_client_connection(execution_co
         assert(server->connected_clients.clients);
         assert(server->connected_clients.clients[server->connected_clients.num_connected_clients].cache_entries);
         server->connected_clients.clients[server->connected_clients.num_connected_clients].cache_entries[0] = cache_entry;
+    }
+
+    if (ECONTEXT_ON_DPU(econtext))
+    {
+        /* Check if it is a DPU we are expecting to connect to us */
+        size_t i;
+        remote_dpu_info_t **list_dpus = (remote_dpu_info_t **)econtext->engine->dpus.base;
+        for (i = 0; i < econtext->engine->num_dpus; i++)
+        {
+            if (strncmp(list_dpus[i]->init_params.conn_params->addr_str,
+                        server->conn_data.oob.peer_addr,
+                        strlen(server->conn_data.oob.peer_addr)) == 0)
+            {
+                list_dpus[i]->ep = client_ep;
+                break;
+            }
+        }
     }
 
     server->connected_clients.num_connected_clients++;

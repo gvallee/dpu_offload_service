@@ -437,6 +437,8 @@ typedef int (*execution_context_progress_fn)(struct execution_context *);
 
 struct offloading_engine; // forward declaration
 
+#define ECONTEXT_ON_DPU(_ctx) ((_ctx)->engine->on_dpu)
+
 /**
  * @brief execution_context_t is the structure holding all the information related to DPU offloading, both on the hosts and DPUs.
  * The primary goal of the structure is too abstract whether the process is a client or server during bootstrapping
@@ -450,19 +452,19 @@ typedef struct execution_context
 
     // engine is the associated offloading engine
     struct offloading_engine *engine;
-    
+
     // event_channels is the notification/event system of the execution context
     dpu_offload_ev_sys_t *event_channels;
-    
+
     // ongoing_events is a list of ongoing events.
-    // During progress of the execution context, the status of the event on the list is checked and 
+    // During progress of the execution context, the status of the event on the list is checked and
     // if completed, resources are freed and events are returned to the list of free event in the notification system.
     // In other words, once added to the list, there is no need to track the event and return them, it is all done implicitly.
     ucs_list_link_t ongoing_events;
-    
+
     // progress function to invoke to progress the execution context
     execution_context_progress_fn progress;
-    
+
     // rank is the process's group information optinally specified during bootstrapping.
     // In the context of a execution context running on the host and in the context of
     // an application, it can be the group/rank data from the runtime (e.g., MPI). This
@@ -485,10 +487,6 @@ typedef struct execution_context
         dpu_offload_server_t *server;
     };
 
-    // dpus is a vector of remote_dpu_info_t structure used on the DPUs
-    // to easily track all the DPU the execution context is connected to.
-    // This is at the moment not used on the host.
-    dyn_array_t dpus;
 } execution_context_t;
 
 typedef struct pending_am_rdv_recv
@@ -623,6 +621,17 @@ typedef struct offloading_engine
 
     /* Objects used during wire-up */
     dyn_list_t *pool_conn_params;
+
+    // Flag to specify if we are on the DPU or not
+    bool on_dpu;
+
+    // dpus is a vector of remote_dpu_info_t structure used on the DPUs
+    // to easily track all the DPU the execution context is connected to.
+    // This is at the moment not used on the host.
+    dyn_array_t dpus;
+
+    // Number of DPUs defined in dpus
+    size_t num_dpus;
 } offloading_engine_t;
 
 /***************************/
@@ -683,14 +692,33 @@ typedef enum
     CONNECT_STATUS_DISCONNECTED
 } connect_status_t;
 
+/**
+ * @brief remote_dpu_info_t gathers all the data necessary to track and connect to other DPUs.
+ */
 typedef struct remote_dpu_info
 {
     ucs_list_link_t item;
+
+    // idx is the index in the engine's list of known DPUs
+    size_t idx;
+
+    // DPU's hostname
     char *hostname;
+
+    // Initialization paramaters for bootstrapping
     init_params_t init_params;
+
+    // Connection parameters for bootstrapping
     connect_status_t conn_status;
+
+    // identifier of the connection thread
     pthread_t connection_tid;
+
+    // Associated offloading engine
     offloading_engine_t *offload_engine;
+
+    // Pointer to the endpoint to communicate with the DPU
+    ucp_ep_h ep;
 } remote_dpu_info_t;
 
 typedef struct dpu_config_data
@@ -736,7 +764,15 @@ typedef struct dpu_config
     } local_dpu;
 } dpu_config_t;
 
-dpu_offload_status_t get_dpu_config(dpu_config_t *);
+/**
+ * @brief Get the DPU config object based on the content of the configuration file.
+ *
+ * @param[in] offloading_engine The offloading engine to configure with the configuration file.
+ * @param[in/out] dpu_config Configuration details for all the DPUs from the configuration file.
+ * @return dpu_offload_status_t
+ */
+dpu_offload_status_t get_dpu_config(offloading_engine_t *, dpu_config_t *);
+
 dpu_offload_status_t get_host_config(dpu_config_t *);
 dpu_offload_status_t find_dpu_config_from_platform_configfile(char *, dpu_config_t *);
 dpu_offload_status_t find_config_from_platform_configfile(char *, char *, dpu_config_t *);
@@ -764,31 +800,6 @@ dpu_offload_status_t find_config_from_platform_configfile(char *, char *, dpu_co
         ucs_list_link_t *_list = &((_data)->info_connecting_to.connect_to);                               \
         ucs_list_head_init(_list);                                                                        \
         DYN_LIST_ALLOC((_data)->info_connecting_to.pool_remote_dpu_info, 32, remote_dpu_info_t, item);    \
-    } while (0)
-
-#define SET_DPU_TO_CONNECT_TO(_cfg, _dpu_hostname)                                                                  \
-    do                                                                                                              \
-    {                                                                                                               \
-        remote_dpu_info_t *new_conn_to;                                                                             \
-        DYN_LIST_GET(_cfg->info_connecting_to.pool_remote_dpu_info, remote_dpu_info_t, item, new_conn_to);          \
-        assert(new_conn_to);                                                                                        \
-        conn_params_t *new_conn_params;                                                                             \
-        DYN_LIST_GET(_cfg->offloading_engine->pool_conn_params, conn_params_t, item, new_conn_params);              \
-        assert(new_conn_params);                                                                                    \
-        new_conn_to->hostname = _dpu_hostname;                                                                      \
-        new_conn_to->init_params.conn_params = new_conn_params;                                                     \
-        new_conn_to->init_params.conn_params->addr_str = token;                                                     \
-        if (_cfg->local_dpu.interdpu_conn_params.port > 0)                                                          \
-        {                                                                                                           \
-            /* fixme: this is not working right now but not really needed for our current use cases */              \
-            /* if (init_params->conn_params->port_str != NULL) */                                                   \
-            /*      new_conn_to->init_params.conn_params->port_str = strdup(init_params->conn_params->port_str); */ \
-            new_conn_to->init_params.conn_params->port_str = NULL;                                                  \
-            new_conn_to->init_params.conn_params->port = _cfg->local_dpu.interdpu_conn_params.port;                 \
-        }                                                                                                           \
-        new_conn_to->offload_engine = _cfg->offloading_engine;                                                      \
-        ucs_list_add_tail(&(_cfg->info_connecting_to.connect_to), &(new_conn_to->item));                            \
-        _cfg->info_connecting_to.num_connect_to++;                                                                  \
     } while (0)
 
 /**********************/
