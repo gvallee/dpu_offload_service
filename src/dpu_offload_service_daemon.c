@@ -262,6 +262,7 @@ static dpu_offload_status_t init_context(ucp_context_h *ucp_context, ucp_worker_
     memset(&ucp_params, 0, sizeof(ucp_params));
     /* UCP initialization */
     status = ucp_config_read(NULL, NULL, &config);
+    CHECK_ERR_GOTO((status != UCS_OK), err, "ucp_config_read() failed: %s", ucs_status_string(status));
     ucp_params.field_mask = UCP_PARAM_FIELD_FEATURES;
     ucp_params.features = UCP_FEATURE_TAG | UCP_FEATURE_AM;
     status = ucp_init(&ucp_params, config, ucp_context);
