@@ -227,7 +227,7 @@ bool parse_line_dpu_version_1(dpu_config_t *data, char *line)
     while (token != NULL)
     {
         bool target_dpu = false;
-        size_t i;
+        size_t i, j;
         DBG("-> DPU data: %s", token);
 
         /* if the DPU is not part of the list of DPUs to use, we skip it */
@@ -274,7 +274,26 @@ bool parse_line_dpu_version_1(dpu_config_t *data, char *line)
                 rc = true;
             }
 
-            // Is it in outbound connection? If so we need to save the configuration details
+            /* Save the configuration details */
+            remote_dpu_info_t **list_dpus = (remote_dpu_info_t **)data->offloading_engine->dpus.base;
+            for (j = 0; j < data->offloading_engine->num_dpus; j++)
+            {
+                DBG("Saving configuration details for DPU #%ld, %s (addr: %s)",
+                    j,
+                    list_dpus_from_list[i].version_1.hostname,
+                    list_dpus_from_list[i].version_1.addr);
+
+                if (list_dpus[j] == NULL)
+                    continue;
+
+                if (strncmp(list_dpus_from_list[i].version_1.hostname, list_dpus[j]->hostname, strlen(list_dpus[j]->hostname)) == 0)
+                {
+                    list_dpus[j]->init_params.conn_params->addr_str = list_dpus_from_list[i].version_1.addr;
+                    list_dpus[j]->init_params.conn_params->port = list_dpus_from_list[i].version_1.interdpu_port;
+                }
+            }
+
+            // Is it an outbound connection? 
             remote_dpu_info_t *connect_to, *next_connect_to;
             ucs_list_for_each_safe(connect_to, next_connect_to, &(data->info_connecting_to.connect_to), item)
             {
