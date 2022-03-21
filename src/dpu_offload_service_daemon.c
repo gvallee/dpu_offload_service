@@ -102,7 +102,7 @@ dpu_offload_status_t set_sock_addr(char *addr, uint16_t port, struct sockaddr_st
     return DO_SUCCESS;
 }
 
-static int oob_server_accept(execution_context_t *econtext)
+static int oob_server_accept(execution_context_t *econtext, char *client_addr)
 {
     int connfd;
     struct sockaddr_in servaddr;
@@ -129,8 +129,12 @@ static int oob_server_accept(execution_context_t *econtext)
 
         // fixme: debug when multi-connections are required
         DBG("Accepting connection on port %" PRIu16 "...", server_port);
-        econtext->server->conn_data.oob.sock = accept(econtext->server->conn_data.oob.listenfd, (struct sockaddr *)NULL, NULL);
-        DBG("Connection accepted on fd=%d", econtext->server->conn_data.oob.sock);
+        struct sockaddr_in addr;
+        int addr_len = sizeof(client_addr);
+        econtext->server->conn_data.oob.sock = accept(econtext->server->conn_data.oob.listenfd,  (struct sockaddr *)&addr, &addr_len);
+        struct in_addr ipAddr = addr.sin_addr;
+        inet_ntop(AF_INET, &ipAddr, client_addr, INET_ADDRSTRLEN );
+        DBG("Connection accepted from %s on fd=%d", client_addr, econtext->server->conn_data.oob.sock);
     }
     return DO_SUCCESS;
 }
@@ -535,6 +539,9 @@ dpu_offload_status_t offload_engine_init(offloading_engine_t **engine)
     CHECK_ERR_RETURN((d->free_peer_descs == NULL), DO_ERROR, "Allocation of pool of proc descriptor failed");
     DYN_LIST_ALLOC(d->pool_conn_params, 32, conn_params_t, item);
     CHECK_ERR_RETURN((d->pool_conn_params == NULL), DO_ERROR, "Allocation of pool of connection parameter descriptors failed");
+    // Note that engine->dpus is a vector of remote_dpu_info_t pointers.
+    // The actual object are from a dynamic array when parsing the configuration file
+    DYN_ARRAY_ALLOC(&(d->dpus), 32, remote_dpu_info_t *);
     GROUPS_CACHE_INIT(&(d->procs_cache));
     *engine = d;
     return DO_SUCCESS;
@@ -599,6 +606,7 @@ static void execution_context_fini(execution_context_t **ctx)
         }
     }
 
+    DYN_LIST_FREE((*ctx)->free_pending_rdv_recv, pending_am_rdv_recv_t, item);
     free(*ctx);
     *ctx = NULL;
 }
@@ -713,6 +721,7 @@ void offload_engine_fini(offloading_engine_t **offload_engine)
     GROUPS_CACHE_FINI(&((*offload_engine)->procs_cache));
     DYN_LIST_FREE((*offload_engine)->free_op_descs, op_desc_t, item);
     DYN_LIST_FREE((*offload_engine)->free_peer_cache_entries, peer_cache_entry_t, item);
+    DYN_ARRAY_FREE(&((*offload_engine)->dpus));
     free((*offload_engine)->client);
     int i;
     for (i = 0; i < (*offload_engine)->num_servers; i++)
@@ -870,7 +879,7 @@ static void oob_recv_handler(void *request, ucs_status_t status,
         status, ucs_status_string(status), info->length);
 }
 
-static inline dpu_offload_status_t oob_server_ucx_client_connection(execution_context_t *econtext)
+static inline dpu_offload_status_t oob_server_ucx_client_connection(execution_context_t *econtext, char *client_addr)
 {
     struct oob_msg *msg = NULL;
     struct ucx_context *addr_request = NULL;
@@ -916,7 +925,6 @@ static inline dpu_offload_status_t oob_server_ucx_client_connection(execution_co
     assert(server);
     assert(server->ucp_worker);
     assert(server->conn_data.oob.addr_msg_str);
-
     status = ucx_wait(server->ucp_worker, addr_request, "receive", server->conn_data.oob.addr_msg_str);
     if (status != UCS_OK)
     {
@@ -928,8 +936,7 @@ static inline dpu_offload_status_t oob_server_ucx_client_connection(execution_co
     CHECK_ERR_GOTO((msg <= 0), error_out, "invalid message length: %ld", msg->len);
     server->conn_data.oob.peer_addr = malloc(server->conn_data.oob.peer_addr_len);
     CHECK_ERR_GOTO((server->conn_data.oob.peer_addr == NULL), error_out, "unable to allocate memory for peer address (%ld bytes)", server->conn_data.oob.peer_addr_len);
-
-    memcpy(server->conn_data.oob.peer_addr, msg + 1, server->conn_data.oob.peer_addr_len);
+    memcpy(server->conn_data.oob.peer_addr, msg + 1, server->conn_data.oob.peer_addr_len); 
     free(msg);
 
     ep_params.field_mask = UCP_EP_PARAM_FIELD_REMOTE_ADDRESS |
@@ -966,6 +973,36 @@ static inline dpu_offload_status_t oob_server_ucx_client_connection(execution_co
         server->connected_clients.clients[server->connected_clients.num_connected_clients].cache_entries[0] = cache_entry;
     }
 
+    if (ECONTEXT_ON_DPU(econtext))
+    {
+        /* Check if it is a DPU we are expecting to connect to us */
+        size_t i;
+        remote_dpu_info_t **list_dpus = (remote_dpu_info_t **)econtext->engine->dpus.base;
+        for (i = 0; i < econtext->engine->num_dpus; i++)
+        {
+            if (list_dpus[i] == NULL)
+                continue;
+
+            CHECK_ERR_GOTO((list_dpus[i]->init_params.conn_params == NULL),
+                           error_out,
+                           "connection parameters of DPU #%ld is undefined", i);
+            CHECK_ERR_GOTO((list_dpus[i]->init_params.conn_params->addr_str == NULL),
+                           error_out,
+                           "Address of DPU #%ld is undefined", i);
+            assert(server);
+            assert(server->conn_data.oob.peer_addr);
+            if (strncmp(list_dpus[i]->init_params.conn_params->addr_str, client_addr, strlen(client_addr)) == 0)
+            {
+                list_dpus[i]->ep = client_ep;
+                DBG("-> DPU #%ld: addr=%s, port=%d, ep=%p", i,
+                    list_dpus[i]->init_params.conn_params->addr_str,
+                    list_dpus[i]->init_params.conn_params->port,
+                    list_dpus[i]->ep);
+                break;
+            }
+        }
+    }
+
     server->connected_clients.num_connected_clients++;
     pthread_mutex_unlock(&(econtext->server->mutex));
     DBG("Endpoint to client successfully created");
@@ -985,7 +1022,8 @@ static inline uint64_t generate_unique_client_id(execution_context_t *econtext)
 static dpu_offload_status_t oob_server_listen(execution_context_t *econtext)
 {
     /* OOB connection establishment */
-    dpu_offload_status_t rc = oob_server_accept(econtext);
+    char client_addr[INET_ADDRSTRLEN];
+    dpu_offload_status_t rc = oob_server_accept(econtext, client_addr);
     CHECK_ERR_RETURN((rc), DO_ERROR, "oob_server_accept() failed");
     DBG("Sending my worker's data...\n");
     send(econtext->server->conn_data.oob.sock, &(econtext->server->conn_data.oob.local_addr_len), sizeof(econtext->server->conn_data.oob.local_addr_len), 0);
@@ -993,7 +1031,7 @@ static dpu_offload_status_t oob_server_listen(execution_context_t *econtext)
     uint64_t client_id = generate_unique_client_id(econtext);
     send(econtext->server->conn_data.oob.sock, &client_id, sizeof(uint64_t), 0);
 
-    rc = oob_server_ucx_client_connection(econtext);
+    rc = oob_server_ucx_client_connection(econtext, client_addr);
     CHECK_ERR_RETURN((rc), DO_ERROR, "oob_server_ucx_client_connection() failed");
 
     return DO_SUCCESS;
