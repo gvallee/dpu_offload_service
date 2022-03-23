@@ -12,7 +12,9 @@
 
 /*
  * This test is meant to be used in conjunction with the daemons/job_persistent/job_persistent_dpu_daemon
- * daemon running on DPUs.
+ * daemon running on DPUs. It is assmued that a configuration file is being used through the OFFLOAD_CONFIG_FILE_PATH
+ * environment variable.
+ * 
  * The intent of the test is the following:
  * - start the daemon on the DPU(s) (see documentation)
  * - start 2 clients, which the associated DPU daemons will track
@@ -37,14 +39,27 @@ int main(int argc, char **argv)
     }
     int my_rank = atoi(argv[1]);
 
+    /* Get the configuration */
+    dpu_config_t config_data;
+    dpu_offload_status_t rc = get_host_config(&config_data);
+    if (rc != DO_SUCCESS)
+    {
+        fprintf(stderr, "get_host_config() failed\n");
+        return EXIT_FAILURE;
+    }
+
     /* Initialize everything we need for the test */
     offloading_engine_t *offload_engine;
-    dpu_offload_status_t rc = offload_engine_init(&offload_engine);
+    rc = offload_engine_init(&offload_engine);
     if (rc || offload_engine == NULL)
     {
         fprintf(stderr, "offload_engine_init() failed\n");
         goto error_out;
     }
+
+    dpu_config_data_t *dpu_config;
+    dpu_config = config_data.dpus_config.base;
+    fprintf(stderr, "INFO: connecting to DPU %s:%d\n", dpu_config[0].version_1.addr, dpu_config[0].version_1.rank_port);
 
     rank_info_t my_rank_info = {
         .group_id = 0,
