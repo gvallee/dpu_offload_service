@@ -45,6 +45,7 @@ tests/cache/test_cache
 tests/cache/cache_client
 tests/cache/cache_server
 tests/cache/cache_job_client
+tests/cache/cache_dpu_daemon
 
 # Debug files
 *.dSYM/
