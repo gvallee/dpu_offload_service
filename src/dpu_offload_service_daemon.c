@@ -321,6 +321,8 @@ dpu_offload_status_t client_init_context(execution_context_t *econtext, init_par
         econtext->client->conn_params.addr_str = init_params->conn_params->addr_str;
         econtext->client->conn_params.port_str = init_params->conn_params->port_str;
         econtext->client->conn_params.port = init_params->conn_params->port;
+        if (init_params->id_set)
+            econtext->client->id = init_params->id;
     }
 
     // If we are not using a worker that was passed in, we create a new one.
@@ -968,6 +970,7 @@ static inline dpu_offload_status_t oob_server_ucx_client_connection(execution_co
         cache_entry->peer.proc_info.group_id = peer_data.proc_info.group_id;
         cache_entry->peer.proc_info.group_rank = peer_data.proc_info.group_rank;
         cache_entry->set = true;
+        cache_entry->shadow_dpus[cache_entry->num_shadow_dpus] = ECONTEXT_ID(econtext); 
         assert(server->connected_clients.clients);
         assert(server->connected_clients.clients[server->connected_clients.num_connected_clients].cache_entries);
         server->connected_clients.clients[server->connected_clients.num_connected_clients].cache_entries[0] = cache_entry;
@@ -1131,6 +1134,8 @@ dpu_offload_status_t server_init_context(execution_context_t *econtext, init_par
         econtext->server->conn_params.addr_str = init_params->conn_params->addr_str;
         econtext->server->conn_params.port = init_params->conn_params->port;
         econtext->server->conn_params.port_str = NULL;
+        if (init_params->id_set)
+            econtext->server->id = init_params->id;
     }
 
     DBG("starting server connection thread");

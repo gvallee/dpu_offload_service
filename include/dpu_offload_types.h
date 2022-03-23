@@ -35,7 +35,7 @@ typedef enum
     }                                      \
     else                                   \
     {                                      \
-        _my_id = 0;                        \
+        _my_id = _exec_ctx->server->id;    \
     }                                      \
     _my_id;                                \
 })
@@ -244,7 +244,7 @@ typedef struct peer_cache_entry
     peer_data_t peer;
     ucp_ep_h ep;
     size_t num_shadow_dpus;
-    shadow_dpu_info_t shadow_dpus[MAX_SHADOW_DPUS]; // Array of DPUs (when applicable)
+    uint64_t shadow_dpus[MAX_SHADOW_DPUS]; // Array of DPUs (when applicable)
 } peer_cache_entry_t;
 
 typedef struct peer_info
@@ -334,9 +334,22 @@ typedef struct conn_params
 
 typedef struct init_params
 {
+    // Parameters specific to the initial connection
     conn_params_t *conn_params;
+
+    // Proc identifier passed in by the calling layer.
+    // Mainly used to create the mapping between group/rank from layer such as MPI
     rank_info_t *proc_info;
+
+    // worker to use to perform the initial connection.
+    // If NULL, a new worker will be created
     ucp_worker_h worker;
+
+    // Specifies whether a unique ID is passed in and should be used when creating the execution context
+    bool id_set;
+
+    // Optional unique ID to use when creating the execution context
+    uint64_t id;
 } init_params_t;
 
 #define ECONTEXT_LOCK(_econtext)                             \
@@ -359,6 +372,7 @@ typedef struct init_params
 
 typedef struct dpu_offload_server_t
 {
+    uint64_t id;
     int mode;
     bool done;
     conn_params_t conn_params;
@@ -755,6 +769,8 @@ typedef struct dpu_config
     dyn_array_t dpus_config;
     struct
     {
+        // id is the unique identifier This will be used to set the context ID for the server on the DPU
+        uint64_t id; 
         dpu_config_data_t *config;
         char hostname[1024];
         conn_params_t interdpu_conn_params;
@@ -816,6 +832,7 @@ typedef enum
     AM_XGVMI_DEL_MSG_ID,
     AM_PEER_CACHE_REQ_MSG_ID,
     AM_PEER_CACHE_ENTRIES_MSG_ID, // 40
+    AM_PEER_CACHE_ENTRIES_REQUEST_MSG_ID,
     AM_TEST_MSG_ID
 } am_id_t;
 
