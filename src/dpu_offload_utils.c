@@ -157,11 +157,42 @@ dpu_offload_status_t get_dpu_id_by_group_rank(execution_context_t *econtext, int
 
     // The cache does not have the data. We sent a request to get the data.
     // The caller is in charge of calling the function after completion to actually get the data
-    CHECK_ERR_RETURN((econtext->engine->on_dpu == true), DO_ERROR, "not implemented yet");
     rank_info_t rank_data;
     rank_data.group_id = gp_id;
     rank_data.group_rank = rank;
-    return send_cache_entry_request(econtext, GET_SERVER_EP(econtext), &rank_data, ev);
+    if (econtext->engine->on_dpu == true)
+    {
+        // If we are on a DPU, we need to send a request to all known DPUs
+        size_t i;
+        dpu_offload_event_t *metaev;
+        dpu_offload_status_t rc = event_get(econtext->event_channels, &metaev);
+        remote_dpu_info_t **list_dpus = (remote_dpu_info_t **)econtext->engine->dpus.base;
+        CHECK_ERR_RETURN((rc), DO_ERROR, "get_event() failed");
+
+        for(i = 0; i < econtext->engine->num_dpus; i++)
+        {
+            if (list_dpus[i] != NULL && list_dpus[i]->ep != NULL)
+            {
+                DBG("Sending cache entry request to DPU #%ld", i);
+                ucp_ep_h dpu_ep = list_dpus[i]->ep;
+                dpu_offload_event_t *subev;
+                rc = send_cache_entry_request(econtext, dpu_ep, &rank_data, &subev);
+                CHECK_ERR_RETURN((rc), DO_ERROR, "send_cache_entry_request() failed");
+                if (metaev->sub_events_initialized == false)
+                {
+                    ucs_list_head_init(&(metaev->sub_events));
+                    metaev->sub_events_initialized = true;
+                }
+                ucs_list_add_tail(&(metaev->sub_events), &(subev->item));
+            }
+        }
+        ucs_list_add_tail(&(econtext->ongoing_events), &(metaev->item));
+    }
+    else
+    {
+        // If we are on the host, we need to send a request to our first shadow DPU
+        return send_cache_entry_request(econtext, GET_SERVER_EP(econtext), &rank_data, ev);
+    }
 }
 
 ucp_ep_h get_dpu_ep_by_id(execution_context_t *econtext, uint64_t id)
