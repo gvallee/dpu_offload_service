@@ -643,7 +643,7 @@ typedef struct offloading_engine
     // Flag to specify if we are on the DPU or not
     bool on_dpu;
 
-    // dpus is a vector of remote_dpu_info_t structure used on the DPUs
+    // dpus is a vector of remote_dpu_info_t structures used on the DPUs
     // to easily track all the DPU the execution context is connected to.
     // This is at the moment not used on the host.
     dyn_array_t dpus;
@@ -703,6 +703,31 @@ typedef struct pending_notification
 /* DPU CONFIGURATION */
 /*********************/
 
+#define LIST_DPUS_FROM_ENGINE(_engine) ({                   \
+    remote_dpu_info_t **_list = NULL;                       \
+    if (_engine) {                                          \
+        _list = (remote_dpu_info_t **)(_engine)->dpus.base; \
+    }                                                       \
+    _list;                                                  \
+}) 
+
+#define LIST_DPUS_FROM_ECONTEXT(_econtext) ({               \
+    remote_dpu_info_t **_list = NULL;                       \
+    if (_econtext != NULL) {                                \
+        _list = LIST_DPUS_FROM_ENGINE((_econtext)->engine); \
+    }                                                       \
+    _list;                                                  \
+})
+
+#define ECONTEXT_FOR_DPU_COMMUNICATION(_engine, _dpu_idx) ({    \
+    execution_context_t *_e = NULL;                             \
+    remote_dpu_info_t **_list = LIST_DPUS_FROM_ENGINE(_engine); \
+    if (_list != NULL && _list[dpu_idx] != NULL) {              \
+        _e = _list[dpu_idx]->econtext;                          \
+    }                                                           \
+    _e;                                                         \
+})
+
 typedef enum
 {
     CONNECT_STATUS_UNKNOWN = 0,
@@ -734,6 +759,9 @@ typedef struct remote_dpu_info
 
     // Associated offloading engine
     offloading_engine_t *offload_engine;
+
+    // Execution context to communication with it
+    execution_context_t *econtext;
 
     // Pointer to the endpoint to communicate with the DPU
     ucp_ep_h ep;

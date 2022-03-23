@@ -980,7 +980,8 @@ static inline dpu_offload_status_t oob_server_ucx_client_connection(execution_co
     {
         /* Check if it is a DPU we are expecting to connect to us */
         size_t i;
-        remote_dpu_info_t **list_dpus = (remote_dpu_info_t **)econtext->engine->dpus.base;
+        remote_dpu_info_t **list_dpus = LIST_DPUS_FROM_ECONTEXT(econtext);
+        CHECK_ERR_RETURN((list_dpus == NULL), DO_ERROR, "unable to get list of DPUs");
         for (i = 0; i < econtext->engine->num_dpus; i++)
         {
             if (list_dpus[i] == NULL)
@@ -996,7 +997,10 @@ static inline dpu_offload_status_t oob_server_ucx_client_connection(execution_co
             assert(server->conn_data.oob.peer_addr);
             if (strncmp(list_dpus[i]->init_params.conn_params->addr_str, client_addr, strlen(client_addr)) == 0)
             {
+                // Set the endpoint to communicate with that remote DPU
                 list_dpus[i]->ep = client_ep;
+                // Set the pointer to the execution context in the list of know DPUs. Used for notifications with the remote DPU.
+                list_dpus[i]->econtext = econtext;
                 DBG("-> DPU #%ld: addr=%s, port=%d, ep=%p", i,
                     list_dpus[i]->init_params.conn_params->addr_str,
                     list_dpus[i]->init_params.conn_params->port,

@@ -140,12 +140,12 @@ dpu_offload_status_t exchange_cache(execution_context_t *econtext, dpu_config_t 
     return DO_SUCCESS;
 }
 
-dpu_offload_status_t get_dpu_id_by_group_rank(execution_context_t *econtext, int64_t gp_id, int64_t rank, int64_t dpu_idx, int64_t *dpu_id, dpu_offload_event_t **ev)
+dpu_offload_status_t get_dpu_id_by_group_rank(offloading_engine_t *engine, int64_t gp_id, int64_t rank, int64_t dpu_idx, int64_t *dpu_id, dpu_offload_event_t **ev)
 {
-    if (is_in_cache(&(econtext->engine->procs_cache), gp_id, rank))
+    if (is_in_cache(&(engine->procs_cache), gp_id, rank))
     {
         // The cache has the data
-        dyn_array_t *gp_data, *gps_data = &(econtext->engine->procs_cache.data);
+        dyn_array_t *gp_data, *gps_data = &(engine->procs_cache.data);
         DYN_ARRAY_GET_ELT(gps_data, gp_id, dyn_array_t, gp_data);
         peer_cache_entry_t *cache_entry;
         dyn_array_t *rank_array = (dyn_array_t *)gp_data->base;
@@ -160,16 +160,20 @@ dpu_offload_status_t get_dpu_id_by_group_rank(execution_context_t *econtext, int
     rank_info_t rank_data;
     rank_data.group_id = gp_id;
     rank_data.group_rank = rank;
-    if (econtext->engine->on_dpu == true)
+    if (engine->on_dpu == true)
     {
         // If we are on a DPU, we need to send a request to all known DPUs
+        // To track completion, we get an event from the execution context used for the
+        // first DPU.
         size_t i;
         dpu_offload_event_t *metaev;
+        execution_context_t *econtext = ECONTEXT_FOR_DPU_COMMUNICATION(engine, 0);
+        CHECK_ERR_RETURN((econtext == NULL), DO_ERROR, "unable to get execution context to communicate with DPU #%ld", 0);
         dpu_offload_status_t rc = event_get(econtext->event_channels, &metaev);
-        remote_dpu_info_t **list_dpus = (remote_dpu_info_t **)econtext->engine->dpus.base;
+        remote_dpu_info_t **list_dpus = (remote_dpu_info_t **)engine->dpus.base;
         CHECK_ERR_RETURN((rc), DO_ERROR, "get_event() failed");
 
-        for(i = 0; i < econtext->engine->num_dpus; i++)
+        for(i = 0; i < engine->num_dpus; i++)
         {
             if (list_dpus[i] != NULL && list_dpus[i]->ep != NULL)
             {
@@ -191,6 +195,7 @@ dpu_offload_status_t get_dpu_id_by_group_rank(execution_context_t *econtext, int
     else
     {
         // If we are on the host, we need to send a request to our first shadow DPU
+        execution_context_t *econtext = engine->client;
         return send_cache_entry_request(econtext, GET_SERVER_EP(econtext), &rank_data, ev);
     }
 }

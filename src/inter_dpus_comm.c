@@ -151,6 +151,7 @@ static void *connect_thread(void *arg)
     offload_engine->inter_dpus_clients[offload_engine->num_inter_dpus_clients] = client;
     remote_dpu_info_t **list_dpus = (remote_dpu_info_t **)offload_engine->dpus.base;
     list_dpus[remote_dpu_info->idx]->ep = client->client->server_ep;
+    list_dpus[remote_dpu_info->idx]->econtext = client;
     DBG("-> DPU #%ld: addr=%s, port=%d, ep=%p",
         remote_dpu_info->idx,
         list_dpus[remote_dpu_info->idx]->init_params.conn_params->addr_str,
