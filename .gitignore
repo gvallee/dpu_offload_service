@@ -44,6 +44,7 @@ tests/process_spawn/dpu_process_spawn
 tests/cache/test_cache
 tests/cache/cache_client
 tests/cache/cache_server
+tests/cache/cache_job_client
 
 # Debug files
 *.dSYM/

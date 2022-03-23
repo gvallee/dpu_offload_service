@@ -117,7 +117,7 @@ static ucs_status_t am_notification_recv_rdv_msg(execution_context_t *econtext, 
     }
     else if (UCS_PTR_IS_PTR(status))
     {
-        /* request not yet completd */
+        /* request not yet completed */
         DBG("ucp_am_recv_data_nbx() is INPROGRESS");
         pending_recv->req = status;
     }

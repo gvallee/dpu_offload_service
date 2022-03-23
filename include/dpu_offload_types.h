@@ -146,7 +146,9 @@ typedef struct offload_config
     } infra;
 } offload_config_t;
 
+/**************/
 /* OPERATIONS */
+/**************/
 
 typedef int (*op_init_fn)();
 typedef int (*op_complete_fn)();
@@ -548,7 +550,9 @@ typedef enum
     EVENT_INPROGRESS = UCS_INPROGRESS
 } event_state_t;
 
+/*********************/
 /* OFFLOADING ENGINE */
+/*********************/
 
 typedef struct cache
 {

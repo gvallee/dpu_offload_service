@@ -84,4 +84,26 @@ dpu_offload_status_t send_cache(execution_context_t *econtext, cache_t *cache, u
  */
 dpu_offload_status_t exchange_cache(execution_context_t *econtext, cache_t *cache, dpu_offload_event_t *meta_event);
 
+/**
+ * @brief Get the dpu ID by host rank object. That ID can then be used to look up the corresponding endpoint.
+ * 
+ * @param[in] econtext Execution context for the query
+ * @param[in] gp_id Target group identifier
+ * @param[in] rank Target rank in the group
+ * @param[in] dpu_idx In case of multiple DPUs per host, index of the target shadow DPU for the group/rank
+ * @param[out] dpu_id Resulting DPU identifier
+ * @param[out] ev Associated event. If NULL, the DPU identifier is available right away. If not, it is required to call the function again once the event has completed. The caller is in charge of returning the event after completion.
+ * @return dpu_offload_status_t 
+ */
+dpu_offload_status_t get_dpu_id_by_group_rank(execution_context_t *econtext, int64_t gp_id, int64_t rank, int64_t dpu_idx, int64_t *dpu_id, dpu_offload_event_t **ev);
+
+/**
+ * @brief Get the DPU endpoint by ID object, i.e., the identifier returned by get_dpu_id_by_host_rank
+ * 
+ * @param econtext Execution context for the query
+ * @param id DPU identifier
+ * @return ucp_ep_h DPU's endpoint
+ */
+ucp_ep_h get_dpu_ep_by_id(execution_context_t *econtext, uint64_t id);
+
 #endif // DPU_OFFLOAD_SERVICE_DAEMON_H_

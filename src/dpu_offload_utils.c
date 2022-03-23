@@ -140,7 +140,7 @@ dpu_offload_status_t exchange_cache(execution_context_t *econtext, dpu_config_t 
     return DO_SUCCESS;
 }
 
-dpu_offload_status_t get_dpu_id_by_host_rank(execution_context_t *econtext, int64_t gp_id, int64_t rank, int64_t dpu_idx, int64_t *dpu_id, dpu_offload_event_t **ev)
+dpu_offload_status_t get_dpu_id_by_group_rank(execution_context_t *econtext, int64_t gp_id, int64_t rank, int64_t dpu_idx, int64_t *dpu_id, dpu_offload_event_t **ev)
 {
     if (is_in_cache(&(econtext->engine->procs_cache), gp_id, rank))
     {

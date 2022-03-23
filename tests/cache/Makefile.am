@@ -10,16 +10,15 @@
 #
 
 SUBDIRS = 
-bin_PROGRAMS = test_cache cache_server cache_client
+AM_LDFLAGS = -ldpuoffloaddaemon
+AM_CFLAGS = -I@top_srcdir@/include -L@top_srcdir@/src/.libs
+
+bin_PROGRAMS = test_cache cache_server cache_client cache_job_client
 
 test_cache_SOURCES = test_cache.c test_cache_common.h
-AM_LDFLAGS = -ldpuoffloaddaemon
-AM_CFLAGS = -I@top_srcdir@/include -L@top_srcdir@/src/.libs
 
 cache_server_SOURCES = cache_server.c test_cache_common.h
-AM_LDFLAGS = -ldpuoffloaddaemon
-AM_CFLAGS = -I@top_srcdir@/include -L@top_srcdir@/src/.libs
 
 cache_client_SOURCES = cache_client.c test_cache_common.h
-AM_LDFLAGS = -ldpuoffloaddaemon
-AM_CFLAGS = -I@top_srcdir@/include -L@top_srcdir@/src/.libs
+
+cache_job_client_SOURCES = cache_job_client.c

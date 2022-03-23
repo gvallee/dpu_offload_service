@@ -35,5 +35,6 @@ dpu_offload_status_t event_channels_fini(dpu_offload_ev_sys_t **);
 
 dpu_offload_status_t event_get(dpu_offload_ev_sys_t *ev_sys, dpu_offload_event_t **ev);
 dpu_offload_status_t event_return(dpu_offload_ev_sys_t *ev_sys, dpu_offload_event_t **ev);
+bool event_completed(dpu_offload_ev_sys_t *ev_sys, dpu_offload_event_t *ev);
 
 #endif // DPU_OFFLOAD_EVENT_CHANNELS_H_
