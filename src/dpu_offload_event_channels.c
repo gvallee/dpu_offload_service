@@ -444,7 +444,7 @@ static dpu_offload_status_t xgvmi_key_revoke_cb(struct dpu_offload_ev_sys *ev_sy
     return DO_ERROR;
 }
 
-static int xgvmi_key_recv_cb(struct dpu_offload_ev_sys *ev_sys, execution_context_t *context, am_header_t *hdr, size_t hdr_size, void *data, size_t data_len)
+static dpu_offload_status_t xgvmi_key_recv_cb(struct dpu_offload_ev_sys *ev_sys, execution_context_t *context, am_header_t *hdr, size_t hdr_size, void *data, size_t data_len)
 {
     // todo
     return DO_ERROR;
@@ -485,7 +485,7 @@ bool is_in_cache(cache_t *cache, int64_t gp_id, int64_t rank_id)
     return true;
 }
 
-static int peer_cache_entries_request_recv_cb(struct dpu_offload_ev_sys *ev_sys, execution_context_t *econtext, am_header_t *hdr, size_t hdr_size, void *data, size_t data_len)
+static dpu_offload_status_t peer_cache_entries_request_recv_cb(struct dpu_offload_ev_sys *ev_sys, execution_context_t *econtext, am_header_t *hdr, size_t hdr_size, void *data, size_t data_len)
 {
     assert(econtext);
     assert(data);
@@ -534,7 +534,7 @@ static int peer_cache_entries_request_recv_cb(struct dpu_offload_ev_sys *ev_sys,
     return DO_ERROR;
 }
 
-static int peer_cache_entries_recv_cb(struct dpu_offload_ev_sys *ev_sys, execution_context_t *econtext, am_header_t *hdr, size_t hdr_size, void *data, size_t data_len)
+static dpu_offload_status_t peer_cache_entries_recv_cb(struct dpu_offload_ev_sys *ev_sys, execution_context_t *econtext, am_header_t *hdr, size_t hdr_size, void *data, size_t data_len)
 {
     assert(econtext);
     assert(data);
@@ -568,6 +568,34 @@ static int peer_cache_entries_recv_cb(struct dpu_offload_ev_sys *ev_sys, executi
     return DO_SUCCESS;
 }
 
+/**
+ * @brief add_group_rank_recv_cb is invoked on the DPU when receiving a notification from a rank running on the local host
+ * that a new group/rank had been created
+ * 
+ * @param ev_sys Associated event/notification system
+ * @param econtext Associated execution contexxt
+ * @param hdr Header of the received notification
+ * @param hdr_size Size of the header
+ * @param data Payload associated to the notification
+ * @param data_len Size of the payload
+ * @return dpu_offload_status_t 
+ */
+static dpu_offload_status_t add_group_rank_recv_cb(struct dpu_offload_ev_sys *ev_sys, execution_context_t *econtext, am_header_t *hdr, size_t hdr_size, void *data, size_t data_len)
+{
+    assert(econtext);
+    assert(data);
+
+    offloading_engine_t *engine = (offloading_engine_t *)econtext->engine;
+    rank_info_t *rank_info = (rank_info_t*)data;
+
+    if (!is_in_cache(&(econtext->engine->procs_cache), rank_info->group_id, rank_info->group_rank))
+    {
+        SET_GROUP_RANK_CACHE_ENTRY(econtext, rank_info->group_id, rank_info->group_rank);
+    }
+
+    return DO_SUCCESS;
+}
+
 /*************************************/
 /* Registration of all the callbacks */
 /*************************************/
@@ -593,6 +621,9 @@ dpu_offload_status_t register_default_notifications(dpu_offload_ev_sys_t *ev_sys
 
     rc = event_channel_register(ev_sys, AM_PEER_CACHE_ENTRIES_REQUEST_MSG_ID, peer_cache_entries_request_recv_cb);
     CHECK_ERR_RETURN(rc, DO_ERROR, "cannot register handler for receiving peer cache requests");
+
+    rc = event_channel_register(ev_sys, AM_ADD_GP_RANK_MSG_ID, add_group_rank_recv_cb);
+    CHECK_ERR_RETURN(rc, DO_ERROR, "cannot register handler for receiving requests to add a group/rank");
 
     return DO_SUCCESS;
 }

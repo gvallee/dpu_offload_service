@@ -24,13 +24,40 @@ char *my_hostname = NULL;
 
 const char *config_file_version_token = "Format version:";
 
+/*************************************/
+/* FUNCTIONS RELATED TO GROUPS/RANKS */
+/*************************************/
+
+dpu_offload_status_t send_ad_group_rank_request(execution_context_t *econtext, ucp_ep_h ep, int64_t group_id, int64_t rank, dpu_offload_event_t **e)
+{
+    dpu_offload_event_t *ev;
+    dpu_offload_status_t rc = event_get(econtext->event_channels, &ev);
+    CHECK_ERR_RETURN((rc), DO_ERROR, "event_get() failed");
+
+    DBG("Sending request to add group/rank");
+    rank_info_t rank_info = {
+        .group_id = group_id,
+        .group_rank = rank,
+    };
+    rc = event_channel_emit(ev,
+                            ECONTEXT_ID(econtext),
+                            AM_ADD_GP_RANK_MSG_ID,
+                            ep,
+                            NULL,
+                            &rank_info,
+                            sizeof(rank_info_t));
+    CHECK_ERR_RETURN((rc != EVENT_DONE && rc != EVENT_INPROGRESS), DO_ERROR, "event_channel_emit() failed");
+    *e = ev;
+    return DO_SUCCESS;
+}
+
 /********************************************/
 /* FUNCTIONS RELATED TO THE ENDPOINT CACHES */
 /********************************************/
 
 extern bool is_in_cache(cache_t *cache, int64_t gp_id, int64_t rank_id);
 
-int send_cache_entry_request(execution_context_t *econtext, ucp_ep_h ep, rank_info_t *requested_peer, dpu_offload_event_t **ev)
+dpu_offload_status_t send_cache_entry_request(execution_context_t *econtext, ucp_ep_h ep, rank_info_t *requested_peer, dpu_offload_event_t **ev)
 {
     dpu_offload_event_t *cache_entry_request_ev;
     dpu_offload_status_t rc = event_get(econtext->event_channels, &cache_entry_request_ev);
@@ -49,7 +76,7 @@ int send_cache_entry_request(execution_context_t *econtext, ucp_ep_h ep, rank_in
     return DO_SUCCESS;
 }
 
-int send_cache_entry(execution_context_t *econtext, ucp_ep_h ep, peer_cache_entry_t *cache_entry, dpu_offload_event_t **ev)
+dpu_offload_status_t send_cache_entry(execution_context_t *econtext, ucp_ep_h ep, peer_cache_entry_t *cache_entry, dpu_offload_event_t **ev)
 {
     dpu_offload_event_t *send_cache_entry_ev;
     dpu_offload_status_t rc = event_get(econtext->event_channels, &send_cache_entry_ev);

@@ -568,6 +568,31 @@ typedef struct group_cache
     dyn_array_t ranks;
 } group_cache_t;
 
+#define SET_GROUP_RANK_CACHE_ENTRY(_econtext, _gp_id, _rank)                                      \
+    ({                                                                                            \
+        peer_cache_entry_t *_entry = NULL;                                                        \
+        group_cache_t *_gp_cache = (group_cache_t *)(_econtext)->engine->procs_cache.data.base;   \
+        dyn_array_t *_rank_cache = &(_gp_cache[_gp_id].ranks);                                    \
+        if (_gp_cache[_gp_id].initialized == false)                                               \
+        {                                                                                         \
+            /* Cache for the group is empty */                                                    \
+            DYN_ARRAY_ALLOC(_rank_cache, DEFAULT_NUM_PEERS, peer_cache_entry_t);                  \
+            _gp_cache[_gp_id].initialized = true;                                                 \
+            (_econtext)->engine->procs_cache.size++;                                              \
+        }                                                                                         \
+        if (_rank >= _rank_cache->num_elts)                                                       \
+            DYN_ARRAY_GROW(_rank_cache, peer_cache_entry_t, _rank);                               \
+        assert(_rank < _rank_cache->num_elts);                                                    \
+        peer_cache_entry_t *_ptr = (peer_cache_entry_t *)_rank_cache->base;                       \
+        _ptr[_rank].peer.proc_info.group_id = _gp_id;                                             \
+        _ptr[_rank].peer.proc_info.group_rank = _rank;                                            \
+        _ptr[_rank].num_shadow_dpus = 1; /* fixme: find a way to get the DPUs config from here */ \
+        _ptr[_rank].shadow_dpus[0] = ECONTEXT_ID(econtext);                                       \
+        _ptr[_rank].set = true;                                                                   \
+        _entry = &(_ptr[_rank]);                                                                  \
+        _entry;                                                                                   \
+    })
+
 #define SET_PEER_CACHE_ENTRY_FROM_PEER_DATA(_peer_cache, _peer_data)                              \
     do                                                                                            \
     {                                                                                             \
@@ -705,15 +730,17 @@ typedef struct pending_notification
 
 #define LIST_DPUS_FROM_ENGINE(_engine) ({                   \
     remote_dpu_info_t **_list = NULL;                       \
-    if (_engine) {                                          \
+    if (_engine)                                            \
+    {                                                       \
         _list = (remote_dpu_info_t **)(_engine)->dpus.base; \
     }                                                       \
     _list;                                                  \
-}) 
+})
 
 #define LIST_DPUS_FROM_ECONTEXT(_econtext) ({               \
     remote_dpu_info_t **_list = NULL;                       \
-    if (_econtext != NULL) {                                \
+    if (_econtext != NULL)                                  \
+    {                                                       \
         _list = LIST_DPUS_FROM_ENGINE((_econtext)->engine); \
     }                                                       \
     _list;                                                  \
@@ -722,7 +749,8 @@ typedef struct pending_notification
 #define ECONTEXT_FOR_DPU_COMMUNICATION(_engine, _dpu_idx) ({    \
     execution_context_t *_e = NULL;                             \
     remote_dpu_info_t **_list = LIST_DPUS_FROM_ENGINE(_engine); \
-    if (_list != NULL && _list[dpu_idx] != NULL) {              \
+    if (_list != NULL && _list[dpu_idx] != NULL)                \
+    {                                                           \
         _e = _list[dpu_idx]->econtext;                          \
     }                                                           \
     _e;                                                         \
@@ -802,7 +830,7 @@ typedef struct dpu_config
     struct
     {
         // id is the unique identifier This will be used to set the context ID for the server on the DPU
-        uint64_t id; 
+        uint64_t id;
         dpu_config_data_t *config;
         char hostname[1024];
         conn_params_t interdpu_conn_params;
@@ -865,6 +893,7 @@ typedef enum
     AM_PEER_CACHE_REQ_MSG_ID,
     AM_PEER_CACHE_ENTRIES_MSG_ID, // 40
     AM_PEER_CACHE_ENTRIES_REQUEST_MSG_ID,
+    AM_ADD_GP_RANK_MSG_ID,
     AM_TEST_MSG_ID
 } am_id_t;
 
