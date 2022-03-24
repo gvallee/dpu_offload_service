@@ -64,19 +64,6 @@ int main(int argc, char **argv)
     }
     fprintf(stderr, "Connections between DPUs successfully initialized\n");
 
-    /*
-     * CREATE A SERVER SO THAT PROCESSES RUNNING ON THE HOST CAN CONNECT.
-     */
-    fprintf(stderr, "Creating server for processes on the DPU\n");
-    // We let the system figure out the configuration to use to let ranks connect
-    execution_context_t *service_server = server_init(offload_engine, &(config_data.local_dpu.host_init_params));
-    if (service_server == NULL)
-    {
-        fprintf(stderr, "service_server is undefined\n");
-        return EXIT_FAILURE;
-    }
-    fprintf(stderr, "server for application processes to connect has been successfully created\n");
-
     fprintf(stderr, "I am DPU #%ld, starting the test\n", config_data.local_dpu.id);
 
     if (config_data.local_dpu.id == 1)
@@ -95,13 +82,17 @@ int main(int argc, char **argv)
         new_entry->peer.proc_info.group_id = 42;
         new_entry->set = true;
         SET_PEER_CACHE_ENTRY(&(offload_engine->procs_cache), new_entry);
+
+        fprintf(stderr, "Cache entry successfully created\n");
     }
     else
     {
         dpu_offload_event_t *ev;
         uint64_t shadow_dpu_id;
-        // todo: it is inter-DPU communication, it should not be service_server
-        rc = get_dpu_id_by_group_rank(service_server, 42, 42, 0, &shadow_dpu_id, &ev);
+        execution_context_t *econtext = XXX;
+
+        fprintf(stderr, "Looking up endpoint\n");
+        rc = get_dpu_id_by_group_rank(offload_engine, 42, 42, 0, &shadow_dpu_id, &ev);
         if (rc != DO_SUCCESS)
         {
             fprintf(stderr, "get_dpu_id_by_host_rank() failed\n");
@@ -110,17 +101,19 @@ int main(int argc, char **argv)
 
         if (ev != NULL)
         {
-            while (!event_completed(service_server->event_channels, ev))
-                service_server->progress(service_server);
+            fprintf(stderr, "Waiting for look up to complete\n");
+            while (!event_completed(econtext->event_channels, ev))
+                econtext->progress(econtext);
 
-            rc = event_return(service_server->event_channels, &ev);
+            fprintf(stderr, "Look up completed\n");
+            rc = event_return(econtext->event_channels, &ev);
             if (rc != DO_SUCCESS)
             {
                 fprintf(stderr, "event_return() failed\n");
                 goto error_out;
             }
 
-            rc = get_dpu_id_by_group_rank(service_server, 42, 42, 0, &shadow_dpu_id, &ev);
+            rc = get_dpu_id_by_group_rank(offload_engine, 42, 42, 0, &shadow_dpu_id, &ev);
             if (rc != DO_SUCCESS)
             {
                 fprintf(stderr, "get_dpu_id_by_host_rank() failed\n");
@@ -133,7 +126,7 @@ int main(int argc, char **argv)
             }
         }
 
-        ucp_ep_h target_dpu_ep = get_dpu_ep_by_id(service_server, shadow_dpu_id);
+        ucp_ep_h target_dpu_ep = get_dpu_ep_by_id(offload_engine, shadow_dpu_id);
         if (target_dpu_ep == NULL)
         {
             fprintf(stderr, "shadow DPU endpoint is undefined\n");
@@ -141,13 +134,11 @@ int main(int argc, char **argv)
         }
     }
 
-    server_fini(&service_server);
     offload_engine_fini(&offload_engine);
     fprintf(stderr, "client all done, exiting successfully\n");
 
     return EXIT_SUCCESS;
 error_out:
-    server_fini(&service_server);
     offload_engine_fini(&offload_engine);
     fprintf(stderr, "%s: test failed\n", argv[0]);
     return EXIT_FAILURE;

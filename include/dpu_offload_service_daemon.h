@@ -52,6 +52,16 @@ typedef enum
 dpu_offload_status_t offload_engine_init(offloading_engine_t **engine);
 void offload_engine_fini(offloading_engine_t **engine);
 
+/**
+ * @brief offload_engine_progress progresses the entire offloading engine, i.e., all the
+ * associated execution context. It is for instance used to progress all communications
+ * between DPUs and ensure completions of ongoing communications.
+ * 
+ * @param[in] engine The offloading engine to progress
+ * @return dpu_offload_status_t
+ */
+dpu_offload_status_t offload_engine_progress(offloading_engine_t **engine)
+
 execution_context_t *server_init(offloading_engine_t *, init_params_t *);
 void server_fini(execution_context_t **);
 
