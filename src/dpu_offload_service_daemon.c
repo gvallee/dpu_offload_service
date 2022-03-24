@@ -131,9 +131,9 @@ static int oob_server_accept(execution_context_t *econtext, char *client_addr)
         DBG("Accepting connection on port %" PRIu16 "...", server_port);
         struct sockaddr_in addr;
         int addr_len = sizeof(client_addr);
-        econtext->server->conn_data.oob.sock = accept(econtext->server->conn_data.oob.listenfd,  (struct sockaddr *)&addr, &addr_len);
+        econtext->server->conn_data.oob.sock = accept(econtext->server->conn_data.oob.listenfd, (struct sockaddr *)&addr, &addr_len);
         struct in_addr ipAddr = addr.sin_addr;
-        inet_ntop(AF_INET, &ipAddr, client_addr, INET_ADDRSTRLEN );
+        inet_ntop(AF_INET, &ipAddr, client_addr, INET_ADDRSTRLEN);
         DBG("Connection accepted from %s on fd=%d", client_addr, econtext->server->conn_data.oob.sock);
     }
     return DO_SUCCESS;
@@ -535,7 +535,7 @@ dpu_offload_status_t offload_engine_progress(offloading_engine_t *engine)
             execution_context_t *econtext = list_dpus[i]->econtext;
             if (econtext == NULL || econtext->progress == NULL)
                 continue;
-            
+
             econtext->progress(econtext);
         }
     }
@@ -959,7 +959,7 @@ static inline dpu_offload_status_t oob_server_ucx_client_connection(execution_co
     CHECK_ERR_GOTO((msg <= 0), error_out, "invalid message length: %ld", msg->len);
     server->conn_data.oob.peer_addr = malloc(server->conn_data.oob.peer_addr_len);
     CHECK_ERR_GOTO((server->conn_data.oob.peer_addr == NULL), error_out, "unable to allocate memory for peer address (%ld bytes)", server->conn_data.oob.peer_addr_len);
-    memcpy(server->conn_data.oob.peer_addr, msg + 1, server->conn_data.oob.peer_addr_len); 
+    memcpy(server->conn_data.oob.peer_addr, msg + 1, server->conn_data.oob.peer_addr_len);
     free(msg);
 
     ep_params.field_mask = UCP_EP_PARAM_FIELD_REMOTE_ADDRESS |
@@ -986,12 +986,16 @@ static inline dpu_offload_status_t oob_server_ucx_client_connection(execution_co
     if (IS_A_VALID_PEER_DATA((&peer_data)))
     {
         // Update the pointer to track cache entries, i.e., groups/ranks, for the peer
+#if 0
         peer_cache_entry_t *cache_entry;
         GET_PEER_DATA_HANDLE(econtext->engine->free_peer_cache_entries, cache_entry);
         cache_entry->peer.proc_info.group_id = peer_data.proc_info.group_id;
         cache_entry->peer.proc_info.group_rank = peer_data.proc_info.group_rank;
         cache_entry->set = true;
-        cache_entry->shadow_dpus[cache_entry->num_shadow_dpus] = ECONTEXT_ID(econtext); 
+        cache_entry->shadow_dpus[cache_entry->num_shadow_dpus] = ECONTEXT_ID(econtext);
+#else
+        peer_cache_entry_t *cache_entry = SET_GROUP_RANK_CACHE_ENTRY(econtext, peer_data.proc_info.group_id, peer_data.proc_info.group_rank);
+#endif
         assert(server->connected_clients.clients);
         assert(server->connected_clients.clients[server->connected_clients.num_connected_clients].cache_entries);
         server->connected_clients.clients[server->connected_clients.num_connected_clients].cache_entries[0] = cache_entry;
