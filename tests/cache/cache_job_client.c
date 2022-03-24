@@ -81,7 +81,7 @@ int main(int argc, char **argv)
 
     dpu_offload_event_t *ev;
     uint64_t shadow_dpu_id;
-    rc = get_dpu_id_by_group_rank(client, 0, target, 0, &shadow_dpu_id, &ev);
+    rc = get_dpu_id_by_group_rank(offload_engine, 0, target, 0, &shadow_dpu_id, &ev);
     if (rc != DO_SUCCESS)
     {
         fprintf(stderr, "get_dpu_id_by_host_rank() failed\n");
@@ -100,7 +100,7 @@ int main(int argc, char **argv)
             goto error_out;
         }
 
-        rc = get_dpu_id_by_group_rank(client, 0, target, 0, &shadow_dpu_id, &ev);
+        rc = get_dpu_id_by_group_rank(offload_engine, 0, target, 0, &shadow_dpu_id, &ev);
         if (rc != DO_SUCCESS)
         {
             fprintf(stderr, "get_dpu_id_by_host_rank() failed\n");
@@ -113,7 +113,7 @@ int main(int argc, char **argv)
         }
     }
 
-    ucp_ep_h target_dpu_ep = get_dpu_ep_by_id(client, shadow_dpu_id);
+    ucp_ep_h target_dpu_ep = get_dpu_ep_by_id(offload_engine, shadow_dpu_id);
     if (target_dpu_ep == NULL)
     {
         fprintf(stderr, "shadow DPU endpoint is undefined\n");
