@@ -526,13 +526,13 @@ dpu_offload_status_t offload_engine_progress(offloading_engine_t *engine)
     if (engine->on_dpu)
     {
         size_t i;
-        remote_dpu_info_t **list_dpus = LIST_DPUS_FROM_ENGINE(_engine)
+        remote_dpu_info_t **list_dpus = LIST_DPUS_FROM_ENGINE(engine);
         for (i = 0; i < engine->num_dpus; i++)
         {
             if (list_dpus[i] == NULL)
                 continue;
 
-            execution_context_t *econtext = list_dpus[i].econtext;
+            execution_context_t *econtext = list_dpus[i]->econtext;
             if (econtext == NULL || econtext->progress == NULL)
                 continue;
             

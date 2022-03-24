@@ -168,7 +168,7 @@ dpu_offload_status_t get_dpu_id_by_group_rank(offloading_engine_t *engine, int64
         size_t i;
         dpu_offload_event_t *metaev;
         execution_context_t *econtext = ECONTEXT_FOR_DPU_COMMUNICATION(engine, 0);
-        CHECK_ERR_RETURN((econtext == NULL), DO_ERROR, "unable to get execution context to communicate with DPU #%ld", 0);
+        CHECK_ERR_RETURN((econtext == NULL), DO_ERROR, "unable to get execution context to communicate with DPU #0");
         dpu_offload_status_t rc = event_get(econtext->event_channels, &metaev);
         remote_dpu_info_t **list_dpus = (remote_dpu_info_t **)engine->dpus.base;
         CHECK_ERR_RETURN((rc), DO_ERROR, "get_event() failed");

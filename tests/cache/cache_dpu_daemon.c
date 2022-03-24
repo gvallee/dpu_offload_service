@@ -89,7 +89,14 @@ int main(int argc, char **argv)
     {
         dpu_offload_event_t *ev;
         uint64_t shadow_dpu_id;
-        execution_context_t *econtext = XXX;
+        execution_context_t *econtext = offload_engine->servers[0];
+        if (econtext == NULL)
+            econtext = offload_engine->client;
+        if (econtext == NULL)
+        {
+            fprintf(stderr, "unable to find a valid execution context\n");
+            goto error_out;
+        }
 
         fprintf(stderr, "Looking up endpoint\n");
         rc = get_dpu_id_by_group_rank(offload_engine, 42, 42, 0, &shadow_dpu_id, &ev);

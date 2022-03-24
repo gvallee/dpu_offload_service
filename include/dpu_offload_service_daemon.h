@@ -60,7 +60,7 @@ void offload_engine_fini(offloading_engine_t **engine);
  * @param[in] engine The offloading engine to progress
  * @return dpu_offload_status_t
  */
-dpu_offload_status_t offload_engine_progress(offloading_engine_t **engine)
+dpu_offload_status_t offload_engine_progress(offloading_engine_t *engine);
 
 execution_context_t *server_init(offloading_engine_t *, init_params_t *);
 void server_fini(execution_context_t **);
