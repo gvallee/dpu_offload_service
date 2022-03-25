@@ -193,18 +193,26 @@ dpu_offload_status_t get_dpu_id_by_group_rank(offloading_engine_t *engine, int64
         // To track completion, we get an event from the execution context used for the
         // first DPU.
         size_t i;
-        dpu_offload_event_t *metaev;
-        execution_context_t *econtext = ECONTEXT_FOR_DPU_COMMUNICATION(engine, 0);
-        CHECK_ERR_RETURN((econtext == NULL), DO_ERROR, "unable to get execution context to communicate with DPU #0");
-        dpu_offload_status_t rc = event_get(econtext->event_channels, &metaev);
+        dpu_offload_status_t rc;
+        dpu_offload_event_t *metaev = NULL;
         remote_dpu_info_t **list_dpus = (remote_dpu_info_t **)engine->dpus.base;
-        CHECK_ERR_RETURN((rc), DO_ERROR, "get_event() failed");
+        execution_context_t *meta_econtext = NULL;
 
         for(i = 0; i < engine->num_dpus; i++)
         {
             if (list_dpus[i] != NULL && list_dpus[i]->ep != NULL)
             {
                 DBG("Sending cache entry request to DPU #%ld", i);
+                execution_context_t *econtext = ECONTEXT_FOR_DPU_COMMUNICATION(engine, i);
+                CHECK_ERR_RETURN((econtext == NULL), DO_ERROR, "unable to get execution context to communicate with DPU #0");
+
+                if (metaev == NULL)
+                {
+                    meta_econtext = econtext;
+                    rc = event_get(meta_econtext->event_channels, &metaev);
+                    CHECK_ERR_RETURN((rc), DO_ERROR, "get_event() failed");
+                }
+
                 ucp_ep_h dpu_ep = list_dpus[i]->ep;
                 dpu_offload_event_t *subev;
                 rc = send_cache_entry_request(econtext, dpu_ep, &rank_data, &subev);
@@ -217,7 +225,11 @@ dpu_offload_status_t get_dpu_id_by_group_rank(offloading_engine_t *engine, int64
                 ucs_list_add_tail(&(metaev->sub_events), &(subev->item));
             }
         }
-        ucs_list_add_tail(&(econtext->ongoing_events), &(metaev->item));
+        if (metaev)
+        {
+            assert(meta_econtext);
+            ucs_list_add_tail(&(meta_econtext->ongoing_events), &(metaev->item));
+        }
     }
     else
     {
@@ -229,7 +241,7 @@ dpu_offload_status_t get_dpu_id_by_group_rank(offloading_engine_t *engine, int64
 
 ucp_ep_h get_dpu_ep_by_id(execution_context_t *econtext, uint64_t id)
 {
-    remote_dpu_info_t **list_dpus = (remote_dpu_info_t **)econtext->engine->dpus.base;
+    remote_dpu_info_t **list_dpus = LIST_DPUS_FROM_ECONTEXT(econtext);
     if (list_dpus[id] == NULL)
         return NULL;
     return list_dpus[id]->ep;
@@ -403,16 +415,17 @@ bool parse_line_dpu_version_1(dpu_config_t *data, char *line)
             remote_dpu_info_t **list_dpus = (remote_dpu_info_t **)data->offloading_engine->dpus.base;
             for (j = 0; j < data->offloading_engine->num_dpus; j++)
             {
-                DBG("Saving configuration details for DPU #%ld, %s (addr: %s)",
-                    j,
-                    list_dpus_from_list[i].version_1.hostname,
-                    list_dpus_from_list[i].version_1.addr);
-
                 if (list_dpus[j] == NULL)
                     continue;
 
                 if (strncmp(list_dpus_from_list[i].version_1.hostname, list_dpus[j]->hostname, strlen(list_dpus[j]->hostname)) == 0)
                 {
+                    DBG("Saving configuration details for DPU #%ld, %s (addr: %s)",
+                        j,
+                        list_dpus_from_list[i].version_1.hostname,
+                        list_dpus_from_list[i].version_1.addr);
+
+                    // We found the DPU in the engine's list
                     list_dpus[j]->init_params.conn_params->addr_str = list_dpus_from_list[i].version_1.addr;
                     list_dpus[j]->init_params.conn_params->port = list_dpus_from_list[i].version_1.interdpu_port;
                 }

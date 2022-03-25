@@ -253,7 +253,6 @@ typedef struct peer_info
 {
     ucp_ep_h ep;
     ucs_status_t ep_status;
-    // rank_info_t rank;
     //  Array of group/proc entries, one per group. A rank can belong to multiple groups but have a single endpoint.
     peer_cache_entry_t **cache_entries;
 } peer_info_t;
@@ -353,6 +352,19 @@ typedef struct init_params
     // Optional unique ID to use when creating the execution context
     uint64_t id;
 } init_params_t;
+
+#define ENGINE_LOCK(_engine)                   \
+    do                                         \
+    {                                          \
+        pthread_mutex_lock(&(_engine->mutex)); \
+    } while (0)
+
+#define ENGINE_UNLOCK(_engine)                   \
+    do                                           \
+    {                                            \
+        pthread_mutex_unlock(&(_engine->mutex)); \
+    } while (0)
+
 
 #define ECONTEXT_LOCK(_econtext)                             \
     do                                                       \
@@ -485,7 +497,7 @@ typedef struct execution_context
     // In the context of a execution context running on the host and in the context of
     // an application, it can be the group/rank data from the runtime (e.g., MPI). This
     // is used to map the unique identifier of the proc to the DPU offload library during
-    // bootstrapping.
+    // bootstrapping. If not in such a context, it must be set to INVALID_GROUP and INVALID_RANK.
     rank_info_t rank;
 
     // free_pending_rdv_recv is a list of allocated descriptors used to track pending UCX AM RDV messages.
@@ -634,6 +646,8 @@ typedef struct group_cache
 
 typedef struct offloading_engine
 {
+    
+    pthread_mutex_t mutex;
     int done;
 
     /* client here is used to track the bootstrapping as a client. */
@@ -675,6 +689,11 @@ typedef struct offloading_engine
 
     // Number of DPUs defined in dpus
     size_t num_dpus;
+
+    // Number of DPUs we are connected to.
+    // Note that ATM it only account for the number of DPUs that the current DPU connects to,
+    // not the DPUs connecting to it.
+    size_t num_connected_dpus;
 } offloading_engine_t;
 
 /***************************/
@@ -728,6 +747,12 @@ typedef struct pending_notification
 /* DPU CONFIGURATION */
 /*********************/
 
+/**
+ * @brief LIST_DPUS_FROM_ENGINE returns the pointer to the array of remote_dpu_info_t structures
+ * representing the list of known DPU, based on a engine. This is relevant mainly on DPUs
+ * 
+ * @parma[in] engine
+ */
 #define LIST_DPUS_FROM_ENGINE(_engine) ({                   \
     remote_dpu_info_t **_list = NULL;                       \
     if (_engine)                                            \
@@ -737,6 +762,12 @@ typedef struct pending_notification
     _list;                                                  \
 })
 
+/**
+ * @brief LIST_DPUS_FROM_ENGINE returns the pointer to the array of remote_dpu_info_t structures
+ * representing the list of known DPU, based on a execution context. This is relevant mainly on DPUs
+ * 
+ * @parma[in] econtext
+ */
 #define LIST_DPUS_FROM_ECONTEXT(_econtext) ({               \
     remote_dpu_info_t **_list = NULL;                       \
     if (_econtext != NULL)                                  \
@@ -749,9 +780,9 @@ typedef struct pending_notification
 #define ECONTEXT_FOR_DPU_COMMUNICATION(_engine, _dpu_idx) ({    \
     execution_context_t *_e = NULL;                             \
     remote_dpu_info_t **_list = LIST_DPUS_FROM_ENGINE(_engine); \
-    if (_list != NULL && _list[dpu_idx] != NULL)                \
+    if (_list != NULL && _list[_dpu_idx] != NULL)               \
     {                                                           \
-        _e = _list[dpu_idx]->econtext;                          \
+        _e = _list[_dpu_idx]->econtext;                         \
     }                                                           \
     _e;                                                         \
 })

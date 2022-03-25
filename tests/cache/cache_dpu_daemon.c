@@ -68,6 +68,8 @@ int main(int argc, char **argv)
 
     if (config_data.local_dpu.id == 1)
     {
+        /* DPU #1 */
+
         // Create a fake entry in the cache
         peer_cache_entry_t *new_entry;
         DYN_LIST_GET(offload_engine->free_peer_cache_entries, peer_cache_entry_t, item, new_entry);
@@ -87,11 +89,22 @@ int main(int argc, char **argv)
     }
     else
     {
+        /* DPU #0 */
+        remote_dpu_info_t **list_dpus = LIST_DPUS_FROM_ENGINE(offload_engine);
+
+        // We need to make sure we have the connection to DPU #1
+        remote_dpu_info_t *dpu1_config;
+        fprintf(stderr, "Waiting to be connected to DPU #1\n");
+        do {
+            ENGINE_LOCK(offload_engine);
+            dpu1_config = list_dpus[1];
+            ENGINE_UNLOCK(offload_engine);
+        } while (dpu1_config == NULL || dpu1_config->econtext == NULL);
+        fprintf(stderr, "Now connected to DPU #1 (econtext=%p)\n", dpu1_config->econtext);
+
         dpu_offload_event_t *ev;
         uint64_t shadow_dpu_id;
-        execution_context_t *econtext = offload_engine->servers[0];
-        if (econtext == NULL)
-            econtext = offload_engine->client;
+        execution_context_t *econtext = ECONTEXT_FOR_DPU_COMMUNICATION(offload_engine, 1);
         if (econtext == NULL)
         {
             fprintf(stderr, "unable to find a valid execution context\n");

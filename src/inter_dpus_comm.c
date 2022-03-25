@@ -15,6 +15,16 @@
 #include "dpu_offload_debug.h"
 #include "dpu_offload_envvars.h"
 
+/**
+ * @brief invalid_group_rank is used when there is a need to exchange
+ * a group/rank but the current context does not have one. It is for
+ * instance used during the inter-dpu connections.
+ */
+rank_info_t invalid_group_rank = {
+    .group_id = INVALID_GROUP,
+    .group_rank = INVALID_RANK,
+};
+
 extern execution_context_t *server_init(offloading_engine_t *, init_params_t *);
 extern execution_context_t *client_init(offloading_engine_t *, init_params_t *);
 
@@ -141,6 +151,8 @@ static void *connect_thread(void *arg)
         remote_dpu_info->hostname,
         remote_dpu_info->init_params.conn_params->addr_str,
         remote_dpu_info->init_params.conn_params->port);
+    // Inter-DPU connection, no group/rank
+    remote_dpu_info->init_params.proc_info = &invalid_group_rank;
     execution_context_t *client = client_init(offload_engine, &(remote_dpu_info->init_params));
     if (client == NULL)
     {
@@ -152,11 +164,16 @@ static void *connect_thread(void *arg)
     remote_dpu_info_t **list_dpus = (remote_dpu_info_t **)offload_engine->dpus.base;
     list_dpus[remote_dpu_info->idx]->ep = client->client->server_ep;
     list_dpus[remote_dpu_info->idx]->econtext = client;
-    DBG("-> DPU #%ld: addr=%s, port=%d, ep=%p",
+    DBG("-> DPU #%ld: addr=%s, port=%d, ep=%p, econtext=%p",
         remote_dpu_info->idx,
         list_dpus[remote_dpu_info->idx]->init_params.conn_params->addr_str,
         list_dpus[remote_dpu_info->idx]->init_params.conn_params->port,
-        list_dpus[remote_dpu_info->idx]->ep);
+        list_dpus[remote_dpu_info->idx]->ep,
+        list_dpus[remote_dpu_info->idx]->econtext);
+
+    ENGINE_LOCK(offload_engine);
+    offload_engine->num_connected_dpus++;
+    ENGINE_UNLOCK(offload_engine);
 }
 
 static dpu_offload_status_t
