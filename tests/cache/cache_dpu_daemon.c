@@ -23,6 +23,27 @@
 #include "dpu_offload_service_daemon.h"
 #include "dpu_offload_envvars.h"
 
+#define TEST_COMPLETED_NOTIF_ID (5000)
+
+#define GET_DEST_EP(_econtext) ({               \
+    ucp_ep_h _dest_ep;                          \
+    if (_econtext->type == CONTEXT_SERVER)      \
+    {                                           \
+        _dest_ep = GET_CLIENT_EP(_econtext, 0); \
+    }                                           \
+    else                                        \
+    {                                           \
+        _dest_ep = GET_SERVER_EP(_econtext);    \
+    }                                           \
+    _dest_ep;                                   \
+})
+
+static bool test_done = false;
+static int test_complete_notification_cb(struct dpu_offload_ev_sys *ev_sys, execution_context_t *econtext, am_header_t *hdr, size_t hdr_len, void *data, size_t data_len)
+{
+    test_done = true;
+}
+
 int main(int argc, char **argv)
 {
     /*
@@ -86,7 +107,11 @@ int main(int argc, char **argv)
         new_entry->set = true;
         SET_PEER_CACHE_ENTRY(&(offload_engine->procs_cache), new_entry);
 
-        fprintf(stderr, "Cache entry successfully created\n");
+        fprintf(stderr, "Cache entry successfully created, waiting for the notification from DPU #0 that test completed\n");
+        while (!test_done)
+        {
+            offload_engine_progress(offload_engine);
+        }
     }
     else
     {
@@ -96,7 +121,8 @@ int main(int argc, char **argv)
         // We need to make sure we have the connection to DPU #1
         remote_dpu_info_t *dpu1_config;
         fprintf(stderr, "Waiting to be connected to DPU #1\n");
-        do {
+        do
+        {
             ENGINE_LOCK(offload_engine);
             dpu1_config = list_dpus[1];
             ENGINE_UNLOCK(offload_engine);
@@ -110,6 +136,17 @@ int main(int argc, char **argv)
         {
             fprintf(stderr, "unable to find a valid execution context\n");
             goto error_out;
+        }
+
+        /*
+         * Register the notification callback used for controlling the test
+         */
+        fprintf(stderr, "Registering callback for notifications of test completion %d\n", TEST_COMPLETED_NOTIF_ID);
+        rc = event_channel_register(econtext->event_channels, TEST_COMPLETED_NOTIF_ID, test_complete_notification_cb);
+        if (rc)
+        {
+            fprintf(stderr, "event_channel_register() failed\n");
+            return EXIT_FAILURE;
         }
 
         fprintf(stderr, "Looking up endpoint\n");
@@ -152,6 +189,28 @@ int main(int argc, char **argv)
         {
             fprintf(stderr, "shadow DPU endpoint is undefined\n");
             goto error_out;
+        }
+
+        fprintf(stderr, "All done, notify DPU #1...\n");
+        dpu_offload_event_t *evt;
+        dpu_offload_status_t _rc = event_get(econtext->event_channels, &evt);
+        if (_rc)
+        {
+            fprintf(stderr, "event_get() failed\n");
+            goto error_out;
+        }
+
+        _rc = event_channel_emit(evt, ECONTEXT_ID(econtext), TEST_COMPLETED_NOTIF_ID, GET_DEST_EP(econtext), econtext, NULL, 0);
+        if (_rc != EVENT_DONE && _rc != EVENT_INPROGRESS)
+        {
+            fprintf(stderr, "event_channel_emit() failed\n");
+            return EXIT_FAILURE;
+        }
+        ucs_list_add_tail(&(econtext->ongoing_events), &(evt->item));
+
+        while (!ucs_list_is_empty(&(econtext->ongoing_events)))
+        {
+            econtext->progress(econtext);
         }
     }
 
