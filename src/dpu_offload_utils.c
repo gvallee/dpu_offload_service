@@ -389,14 +389,13 @@ bool parse_line_dpu_version_1(dpu_config_t *data, char *line)
             if (strncmp(data->local_dpu.hostname, list_dpus_from_list[i].version_1.hostname, strlen(list_dpus_from_list[i].version_1.hostname)) == 0)
             {
                 // This is the DPU's configuration we were looking for
-                DBG("-> This is my configuration");
+                DBG("-> This is my configuration, my index is %ld", idx);
                 data->dpu_found = true;
                 // At the moment, the unique ID from the list of DPUs is used as:
                 // - reference,
                 // - unique identifier when connecting to other DPUs or other DPUs connecting to us,
                 // - unique identifier when handling connections from the ranks running on the local host.
                 // In other terms, it is used to create the mapping between all DPUs and all ranks.
-                data->local_dpu.id = num_dpus;
                 data->local_dpu.interdpu_init_params.id_set = true;
                 data->local_dpu.interdpu_init_params.id = data->local_dpu.id;
                 data->local_dpu.host_init_params.id_set = true;
@@ -408,6 +407,7 @@ bool parse_line_dpu_version_1(dpu_config_t *data, char *line)
                 data->local_dpu.host_conn_params.addr_str = data->local_dpu.config->version_1.addr;
                 data->local_dpu.host_conn_params.port = data->local_dpu.config->version_1.rank_port;
                 data->local_dpu.host_conn_params.port_str = NULL;
+                // data->local_dpu.id is already set while parsing the list of DPUs to use for the job
                 rc = true;
             }
 

@@ -239,7 +239,7 @@ dpu_offload_status_t get_dpu_config(offloading_engine_t *offload_engine, dpu_con
     CHECK_ERR_RETURN((rc == DO_ERROR), DO_ERROR, "dpu_offload_parse_list_dpus() failed");
     config_data->local_dpu.id = my_dpu_id;
 
-    DBG("number of DPUs to connect to: %ld; number of expected incoming connections: %ld; my unique ID: %" PRIu64 "\n",
+    DBG("Number of DPUs to connect to: %ld; number of expected incoming connections: %ld; my unique ID: %" PRIu64 "\n",
         config_data->info_connecting_to.num_connect_to,
         config_data->num_connecting_dpus,
         config_data->local_dpu.id);

@@ -51,6 +51,7 @@ int main(int argc, char **argv)
         fprintf(stderr, "get_config() failed\n");
         return EXIT_FAILURE;
     }
+    fprintf(stderr, "Configuration loaded, I am DPU #%ld\n", config_data.local_dpu.id);
 
     /*
      * INITIATE CONNECTION BETWEEN DPUS.
