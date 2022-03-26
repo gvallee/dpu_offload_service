@@ -242,12 +242,33 @@ typedef struct shadow_dpu_info
 typedef struct peer_cache_entry
 {
     ucs_list_link_t item;
+
+    // Is the entry set?
     bool set;
+
+    // Peer data (group/rank)
     peer_data_t peer;
+
+    // endpoint to reach the peer
     ucp_ep_h ep;
+
+    // Number of  the peer's shadow DPU(s)
     size_t num_shadow_dpus;
+
+    // List of DPUs' unique ID that are the shadow DPU(s) of the peer
     uint64_t shadow_dpus[MAX_SHADOW_DPUS]; // Array of DPUs (when applicable)
+
+    // WARNING: the following element need to be at the end because when receiving a cache entry,
+    // we copy everything except this using a memcpy.
+
+    // Is the list of events already initialized or not (lazy initialization)
+    bool events_initialized;
+
+    // List of events to complete when any update is made to the entry
+    ucs_list_link_t events;
 } peer_cache_entry_t;
+
+#define CACHE_ENTRY_SIZE_TO_COPY (sizeof(peer_cache_entry_t) - sizeof(bool) - sizeof(ucs_list_link_t))
 
 typedef struct peer_info
 {
@@ -580,29 +601,39 @@ typedef struct group_cache
     dyn_array_t ranks;
 } group_cache_t;
 
-#define SET_GROUP_RANK_CACHE_ENTRY(_econtext, _gp_id, _rank)                                      \
-    ({                                                                                            \
-        peer_cache_entry_t *_entry = NULL;                                                        \
-        group_cache_t *_gp_cache = (group_cache_t *)(_econtext)->engine->procs_cache.data.base;   \
-        dyn_array_t *_rank_cache = &(_gp_cache[_gp_id].ranks);                                    \
-        if (_gp_cache[_gp_id].initialized == false)                                               \
-        {                                                                                         \
-            /* Cache for the group is empty */                                                    \
-            DYN_ARRAY_ALLOC(_rank_cache, DEFAULT_NUM_PEERS, peer_cache_entry_t);                  \
-            _gp_cache[_gp_id].initialized = true;                                                 \
-            (_econtext)->engine->procs_cache.size++;                                              \
-        }                                                                                         \
-        if (_rank >= _rank_cache->num_elts)                                                       \
-            DYN_ARRAY_GROW(_rank_cache, peer_cache_entry_t, _rank);                               \
-        assert(_rank < _rank_cache->num_elts);                                                    \
-        peer_cache_entry_t *_ptr = (peer_cache_entry_t *)_rank_cache->base;                       \
-        _ptr[_rank].peer.proc_info.group_id = _gp_id;                                             \
-        _ptr[_rank].peer.proc_info.group_rank = _rank;                                            \
-        _ptr[_rank].num_shadow_dpus = 1; /* fixme: find a way to get the DPUs config from here */ \
-        _ptr[_rank].shadow_dpus[0] = ECONTEXT_ID(econtext);                                       \
-        _ptr[_rank].set = true;                                                                   \
-        _entry = &(_ptr[_rank]);                                                                  \
-        _entry;                                                                                   \
+#define GET_GROUP_RANK_CACHE_ENTRY(_cache, _gp_id, _rank)                                       \
+    ({                                                                                          \
+        peer_cache_entry_t *_entry = NULL;                                                      \
+        group_cache_t *_gp_cache = (group_cache_t *)(_cache)->data.base;                        \
+        dyn_array_t *_rank_cache = &(_gp_cache[_gp_id].ranks);                                  \
+        if (_gp_cache[_gp_id].initialized == false)                                             \
+        {                                                                                       \
+            /* Cache for the group is empty */                                                  \
+            DYN_ARRAY_ALLOC(_rank_cache, DEFAULT_NUM_PEERS, peer_cache_entry_t);                \
+            _gp_cache[_gp_id].initialized = true;                                               \
+            (_cache)->size++;                                                                   \
+        }                                                                                       \
+        if (_rank >= _rank_cache->num_elts)                                                     \
+            DYN_ARRAY_GROW(_rank_cache, peer_cache_entry_t, _rank);                             \
+        assert(_rank < _rank_cache->num_elts);                                                  \
+        peer_cache_entry_t *_ptr = (peer_cache_entry_t *)_rank_cache->base;                     \
+        _entry = &(_ptr[_rank]);                                                                \
+        _entry;                                                                                 \
+    })
+
+#define SET_GROUP_RANK_CACHE_ENTRY(__econtext, __gp_id, __rank)                                        \
+    ({                                                                                                 \
+        peer_cache_entry_t *__entry = GET_GROUP_RANK_CACHE_ENTRY(&((__econtext)->engine->procs_cache), \
+                                                                 __gp_id, __rank);                     \
+        if (__entry != NULL)                                                                           \
+        {                                                                                              \
+        __entry->peer.proc_info.group_id = __gp_id;                                                    \
+        __entry->peer.proc_info.group_rank = __rank;                                                   \
+        __entry->num_shadow_dpus = 1; /* fixme: find a way to get the DPUs config from here */         \
+        __entry->shadow_dpus[0] = ECONTEXT_ID(__econtext);                                             \
+        __entry->set = true;                                                                           \
+        }                                                                                              \
+        __entry;                                                                                       \
     })
 
 #define SET_PEER_CACHE_ENTRY_FROM_PEER_DATA(_peer_cache, _peer_data)                              \
@@ -623,8 +654,7 @@ typedef struct group_cache
     } while (0)
 
 #define SET_PEER_CACHE_ENTRY(_peer_cache, _entry)                                                 \
-    do                                                                                            \
-    {                                                                                             \
+    ({                                                                                            \
         int32_t _gp_id = (_entry)->peer.proc_info.group_id;                                       \
         if (_gp_id >= (_peer_cache)->data.num_elts)                                               \
             DYN_ARRAY_GROW(&((_peer_cache)->data), group_cache_t, _gp_id);                        \
@@ -641,8 +671,12 @@ typedef struct group_cache
             DYN_ARRAY_GROW(_rank_cache, peer_cache_entry_t, (_entry)->peer.proc_info.group_rank); \
         assert((_entry)->peer.proc_info.group_rank < _rank_cache->num_elts);                      \
         peer_cache_entry_t *_ptr = (peer_cache_entry_t *)_rank_cache->base;                       \
-        memcpy(&(_ptr[(_entry)->peer.proc_info.group_rank]), _entry, sizeof(peer_cache_entry_t)); \
-    } while (0)
+        /* We copy all the data, except the list of associated events which is handled locally */ \
+        memcpy(&(_ptr[(_entry)->peer.proc_info.group_rank]),                                      \
+               _entry,                                                                            \
+               CACHE_ENTRY_SIZE_TO_COPY);                                                         \
+        &(_ptr[(_entry)->peer.proc_info.group_rank]);                                             \
+    })
 
 typedef struct offloading_engine
 {

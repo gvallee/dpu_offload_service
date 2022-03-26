@@ -28,7 +28,7 @@ const char *config_file_version_token = "Format version:";
 /* FUNCTIONS RELATED TO GROUPS/RANKS */
 /*************************************/
 
-dpu_offload_status_t send_ad_group_rank_request(execution_context_t *econtext, ucp_ep_h ep, int64_t group_id, int64_t rank, dpu_offload_event_t **e)
+dpu_offload_status_t send_add_group_rank_request(execution_context_t *econtext, ucp_ep_h ep, int64_t group_id, int64_t rank, dpu_offload_event_t **e)
 {
     dpu_offload_event_t *ev;
     dpu_offload_status_t rc = event_get(econtext->event_channels, &ev);
@@ -59,8 +59,19 @@ extern bool is_in_cache(cache_t *cache, int64_t gp_id, int64_t rank_id);
 
 dpu_offload_status_t send_cache_entry_request(execution_context_t *econtext, ucp_ep_h ep, rank_info_t *requested_peer, dpu_offload_event_t **ev)
 {
-    dpu_offload_event_t *cache_entry_request_ev;
-    dpu_offload_status_t rc = event_get(econtext->event_channels, &cache_entry_request_ev);
+    dpu_offload_event_t *cache_entry_request_ev, *cache_entry_updated_ev;
+
+    dpu_offload_status_t rc = event_get(econtext->event_channels, &cache_entry_updated_ev);
+    CHECK_ERR_RETURN((rc), DO_ERROR, "event_get() failed");
+    peer_cache_entry_t *cache_entry = GET_GROUP_RANK_CACHE_ENTRY(&(econtext->engine->procs_cache), requested_peer->group_id, requested_peer->group_rank);
+    if (!cache_entry->events_initialized)
+    {
+        ucs_list_head_init(&(cache_entry->events));
+        cache_entry->events_initialized = true;
+    }
+    ucs_list_add_tail(&(cache_entry->events), &(cache_entry_updated_ev->item));
+
+    rc = event_get(econtext->event_channels, &cache_entry_request_ev);
     CHECK_ERR_RETURN((rc), DO_ERROR, "event_get() failed");
 
     DBG("Sending cache entry request for rank:%ld/gp:%ld", requested_peer->group_rank, requested_peer->group_id);
@@ -72,7 +83,8 @@ dpu_offload_status_t send_cache_entry_request(execution_context_t *econtext, ucp
                             requested_peer,
                             sizeof(rank_info_t));
     CHECK_ERR_RETURN((rc != EVENT_DONE && rc != EVENT_INPROGRESS), DO_ERROR, "event_channel_emit() failed");
-    *ev = cache_entry_request_ev;
+
+    *ev = cache_entry_updated_ev;
     return DO_SUCCESS;
 }
 
@@ -82,7 +94,11 @@ dpu_offload_status_t send_cache_entry(execution_context_t *econtext, ucp_ep_h ep
     dpu_offload_status_t rc = event_get(econtext->event_channels, &send_cache_entry_ev);
     CHECK_ERR_RETURN((rc), DO_ERROR, "event_get() failed");
 
-    DBG("Sending cache entry for rank:%ld/gp:%ld (msg size=%ld)", cache_entry->peer.proc_info.group_rank, cache_entry->peer.proc_info.group_id, sizeof(peer_cache_entry_t));
+    DBG("Sending cache entry for rank:%ld/gp:%ld (msg size=%ld, notif type=%ld)",
+        cache_entry->peer.proc_info.group_rank, 
+        cache_entry->peer.proc_info.group_id,
+        sizeof(peer_cache_entry_t),
+        AM_PEER_CACHE_ENTRIES_MSG_ID);
     rc = event_channel_emit(send_cache_entry_ev,
                             ECONTEXT_ID(econtext),
                             AM_PEER_CACHE_ENTRIES_MSG_ID,
@@ -108,7 +124,7 @@ dpu_offload_status_t send_group_cache(execution_context_t *econtext, ucp_ep_h de
     {
         if (ranks_cache[i].set)
         {
-            DBG("sending cache entry for rank:%ld/gp:%ld", ranks_cache[i].peer.proc_info.group_rank, ranks_cache[i].peer.proc_info.group_id);
+            DBG("Sending cache entry for rank:%ld/gp:%ld", ranks_cache[i].peer.proc_info.group_rank, ranks_cache[i].peer.proc_info.group_id);
             dpu_offload_event_t *e;
             dpu_offload_status_t rc = send_cache_entry(econtext, dest, &(ranks_cache[i]), &e);
             CHECK_ERR_RETURN((rc), DO_ERROR, "send_cache_entry() failed");
@@ -230,19 +246,24 @@ dpu_offload_status_t get_dpu_id_by_group_rank(offloading_engine_t *engine, int64
             assert(meta_econtext);
             ucs_list_add_tail(&(meta_econtext->ongoing_events), &(metaev->item));
         }
+        *ev = metaev;
     }
     else
     {
         // If we are on the host, we need to send a request to our first shadow DPU
+        DBG("Sending request for cache entry...");
         execution_context_t *econtext = engine->client;
         return send_cache_entry_request(econtext, GET_SERVER_EP(econtext), &rank_data, ev);
     }
+
+    return DO_SUCCESS;
 }
 
 ucp_ep_h get_dpu_ep_by_id(execution_context_t *econtext, uint64_t id)
 {
     remote_dpu_info_t **list_dpus = LIST_DPUS_FROM_ECONTEXT(econtext);
-    if (list_dpus[id] == NULL)
+    DBG("Looking up entry for DPU #%"PRIu64, id);
+    if (list_dpus != NULL && list_dpus[id] == NULL)
         return NULL;
     return list_dpus[id]->ep;
 }

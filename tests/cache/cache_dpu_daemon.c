@@ -23,6 +23,9 @@
 #include "dpu_offload_service_daemon.h"
 #include "dpu_offload_envvars.h"
 
+// from dpu_offload_event_channels.c
+extern bool is_in_cache(cache_t *cache, int64_t gp_id, int64_t rank_id);
+
 #define TEST_COMPLETED_NOTIF_ID (5000)
 
 #define GET_DEST_EP(_econtext) ({               \
@@ -37,6 +40,32 @@
     }                                           \
     _dest_ep;                                   \
 })
+
+static int send_term_message(execution_context_t *econtext)
+{
+    dpu_offload_event_t *evt;
+    dpu_offload_status_t rc = event_get(econtext->event_channels, &evt);
+    if (rc)
+    {
+        fprintf(stderr, "event_get() failed\n");
+        return -1;
+    }
+
+    rc = event_channel_emit(evt, ECONTEXT_ID(econtext), TEST_COMPLETED_NOTIF_ID, GET_DEST_EP(econtext), econtext, NULL, 0);
+    if (rc != EVENT_DONE && rc != EVENT_INPROGRESS)
+    {
+        fprintf(stderr, "event_channel_emit() failed\n");
+        return -1;
+    }
+    ucs_list_add_tail(&(econtext->ongoing_events), &(evt->item));
+
+    while (!ucs_list_is_empty(&(econtext->ongoing_events)))
+    {
+        econtext->progress(econtext);
+    }
+
+    return 0;
+}
 
 static bool test_done = false;
 static int test_complete_notification_cb(struct dpu_offload_ev_sys *ev_sys, execution_context_t *econtext, am_header_t *hdr, size_t hdr_len, void *data, size_t data_len)
@@ -106,6 +135,11 @@ int main(int argc, char **argv)
         new_entry->peer.proc_info.group_id = 42;
         new_entry->set = true;
         SET_PEER_CACHE_ENTRY(&(offload_engine->procs_cache), new_entry);
+        if (!is_in_cache(&(offload_engine->procs_cache), 42, 42))
+        {
+            fprintf(stderr, "Cache entry not reported as being in the cache\n");
+            goto error_out;
+        }
 
         fprintf(stderr, "Cache entry successfully created, waiting for the notification from DPU #0 that test completed\n");
         while (!test_done)
@@ -130,7 +164,7 @@ int main(int argc, char **argv)
         fprintf(stderr, "Now connected to DPU #1 (econtext=%p)\n", dpu1_config->econtext);
 
         dpu_offload_event_t *ev;
-        uint64_t shadow_dpu_id;
+        uint64_t remote_dpu_id;
         execution_context_t *econtext = ECONTEXT_FOR_DPU_COMMUNICATION(offload_engine, 1);
         if (econtext == NULL)
         {
@@ -150,16 +184,16 @@ int main(int argc, char **argv)
         }
 
         fprintf(stderr, "Looking up endpoint\n");
-        rc = get_dpu_id_by_group_rank(offload_engine, 42, 42, 0, &shadow_dpu_id, &ev);
+        rc = get_dpu_id_by_group_rank(offload_engine, 42, 42, 0, &remote_dpu_id, &ev);
         if (rc != DO_SUCCESS)
         {
-            fprintf(stderr, "get_dpu_id_by_host_rank() failed\n");
+            fprintf(stderr, "first get_dpu_id_by_host_rank() failed\n");
             goto error_out;
         }
 
         if (ev != NULL)
         {
-            fprintf(stderr, "Waiting for look up to complete\n");
+            fprintf(stderr, "Waiting for look up to complete (ev=%p)\n", ev);
             while (!event_completed(econtext->event_channels, ev))
                 econtext->progress(econtext);
 
@@ -171,10 +205,10 @@ int main(int argc, char **argv)
                 goto error_out;
             }
 
-            rc = get_dpu_id_by_group_rank(offload_engine, 42, 42, 0, &shadow_dpu_id, &ev);
+            rc = get_dpu_id_by_group_rank(offload_engine, 42, 42, 0, &remote_dpu_id, &ev);
             if (rc != DO_SUCCESS)
             {
-                fprintf(stderr, "get_dpu_id_by_host_rank() failed\n");
+                fprintf(stderr, "second get_dpu_id_by_host_rank() failed\n");
                 goto error_out;
             }
             if (ev != NULL)
@@ -184,34 +218,23 @@ int main(int argc, char **argv)
             }
         }
 
-        ucp_ep_h target_dpu_ep = get_dpu_ep_by_id(offload_engine, shadow_dpu_id);
+        if (remote_dpu_id != 1)
+        {
+            fprintf(stderr, "returned DPU is %" PRIu64 " instead of 1", remote_dpu_id);
+            send_term_message(econtext);
+            goto error_out;
+        }
+
+        ucp_ep_h target_dpu_ep = get_dpu_ep_by_id(offload_engine, remote_dpu_id);
         if (target_dpu_ep == NULL)
         {
             fprintf(stderr, "shadow DPU endpoint is undefined\n");
+            send_term_message(econtext);
             goto error_out;
         }
 
+        send_term_message(econtext);
         fprintf(stderr, "All done, notify DPU #1...\n");
-        dpu_offload_event_t *evt;
-        dpu_offload_status_t _rc = event_get(econtext->event_channels, &evt);
-        if (_rc)
-        {
-            fprintf(stderr, "event_get() failed\n");
-            goto error_out;
-        }
-
-        _rc = event_channel_emit(evt, ECONTEXT_ID(econtext), TEST_COMPLETED_NOTIF_ID, GET_DEST_EP(econtext), econtext, NULL, 0);
-        if (_rc != EVENT_DONE && _rc != EVENT_INPROGRESS)
-        {
-            fprintf(stderr, "event_channel_emit() failed\n");
-            return EXIT_FAILURE;
-        }
-        ucs_list_add_tail(&(econtext->ongoing_events), &(evt->item));
-
-        while (!ucs_list_is_empty(&(econtext->ongoing_events)))
-        {
-            econtext->progress(econtext);
-        }
     }
 
     offload_engine_fini(&offload_engine);

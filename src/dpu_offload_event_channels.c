@@ -459,30 +459,10 @@ extern int send_cache_entry_request(execution_context_t *econtext, ucp_ep_h ep, 
 
 bool is_in_cache(cache_t *cache, int64_t gp_id, int64_t rank_id)
 {
-    dyn_array_t *gp_data, *gps_data = &(cache->data);
-    DYN_ARRAY_GET_ELT(gps_data, gp_id, dyn_array_t, gp_data);
-    if (gp_data == NULL)
-    {
+    peer_cache_entry_t *entry = GET_GROUP_RANK_CACHE_ENTRY(cache, gp_id, rank_id);
+    if (entry == NULL)
         return false;
-    }
-    else
-    {
-        if (gp_data->num_elts <= rank_id)
-        {
-            return false;
-        }
-        else
-        {
-            peer_cache_entry_t *entries;
-            dyn_array_t *rank_array = (dyn_array_t *)gp_data->base;
-            DYN_ARRAY_GET_ELT(rank_array, rank_id, peer_cache_entry_t, entries);
-            if (entries[rank_id].set)
-            {
-                return false;
-            }
-        }
-    }
-    return true;
+    return (entry->set);
 }
 
 static dpu_offload_status_t peer_cache_entries_request_recv_cb(struct dpu_offload_ev_sys *ev_sys, execution_context_t *econtext, am_header_t *hdr, size_t hdr_size, void *data, size_t data_len)
@@ -490,6 +470,8 @@ static dpu_offload_status_t peer_cache_entries_request_recv_cb(struct dpu_offloa
     assert(econtext);
     assert(data);
     rank_info_t *rank_info = (rank_info_t*)data;
+
+    DBG("Cache entry requested received for gp/rank %"PRIu64"/%"PRIu64, rank_info->group_id, rank_info->group_rank);
 
     if (is_in_cache(&(econtext->engine->procs_cache), rank_info->group_id, rank_info->group_rank))
     {
@@ -502,6 +484,7 @@ static dpu_offload_status_t peer_cache_entries_request_recv_cb(struct dpu_offloa
         assert(econtext->type == CONTEXT_SERVER);
         dest = econtext->server->connected_clients.clients[hdr->id].ep;
         gp_caches = (group_cache_t*) econtext->engine->procs_cache.data.base;
+        DBG("Sending group cache to DPU #%"PRIu64, hdr->id);
         rc = send_group_cache(econtext, dest, &gp_caches[rank_info->group_id], send_cache_ev);
         CHECK_ERR_RETURN((rc), DO_ERROR, "send_group_cache() failed");
 
@@ -513,9 +496,11 @@ static dpu_offload_status_t peer_cache_entries_request_recv_cb(struct dpu_offloa
 
     // If the entry is not in the cache we forward the request 
     // and also trigger the send of our cache for the target group
+    // Fixme: forward should happen only when the request is coming from a local rank, not a DPU
     if (econtext->engine->on_dpu)
     {
         size_t i;
+        DBG("Entry not in the cache, forwarding the request to other DPUs");
         for (i = 0; i < econtext->engine->num_dpus; i++)
         {
             dpu_offload_status_t rc;
@@ -556,8 +541,18 @@ static dpu_offload_status_t peer_cache_entries_recv_cb(struct dpu_offload_ev_sys
         DBG("Received a cache entry for rank:%ld, group:%ld (msg size=%ld)", group_rank, group_id, data_len);
         if (!is_in_cache(cache, group_id, group_rank))
         {
-            SET_PEER_CACHE_ENTRY(cache, &(entries[idx]));
+            peer_cache_entry_t *cache_entry = SET_PEER_CACHE_ENTRY(cache, &(entries[idx]));
             group_cache_t *gp_caches = (group_cache_t *)cache->data.base;
+            // If any event is associated to the cache entry, handle them
+            if (cache_entry->events_initialized && !ucs_list_is_empty(&(cache_entry->events)))
+            {
+                dpu_offload_event_t *e, *e_next;
+                ucs_list_for_each_safe(e, e_next, &(cache_entry->events), item)
+                {
+                    ucs_list_del(&(e->item));
+                    e->ctx.complete = 1;
+                }
+            }
         }
 
         cur_size += sizeof(peer_cache_entry_t);
