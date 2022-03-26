@@ -258,17 +258,12 @@ typedef struct peer_cache_entry
     // List of DPUs' unique ID that are the shadow DPU(s) of the peer
     uint64_t shadow_dpus[MAX_SHADOW_DPUS]; // Array of DPUs (when applicable)
 
-    // WARNING: the following element need to be at the end because when receiving a cache entry,
-    // we copy everything except this using a memcpy.
-
     // Is the list of events already initialized or not (lazy initialization)
     bool events_initialized;
 
     // List of events to complete when any update is made to the entry
     ucs_list_link_t events;
 } peer_cache_entry_t;
-
-#define CACHE_ENTRY_SIZE_TO_COPY (sizeof(peer_cache_entry_t) - sizeof(bool) - sizeof(ucs_list_link_t))
 
 typedef struct peer_info
 {
@@ -558,21 +553,28 @@ typedef struct dpu_offload_event
 {
     // item is used to be able to add/remove the event to lists, e.g., the list for ongoing events and the pool of free event objects.
     ucs_list_link_t item;
+
     // sub_events is the list of sub-events composing this event.
     // The event that has sub-events is not considered completed unless all sub-events are completed.
     // event_completed() can be used to easily check for completion.
     ucs_list_link_t sub_events;
+    
     // sub_events_initialized tracks whether the sub-event list has been initialized.
     bool sub_events_initialized;
+
     // ctx is the communication context associated to the event, used to track the status of the potential underlying UCX AM communication
     am_req_t ctx;
+
     // req is the opaque request object used to track any potential underlying communication associated to the event.
     // If more than one communication operation is required, please use sub-events.
     void *req;
+
     // context is the user defined context of the event. Can be NULL.
     void *context;
+
     // data is the payload associated to the event. Can be NULL.
     void *data;
+    
     // user_context is the user-defined context for the event. Can be NULL.
     void *user_context;
 } dpu_offload_event_t;
@@ -653,29 +655,23 @@ typedef struct group_cache
         _cache[_peer_data->group_rank].set = true;                                                \
     } while (0)
 
-#define SET_PEER_CACHE_ENTRY(_peer_cache, _entry)                                                 \
-    ({                                                                                            \
-        int32_t _gp_id = (_entry)->peer.proc_info.group_id;                                       \
-        if (_gp_id >= (_peer_cache)->data.num_elts)                                               \
-            DYN_ARRAY_GROW(&((_peer_cache)->data), group_cache_t, _gp_id);                        \
-        group_cache_t *_gp_cache = (group_cache_t *)(_peer_cache)->data.base;                     \
-        dyn_array_t *_rank_cache = &(_gp_cache[_gp_id].ranks);                                    \
-        if (_gp_cache[_gp_id].initialized == false)                                               \
-        {                                                                                         \
-            /* Cache for the group is empty */                                                    \
-            DYN_ARRAY_ALLOC(_rank_cache, DEFAULT_NUM_PEERS, peer_cache_entry_t);                  \
-            _gp_cache[_gp_id].initialized = true;                                                 \
-            (_peer_cache)->size++;                                                                \
-        }                                                                                         \
-        if ((_entry)->peer.proc_info.group_rank >= _rank_cache->num_elts)                         \
-            DYN_ARRAY_GROW(_rank_cache, peer_cache_entry_t, (_entry)->peer.proc_info.group_rank); \
-        assert((_entry)->peer.proc_info.group_rank < _rank_cache->num_elts);                      \
-        peer_cache_entry_t *_ptr = (peer_cache_entry_t *)_rank_cache->base;                       \
-        /* We copy all the data, except the list of associated events which is handled locally */ \
-        memcpy(&(_ptr[(_entry)->peer.proc_info.group_rank]),                                      \
-               _entry,                                                                            \
-               CACHE_ENTRY_SIZE_TO_COPY);                                                         \
-        &(_ptr[(_entry)->peer.proc_info.group_rank]);                                             \
+
+#define SET_PEER_CACHE_ENTRY(_peer_cache, _entry)                                          \
+    ({                                                                                     \
+        int64_t _gp_id = (_entry)->peer.proc_info.group_id;                                \
+        int64_t _rank = (_entry)->peer.proc_info.group_rank;                               \
+        peer_cache_entry_t *_ptr = GET_GROUP_RANK_CACHE_ENTRY(_peer_cache, _gp_id, _rank); \
+        if (_ptr != NULL)                                                                  \
+        {                                                                                  \
+            _ptr->set = true;                                                              \
+            memcpy(&(_ptr->peer), &((_entry)->peer), sizeof(peer_data_t));                 \
+            _ptr->ep = NULL;                                                               \
+            _ptr->num_shadow_dpus = (_entry)->num_shadow_dpus;                             \
+            size_t _i;                                                                     \
+            for (_i = 0; _i < (_entry)->num_shadow_dpus; _i++)                             \
+                _ptr->shadow_dpus[_i] = (_entry)->shadow_dpus[_i];                         \
+        }                                                                                  \
+        _ptr;                                                                              \
     })
 
 typedef struct offloading_engine
@@ -693,6 +689,10 @@ typedef struct offloading_engine
     size_t num_max_servers;
     size_t num_servers;
     execution_context_t **servers;
+
+    // On DPU to simply communications with other DPUs, we set a default execution context
+    // so we can always easily get events
+    execution_context_t *default_econtext; 
 
     /* we track the clients used for inter-DPU connection separately. Servers are at the */
     /* moment in the servers list. */
@@ -717,7 +717,7 @@ typedef struct offloading_engine
     bool on_dpu;
 
     // dpus is a vector of remote_dpu_info_t structures used on the DPUs
-    // to easily track all the DPU the execution context is connected to.
+    // to easily track all the DPUs the execution context is connected to.
     // This is at the moment not used on the host.
     dyn_array_t dpus;
 

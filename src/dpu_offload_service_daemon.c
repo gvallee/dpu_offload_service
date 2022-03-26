@@ -565,6 +565,7 @@ dpu_offload_status_t offload_engine_init(offloading_engine_t **engine)
     d->done = 0;
     d->client = NULL;
     d->num_max_servers = DEFAULT_MAX_NUM_SERVERS;
+    d->default_econtext = NULL;
     d->num_servers = 0;
     d->servers = malloc(d->num_max_servers * sizeof(dpu_offload_server_t));
     d->num_inter_dpus_clients = 0;

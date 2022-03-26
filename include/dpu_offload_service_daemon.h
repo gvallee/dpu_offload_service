@@ -102,7 +102,7 @@ dpu_offload_status_t exchange_cache(execution_context_t *econtext, cache_t *cach
  * @param[in] rank Target rank in the group
  * @param[in] dpu_idx In case of multiple DPUs per host, index of the target shadow DPU for the group/rank
  * @param[out] dpu_id Resulting DPU identifier
- * @param[out] ev Associated event. If NULL, the DPU identifier is available right away. If not, it is required to call the function again once the event has completed. The caller is in charge of returning the event after completion.
+ * @param[out] ev Associated event. If NULL, the DPU identifier is available right away. If not, it is required to call the function again once the event has completed. The caller is in charge of returning the event after completion. The event cannot be added to any list since it is already put on a list.
  * @return dpu_offload_status_t 
  */
 dpu_offload_status_t get_dpu_id_by_group_rank(offloading_engine_t *engine, int64_t gp_id, int64_t rank, int64_t dpu_idx, int64_t *dpu_id, dpu_offload_event_t **ev);

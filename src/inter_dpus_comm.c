@@ -172,6 +172,8 @@ static void *connect_thread(void *arg)
         list_dpus[remote_dpu_info->idx]->econtext);
 
     ENGINE_LOCK(offload_engine);
+    if (offload_engine->default_econtext == NULL)
+        offload_engine->default_econtext = client;
     offload_engine->num_connected_dpus++;
     ENGINE_UNLOCK(offload_engine);
 }

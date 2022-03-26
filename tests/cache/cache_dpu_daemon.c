@@ -134,6 +134,7 @@ int main(int argc, char **argv)
         new_entry->peer.proc_info.group_rank = 42;
         new_entry->peer.proc_info.group_id = 42;
         new_entry->set = true;
+        new_entry->num_shadow_dpus = 0;
         SET_PEER_CACHE_ENTRY(&(offload_engine->procs_cache), new_entry);
         if (!is_in_cache(&(offload_engine->procs_cache), 42, 42))
         {
@@ -190,6 +191,7 @@ int main(int argc, char **argv)
             fprintf(stderr, "first get_dpu_id_by_host_rank() failed\n");
             goto error_out;
         }
+        fprintf(stderr, "get_dpu_id_by_group_rank() succeeded, ev=%p\n", ev);
 
         if (ev != NULL)
         {

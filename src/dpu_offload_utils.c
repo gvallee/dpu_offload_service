@@ -59,18 +59,8 @@ extern bool is_in_cache(cache_t *cache, int64_t gp_id, int64_t rank_id);
 
 dpu_offload_status_t send_cache_entry_request(execution_context_t *econtext, ucp_ep_h ep, rank_info_t *requested_peer, dpu_offload_event_t **ev)
 {
-    dpu_offload_event_t *cache_entry_request_ev, *cache_entry_updated_ev;
-
-    dpu_offload_status_t rc = event_get(econtext->event_channels, &cache_entry_updated_ev);
-    CHECK_ERR_RETURN((rc), DO_ERROR, "event_get() failed");
-    peer_cache_entry_t *cache_entry = GET_GROUP_RANK_CACHE_ENTRY(&(econtext->engine->procs_cache), requested_peer->group_id, requested_peer->group_rank);
-    if (!cache_entry->events_initialized)
-    {
-        ucs_list_head_init(&(cache_entry->events));
-        cache_entry->events_initialized = true;
-    }
-    ucs_list_add_tail(&(cache_entry->events), &(cache_entry_updated_ev->item));
-
+    dpu_offload_event_t *cache_entry_request_ev;
+    dpu_offload_status_t rc;
     rc = event_get(econtext->event_channels, &cache_entry_request_ev);
     CHECK_ERR_RETURN((rc), DO_ERROR, "event_get() failed");
 
@@ -84,7 +74,7 @@ dpu_offload_status_t send_cache_entry_request(execution_context_t *econtext, ucp
                             sizeof(rank_info_t));
     CHECK_ERR_RETURN((rc != EVENT_DONE && rc != EVENT_INPROGRESS), DO_ERROR, "event_channel_emit() failed");
 
-    *ev = cache_entry_updated_ev;
+    *ev = cache_entry_request_ev;
     return DO_SUCCESS;
 }
 
@@ -116,17 +106,21 @@ dpu_offload_status_t send_cache_entry(execution_context_t *econtext, ucp_ep_h ep
     return DO_SUCCESS;
 }
 
-dpu_offload_status_t send_group_cache(execution_context_t *econtext, ucp_ep_h dest, group_cache_t *gp_cache, dpu_offload_event_t *metaev)
+dpu_offload_status_t send_group_cache(execution_context_t *econtext, ucp_ep_h dest, int64_t gp_id, dpu_offload_event_t *metaev)
 {
-    peer_cache_entry_t *ranks_cache = (peer_cache_entry_t *)gp_cache->ranks.base;
     size_t i;
-    for (i = 0; i < gp_cache->ranks.num_elts; i++)
+    group_cache_t *gp_cache = (group_cache_t *)econtext->engine->procs_cache.data.base;
+    if (!gp_cache[gp_id].initialized)
+        return DO_SUCCESS;
+
+    for (i = 0; i < gp_cache[gp_id].ranks.num_elts; i++)
     {
-        if (ranks_cache[i].set)
+        peer_cache_entry_t *cache_entry = GET_GROUP_RANK_CACHE_ENTRY(&(econtext->engine->procs_cache), gp_id, i);
+        if (cache_entry->set)
         {
-            DBG("Sending cache entry for rank:%ld/gp:%ld", ranks_cache[i].peer.proc_info.group_rank, ranks_cache[i].peer.proc_info.group_id);
+            DBG("Sending cache entry for rank:%ld/gp:%ld", cache_entry->peer.proc_info.group_rank, cache_entry->peer.proc_info.group_id);
             dpu_offload_event_t *e;
-            dpu_offload_status_t rc = send_cache_entry(econtext, dest, &(ranks_cache[i]), &e);
+            dpu_offload_status_t rc = send_cache_entry(econtext, dest, cache_entry, &e);
             CHECK_ERR_RETURN((rc), DO_ERROR, "send_cache_entry() failed");
             if (!metaev->sub_events_initialized)
             {
@@ -152,7 +146,7 @@ dpu_offload_status_t send_cache(execution_context_t *econtext, cache_t *cache, u
         if (groups_cache[i].initialized)
         {
 
-            rc = send_group_cache(econtext, dest, &(groups_cache[i]), metaevt);
+            rc = send_group_cache(econtext, dest, i, metaevt);
             CHECK_ERR_RETURN((rc), DO_ERROR, "exchange_group_cache() failed\n");
         }
     }
@@ -190,9 +184,7 @@ dpu_offload_status_t get_dpu_id_by_group_rank(offloading_engine_t *engine, int64
         // The cache has the data
         dyn_array_t *gp_data, *gps_data = &(engine->procs_cache.data);
         DYN_ARRAY_GET_ELT(gps_data, gp_id, dyn_array_t, gp_data);
-        peer_cache_entry_t *cache_entry;
-        dyn_array_t *rank_array = (dyn_array_t *)gp_data->base;
-        DYN_ARRAY_GET_ELT(rank_array, rank, peer_cache_entry_t, cache_entry);
+        peer_cache_entry_t *cache_entry = GET_GROUP_RANK_CACHE_ENTRY(&(engine->procs_cache), gp_id, rank);
         *ev = NULL;
         *dpu_id = cache_entry->shadow_dpus[dpu_idx];
         return DO_SUCCESS;
@@ -203,6 +195,23 @@ dpu_offload_status_t get_dpu_id_by_group_rank(offloading_engine_t *engine, int64
     rank_info_t rank_data;
     rank_data.group_id = gp_id;
     rank_data.group_rank = rank;
+
+    // Create the local event so we can know when the cache entry has been received
+    dpu_offload_event_t *cache_entry_updated_ev;
+    peer_cache_entry_t *cache_entry = GET_GROUP_RANK_CACHE_ENTRY(&(engine->procs_cache), gp_id, rank);
+    assert(engine->default_econtext);
+    dpu_offload_status_t rc = event_get(engine->default_econtext->event_channels, &cache_entry_updated_ev);
+    CHECK_ERR_RETURN((rc), DO_ERROR, "event_get() failed");
+    if (!cache_entry->events_initialized)
+    {
+        ucs_list_head_init(&(cache_entry->events));
+        cache_entry->events_initialized = true;
+    }
+    ucs_list_add_tail(&(cache_entry->events), &(cache_entry_updated_ev->item));
+    DBG("Cache entry %p for gp/rank %"PRIu64"/%"PRIu64" now has %ld update events",
+        cache_entry, gp_id, rank, ucs_list_length(&(cache_entry->events)));
+    *ev = cache_entry_updated_ev;
+
     if (engine->on_dpu == true)
     {
         // If we are on a DPU, we need to send a request to all known DPUs
@@ -246,7 +255,6 @@ dpu_offload_status_t get_dpu_id_by_group_rank(offloading_engine_t *engine, int64
             assert(meta_econtext);
             ucs_list_add_tail(&(meta_econtext->ongoing_events), &(metaev->item));
         }
-        *ev = metaev;
     }
     else
     {

@@ -454,7 +454,7 @@ static dpu_offload_status_t xgvmi_key_recv_cb(struct dpu_offload_ev_sys *ev_sys,
 /* Endpoint cache related functions */
 /************************************/
 
-extern dpu_offload_status_t send_group_cache(execution_context_t *econtext, ucp_ep_h dest, group_cache_t *gp_cache, dpu_offload_event_t *metaev);
+extern dpu_offload_status_t send_group_cache(execution_context_t *econtext, ucp_ep_h dest, int64_t gp_id, dpu_offload_event_t *metaev);
 extern int send_cache_entry_request(execution_context_t *econtext, ucp_ep_h ep, rank_info_t *requested_peer, dpu_offload_event_t **ev);
 
 bool is_in_cache(cache_t *cache, int64_t gp_id, int64_t rank_id)
@@ -485,7 +485,7 @@ static dpu_offload_status_t peer_cache_entries_request_recv_cb(struct dpu_offloa
         dest = econtext->server->connected_clients.clients[hdr->id].ep;
         gp_caches = (group_cache_t*) econtext->engine->procs_cache.data.base;
         DBG("Sending group cache to DPU #%"PRIu64, hdr->id);
-        rc = send_group_cache(econtext, dest, &gp_caches[rank_info->group_id], send_cache_ev);
+        rc = send_group_cache(econtext, dest, rank_info->group_id, send_cache_ev);
         CHECK_ERR_RETURN((rc), DO_ERROR, "send_group_cache() failed");
 
         // Add the event to the list of pending events so it completed implicitely
@@ -538,23 +538,24 @@ static dpu_offload_status_t peer_cache_entries_recv_cb(struct dpu_offload_ev_sys
 
         // Now that we know for sure we have the group ID, we can move the received data into the local cache
         int64_t group_rank = entries[idx].peer.proc_info.group_rank;
-        DBG("Received a cache entry for rank:%ld, group:%ld (msg size=%ld)", group_rank, group_id, data_len);
+        DBG("Received a cache entry for rank:%ld, group:%ld (msg size=%ld)",
+            group_rank, group_id, data_len);
         if (!is_in_cache(cache, group_id, group_rank))
         {
             peer_cache_entry_t *cache_entry = SET_PEER_CACHE_ENTRY(cache, &(entries[idx]));
             group_cache_t *gp_caches = (group_cache_t *)cache->data.base;
             // If any event is associated to the cache entry, handle them
-            if (cache_entry->events_initialized && !ucs_list_is_empty(&(cache_entry->events)))
+            if (cache_entry->events_initialized)
             {
-                dpu_offload_event_t *e, *e_next;
-                ucs_list_for_each_safe(e, e_next, &(cache_entry->events), item)
+
+                while (!ucs_list_is_empty(&(cache_entry->events)))
                 {
-                    ucs_list_del(&(e->item));
+                    dpu_offload_event_t *e = ucs_list_extract_head(&(cache_entry->events), dpu_offload_event_t, item);
                     e->ctx.complete = 1;
+                    fprintf(stderr, "Event %p associated to cache entry is now completed\n", e);
                 }
             }
         }
-
         cur_size += sizeof(peer_cache_entry_t);
         idx++;
     }
