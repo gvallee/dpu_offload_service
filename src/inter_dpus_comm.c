@@ -15,6 +15,16 @@
 #include "dpu_offload_debug.h"
 #include "dpu_offload_envvars.h"
 
+/**
+ * @brief invalid_group_rank is used when there is a need to exchange
+ * a group/rank but the current context does not have one. It is for
+ * instance used during the inter-dpu connections.
+ */
+rank_info_t invalid_group_rank = {
+    .group_id = INVALID_GROUP,
+    .group_rank = INVALID_RANK,
+};
+
 extern execution_context_t *server_init(offloading_engine_t *, init_params_t *);
 extern execution_context_t *client_init(offloading_engine_t *, init_params_t *);
 
@@ -48,11 +58,13 @@ extern execution_context_t *client_init(offloading_engine_t *, init_params_t *);
  * Note that the function ONLY gathers the list of the DPUs' hostname, the rest is extracted while
  * parsing the configuration file or other environment variables.
  *
- * @param config_data All the configuration details from which we get the list of DPUs and where the result is stored
+ * @param[in] engine The offloading engine associated to the function call.
+ * @param[in,out] config_data All the configuration details from which we get the list of DPUs and where the result is stored
+ * @param[out] my_dpu_id Unique identifier assigned to the DPU, based on the index in the list.
  * @return dpu_offload_status_t
  */
 static dpu_offload_status_t
-dpu_offload_parse_list_dpus(offloading_engine_t *engine, dpu_config_t *config_data)
+dpu_offload_parse_list_dpus(offloading_engine_t *engine, dpu_config_t *config_data, uint64_t *my_dpu_id)
 {
     size_t dpu_idx = 0;
     bool pre = true;
@@ -76,6 +88,7 @@ dpu_offload_parse_list_dpus(offloading_engine_t *engine, dpu_config_t *config_da
         {
             DBG("%s is me", token);
             pre = false;
+            *my_dpu_id = dpu_idx;
             // We set the element in the list of DPUs to NULL because it is us.
             remote_dpu_info_t **dpu_info = (remote_dpu_info_t **)engine->dpus.base;
             dpu_info[dpu_idx] = NULL;
@@ -138,6 +151,8 @@ static void *connect_thread(void *arg)
         remote_dpu_info->hostname,
         remote_dpu_info->init_params.conn_params->addr_str,
         remote_dpu_info->init_params.conn_params->port);
+    // Inter-DPU connection, no group/rank
+    remote_dpu_info->init_params.proc_info = &invalid_group_rank;
     execution_context_t *client = client_init(offload_engine, &(remote_dpu_info->init_params));
     if (client == NULL)
     {
@@ -148,11 +163,19 @@ static void *connect_thread(void *arg)
     offload_engine->inter_dpus_clients[offload_engine->num_inter_dpus_clients] = client;
     remote_dpu_info_t **list_dpus = (remote_dpu_info_t **)offload_engine->dpus.base;
     list_dpus[remote_dpu_info->idx]->ep = client->client->server_ep;
-    DBG("-> DPU #%ld: addr=%s, port=%d, ep=%p",
+    list_dpus[remote_dpu_info->idx]->econtext = client;
+    DBG("-> DPU #%ld: addr=%s, port=%d, ep=%p, econtext=%p",
         remote_dpu_info->idx,
         list_dpus[remote_dpu_info->idx]->init_params.conn_params->addr_str,
         list_dpus[remote_dpu_info->idx]->init_params.conn_params->port,
-        list_dpus[remote_dpu_info->idx]->ep);
+        list_dpus[remote_dpu_info->idx]->ep,
+        list_dpus[remote_dpu_info->idx]->econtext);
+
+    ENGINE_LOCK(offload_engine);
+    if (offload_engine->default_econtext == NULL)
+        offload_engine->default_econtext = client;
+    offload_engine->num_connected_dpus++;
+    ENGINE_UNLOCK(offload_engine);
 }
 
 static dpu_offload_status_t
@@ -203,6 +226,7 @@ dpu_offload_status_t inter_dpus_connect_mgr(offloading_engine_t *engine, dpu_con
 dpu_offload_status_t get_dpu_config(offloading_engine_t *offload_engine, dpu_config_t *config_data)
 {
     dpu_offload_status_t rc;
+    uint64_t my_dpu_id;
     config_data->config_file = getenv(OFFLOAD_CONFIG_FILE_PATH_ENVVAR);
 
     config_data->local_dpu.hostname[1023] = '\0';
@@ -213,12 +237,14 @@ dpu_offload_status_t get_dpu_config(offloading_engine_t *offload_engine, dpu_con
                      DO_ERROR,
                      "Unable to get list of DPUs via %s environmnent variable\n",
                      LIST_DPUS_ENVVAR);
-    rc = dpu_offload_parse_list_dpus(offload_engine, config_data);
+    rc = dpu_offload_parse_list_dpus(offload_engine, config_data, &my_dpu_id);
     CHECK_ERR_RETURN((rc == DO_ERROR), DO_ERROR, "dpu_offload_parse_list_dpus() failed");
+    config_data->local_dpu.id = my_dpu_id;
 
-    DBG("number of DPUs to connect to: %ld; number of expected incoming connections: %ld\n",
+    DBG("Number of DPUs to connect to: %ld; number of expected incoming connections: %ld; my unique ID: %" PRIu64 "\n",
         config_data->info_connecting_to.num_connect_to,
-        config_data->num_connecting_dpus);
+        config_data->num_connecting_dpus,
+        config_data->local_dpu.id);
 
     config_data->local_dpu.interdpu_init_params.worker = NULL;
     config_data->local_dpu.interdpu_init_params.proc_info = NULL;

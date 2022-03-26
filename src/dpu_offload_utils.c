@@ -24,17 +24,71 @@ char *my_hostname = NULL;
 
 const char *config_file_version_token = "Format version:";
 
+/*************************************/
+/* FUNCTIONS RELATED TO GROUPS/RANKS */
+/*************************************/
+
+dpu_offload_status_t send_add_group_rank_request(execution_context_t *econtext, ucp_ep_h ep, int64_t group_id, int64_t rank, dpu_offload_event_t **e)
+{
+    dpu_offload_event_t *ev;
+    dpu_offload_status_t rc = event_get(econtext->event_channels, &ev);
+    CHECK_ERR_RETURN((rc), DO_ERROR, "event_get() failed");
+
+    DBG("Sending request to add group/rank");
+    rank_info_t rank_info = {
+        .group_id = group_id,
+        .group_rank = rank,
+    };
+    rc = event_channel_emit(ev,
+                            ECONTEXT_ID(econtext),
+                            AM_ADD_GP_RANK_MSG_ID,
+                            ep,
+                            NULL,
+                            &rank_info,
+                            sizeof(rank_info_t));
+    CHECK_ERR_RETURN((rc != EVENT_DONE && rc != EVENT_INPROGRESS), DO_ERROR, "event_channel_emit() failed");
+    *e = ev;
+    return DO_SUCCESS;
+}
+
 /********************************************/
 /* FUNCTIONS RELATED TO THE ENDPOINT CACHES */
 /********************************************/
 
-int send_cache_entry(execution_context_t *econtext, ucp_ep_h ep, peer_cache_entry_t *cache_entry, dpu_offload_event_t **ev)
+extern bool is_in_cache(cache_t *cache, int64_t gp_id, int64_t rank_id);
+
+dpu_offload_status_t send_cache_entry_request(execution_context_t *econtext, ucp_ep_h ep, rank_info_t *requested_peer, dpu_offload_event_t **ev)
+{
+    dpu_offload_event_t *cache_entry_request_ev;
+    dpu_offload_status_t rc;
+    rc = event_get(econtext->event_channels, &cache_entry_request_ev);
+    CHECK_ERR_RETURN((rc), DO_ERROR, "event_get() failed");
+
+    DBG("Sending cache entry request for rank:%ld/gp:%ld", requested_peer->group_rank, requested_peer->group_id);
+    rc = event_channel_emit(cache_entry_request_ev,
+                            ECONTEXT_ID(econtext),
+                            AM_PEER_CACHE_ENTRIES_REQUEST_MSG_ID,
+                            ep,
+                            NULL,
+                            requested_peer,
+                            sizeof(rank_info_t));
+    CHECK_ERR_RETURN((rc != EVENT_DONE && rc != EVENT_INPROGRESS), DO_ERROR, "event_channel_emit() failed");
+
+    *ev = cache_entry_request_ev;
+    return DO_SUCCESS;
+}
+
+dpu_offload_status_t send_cache_entry(execution_context_t *econtext, ucp_ep_h ep, peer_cache_entry_t *cache_entry, dpu_offload_event_t **ev)
 {
     dpu_offload_event_t *send_cache_entry_ev;
     dpu_offload_status_t rc = event_get(econtext->event_channels, &send_cache_entry_ev);
     CHECK_ERR_RETURN((rc), DO_ERROR, "event_get() failed");
 
-    DBG("Sending cache entry for rank:%ld/gp:%ld (msg size=%ld)", cache_entry->peer.proc_info.group_rank, cache_entry->peer.proc_info.group_id, sizeof(peer_cache_entry_t));
+    DBG("Sending cache entry for rank:%ld/gp:%ld (msg size=%ld, notif type=%ld)",
+        cache_entry->peer.proc_info.group_rank, 
+        cache_entry->peer.proc_info.group_id,
+        sizeof(peer_cache_entry_t),
+        AM_PEER_CACHE_ENTRIES_MSG_ID);
     rc = event_channel_emit(send_cache_entry_ev,
                             ECONTEXT_ID(econtext),
                             AM_PEER_CACHE_ENTRIES_MSG_ID,
@@ -49,21 +103,24 @@ int send_cache_entry(execution_context_t *econtext, ucp_ep_h ep, peer_cache_entr
     ucs_list_add_tail(&(econtext->ongoing_events), &(send_cache_entry_ev->item));
 
     *ev = send_cache_entry_ev;
-
     return DO_SUCCESS;
 }
 
-static dpu_offload_status_t send_group_cache(execution_context_t *econtext, ucp_ep_h dest, group_cache_t *gp_cache, dpu_offload_event_t *metaev)
+dpu_offload_status_t send_group_cache(execution_context_t *econtext, ucp_ep_h dest, int64_t gp_id, dpu_offload_event_t *metaev)
 {
-    peer_cache_entry_t *ranks_cache = (peer_cache_entry_t *)gp_cache->ranks.base;
     size_t i;
-    for (i = 0; i < gp_cache->ranks.num_elts; i++)
+    group_cache_t *gp_cache = (group_cache_t *)econtext->engine->procs_cache.data.base;
+    if (!gp_cache[gp_id].initialized)
+        return DO_SUCCESS;
+
+    for (i = 0; i < gp_cache[gp_id].ranks.num_elts; i++)
     {
-        if (ranks_cache[i].set)
+        peer_cache_entry_t *cache_entry = GET_GROUP_RANK_CACHE_ENTRY(&(econtext->engine->procs_cache), gp_id, i);
+        if (cache_entry->set)
         {
-            DBG("sending cache entry for rank:%ld/gp:%ld", ranks_cache[i].peer.proc_info.group_rank, ranks_cache[i].peer.proc_info.group_id);
+            DBG("Sending cache entry for rank:%ld/gp:%ld", cache_entry->peer.proc_info.group_rank, cache_entry->peer.proc_info.group_id);
             dpu_offload_event_t *e;
-            dpu_offload_status_t rc = send_cache_entry(econtext, dest, &(ranks_cache[i]), &e);
+            dpu_offload_status_t rc = send_cache_entry(econtext, dest, cache_entry, &e);
             CHECK_ERR_RETURN((rc), DO_ERROR, "send_cache_entry() failed");
             if (!metaev->sub_events_initialized)
             {
@@ -89,7 +146,7 @@ dpu_offload_status_t send_cache(execution_context_t *econtext, cache_t *cache, u
         if (groups_cache[i].initialized)
         {
 
-            rc = send_group_cache(econtext, dest, &(groups_cache[i]), metaevt);
+            rc = send_group_cache(econtext, dest, i, metaevt);
             CHECK_ERR_RETURN((rc), DO_ERROR, "exchange_group_cache() failed\n");
         }
     }
@@ -118,6 +175,105 @@ dpu_offload_status_t exchange_cache(execution_context_t *econtext, dpu_config_t 
         CHECK_ERR_RETURN((rc), DO_ERROR, "send_cache() failed");
     }
     return DO_SUCCESS;
+}
+
+dpu_offload_status_t get_dpu_id_by_group_rank(offloading_engine_t *engine, int64_t gp_id, int64_t rank, int64_t dpu_idx, int64_t *dpu_id, dpu_offload_event_t **ev)
+{
+    if (is_in_cache(&(engine->procs_cache), gp_id, rank))
+    {
+        // The cache has the data
+        dyn_array_t *gp_data, *gps_data = &(engine->procs_cache.data);
+        DYN_ARRAY_GET_ELT(gps_data, gp_id, dyn_array_t, gp_data);
+        peer_cache_entry_t *cache_entry = GET_GROUP_RANK_CACHE_ENTRY(&(engine->procs_cache), gp_id, rank);
+        *ev = NULL;
+        *dpu_id = cache_entry->shadow_dpus[dpu_idx];
+        return DO_SUCCESS;
+    }
+
+    // The cache does not have the data. We sent a request to get the data.
+    // The caller is in charge of calling the function after completion to actually get the data
+    rank_info_t rank_data;
+    rank_data.group_id = gp_id;
+    rank_data.group_rank = rank;
+
+    // Create the local event so we can know when the cache entry has been received
+    dpu_offload_event_t *cache_entry_updated_ev;
+    peer_cache_entry_t *cache_entry = GET_GROUP_RANK_CACHE_ENTRY(&(engine->procs_cache), gp_id, rank);
+    assert(engine->default_econtext);
+    dpu_offload_status_t rc = event_get(engine->default_econtext->event_channels, &cache_entry_updated_ev);
+    CHECK_ERR_RETURN((rc), DO_ERROR, "event_get() failed");
+    if (!cache_entry->events_initialized)
+    {
+        ucs_list_head_init(&(cache_entry->events));
+        cache_entry->events_initialized = true;
+    }
+    ucs_list_add_tail(&(cache_entry->events), &(cache_entry_updated_ev->item));
+    DBG("Cache entry %p for gp/rank %"PRIu64"/%"PRIu64" now has %ld update events",
+        cache_entry, gp_id, rank, ucs_list_length(&(cache_entry->events)));
+    *ev = cache_entry_updated_ev;
+
+    if (engine->on_dpu == true)
+    {
+        // If we are on a DPU, we need to send a request to all known DPUs
+        // To track completion, we get an event from the execution context used for the
+        // first DPU.
+        size_t i;
+        dpu_offload_status_t rc;
+        dpu_offload_event_t *metaev = NULL;
+        remote_dpu_info_t **list_dpus = (remote_dpu_info_t **)engine->dpus.base;
+        execution_context_t *meta_econtext = NULL;
+
+        for(i = 0; i < engine->num_dpus; i++)
+        {
+            if (list_dpus[i] != NULL && list_dpus[i]->ep != NULL)
+            {
+                DBG("Sending cache entry request to DPU #%ld", i);
+                execution_context_t *econtext = ECONTEXT_FOR_DPU_COMMUNICATION(engine, i);
+                CHECK_ERR_RETURN((econtext == NULL), DO_ERROR, "unable to get execution context to communicate with DPU #0");
+
+                if (metaev == NULL)
+                {
+                    meta_econtext = econtext;
+                    rc = event_get(meta_econtext->event_channels, &metaev);
+                    CHECK_ERR_RETURN((rc), DO_ERROR, "get_event() failed");
+                }
+
+                ucp_ep_h dpu_ep = list_dpus[i]->ep;
+                dpu_offload_event_t *subev;
+                rc = send_cache_entry_request(econtext, dpu_ep, &rank_data, &subev);
+                CHECK_ERR_RETURN((rc), DO_ERROR, "send_cache_entry_request() failed");
+                if (metaev->sub_events_initialized == false)
+                {
+                    ucs_list_head_init(&(metaev->sub_events));
+                    metaev->sub_events_initialized = true;
+                }
+                ucs_list_add_tail(&(metaev->sub_events), &(subev->item));
+            }
+        }
+        if (metaev)
+        {
+            assert(meta_econtext);
+            ucs_list_add_tail(&(meta_econtext->ongoing_events), &(metaev->item));
+        }
+    }
+    else
+    {
+        // If we are on the host, we need to send a request to our first shadow DPU
+        DBG("Sending request for cache entry...");
+        execution_context_t *econtext = engine->client;
+        return send_cache_entry_request(econtext, GET_SERVER_EP(econtext), &rank_data, ev);
+    }
+
+    return DO_SUCCESS;
+}
+
+ucp_ep_h get_dpu_ep_by_id(execution_context_t *econtext, uint64_t id)
+{
+    remote_dpu_info_t **list_dpus = LIST_DPUS_FROM_ECONTEXT(econtext);
+    DBG("Looking up entry for DPU #%"PRIu64, id);
+    if (list_dpus != NULL && list_dpus[id] == NULL)
+        return NULL;
+    return list_dpus[id]->ep;
 }
 
 /******************************************/
@@ -212,7 +368,7 @@ bool parse_line_dpu_version_1(dpu_config_t *data, char *line)
 {
     int idx = 0;
     bool rc = false;
-    size_t num_dpus = 0;
+    uint64_t num_dpus = 0;
     char *rest_line = line;
 
     while (line[idx] == ' ')
@@ -262,8 +418,17 @@ bool parse_line_dpu_version_1(dpu_config_t *data, char *line)
             if (strncmp(data->local_dpu.hostname, list_dpus_from_list[i].version_1.hostname, strlen(list_dpus_from_list[i].version_1.hostname)) == 0)
             {
                 // This is the DPU's configuration we were looking for
-                DBG("-> This is my configuration");
+                DBG("-> This is my configuration, my index is %ld", idx);
                 data->dpu_found = true;
+                // At the moment, the unique ID from the list of DPUs is used as:
+                // - reference,
+                // - unique identifier when connecting to other DPUs or other DPUs connecting to us,
+                // - unique identifier when handling connections from the ranks running on the local host.
+                // In other terms, it is used to create the mapping between all DPUs and all ranks.
+                data->local_dpu.interdpu_init_params.id_set = true;
+                data->local_dpu.interdpu_init_params.id = data->local_dpu.id;
+                data->local_dpu.host_init_params.id_set = true;
+                data->local_dpu.host_init_params.id = data->local_dpu.id;
                 data->local_dpu.config = &(list_dpus_from_list[i]);
                 data->local_dpu.interdpu_conn_params.addr_str = data->local_dpu.config->version_1.addr;
                 data->local_dpu.interdpu_conn_params.port = data->local_dpu.config->version_1.interdpu_port;
@@ -271,6 +436,7 @@ bool parse_line_dpu_version_1(dpu_config_t *data, char *line)
                 data->local_dpu.host_conn_params.addr_str = data->local_dpu.config->version_1.addr;
                 data->local_dpu.host_conn_params.port = data->local_dpu.config->version_1.rank_port;
                 data->local_dpu.host_conn_params.port_str = NULL;
+                // data->local_dpu.id is already set while parsing the list of DPUs to use for the job
                 rc = true;
             }
 
@@ -278,16 +444,17 @@ bool parse_line_dpu_version_1(dpu_config_t *data, char *line)
             remote_dpu_info_t **list_dpus = (remote_dpu_info_t **)data->offloading_engine->dpus.base;
             for (j = 0; j < data->offloading_engine->num_dpus; j++)
             {
-                DBG("Saving configuration details for DPU #%ld, %s (addr: %s)",
-                    j,
-                    list_dpus_from_list[i].version_1.hostname,
-                    list_dpus_from_list[i].version_1.addr);
-
                 if (list_dpus[j] == NULL)
                     continue;
 
                 if (strncmp(list_dpus_from_list[i].version_1.hostname, list_dpus[j]->hostname, strlen(list_dpus[j]->hostname)) == 0)
                 {
+                    DBG("Saving configuration details for DPU #%ld, %s (addr: %s)",
+                        j,
+                        list_dpus_from_list[i].version_1.hostname,
+                        list_dpus_from_list[i].version_1.addr);
+
+                    // We found the DPU in the engine's list
                     list_dpus[j]->init_params.conn_params->addr_str = list_dpus_from_list[i].version_1.addr;
                     list_dpus[j]->init_params.conn_params->port = list_dpus_from_list[i].version_1.interdpu_port;
                 }

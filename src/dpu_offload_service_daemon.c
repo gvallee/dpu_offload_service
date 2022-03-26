@@ -131,9 +131,9 @@ static int oob_server_accept(execution_context_t *econtext, char *client_addr)
         DBG("Accepting connection on port %" PRIu16 "...", server_port);
         struct sockaddr_in addr;
         int addr_len = sizeof(client_addr);
-        econtext->server->conn_data.oob.sock = accept(econtext->server->conn_data.oob.listenfd,  (struct sockaddr *)&addr, &addr_len);
+        econtext->server->conn_data.oob.sock = accept(econtext->server->conn_data.oob.listenfd, (struct sockaddr *)&addr, &addr_len);
         struct in_addr ipAddr = addr.sin_addr;
-        inet_ntop(AF_INET, &ipAddr, client_addr, INET_ADDRSTRLEN );
+        inet_ntop(AF_INET, &ipAddr, client_addr, INET_ADDRSTRLEN);
         DBG("Connection accepted from %s on fd=%d", client_addr, econtext->server->conn_data.oob.sock);
     }
     return DO_SUCCESS;
@@ -321,6 +321,8 @@ dpu_offload_status_t client_init_context(execution_context_t *econtext, init_par
         econtext->client->conn_params.addr_str = init_params->conn_params->addr_str;
         econtext->client->conn_params.port_str = init_params->conn_params->port_str;
         econtext->client->conn_params.port = init_params->conn_params->port;
+        if (init_params->id_set)
+            econtext->client->id = init_params->id;
     }
 
     // If we are not using a worker that was passed in, we create a new one.
@@ -333,6 +335,13 @@ dpu_offload_status_t client_init_context(execution_context_t *econtext, init_par
     {
         econtext->client->ucp_context = NULL;
         econtext->client->ucp_worker = init_params->worker;
+    }
+
+    // If we have a group/rank in the init params, we pass it down
+    if (init_params != NULL)
+    {
+        econtext->rank.group_id = init_params->proc_info->group_id;
+        econtext->rank.group_rank = init_params->proc_info->group_rank;
     }
 
     switch (econtext->client->mode)
@@ -402,6 +411,7 @@ static ucs_status_t ucx_wait(ucp_worker_h ucp_worker, struct ucx_context *reques
 {
     ucs_status_t status;
 
+    DBG("Waiting for request %p to complete", request);
     if (request == NULL)
     {
         // The request completed right away, nothing to do.
@@ -464,13 +474,15 @@ static dpu_offload_status_t oob_connect(execution_context_t *econtext)
     size_t addr_len;
     int rc = oob_client_connect(client, ai_family);
     CHECK_ERR_RETURN((rc), DO_ERROR, "oob_client_connect() failed");
-    recv(client->conn_data.oob.sock, &addr_len, sizeof(addr_len), MSG_WAITALL);
-    DBG("Addr len received: %ld", addr_len);
+    ssize_t size_recvd = recv(client->conn_data.oob.sock, &addr_len, sizeof(addr_len), MSG_WAITALL);
+    DBG("Addr len received (len: %ld): %ld", size_recvd, addr_len);
     client->conn_data.oob.peer_addr_len = addr_len;
     client->conn_data.oob.peer_addr = malloc(client->conn_data.oob.peer_addr_len);
     CHECK_ERR_RETURN((client->conn_data.oob.peer_addr == NULL), DO_ERROR, "Unable to allocate memory");
-    recv(client->conn_data.oob.sock, client->conn_data.oob.peer_addr, client->conn_data.oob.peer_addr_len, MSG_WAITALL);
-    recv(client->conn_data.oob.sock, &(client->id), sizeof(client->id), MSG_WAITALL);
+    size_recvd = recv(client->conn_data.oob.sock, client->conn_data.oob.peer_addr, client->conn_data.oob.peer_addr_len, MSG_WAITALL);
+    DBG("Received the address (size: %ld)", size_recvd);
+    size_recvd = recv(client->conn_data.oob.sock, &(client->id), sizeof(client->id), MSG_WAITALL);
+    DBG("Received the client ID (size: %ld)", size_recvd);
 
     /* Establish the UCX level connection */
     ucp_ep_params_t ep_params;
@@ -492,11 +504,11 @@ static dpu_offload_status_t oob_connect(execution_context_t *econtext)
     struct oob_msg *msg = malloc(msg_len);
     CHECK_ERR_RETURN((msg == NULL), DO_ERROR, "Memory allocation failed for msg");
     memset(msg, 0, msg_len);
-    DBG("sending local addr to server, len=%ld", client->conn_data.oob.local_addr_len);
+    DBG("sending local addr to server, len=%ld", msg_len);
     msg->len = client->conn_data.oob.local_addr_len;
     memcpy(msg + 1, client->conn_data.oob.local_addr, client->conn_data.oob.local_addr_len);
 
-    struct ucx_context *addr_request, *rank_request;
+    struct ucx_context *addr_request = NULL;
     ucp_request_param_t send_param;
     send_param.op_attr_mask = UCP_OP_ATTR_FIELD_CALLBACK |
                               UCP_OP_ATTR_FIELD_USER_DATA;
@@ -505,17 +517,42 @@ static dpu_offload_status_t oob_connect(execution_context_t *econtext)
     // We send everything required to create an endpoint to the server
     addr_request = ucp_tag_send_nbx(client->server_ep, msg, msg_len, client->conn_data.oob.tag,
                                     &send_param);
-    // We send our "rank", i.e., unique application ID
-    rank_request = ucp_tag_send_nbx(client->server_ep, &(econtext->rank), sizeof(rank_info_t), client->conn_data.oob.tag,
-                                    &send_param);
-
     // Because this is part of the bootstrapping, we wait for the sends to complete
     ucx_wait(client->ucp_worker, addr_request, "send",
              client->conn_data.oob.addr_msg_str);
+
+    // We send our "rank", i.e., unique application ID
+    DBG("Sending my group/rank info (%"PRId64"/%"PRId64"), len=%ld", econtext->rank.group_id, econtext->rank.group_rank, sizeof(econtext->rank));
+    struct ucx_context *rank_request = NULL;
+    send_param.user_data = NULL;
+    rank_request = ucp_tag_send_nbx(client->server_ep, &(econtext->rank), sizeof(rank_info_t), client->conn_data.oob.tag + 1,
+                                    &send_param);
     ucx_wait(client->ucp_worker, rank_request, "send", NULL);
 
     free(msg);
     msg = NULL;
+
+    return DO_SUCCESS;
+}
+
+dpu_offload_status_t offload_engine_progress(offloading_engine_t *engine)
+{
+    if (engine->on_dpu)
+    {
+        size_t i;
+        remote_dpu_info_t **list_dpus = LIST_DPUS_FROM_ENGINE(engine);
+        for (i = 0; i < engine->num_dpus; i++)
+        {
+            if (list_dpus[i] == NULL)
+                continue;
+
+            execution_context_t *econtext = list_dpus[i]->econtext;
+            if (econtext == NULL || econtext->progress == NULL)
+                continue;
+
+            econtext->progress(econtext);
+        }
+    }
     return DO_SUCCESS;
 }
 
@@ -523,9 +560,12 @@ dpu_offload_status_t offload_engine_init(offloading_engine_t **engine)
 {
     offloading_engine_t *d = malloc(sizeof(offloading_engine_t));
     CHECK_ERR_RETURN((d == NULL), DO_ERROR, "Unable to allocate resources");
+    int ret = pthread_mutex_init(&(d->mutex), NULL);
+    CHECK_ERR_RETURN((ret), DO_ERROR, "pthread_mutex_init() failed: %s", strerror(errno));
     d->done = 0;
     d->client = NULL;
     d->num_max_servers = DEFAULT_MAX_NUM_SERVERS;
+    d->default_econtext = NULL;
     d->num_servers = 0;
     d->servers = malloc(d->num_max_servers * sizeof(dpu_offload_server_t));
     d->num_inter_dpus_clients = 0;
@@ -869,13 +909,23 @@ static dpu_offload_status_t ucx_listener_server(dpu_offload_server_t *server)
     return DO_SUCCESS;
 }
 
-static void oob_recv_handler(void *request, ucs_status_t status,
+static void oob_recv_addr_handler(void *request, ucs_status_t status,
                              ucp_tag_recv_info_t *info)
 {
     struct ucx_context *context = (struct ucx_context *)request;
     context->completed = 1;
 
-    DBG("receive handler called with status %d (%s), length %lu",
+    DBG("receive handler for addr called with status %d (%s), length %lu",
+        status, ucs_status_string(status), info->length);
+}
+
+static void oob_recv_rank_handler(void *request, ucs_status_t status,
+                             ucp_tag_recv_info_t *info)
+{
+    struct ucx_context *context = (struct ucx_context *)request;
+    context->completed = 1;
+
+    DBG("receive handler for rank called with status %d (%s), length %lu",
         status, ucs_status_string(status), info->length);
 }
 
@@ -902,41 +952,39 @@ static inline dpu_offload_status_t oob_server_ucx_client_connection(execution_co
     /* Receive client UCX address */
     do
     {
-        pthread_mutex_lock(&(econtext->server->mutex));
+        ECONTEXT_LOCK(econtext);
         /* Progressing before probe to update the state */
         ucp_worker_progress(server->ucp_worker);
 
         /* Probing incoming events in non-block mode */
         msg_tag = ucp_tag_probe_nb(server->ucp_worker, server->conn_data.oob.tag, server->conn_data.oob.tag_mask, 1, &info_tag);
-        pthread_mutex_unlock(&(econtext->server->mutex));
+        ECONTEXT_UNLOCK(econtext);
     } while (msg_tag == NULL);
 
-    pthread_mutex_lock(&(econtext->server->mutex));
+    ECONTEXT_LOCK(econtext);
     DBG("allocating space for message to receive: %ld", info_tag.length);
     msg = malloc(info_tag.length);
     CHECK_ERR_GOTO((msg == NULL), error_out, "unable to allocate memory");
     assert(server->ucp_worker);
     addr_request = ucp_tag_msg_recv_nb(server->ucp_worker, msg, info_tag.length,
-                                       ucp_dt_make_contig(1), msg_tag, oob_recv_handler);
-    peer_data_t peer_data;
-    rank_request = ucp_tag_msg_recv_nb(server->ucp_worker, &peer_data, sizeof(peer_data_t),
-                                       ucp_dt_make_contig(1), msg_tag, oob_recv_handler);
-    assert(addr_request);
-    assert(server);
-    assert(server->ucp_worker);
-    assert(server->conn_data.oob.addr_msg_str);
+                                       ucp_dt_make_contig(1), msg_tag, oob_recv_addr_handler);
+    DBG("Receiving address length and data (len: %ld, req: %p)", info_tag.length, addr_request);
     status = ucx_wait(server->ucp_worker, addr_request, "receive", server->conn_data.oob.addr_msg_str);
     if (status != UCS_OK)
     {
         free(msg);
         return -1;
     }
+    assert(addr_request);
+    assert(server);
+    assert(server->ucp_worker);
+    assert(server->conn_data.oob.addr_msg_str);
 
     server->conn_data.oob.peer_addr_len = msg->len;
     CHECK_ERR_GOTO((msg <= 0), error_out, "invalid message length: %ld", msg->len);
     server->conn_data.oob.peer_addr = malloc(server->conn_data.oob.peer_addr_len);
     CHECK_ERR_GOTO((server->conn_data.oob.peer_addr == NULL), error_out, "unable to allocate memory for peer address (%ld bytes)", server->conn_data.oob.peer_addr_len);
-    memcpy(server->conn_data.oob.peer_addr, msg + 1, server->conn_data.oob.peer_addr_len); 
+    memcpy(server->conn_data.oob.peer_addr, msg + 1, server->conn_data.oob.peer_addr_len);
     free(msg);
 
     ep_params.field_mask = UCP_EP_PARAM_FIELD_REMOTE_ADDRESS |
@@ -958,16 +1006,28 @@ static inline dpu_offload_status_t oob_server_ucx_client_connection(execution_co
                    "max number of clients (%d) has been reached",
                    DEFAULT_MAX_NUM_CLIENTS);
     server->connected_clients.clients[server->connected_clients.num_connected_clients].ep = client_ep;
+    DBG("endpoint successfully created");
 
+    do
+    {
+        /* Progressing before probe to update the state */
+        ucp_worker_progress(server->ucp_worker);
+
+        /* Probing incoming events in non-block mode */
+        msg_tag = ucp_tag_probe_nb(server->ucp_worker, server->conn_data.oob.tag + 1, server->conn_data.oob.tag_mask, 1, &info_tag);
+    } while (msg_tag == NULL);
+    DBG("Ready to receive peer data\n");
+    rank_info_t peer_data;
+    rank_request = ucp_tag_msg_recv_nb(server->ucp_worker, &peer_data, sizeof(rank_info_t),
+                                       ucp_dt_make_contig(1), msg_tag, oob_recv_rank_handler);
+    DBG("Receiving rank info (len=%ld, req=%p)", sizeof(rank_info_t), rank_request);
     ucx_wait(server->ucp_worker, rank_request, "receive", NULL);
-    if (IS_A_VALID_PEER_DATA((&peer_data)))
+    DBG("group/rank received: (%"PRId64"/%"PRId64")", peer_data.group_id, peer_data.group_rank);
+    if (peer_data.group_id != INVALID_GROUP && peer_data.group_rank != INVALID_RANK)
     {
         // Update the pointer to track cache entries, i.e., groups/ranks, for the peer
-        peer_cache_entry_t *cache_entry;
-        GET_PEER_DATA_HANDLE(econtext->engine->free_peer_cache_entries, cache_entry);
-        cache_entry->peer.proc_info.group_id = peer_data.proc_info.group_id;
-        cache_entry->peer.proc_info.group_rank = peer_data.proc_info.group_rank;
-        cache_entry->set = true;
+        DBG("Adding gp/rank %"PRId64"/%"PRId64" to cache", peer_data.group_id, peer_data.group_rank);
+        peer_cache_entry_t *cache_entry = SET_GROUP_RANK_CACHE_ENTRY(econtext, peer_data.group_id, peer_data.group_rank);
         assert(server->connected_clients.clients);
         assert(server->connected_clients.clients[server->connected_clients.num_connected_clients].cache_entries);
         server->connected_clients.clients[server->connected_clients.num_connected_clients].cache_entries[0] = cache_entry;
@@ -977,7 +1037,8 @@ static inline dpu_offload_status_t oob_server_ucx_client_connection(execution_co
     {
         /* Check if it is a DPU we are expecting to connect to us */
         size_t i;
-        remote_dpu_info_t **list_dpus = (remote_dpu_info_t **)econtext->engine->dpus.base;
+        remote_dpu_info_t **list_dpus = LIST_DPUS_FROM_ECONTEXT(econtext);
+        CHECK_ERR_RETURN((list_dpus == NULL), DO_ERROR, "unable to get list of DPUs");
         for (i = 0; i < econtext->engine->num_dpus; i++)
         {
             if (list_dpus[i] == NULL)
@@ -993,7 +1054,10 @@ static inline dpu_offload_status_t oob_server_ucx_client_connection(execution_co
             assert(server->conn_data.oob.peer_addr);
             if (strncmp(list_dpus[i]->init_params.conn_params->addr_str, client_addr, strlen(client_addr)) == 0)
             {
+                // Set the endpoint to communicate with that remote DPU
                 list_dpus[i]->ep = client_ep;
+                // Set the pointer to the execution context in the list of know DPUs. Used for notifications with the remote DPU.
+                list_dpus[i]->econtext = econtext;
                 DBG("-> DPU #%ld: addr=%s, port=%d, ep=%p", i,
                     list_dpus[i]->init_params.conn_params->addr_str,
                     list_dpus[i]->init_params.conn_params->port,
@@ -1004,12 +1068,12 @@ static inline dpu_offload_status_t oob_server_ucx_client_connection(execution_co
     }
 
     server->connected_clients.num_connected_clients++;
-    pthread_mutex_unlock(&(econtext->server->mutex));
+    ECONTEXT_UNLOCK(econtext);
     DBG("Endpoint to client successfully created");
     return DO_SUCCESS;
 
 error_out:
-    pthread_mutex_unlock(&(econtext->server->mutex));
+    ECONTEXT_UNLOCK(econtext);
     return DO_ERROR;
 }
 
@@ -1026,11 +1090,14 @@ static dpu_offload_status_t oob_server_listen(execution_context_t *econtext)
     dpu_offload_status_t rc = oob_server_accept(econtext, client_addr);
     CHECK_ERR_RETURN((rc), DO_ERROR, "oob_server_accept() failed");
     DBG("Sending my worker's data...\n");
-    send(econtext->server->conn_data.oob.sock, &(econtext->server->conn_data.oob.local_addr_len), sizeof(econtext->server->conn_data.oob.local_addr_len), 0);
-    send(econtext->server->conn_data.oob.sock, econtext->server->conn_data.oob.local_addr, econtext->server->conn_data.oob.local_addr_len, 0);
+    ssize_t size_sent = send(econtext->server->conn_data.oob.sock, &(econtext->server->conn_data.oob.local_addr_len), sizeof(econtext->server->conn_data.oob.local_addr_len), 0);
+    DBG("Addr length send (len: %ld)", size_sent);
+    size_sent = send(econtext->server->conn_data.oob.sock, econtext->server->conn_data.oob.local_addr, econtext->server->conn_data.oob.local_addr_len, 0);
+    DBG("Address sent (len: %ld)", size_sent);
     uint64_t client_id = generate_unique_client_id(econtext);
-    send(econtext->server->conn_data.oob.sock, &client_id, sizeof(uint64_t), 0);
-
+    size_sent = send(econtext->server->conn_data.oob.sock, &client_id, sizeof(uint64_t), 0);
+    DBG("Client ID sent (len: %ld)", size_sent);
+    
     rc = oob_server_ucx_client_connection(econtext, client_addr);
     CHECK_ERR_RETURN((rc), DO_ERROR, "oob_server_ucx_client_connection() failed");
 
@@ -1090,10 +1157,10 @@ static dpu_offload_status_t start_server(execution_context_t *econtext)
     bool client_connected = false;
     while (!client_connected)
     {
-        pthread_mutex_lock(&(econtext->server->mutex));
+        ECONTEXT_LOCK(econtext);
         if (econtext->server->connected_clients.num_connected_clients > 0)
             client_connected++;
-        pthread_mutex_unlock(&(econtext->server->mutex));
+        ECONTEXT_UNLOCK(econtext);
     }
     DBG("At least one client is now connected");
 
@@ -1131,6 +1198,8 @@ dpu_offload_status_t server_init_context(execution_context_t *econtext, init_par
         econtext->server->conn_params.addr_str = init_params->conn_params->addr_str;
         econtext->server->conn_params.port = init_params->conn_params->port;
         econtext->server->conn_params.port_str = NULL;
+        if (init_params->id_set)
+            econtext->server->id = init_params->id;
     }
 
     DBG("starting server connection thread");

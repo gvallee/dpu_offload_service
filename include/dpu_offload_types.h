@@ -35,7 +35,7 @@ typedef enum
     }                                      \
     else                                   \
     {                                      \
-        _my_id = 0;                        \
+        _my_id = _exec_ctx->server->id;    \
     }                                      \
     _my_id;                                \
 })
@@ -146,7 +146,9 @@ typedef struct offload_config
     } infra;
 } offload_config_t;
 
+/**************/
 /* OPERATIONS */
+/**************/
 
 typedef int (*op_init_fn)();
 typedef int (*op_complete_fn)();
@@ -240,18 +242,33 @@ typedef struct shadow_dpu_info
 typedef struct peer_cache_entry
 {
     ucs_list_link_t item;
+
+    // Is the entry set?
     bool set;
+
+    // Peer data (group/rank)
     peer_data_t peer;
+
+    // endpoint to reach the peer
     ucp_ep_h ep;
+
+    // Number of  the peer's shadow DPU(s)
     size_t num_shadow_dpus;
-    shadow_dpu_info_t shadow_dpus[MAX_SHADOW_DPUS]; // Array of DPUs (when applicable)
+
+    // List of DPUs' unique ID that are the shadow DPU(s) of the peer
+    uint64_t shadow_dpus[MAX_SHADOW_DPUS]; // Array of DPUs (when applicable)
+
+    // Is the list of events already initialized or not (lazy initialization)
+    bool events_initialized;
+
+    // List of events to complete when any update is made to the entry
+    ucs_list_link_t events;
 } peer_cache_entry_t;
 
 typedef struct peer_info
 {
     ucp_ep_h ep;
     ucs_status_t ep_status;
-    // rank_info_t rank;
     //  Array of group/proc entries, one per group. A rank can belong to multiple groups but have a single endpoint.
     peer_cache_entry_t **cache_entries;
 } peer_info_t;
@@ -334,10 +351,36 @@ typedef struct conn_params
 
 typedef struct init_params
 {
+    // Parameters specific to the initial connection
     conn_params_t *conn_params;
+
+    // Proc identifier passed in by the calling layer.
+    // Mainly used to create the mapping between group/rank from layer such as MPI
     rank_info_t *proc_info;
+
+    // worker to use to perform the initial connection.
+    // If NULL, a new worker will be created
     ucp_worker_h worker;
+
+    // Specifies whether a unique ID is passed in and should be used when creating the execution context
+    bool id_set;
+
+    // Optional unique ID to use when creating the execution context
+    uint64_t id;
 } init_params_t;
+
+#define ENGINE_LOCK(_engine)                   \
+    do                                         \
+    {                                          \
+        pthread_mutex_lock(&(_engine->mutex)); \
+    } while (0)
+
+#define ENGINE_UNLOCK(_engine)                   \
+    do                                           \
+    {                                            \
+        pthread_mutex_unlock(&(_engine->mutex)); \
+    } while (0)
+
 
 #define ECONTEXT_LOCK(_econtext)                             \
     do                                                       \
@@ -359,6 +402,7 @@ typedef struct init_params
 
 typedef struct dpu_offload_server_t
 {
+    uint64_t id;
     int mode;
     bool done;
     conn_params_t conn_params;
@@ -469,7 +513,7 @@ typedef struct execution_context
     // In the context of a execution context running on the host and in the context of
     // an application, it can be the group/rank data from the runtime (e.g., MPI). This
     // is used to map the unique identifier of the proc to the DPU offload library during
-    // bootstrapping.
+    // bootstrapping. If not in such a context, it must be set to INVALID_GROUP and INVALID_RANK.
     rank_info_t rank;
 
     // free_pending_rdv_recv is a list of allocated descriptors used to track pending UCX AM RDV messages.
@@ -509,21 +553,28 @@ typedef struct dpu_offload_event
 {
     // item is used to be able to add/remove the event to lists, e.g., the list for ongoing events and the pool of free event objects.
     ucs_list_link_t item;
+
     // sub_events is the list of sub-events composing this event.
     // The event that has sub-events is not considered completed unless all sub-events are completed.
     // event_completed() can be used to easily check for completion.
     ucs_list_link_t sub_events;
+    
     // sub_events_initialized tracks whether the sub-event list has been initialized.
     bool sub_events_initialized;
+
     // ctx is the communication context associated to the event, used to track the status of the potential underlying UCX AM communication
     am_req_t ctx;
+
     // req is the opaque request object used to track any potential underlying communication associated to the event.
     // If more than one communication operation is required, please use sub-events.
     void *req;
+
     // context is the user defined context of the event. Can be NULL.
     void *context;
+
     // data is the payload associated to the event. Can be NULL.
     void *data;
+    
     // user_context is the user-defined context for the event. Can be NULL.
     void *user_context;
 } dpu_offload_event_t;
@@ -534,7 +585,9 @@ typedef enum
     EVENT_INPROGRESS = UCS_INPROGRESS
 } event_state_t;
 
+/*********************/
 /* OFFLOADING ENGINE */
+/*********************/
 
 typedef struct cache
 {
@@ -549,6 +602,41 @@ typedef struct group_cache
     bool initialized;
     dyn_array_t ranks;
 } group_cache_t;
+
+#define GET_GROUP_RANK_CACHE_ENTRY(_cache, _gp_id, _rank)                                       \
+    ({                                                                                          \
+        peer_cache_entry_t *_entry = NULL;                                                      \
+        group_cache_t *_gp_cache = (group_cache_t *)(_cache)->data.base;                        \
+        dyn_array_t *_rank_cache = &(_gp_cache[_gp_id].ranks);                                  \
+        if (_gp_cache[_gp_id].initialized == false)                                             \
+        {                                                                                       \
+            /* Cache for the group is empty */                                                  \
+            DYN_ARRAY_ALLOC(_rank_cache, DEFAULT_NUM_PEERS, peer_cache_entry_t);                \
+            _gp_cache[_gp_id].initialized = true;                                               \
+            (_cache)->size++;                                                                   \
+        }                                                                                       \
+        if (_rank >= _rank_cache->num_elts)                                                     \
+            DYN_ARRAY_GROW(_rank_cache, peer_cache_entry_t, _rank);                             \
+        assert(_rank < _rank_cache->num_elts);                                                  \
+        peer_cache_entry_t *_ptr = (peer_cache_entry_t *)_rank_cache->base;                     \
+        _entry = &(_ptr[_rank]);                                                                \
+        _entry;                                                                                 \
+    })
+
+#define SET_GROUP_RANK_CACHE_ENTRY(__econtext, __gp_id, __rank)                                        \
+    ({                                                                                                 \
+        peer_cache_entry_t *__entry = GET_GROUP_RANK_CACHE_ENTRY(&((__econtext)->engine->procs_cache), \
+                                                                 __gp_id, __rank);                     \
+        if (__entry != NULL)                                                                           \
+        {                                                                                              \
+        __entry->peer.proc_info.group_id = __gp_id;                                                    \
+        __entry->peer.proc_info.group_rank = __rank;                                                   \
+        __entry->num_shadow_dpus = 1; /* fixme: find a way to get the DPUs config from here */         \
+        __entry->shadow_dpus[0] = ECONTEXT_ID(__econtext);                                             \
+        __entry->set = true;                                                                           \
+        }                                                                                              \
+        __entry;                                                                                       \
+    })
 
 #define SET_PEER_CACHE_ENTRY_FROM_PEER_DATA(_peer_cache, _peer_data)                              \
     do                                                                                            \
@@ -567,30 +655,29 @@ typedef struct group_cache
         _cache[_peer_data->group_rank].set = true;                                                \
     } while (0)
 
-#define SET_PEER_CACHE_ENTRY(_peer_cache, _entry)                                                 \
-    do                                                                                            \
-    {                                                                                             \
-        int32_t _gp_id = (_entry)->peer.proc_info.group_id;                                       \
-        if (_gp_id >= _peer_cache->data.num_elts)                                                 \
-            DYN_ARRAY_GROW(&(_peer_cache->data), group_cache_t, _gp_id);                          \
-        group_cache_t *_gp_cache = (group_cache_t *)_peer_cache->data.base;                       \
-        dyn_array_t *_rank_cache = &(_gp_cache[_gp_id].ranks);                                    \
-        if (_gp_cache[_gp_id].initialized == false)                                               \
-        {                                                                                         \
-            /* Cache for the group is empty */                                                    \
-            DYN_ARRAY_ALLOC(_rank_cache, DEFAULT_NUM_PEERS, peer_cache_entry_t);                  \
-            _gp_cache[_gp_id].initialized = true;                                                 \
-            _peer_cache->size++;                                                                  \
-        }                                                                                         \
-        if ((_entry)->peer.proc_info.group_rank >= _rank_cache->num_elts)                         \
-            DYN_ARRAY_GROW(_rank_cache, peer_cache_entry_t, (_entry)->peer.proc_info.group_rank); \
-        assert((_entry)->peer.proc_info.group_rank < _rank_cache->num_elts);                      \
-        peer_cache_entry_t *_ptr = (peer_cache_entry_t *)_rank_cache->base;                       \
-        memcpy(&(_ptr[(_entry)->peer.proc_info.group_rank]), _entry, sizeof(peer_cache_entry_t)); \
-    } while (0)
+
+#define SET_PEER_CACHE_ENTRY(_peer_cache, _entry)                                          \
+    ({                                                                                     \
+        int64_t _gp_id = (_entry)->peer.proc_info.group_id;                                \
+        int64_t _rank = (_entry)->peer.proc_info.group_rank;                               \
+        peer_cache_entry_t *_ptr = GET_GROUP_RANK_CACHE_ENTRY(_peer_cache, _gp_id, _rank); \
+        if (_ptr != NULL)                                                                  \
+        {                                                                                  \
+            _ptr->set = true;                                                              \
+            memcpy(&(_ptr->peer), &((_entry)->peer), sizeof(peer_data_t));                 \
+            _ptr->ep = NULL;                                                               \
+            _ptr->num_shadow_dpus = (_entry)->num_shadow_dpus;                             \
+            size_t _i;                                                                     \
+            for (_i = 0; _i < (_entry)->num_shadow_dpus; _i++)                             \
+                _ptr->shadow_dpus[_i] = (_entry)->shadow_dpus[_i];                         \
+        }                                                                                  \
+        _ptr;                                                                              \
+    })
 
 typedef struct offloading_engine
 {
+    
+    pthread_mutex_t mutex;
     int done;
 
     /* client here is used to track the bootstrapping as a client. */
@@ -602,6 +689,10 @@ typedef struct offloading_engine
     size_t num_max_servers;
     size_t num_servers;
     execution_context_t **servers;
+
+    // On DPU to simply communications with other DPUs, we set a default execution context
+    // so we can always easily get events
+    execution_context_t *default_econtext; 
 
     /* we track the clients used for inter-DPU connection separately. Servers are at the */
     /* moment in the servers list. */
@@ -625,13 +716,18 @@ typedef struct offloading_engine
     // Flag to specify if we are on the DPU or not
     bool on_dpu;
 
-    // dpus is a vector of remote_dpu_info_t structure used on the DPUs
-    // to easily track all the DPU the execution context is connected to.
+    // dpus is a vector of remote_dpu_info_t structures used on the DPUs
+    // to easily track all the DPUs the execution context is connected to.
     // This is at the moment not used on the host.
     dyn_array_t dpus;
 
     // Number of DPUs defined in dpus
     size_t num_dpus;
+
+    // Number of DPUs we are connected to.
+    // Note that ATM it only account for the number of DPUs that the current DPU connects to,
+    // not the DPUs connecting to it.
+    size_t num_connected_dpus;
 } offloading_engine_t;
 
 /***************************/
@@ -685,6 +781,46 @@ typedef struct pending_notification
 /* DPU CONFIGURATION */
 /*********************/
 
+/**
+ * @brief LIST_DPUS_FROM_ENGINE returns the pointer to the array of remote_dpu_info_t structures
+ * representing the list of known DPU, based on a engine. This is relevant mainly on DPUs
+ * 
+ * @parma[in] engine
+ */
+#define LIST_DPUS_FROM_ENGINE(_engine) ({                   \
+    remote_dpu_info_t **_list = NULL;                       \
+    if (_engine)                                            \
+    {                                                       \
+        _list = (remote_dpu_info_t **)(_engine)->dpus.base; \
+    }                                                       \
+    _list;                                                  \
+})
+
+/**
+ * @brief LIST_DPUS_FROM_ENGINE returns the pointer to the array of remote_dpu_info_t structures
+ * representing the list of known DPU, based on a execution context. This is relevant mainly on DPUs
+ * 
+ * @parma[in] econtext
+ */
+#define LIST_DPUS_FROM_ECONTEXT(_econtext) ({               \
+    remote_dpu_info_t **_list = NULL;                       \
+    if (_econtext != NULL)                                  \
+    {                                                       \
+        _list = LIST_DPUS_FROM_ENGINE((_econtext)->engine); \
+    }                                                       \
+    _list;                                                  \
+})
+
+#define ECONTEXT_FOR_DPU_COMMUNICATION(_engine, _dpu_idx) ({    \
+    execution_context_t *_e = NULL;                             \
+    remote_dpu_info_t **_list = LIST_DPUS_FROM_ENGINE(_engine); \
+    if (_list != NULL && _list[_dpu_idx] != NULL)               \
+    {                                                           \
+        _e = _list[_dpu_idx]->econtext;                         \
+    }                                                           \
+    _e;                                                         \
+})
+
 typedef enum
 {
     CONNECT_STATUS_UNKNOWN = 0,
@@ -716,6 +852,9 @@ typedef struct remote_dpu_info
 
     // Associated offloading engine
     offloading_engine_t *offload_engine;
+
+    // Execution context to communication with it
+    execution_context_t *econtext;
 
     // Pointer to the endpoint to communicate with the DPU
     ucp_ep_h ep;
@@ -755,6 +894,8 @@ typedef struct dpu_config
     dyn_array_t dpus_config;
     struct
     {
+        // id is the unique identifier This will be used to set the context ID for the server on the DPU
+        uint64_t id;
         dpu_config_data_t *config;
         char hostname[1024];
         conn_params_t interdpu_conn_params;
@@ -816,6 +957,8 @@ typedef enum
     AM_XGVMI_DEL_MSG_ID,
     AM_PEER_CACHE_REQ_MSG_ID,
     AM_PEER_CACHE_ENTRIES_MSG_ID, // 40
+    AM_PEER_CACHE_ENTRIES_REQUEST_MSG_ID,
+    AM_ADD_GP_RANK_MSG_ID,
     AM_TEST_MSG_ID
 } am_id_t;
 

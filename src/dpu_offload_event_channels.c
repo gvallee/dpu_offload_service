@@ -117,7 +117,7 @@ static ucs_status_t am_notification_recv_rdv_msg(execution_context_t *econtext, 
     }
     else if (UCS_PTR_IS_PTR(status))
     {
-        /* request not yet completd */
+        /* request not yet completed */
         DBG("ucp_am_recv_data_nbx() is INPROGRESS");
         pending_recv->req = status;
     }
@@ -444,7 +444,7 @@ static dpu_offload_status_t xgvmi_key_revoke_cb(struct dpu_offload_ev_sys *ev_sy
     return DO_ERROR;
 }
 
-static int xgvmi_key_recv_cb(struct dpu_offload_ev_sys *ev_sys, execution_context_t *context, am_header_t *hdr, size_t hdr_size, void *data, size_t data_len)
+static dpu_offload_status_t xgvmi_key_recv_cb(struct dpu_offload_ev_sys *ev_sys, execution_context_t *context, am_header_t *hdr, size_t hdr_size, void *data, size_t data_len)
 {
     // todo
     return DO_ERROR;
@@ -454,35 +454,72 @@ static int xgvmi_key_recv_cb(struct dpu_offload_ev_sys *ev_sys, execution_contex
 /* Endpoint cache related functions */
 /************************************/
 
-static inline bool is_in_cache(cache_t *cache, int64_t gp_id, int64_t rank_id)
+extern dpu_offload_status_t send_group_cache(execution_context_t *econtext, ucp_ep_h dest, int64_t gp_id, dpu_offload_event_t *metaev);
+extern int send_cache_entry_request(execution_context_t *econtext, ucp_ep_h ep, rank_info_t *requested_peer, dpu_offload_event_t **ev);
+
+bool is_in_cache(cache_t *cache, int64_t gp_id, int64_t rank_id)
 {
-    dyn_array_t *gp_data, *gps_data = &(cache->data);
-    DYN_ARRAY_GET_ELT(gps_data, gp_id, dyn_array_t, gp_data);
-    if (gp_data == NULL)
-    {
+    peer_cache_entry_t *entry = GET_GROUP_RANK_CACHE_ENTRY(cache, gp_id, rank_id);
+    if (entry == NULL)
         return false;
-    }
-    else
-    {
-        if (gp_data->num_elts <= rank_id)
-        {
-            return false;
-        }
-        else
-        {
-            peer_cache_entry_t *entries;
-            dyn_array_t *rank_array = (dyn_array_t *)gp_data->base;
-            DYN_ARRAY_GET_ELT(rank_array, rank_id, peer_cache_entry_t, entries);
-            if (entries[rank_id].set)
-            {
-                return false;
-            }
-        }
-    }
-    return true;
+    return (entry->set);
 }
 
-static int peer_cache_entries_recv_cb(struct dpu_offload_ev_sys *ev_sys, execution_context_t *econtext, am_header_t *hdr, size_t hdr_size, void *data, size_t data_len)
+static dpu_offload_status_t peer_cache_entries_request_recv_cb(struct dpu_offload_ev_sys *ev_sys, execution_context_t *econtext, am_header_t *hdr, size_t hdr_size, void *data, size_t data_len)
+{
+    assert(econtext);
+    assert(data);
+    rank_info_t *rank_info = (rank_info_t*)data;
+
+    DBG("Cache entry requested received for gp/rank %"PRIu64"/%"PRIu64, rank_info->group_id, rank_info->group_rank);
+
+    if (is_in_cache(&(econtext->engine->procs_cache), rank_info->group_id, rank_info->group_rank))
+    {
+        // We send the cache back to the sender
+        dpu_offload_status_t rc;
+        ucp_ep_h dest;
+        group_cache_t *gp_caches;
+        dpu_offload_event_t *send_cache_ev;
+        event_get(econtext->event_channels, &send_cache_ev);
+        assert(econtext->type == CONTEXT_SERVER);
+        dest = econtext->server->connected_clients.clients[hdr->id].ep;
+        gp_caches = (group_cache_t*) econtext->engine->procs_cache.data.base;
+        DBG("Sending group cache to DPU #%"PRIu64, hdr->id);
+        rc = send_group_cache(econtext, dest, rank_info->group_id, send_cache_ev);
+        CHECK_ERR_RETURN((rc), DO_ERROR, "send_group_cache() failed");
+
+        // Add the event to the list of pending events so it completed implicitely
+        ucs_list_add_tail(&(econtext->ongoing_events), &(send_cache_ev->item));
+
+        return DO_SUCCESS;
+    }
+
+    // If the entry is not in the cache we forward the request 
+    // and also trigger the send of our cache for the target group
+    // Fixme: forward should happen only when the request is coming from a local rank, not a DPU
+    if (econtext->engine->on_dpu)
+    {
+        size_t i;
+        DBG("Entry not in the cache, forwarding the request to other DPUs");
+        for (i = 0; i < econtext->engine->num_dpus; i++)
+        {
+            dpu_offload_status_t rc;
+            dpu_offload_event_t *req_fwd_ev;
+            remote_dpu_info_t **list_dpus = (remote_dpu_info_t **)econtext->engine->dpus.base;
+            rc = send_cache_entry_request(econtext, list_dpus[i]->ep, rank_info, &req_fwd_ev);
+            CHECK_ERR_RETURN((rc), DO_ERROR, "send_group_cache() failed");
+
+            // Add the event to the list of pending events so it completed implicitely
+            ucs_list_add_tail(&(econtext->ongoing_events), &(req_fwd_ev->item));
+
+            return DO_SUCCESS;
+        }
+    }
+
+    return DO_ERROR;
+}
+
+static dpu_offload_status_t peer_cache_entries_recv_cb(struct dpu_offload_ev_sys *ev_sys, execution_context_t *econtext, am_header_t *hdr, size_t hdr_size, void *data, size_t data_len)
 {
     assert(econtext);
     assert(data);
@@ -501,17 +538,56 @@ static int peer_cache_entries_recv_cb(struct dpu_offload_ev_sys *ev_sys, executi
 
         // Now that we know for sure we have the group ID, we can move the received data into the local cache
         int64_t group_rank = entries[idx].peer.proc_info.group_rank;
-        DBG("Received a cache entry for rank:%ld, group:%ld (msg size=%ld)", group_rank, group_id, data_len);
+        DBG("Received a cache entry for rank:%ld, group:%ld (msg size=%ld)",
+            group_rank, group_id, data_len);
         if (!is_in_cache(cache, group_id, group_rank))
         {
-            SET_PEER_CACHE_ENTRY(cache, &(entries[idx]));
+            peer_cache_entry_t *cache_entry = SET_PEER_CACHE_ENTRY(cache, &(entries[idx]));
             group_cache_t *gp_caches = (group_cache_t *)cache->data.base;
-        }
+            // If any event is associated to the cache entry, handle them
+            if (cache_entry->events_initialized)
+            {
 
+                while (!ucs_list_is_empty(&(cache_entry->events)))
+                {
+                    dpu_offload_event_t *e = ucs_list_extract_head(&(cache_entry->events), dpu_offload_event_t, item);
+                    e->ctx.complete = 1;
+                    fprintf(stderr, "Event %p associated to cache entry is now completed\n", e);
+                }
+            }
+        }
         cur_size += sizeof(peer_cache_entry_t);
         idx++;
     }
     DBG("Reception completed");
+
+    return DO_SUCCESS;
+}
+
+/**
+ * @brief add_group_rank_recv_cb is invoked on the DPU when receiving a notification from a rank running on the local host
+ * that a new group/rank had been created
+ * 
+ * @param ev_sys Associated event/notification system
+ * @param econtext Associated execution contexxt
+ * @param hdr Header of the received notification
+ * @param hdr_size Size of the header
+ * @param data Payload associated to the notification
+ * @param data_len Size of the payload
+ * @return dpu_offload_status_t 
+ */
+static dpu_offload_status_t add_group_rank_recv_cb(struct dpu_offload_ev_sys *ev_sys, execution_context_t *econtext, am_header_t *hdr, size_t hdr_size, void *data, size_t data_len)
+{
+    assert(econtext);
+    assert(data);
+
+    offloading_engine_t *engine = (offloading_engine_t *)econtext->engine;
+    rank_info_t *rank_info = (rank_info_t*)data;
+
+    if (!is_in_cache(&(econtext->engine->procs_cache), rank_info->group_id, rank_info->group_rank))
+    {
+        SET_GROUP_RANK_CACHE_ENTRY(econtext, rank_info->group_id, rank_info->group_rank);
+    }
 
     return DO_SUCCESS;
 }
@@ -538,6 +614,12 @@ dpu_offload_status_t register_default_notifications(dpu_offload_ev_sys_t *ev_sys
 
     rc = event_channel_register(ev_sys, AM_PEER_CACHE_ENTRIES_MSG_ID, peer_cache_entries_recv_cb);
     CHECK_ERR_RETURN(rc, DO_ERROR, "cannot register handler for receiving peer cache entries");
+
+    rc = event_channel_register(ev_sys, AM_PEER_CACHE_ENTRIES_REQUEST_MSG_ID, peer_cache_entries_request_recv_cb);
+    CHECK_ERR_RETURN(rc, DO_ERROR, "cannot register handler for receiving peer cache requests");
+
+    rc = event_channel_register(ev_sys, AM_ADD_GP_RANK_MSG_ID, add_group_rank_recv_cb);
+    CHECK_ERR_RETURN(rc, DO_ERROR, "cannot register handler for receiving requests to add a group/rank");
 
     return DO_SUCCESS;
 }
