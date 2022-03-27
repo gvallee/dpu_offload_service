@@ -19,6 +19,9 @@ dpu_offload_status_t event_channel_deregister(dpu_offload_ev_sys_t *ev_sys, uint
 
 /**
  * @brief event_channel_emit triggers the communication associated to a previously locally defined event.
+ * The current implementation relies on the UCX active messages. Unfortunately, UCX does not specify whether
+ * the payload can be reused right away or only after the operation completes. As a result, it is safer to
+ * assume that the buffer cannot be reused until the event completes.
  * 
  * @param ev Event to be emitted. The object needs to be fully initialized prior the invokation of the function (see 'event_get()' and 'event_return()').
  * @param my_id The unique identifier to be used to send the event. It is used to identify the source of the event.
