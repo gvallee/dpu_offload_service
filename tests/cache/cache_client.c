@@ -36,7 +36,7 @@ int main(int argc, char **argv)
     }
 
     dpu_offload_event_t *ev;
-    rc = event_get(client->event_channels, &ev);
+    rc = event_get(client->event_channels, NULL, &ev);
     if (rc != DO_SUCCESS)
     {
         fprintf(stderr, "event_get() failed\n");

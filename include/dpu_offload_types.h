@@ -577,7 +577,24 @@ typedef struct dpu_offload_event
     
     // user_context is the user-defined context for the event. Can be NULL.
     void *user_context;
+
+    // Specifies whether the payload buffer needs to be managed by the library.
+    // If so, it uses the payload_size from the infro structure used when getting
+    // the event to allocate/get the buffer and associate it to the event.
+    bool manage_payload_buf;
+
+    // payload buffer when the library manages it.
+    void *payload;
+
+    // payload size when the library manages the payload buffer.
+    size_t payload_size;
 } dpu_offload_event_t;
+
+typedef struct dpu_offload_event_info
+{
+    // Size of the payload that the library needs to be managing. If 0 not payload needs to be managed
+    size_t payload_size;
+} dpu_offload_event_info_t;
 
 typedef enum
 {

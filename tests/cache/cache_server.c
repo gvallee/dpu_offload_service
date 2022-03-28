@@ -38,7 +38,7 @@ int main(int argc, char **argv)
 
     fprintf(stderr, "Exchanging cache...\n");
     dpu_offload_event_t *ev;
-    rc = event_get(server->event_channels, &ev);
+    rc = event_get(server->event_channels, NULL, &ev);
     if (rc != DO_SUCCESS)
     {
         fprintf(stderr, "event_get() failed\n");

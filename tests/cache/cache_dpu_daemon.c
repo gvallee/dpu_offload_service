@@ -44,17 +44,17 @@ extern bool is_in_cache(cache_t *cache, int64_t gp_id, int64_t rank_id);
 static int send_term_message(execution_context_t *econtext)
 {
     dpu_offload_event_t *evt;
-    dpu_offload_status_t rc = event_get(econtext->event_channels, &evt);
+    dpu_offload_status_t rc = event_get(econtext->event_channels, NULL, &evt);
     if (rc)
     {
         fprintf(stderr, "event_get() failed\n");
         return -1;
     }
 
-    rc = event_channel_emit(evt, ECONTEXT_ID(econtext), TEST_COMPLETED_NOTIF_ID, GET_DEST_EP(econtext), econtext, NULL, 0);
+    rc = event_channel_emit_with_payload(evt, ECONTEXT_ID(econtext), TEST_COMPLETED_NOTIF_ID, GET_DEST_EP(econtext), econtext, NULL, 0);
     if (rc != EVENT_DONE && rc != EVENT_INPROGRESS)
     {
-        fprintf(stderr, "event_channel_emit() failed\n");
+        fprintf(stderr, "event_channel_emit_with_payload() failed\n");
         return -1;
     }
     ucs_list_add_tail(&(econtext->ongoing_events), &(evt->item));

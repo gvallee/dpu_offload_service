@@ -288,7 +288,7 @@ static void notification_emit_cb(void *user_data, const char *type_str)
     DBG("evt %p now completed", ev);
 }
 
-int event_channel_emit(dpu_offload_event_t *ev, uint64_t my_id, uint64_t type, ucp_ep_h dest_ep, void *ctx, void *payload, size_t payload_size)
+int event_channel_emit_with_payload(dpu_offload_event_t *ev, uint64_t my_id, uint64_t type, ucp_ep_h dest_ep, void *ctx, void *payload, size_t payload_size)
 {
     ucp_request_param_t params;
     DBG("Sending notification of type %" PRIu64 " (client_id=%" PRIu64 ")", type, my_id);
@@ -317,6 +317,35 @@ int event_channel_emit(dpu_offload_event_t *ev, uint64_t my_id, uint64_t type, u
     return EVENT_INPROGRESS;
 }
 
+int event_channel_emit(dpu_offload_event_t *ev, uint64_t my_id, uint64_t type, ucp_ep_h dest_ep, void *ctx)
+{
+    ucp_request_param_t params;
+    DBG("Sending notification of type %" PRIu64 " (client_id=%" PRIu64 ")", type, my_id);
+    ev->ctx.complete = 0;
+    ev->ctx.hdr.type = type;
+    ev->ctx.hdr.id = my_id;
+    ev->user_context = ctx;
+    params.op_attr_mask = UCP_OP_ATTR_FIELD_CALLBACK |
+                          UCP_OP_ATTR_FIELD_DATATYPE |
+                          UCP_OP_ATTR_FIELD_USER_DATA;
+    params.datatype = ucp_dt_make_contig(1);
+    params.user_data = &ev;
+    params.cb.send = (ucp_send_nbx_callback_t)notification_emit_cb;
+    ev->req = ucp_am_send_nbx(dest_ep, AM_EVENT_MSG_ID, &(ev->ctx.hdr), sizeof(am_header_t), ev->payload, ev->payload_size, &params);
+    DBG("Event %p successfully emitted", ev);
+    if (ev->req == NULL)
+    {
+        // Immediate completion, the callback is *not* invoked
+        ev->ctx.complete = 1;
+        return EVENT_DONE;
+    }
+
+    if (UCS_PTR_IS_ERR(ev->req))
+        return UCS_PTR_STATUS(ev->req);
+
+    return EVENT_INPROGRESS;
+}
+
 dpu_offload_status_t event_channels_fini(dpu_offload_ev_sys_t **ev_sys)
 {
     if ((*ev_sys)->num_used_evs > 0)
@@ -330,7 +359,7 @@ dpu_offload_status_t event_channels_fini(dpu_offload_ev_sys_t **ev_sys)
     *ev_sys = NULL;
 }
 
-dpu_offload_status_t event_get(dpu_offload_ev_sys_t *ev_sys, dpu_offload_event_t **ev)
+dpu_offload_status_t event_get(dpu_offload_ev_sys_t *ev_sys, dpu_offload_event_info_t *info, dpu_offload_event_t **ev)
 {
     dpu_offload_event_t *_ev;
     DYN_LIST_GET(ev_sys->free_evs, dpu_offload_event_t, item, _ev);
@@ -338,7 +367,19 @@ dpu_offload_status_t event_get(dpu_offload_ev_sys_t *ev_sys, dpu_offload_event_t
     {
         ev_sys->num_used_evs++;
         _ev->ctx.complete = 0;
+        _ev->payload_size = 0;
+        _ev->payload = NULL;
     }
+
+
+    if (info == NULL || info->payload_size == 0)
+        goto out;
+
+    _ev->manage_payload_buf = true;
+    _ev->payload_size = info->payload_size;
+    _ev->payload = malloc(info->payload_size); // No advanced memory management at the moment, just malloc
+
+out:
     *ev = _ev;
     return DO_SUCCESS;
 }
@@ -347,6 +388,13 @@ dpu_offload_status_t event_return(dpu_offload_ev_sys_t *ev_sys, dpu_offload_even
 {
     if (!(*ev)->ctx.complete)
         return EVENT_INPROGRESS;
+
+    // If the event has a payload buffer that the library is managing, free that buffer
+    if ((*ev)->manage_payload_buf && (*ev)->payload != NULL)
+    {
+        free((*ev)->payload);
+        (*ev)->payload = NULL;
+    }
 
     DYN_LIST_RETURN(ev_sys->free_evs, (*ev), item);
     ev_sys->num_used_evs--;
@@ -504,7 +552,7 @@ static dpu_offload_status_t peer_cache_entries_request_recv_cb(struct dpu_offloa
         ucp_ep_h dest;
         group_cache_t *gp_caches;
         dpu_offload_event_t *send_cache_ev;
-        event_get(econtext->event_channels, &send_cache_ev);
+        event_get(econtext->event_channels, NULL, &send_cache_ev);
         assert(econtext->type == CONTEXT_SERVER);
         dest = econtext->server->connected_clients.clients[hdr->id].ep;
         gp_caches = (group_cache_t*) econtext->engine->procs_cache.data.base;

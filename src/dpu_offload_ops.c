@@ -59,7 +59,7 @@ dpu_offload_status_t op_desc_submit(execution_context_t *econtext, op_desc_t *de
 
     // Send the submit command to the DPU
     dpu_offload_event_t *start_ev;
-    int rc = event_get(econtext->event_channels, &start_ev);
+    int rc = event_get(econtext->event_channels, NULL, &start_ev);
     CHECK_ERR_RETURN((rc != 0 || start_ev == NULL), DO_ERROR, "unable to get event to start the operation");
 
     // Add the descriptor to the local list of active operations.
@@ -80,8 +80,8 @@ dpu_offload_status_t op_desc_submit(execution_context_t *econtext, op_desc_t *de
         // fixme: at the moment only clients can start a offload op on the DPU, so client->server
         peer_ep = NULL;
     }
-    rc = event_channel_emit(start_ev, ECONTEXT_ID(econtext), AM_OP_START_MSG_ID, peer_ep, desc, ev_data, ev_data_len);
-    CHECK_ERR_GOTO((rc != EVENT_DONE && rc != EVENT_INPROGRESS), error_out, "event_channel_emit() failed");
+    rc = event_channel_emit_with_payload(start_ev, ECONTEXT_ID(econtext), AM_OP_START_MSG_ID, peer_ep, desc, ev_data, ev_data_len);
+    CHECK_ERR_GOTO((rc != EVENT_DONE && rc != EVENT_INPROGRESS), error_out, "event_channel_emit_with_payload() failed");
 
     return DO_SUCCESS;
 
