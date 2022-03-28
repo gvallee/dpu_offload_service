@@ -60,4 +60,12 @@ dpu_offload_status_t op_desc_submit(offloading_engine_t *engine, op_desc_t *desc
  */
 dpu_offload_status_t op_desc_return(offloading_engine_t *engine, op_desc_t **desc);
 
+/**
+ * @brief Progress all the active operations on a given execution context.
+ * 
+ * @param econtext Execution context on which the active operations need to be progressed.
+ * @return dpu_offload_status_t
+ */
+dpu_offload_status_t progress_active_ops(execution_context_t *econtext);
+
 #endif // DPU_OFFLOAD_OPS_H

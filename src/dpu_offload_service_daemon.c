@@ -21,6 +21,7 @@
 #include "dynamic_structs.h"
 #include "dpu_offload_debug.h"
 #include "dpu_offload_mem_mgt.h"
+#include "dpu_offload_ops.h"
 
 extern dpu_offload_status_t register_default_notifications(dpu_offload_ev_sys_t *);
 
@@ -596,7 +597,7 @@ static dpu_offload_status_t execution_context_progress(execution_context_t *ctx)
     ucp_worker_progress(GET_WORKER(ctx));
     ECONTEXT_UNLOCK(ctx);
 
-    // Progress the ingoing events
+    // Progress the ongoing events
     dpu_offload_event_t *ev, *next_ev;
     ucs_list_for_each_safe(ev, next_ev, (&(ctx->ongoing_events)), item)
     {
@@ -612,7 +613,9 @@ static dpu_offload_status_t execution_context_progress(execution_context_t *ctx)
             event_return(ctx->event_channels, &ev);
         }
     }
-    return DO_SUCCESS;
+
+    // Progress all active operations
+    return progress_active_ops(ctx);
 }
 
 static dpu_offload_status_t execution_context_init(offloading_engine_t *offload_engine, uint64_t type, execution_context_t **econtext)
