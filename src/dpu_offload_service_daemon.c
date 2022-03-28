@@ -557,6 +557,14 @@ dpu_offload_status_t offload_engine_progress(offloading_engine_t *engine)
     return DO_SUCCESS;
 }
 
+dpu_offload_status_t lib_progress(execution_context_t *econtext)
+{
+    if (econtext->engine != NULL)
+        return offload_engine_progress(econtext->engine);
+    else
+        return econtext->progress(econtext);
+}
+
 dpu_offload_status_t offload_engine_init(offloading_engine_t **engine)
 {
     offloading_engine_t *d = malloc(sizeof(offloading_engine_t));

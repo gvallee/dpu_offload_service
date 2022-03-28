@@ -62,6 +62,14 @@ void offload_engine_fini(offloading_engine_t **engine);
  */
 dpu_offload_status_t offload_engine_progress(offloading_engine_t *engine);
 
+/**
+ * @brief Progress the entrie library, i.e., all the engines and execution contexts, based on an execution context.
+ * 
+ * @param[in] econtext Execution context from which to start progressing the entire library.
+ * @return dpu_offload_status_t 
+ */
+dpu_offload_status_t lib_progress(execution_context_t *econtext);
+
 execution_context_t *server_init(offloading_engine_t *, init_params_t *);
 void server_fini(execution_context_t **);
 
