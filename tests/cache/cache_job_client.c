@@ -40,7 +40,7 @@ int main(int argc, char **argv)
     int my_rank = atoi(argv[1]);
 
     /* Get the configuration */
-    dpu_config_t config_data;
+    offloading_config_t config_data;
     dpu_offload_status_t rc = get_host_config(&config_data);
     if (rc != DO_SUCCESS)
     {

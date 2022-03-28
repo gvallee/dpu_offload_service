@@ -68,7 +68,7 @@ void server_fini(execution_context_t **);
 execution_context_t *client_init(offloading_engine_t *, init_params_t *);
 void client_fini(execution_context_t **);
 
-dpu_offload_status_t inter_dpus_connect_mgr(offloading_engine_t *, dpu_config_t *);
+dpu_offload_status_t inter_dpus_connect_mgr(offloading_engine_t *, offloading_config_t *);
 
 /**
  * @brief send_cache sends the content of the local endpoint cache to a specific remote endpoint.
