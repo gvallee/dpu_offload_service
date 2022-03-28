@@ -154,23 +154,29 @@ static ucs_status_t am_notification_msg_cb(void *arg, const void *header, size_t
     return handle_am_msg(econtext, hdr, header_length, data, length);
 }
 
+dpu_offload_status_t ev_channels_init(dpu_offload_ev_sys_t **ev_channels)
+{
+    dpu_offload_ev_sys_t *event_channels = malloc(sizeof(dpu_offload_ev_sys_t));
+    CHECK_ERR_RETURN((event_channels == NULL), DO_ERROR, "Resource allocation failed");
+    size_t num_evts = DEFAULT_NUM_EVTS;
+    size_t num_free_pending_notifications = DEFAULT_NUM_NOTIFICATION_CALLBACKS;
+    DYN_LIST_ALLOC(event_channels->free_evs, num_evts, dpu_offload_event_t, item);
+    DYN_LIST_ALLOC(event_channels->free_pending_notifications, num_free_pending_notifications, pending_notification_t, item);
+    ucs_list_head_init(&(event_channels->pending_notifications));
+    event_channels->num_used_evs = 0;
+    DYN_ARRAY_ALLOC(&(event_channels->notification_callbacks), DEFAULT_NUM_NOTIFICATION_CALLBACKS, notification_callback_entry_t);
+    CHECK_ERR_RETURN((event_channels->notification_callbacks.base == NULL), DO_ERROR, "Resource allocation failed");
+    *ev_channels = event_channels;
+    return DO_SUCCESS;
+}
+
 dpu_offload_status_t event_channels_init(execution_context_t *econtext)
 {
     CHECK_ERR_RETURN((econtext == NULL), DO_ERROR, "Undefined execution context");
     CHECK_ERR_RETURN((GET_WORKER(econtext) == NULL), DO_ERROR, "Undefined worker");
 
-    econtext->event_channels = malloc(sizeof(dpu_offload_ev_sys_t));
-    CHECK_ERR_RETURN((econtext->event_channels == NULL), DO_ERROR, "Resource allocation failed");
-
-    size_t num_evts = DEFAULT_NUM_EVTS;
-    size_t num_free_pending_notifications = DEFAULT_NUM_NOTIFICATION_CALLBACKS;
-    DYN_LIST_ALLOC(econtext->event_channels->free_evs, num_evts, dpu_offload_event_t, item);
-    DYN_LIST_ALLOC(econtext->event_channels->free_pending_notifications, num_free_pending_notifications, pending_notification_t, item);
-    ucs_list_head_init(&(econtext->event_channels->pending_notifications));
-    econtext->event_channels->num_used_evs = 0;
-    DYN_ARRAY_ALLOC(&(econtext->event_channels->notification_callbacks), DEFAULT_NUM_NOTIFICATION_CALLBACKS, notification_callback_entry_t);
-    CHECK_ERR_RETURN((econtext->event_channels->notification_callbacks.base == NULL), DO_ERROR, "Resource allocation failed");
-
+    dpu_offload_status_t rc = ev_channels_init(&(econtext->event_channels));
+    CHECK_ERR_RETURN((rc), DO_ERROR, "ev_channels_init() failed");
     // Register the UCX AM handler
     ucp_am_handler_param_t ev_eager_param;
     ev_eager_param.field_mask = UCP_AM_HANDLER_PARAM_FIELD_ID |
@@ -232,6 +238,24 @@ dpu_offload_status_t event_channel_register(dpu_offload_ev_sys_t *ev_sys, uint64
         }
     }
 
+    return DO_SUCCESS;
+}
+
+dpu_offload_status_t engine_register_default_notification_handler(offloading_engine_t *engine, uint64_t type, notification_cb cb)
+{
+    CHECK_ERR_RETURN((cb == NULL), DO_ERROR, "Undefined callback");
+    CHECK_ERR_RETURN((engine == NULL), DO_ERROR, "Undefine engine");
+
+    notification_callback_entry_t *list_callbacks = (notification_callback_entry_t *)engine->default_notifications->notification_callbacks.base;
+    notification_callback_entry_t *entry;
+    DYN_ARRAY_GET_ELT(&(engine->default_notifications->notification_callbacks), type, notification_callback_entry_t, entry);
+    CHECK_ERR_RETURN((entry == NULL), DO_ERROR, "unable to get callback %ld", type);
+    CHECK_ERR_RETURN((entry->set == true), DO_ERROR, "type %" PRIu64 " is already set", type);
+
+    entry->cb = cb;
+    entry->set = true;
+    entry->ev_sys = (struct dpu_offload_ev_sys *)engine->default_notifications;
+    engine->num_default_notifications++;
     return DO_SUCCESS;
 }
 

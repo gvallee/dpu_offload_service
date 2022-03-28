@@ -728,6 +728,12 @@ typedef struct offloading_engine
     // Note that ATM it only account for the number of DPUs that the current DPU connects to,
     // not the DPUs connecting to it.
     size_t num_connected_dpus;
+
+    // List of default notifications that are applied to all new execution contexts added to the engine.
+    dpu_offload_ev_sys_t *default_notifications;
+
+    // Current number of default notifications that have been registered
+    size_t num_default_notifications;
 } offloading_engine_t;
 
 /***************************/

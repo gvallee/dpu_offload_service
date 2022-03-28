@@ -14,8 +14,23 @@
 #define DPU_OFFLOAD_EVENT_CHANNELS_H_
 
 dpu_offload_status_t event_channels_init(execution_context_t *);
+dpu_offload_status_t ev_channels_init(dpu_offload_ev_sys_t **ev_channels);
+dpu_offload_status_t event_channels_fini(dpu_offload_ev_sys_t **);
+
 dpu_offload_status_t event_channel_register(dpu_offload_ev_sys_t *ev_sys, uint64_t type, notification_cb cb);
 dpu_offload_status_t event_channel_deregister(dpu_offload_ev_sys_t *ev_sys, uint64_t type);
+
+/**
+ * @brief Registers a default handler at the engine level. After the registration, the handler will be
+ * automatically added to all execution context that will be created. It is not applied to execution
+ * contexts that were already previously created. The default handlers cannot be deregistered.
+ * 
+ * @param engine Engine to which the default handler applies.
+ * @param type Event type, i.e., identifier of the callback to invoke when the event is delivered at destination.
+ * @param cb Callback to invoke upon reception of the notification.
+ * @return dpu_offload_status_t 
+ */
+dpu_offload_status_t engine_register_default_notification_handler(offloading_engine_t *engine, uint64_t type, notification_cb cb);
 
 /**
  * @brief event_channel_emit triggers the communication associated to a previously locally defined event.
@@ -34,10 +49,18 @@ dpu_offload_status_t event_channel_deregister(dpu_offload_ev_sys_t *ev_sys, uint
  */
 int event_channel_emit(dpu_offload_event_t *ev, uint64_t my_id, uint64_t type, ucp_ep_h dest_ep, void *ctx, void *payload, size_t payload_size);
 
-dpu_offload_status_t event_channels_fini(dpu_offload_ev_sys_t **);
-
 dpu_offload_status_t event_get(dpu_offload_ev_sys_t *ev_sys, dpu_offload_event_t **ev);
 dpu_offload_status_t event_return(dpu_offload_ev_sys_t *ev_sys, dpu_offload_event_t **ev);
+
+/**
+ * @brief event_completed checks whether an event is completed or not. If the event is completed,
+ * it is also implicitly returned.
+ * 
+ * @param ev_sys Event system to use to return the event in case of completion
+ * @param ev Event to check
+ * @return true 
+ * @return false 
+ */
 bool event_completed(dpu_offload_ev_sys_t *ev_sys, dpu_offload_event_t *ev);
 
 #endif // DPU_OFFLOAD_EVENT_CHANNELS_H_

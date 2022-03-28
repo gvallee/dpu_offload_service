@@ -583,6 +583,8 @@ dpu_offload_status_t offload_engine_init(offloading_engine_t **engine)
     // The actual object are from a dynamic array when parsing the configuration file
     DYN_ARRAY_ALLOC(&(d->dpus), 32, remote_dpu_info_t *);
     GROUPS_CACHE_INIT(&(d->procs_cache));
+    dpu_offload_status_t rc = ev_channels_init(&(d->default_notifications));
+    CHECK_ERR_RETURN((rc), DO_ERROR, "ev_channels_init() failed");
     *engine = d;
     return DO_SUCCESS;
 }
@@ -758,6 +760,7 @@ static dpu_offload_status_t request_finalize(ucp_worker_h ucp_worker, void *requ
 
 void offload_engine_fini(offloading_engine_t **offload_engine)
 {
+    event_channels_fini(&((*offload_engine)->default_notifications));
     GROUPS_CACHE_FINI(&((*offload_engine)->procs_cache));
     DYN_LIST_FREE((*offload_engine)->free_op_descs, op_desc_t, item);
     DYN_LIST_FREE((*offload_engine)->free_peer_cache_entries, peer_cache_entry_t, item);
@@ -1312,6 +1315,28 @@ execution_context_t *server_init(offloading_engine_t *offloading_engine, init_pa
 
     rc = register_default_notifications(execution_context->event_channels);
     CHECK_ERR_GOTO((rc), error_out, "register_default_notfications() failed");
+
+    if (offloading_engine->num_default_notifications > 0)
+    {
+        notification_callback_entry_t *list_callbacks = (notification_callback_entry_t *)offloading_engine->default_notifications->notification_callbacks.base;
+        size_t i;
+        size_t n = 0;
+        for (i = 0; i < offloading_engine->default_notifications->notification_callbacks.num_elts; i++)
+        {
+            if (list_callbacks[i].set)
+            {
+                rc = event_channel_register(execution_context->event_channels, i, list_callbacks[i].cb);
+                CHECK_ERR_GOTO((rc), error_out, "unable to register engine's default notification to new execution context (type: %ld)", i);
+                n++;
+            }
+            
+            if (n == offloading_engine->num_default_notifications)
+            {
+                // All done, no need to continue parsing the array.
+                break;
+            }
+        }
+    }
 
     return execution_context;
 

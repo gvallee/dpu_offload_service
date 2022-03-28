@@ -84,7 +84,7 @@ dpu_offload_status_t send_cache_entry(execution_context_t *econtext, ucp_ep_h ep
     dpu_offload_status_t rc = event_get(econtext->event_channels, &send_cache_entry_ev);
     CHECK_ERR_RETURN((rc), DO_ERROR, "event_get() failed");
 
-    DBG("Sending cache entry for rank:%ld/gp:%ld (msg size=%ld, notif type=%ld)",
+    DBG("Sending cache entry for rank:%"PRId64"/gp:%"PRId64" (msg size=%ld, notif type=%d)",
         cache_entry->peer.proc_info.group_rank, 
         cache_entry->peer.proc_info.group_id,
         sizeof(peer_cache_entry_t),
@@ -418,7 +418,7 @@ bool parse_line_dpu_version_1(dpu_config_t *data, char *line)
             if (strncmp(data->local_dpu.hostname, list_dpus_from_list[i].version_1.hostname, strlen(list_dpus_from_list[i].version_1.hostname)) == 0)
             {
                 // This is the DPU's configuration we were looking for
-                DBG("-> This is my configuration, my index is %ld", idx);
+                DBG("-> This is my configuration, my index is %d", idx);
                 data->dpu_found = true;
                 // At the moment, the unique ID from the list of DPUs is used as:
                 // - reference,

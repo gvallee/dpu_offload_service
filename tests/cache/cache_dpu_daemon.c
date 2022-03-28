@@ -75,16 +75,24 @@ static int test_complete_notification_cb(struct dpu_offload_ev_sys *ev_sys, exec
 
 int main(int argc, char **argv)
 {
-    /*
-     * BOOTSTRAPPING: WE CREATE A CLIENT THAT CONNECT TO THE INITIATOR ON THE HOST
-     * AND INITIALIZE THE OFFLOADING SERVICE.
-     */
     fprintf(stderr, "Creating offload engine...\n");
     offloading_engine_t *offload_engine;
     dpu_offload_status_t rc = offload_engine_init(&offload_engine);
     if (rc || offload_engine == NULL)
     {
         fprintf(stderr, "offload_engine_init() failed\n");
+        return EXIT_FAILURE;
+    }
+
+    /*
+     * REGISTER A NOTIFICATION CALLBACK AT THE ENGINE LEVEL SO THAT ALL EXECUTION CONTEXTS 
+     * FOR INTER-DPU COMMUNICATIONS WILL AUTOMATICALLY HAVE IT.
+     */
+    fprintf(stderr, "Registering callback for notifications of test completion %d\n", TEST_COMPLETED_NOTIF_ID);
+    rc = engine_register_default_notification_handler(offload_engine, TEST_COMPLETED_NOTIF_ID, test_complete_notification_cb);
+    if (rc)
+    {
+        fprintf(stderr, "engine_register_default_notification_handler() failed\n");
         return EXIT_FAILURE;
     }
 
@@ -171,17 +179,6 @@ int main(int argc, char **argv)
         {
             fprintf(stderr, "unable to find a valid execution context\n");
             goto error_out;
-        }
-
-        /*
-         * Register the notification callback used for controlling the test
-         */
-        fprintf(stderr, "Registering callback for notifications of test completion %d\n", TEST_COMPLETED_NOTIF_ID);
-        rc = event_channel_register(econtext->event_channels, TEST_COMPLETED_NOTIF_ID, test_complete_notification_cb);
-        if (rc)
-        {
-            fprintf(stderr, "event_channel_register() failed\n");
-            return EXIT_FAILURE;
         }
 
         fprintf(stderr, "Looking up endpoint\n");
