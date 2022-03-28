@@ -118,7 +118,7 @@ dpu_offload_status_t get_dpu_id_by_group_rank(offloading_engine_t *engine, int64
 /**
  * @brief Get the DPU endpoint by ID object, i.e., the identifier returned by get_dpu_id_by_host_rank
  * 
- * @param engine Offloading engine for the query
+ * @param engine engine Offloading engine for the query
  * @param id DPU identifier
  * @return ucp_ep_h DPU's endpoint
  */
