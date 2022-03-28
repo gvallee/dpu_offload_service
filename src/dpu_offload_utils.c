@@ -267,9 +267,9 @@ dpu_offload_status_t get_dpu_id_by_group_rank(offloading_engine_t *engine, int64
     return DO_SUCCESS;
 }
 
-ucp_ep_h get_dpu_ep_by_id(execution_context_t *econtext, uint64_t id)
+ucp_ep_h get_dpu_ep_by_id(offloading_engine_t *engine, uint64_t id)
 {
-    remote_dpu_info_t **list_dpus = LIST_DPUS_FROM_ECONTEXT(econtext);
+    remote_dpu_info_t **list_dpus = LIST_DPUS_FROM_ENGINE(engine);
     DBG("Looking up entry for DPU #%"PRIu64, id);
     if (list_dpus != NULL && list_dpus[id] == NULL)
         return NULL;
