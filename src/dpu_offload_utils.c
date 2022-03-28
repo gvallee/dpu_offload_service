@@ -153,7 +153,7 @@ dpu_offload_status_t send_cache(execution_context_t *econtext, cache_t *cache, u
     return DO_SUCCESS;
 }
 
-dpu_offload_status_t exchange_cache(execution_context_t *econtext, dpu_config_t *cfg, cache_t *cache, dpu_offload_event_t *meta_evt)
+dpu_offload_status_t exchange_cache(execution_context_t *econtext, offloading_config_t *cfg, cache_t *cache, dpu_offload_event_t *meta_evt)
 {
     offloading_engine_t *offload_engine = econtext->engine;
     dpu_offload_status_t rc;
@@ -363,8 +363,8 @@ static inline bool parse_dpu_cfg(char *str, char **hostname, char **addr, int *i
 }
 
 // <host name>,<dpu1_hostname:dpu_conn_addr:interdpu-port:rank-conn-port>,...
-// bool parse_line_dpu_version_1(int format_version, char *dpu_hostname, char *line, dpu_config_t **local_dpu_config, dyn_array_t *dpus, size_t *num_dpus_connecting_from)
-bool parse_line_dpu_version_1(dpu_config_t *data, char *line)
+// bool parse_line_dpu_version_1(int format_version, char *dpu_hostname, char *line, offloading_config_t **local_dpu_config, dyn_array_t *dpus, size_t *num_dpus_connecting_from)
+bool parse_line_dpu_version_1(offloading_config_t *data, char *line)
 {
     int idx = 0;
     bool rc = false;
@@ -486,7 +486,7 @@ bool parse_line_dpu_version_1(dpu_config_t *data, char *line)
 }
 
 // <host name>,<dpu1_hostname:dpu_conn_addr:interdpu-port:rank-conn-port>,...
-bool parse_line_version_1(char *target_hostname, dpu_config_t *data, char *line)
+bool parse_line_version_1(char *target_hostname, offloading_config_t *data, char *line)
 {
     int idx = 0;
     char *rest = line;
@@ -536,7 +536,7 @@ bool parse_line_version_1(char *target_hostname, dpu_config_t *data, char *line)
  * @return true when the line includes the host's configuration
  * @return false when the lines does not include the host's configuration
  */
-bool parse_line(char *target_hostname, char *line, dpu_config_t *data)
+bool parse_line(char *target_hostname, char *line, offloading_config_t *data)
 {
     switch (data->format_version)
     {
@@ -556,7 +556,7 @@ bool parse_line(char *target_hostname, char *line, dpu_config_t *data)
  * @return true when the line includes the host's configuration
  * @return false when the lines does not include the host's configuration
  */
-bool parse_line_for_dpu_cfg(dpu_config_t *data, char *line)
+bool parse_line_for_dpu_cfg(offloading_config_t *data, char *line)
 {
     switch (data->format_version)
     {
@@ -576,7 +576,7 @@ bool parse_line_for_dpu_cfg(dpu_config_t *data, char *line)
  * @param config_data Object where all the configuration details are stored
  * @return dpu_offload_status_t
  */
-dpu_offload_status_t find_dpu_config_from_platform_configfile(char *filepath, dpu_config_t *config_data)
+dpu_offload_status_t find_dpu_config_from_platform_configfile(char *filepath, offloading_config_t *config_data)
 {
     size_t len = 0;
     ssize_t read;
@@ -642,7 +642,7 @@ error_out:
  * @param data Configuration data of the host's local DPUs
  * @return dpu_offload_status_t
  */
-dpu_offload_status_t find_config_from_platform_configfile(char *filepath, char *hostname, dpu_config_t *data)
+dpu_offload_status_t find_config_from_platform_configfile(char *filepath, char *hostname, offloading_config_t *data)
 {
     FILE *file = NULL;
     char *line = NULL;
@@ -711,7 +711,7 @@ dpu_offload_status_t get_env_config(conn_params_t *params)
     return DO_SUCCESS;
 }
 
-dpu_offload_status_t get_host_config(dpu_config_t *config_data)
+dpu_offload_status_t get_host_config(offloading_config_t *config_data)
 {
     dpu_offload_status_t rc;
     char hostname[1024];

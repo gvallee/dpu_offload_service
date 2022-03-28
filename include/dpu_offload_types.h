@@ -909,7 +909,7 @@ typedef struct dpu_config
         init_params_t interdpu_init_params; // Parameters used to connect to other DPUs, or other DPUS connect to the DPU
         init_params_t host_init_params;     // Parameters used to let the host connect to the DPU
     } local_dpu;
-} dpu_config_t;
+} offloading_config_t;
 
 /**
  * @brief Get the DPU config object based on the content of the configuration file.
@@ -918,11 +918,11 @@ typedef struct dpu_config
  * @param[in/out] dpu_config Configuration details for all the DPUs from the configuration file.
  * @return dpu_offload_status_t
  */
-dpu_offload_status_t get_dpu_config(offloading_engine_t *, dpu_config_t *);
+dpu_offload_status_t get_dpu_config(offloading_engine_t *, offloading_config_t *);
 
-dpu_offload_status_t get_host_config(dpu_config_t *);
-dpu_offload_status_t find_dpu_config_from_platform_configfile(char *, dpu_config_t *);
-dpu_offload_status_t find_config_from_platform_configfile(char *, char *, dpu_config_t *);
+dpu_offload_status_t get_host_config(offloading_config_t *);
+dpu_offload_status_t find_dpu_config_from_platform_configfile(char *, offloading_config_t *);
+dpu_offload_status_t find_config_from_platform_configfile(char *, char *, offloading_config_t *);
 
 #define INIT_DPU_CONFIG_DATA(_data)                                                                       \
     do                                                                                                    \

@@ -64,7 +64,7 @@ extern execution_context_t *client_init(offloading_engine_t *, init_params_t *);
  * @return dpu_offload_status_t
  */
 static dpu_offload_status_t
-dpu_offload_parse_list_dpus(offloading_engine_t *engine, dpu_config_t *config_data, uint64_t *my_dpu_id)
+dpu_offload_parse_list_dpus(offloading_engine_t *engine, offloading_config_t *config_data, uint64_t *my_dpu_id)
 {
     size_t dpu_idx = 0;
     bool pre = true;
@@ -191,7 +191,7 @@ connect_to_dpus(offloading_engine_t *offload_engine, dpu_inter_connect_info_t *i
     return DO_SUCCESS;
 }
 
-dpu_offload_status_t inter_dpus_connect_mgr(offloading_engine_t *engine, dpu_config_t *cfg)
+dpu_offload_status_t inter_dpus_connect_mgr(offloading_engine_t *engine, offloading_config_t *cfg)
 {
     engine->on_dpu = true;
     DBG("Connection manager: expecting %ld inbound connections and %ld outbound connections", cfg->num_connecting_dpus, cfg->info_connecting_to.num_connect_to);
@@ -223,7 +223,7 @@ dpu_offload_status_t inter_dpus_connect_mgr(offloading_engine_t *engine, dpu_con
     return DO_SUCCESS;
 }
 
-dpu_offload_status_t get_dpu_config(offloading_engine_t *offload_engine, dpu_config_t *config_data)
+dpu_offload_status_t get_dpu_config(offloading_engine_t *offload_engine, offloading_config_t *config_data)
 {
     dpu_offload_status_t rc;
     uint64_t my_dpu_id;
