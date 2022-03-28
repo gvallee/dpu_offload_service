@@ -307,6 +307,9 @@ typedef struct am_req
     int complete;
 } am_req_t;
 
+// Forward declaration
+struct execution_context;
+
 /**
  * @brief dpu_offload_ev_sys_t is the structure representing the event system used to implement notifications.
  */
@@ -330,6 +333,9 @@ typedef struct dpu_offload_ev_sys
 
     // Array of callback functions, i.e., array of pointers, organized based on the notification type, a.k.a. notification ID
     dyn_array_t notification_callbacks;
+
+    // Execution context the event system is associated with.
+    struct execution_context *econtext;
 } dpu_offload_ev_sys_t;
 
 typedef struct connected_clients
@@ -476,7 +482,6 @@ typedef struct dpu_offload_client_t
     } conn_data;
 } dpu_offload_client_t;
 
-struct execution_context;
 typedef int (*execution_context_progress_fn)(struct execution_context *);
 
 struct offloading_engine; // forward declaration
@@ -588,6 +593,9 @@ typedef struct dpu_offload_event
 
     // payload size when the library manages the payload buffer.
     size_t payload_size;
+
+    // event_system is the event system the event was initially from
+    dpu_offload_ev_sys_t *event_system;
 } dpu_offload_event_t;
 
 typedef struct dpu_offload_event_info

@@ -59,7 +59,10 @@ int event_channel_emit(dpu_offload_event_t *ev, uint64_t my_id, uint64_t type, u
  * @param ctx User-defined context to help identify the context of the event upon local completion.
  * @param payload User-defined payload associated to the event.
  * @param payload_size Size of the user-defined payload.
- * @return result of UCS_PTR_STATUS in the context of errors, EVENT_DONE if the emittion completed right away, EVENT_INPROGRESS if emitting the event is still in progress (e.g., communication not completed). One can check on completion using event_completed().
+ * @return result of UCS_PTR_STATUS in the context of errors during communications
+ * @return DO_ERROR in case of an error during the library's handling of the event.
+ * @return EVENT_DONE if the emittion completed right away, the library returns the event
+ * @return EVENT_INPROGRESS if emitting the event is still in progress (e.g., communication not completed). One can check on completion using event_completed().
  * 
  * Example: the user uses the ongoing event list so that the event is implicitly returned when completed, with an event payload managed outside of the offloading library.
  *      dpu_offload_event_t *my_ev;
@@ -67,8 +70,7 @@ int event_channel_emit(dpu_offload_event_t *ev, uint64_t my_id, uint64_t type, u
  *      int rc = event_channel_emit_with_payload(my_ev, my_id, my_notification_type, dest_ep, NULL, &my_global_static_object, object_size);
  *      if (rc == EVENT_DONE)
  *      {
- *          // Event completed right away
- *          event_return(&my_ev);
+ *          // Event completed right away. Nothing else to do.
  *      } else if (rc == EVENT_INPROGRESS) {
  *          // Event is ongoing, placed on the ongoing event list. The event will be automatically removed from the list and returned during progress of the execution context upon completion.
  *          ucs_list_add_tail(&(econtext->ongoing_events), &(myev->item));
@@ -85,7 +87,10 @@ int event_channel_emit_with_payload(dpu_offload_event_t *ev, uint64_t my_id, uin
  * @param ev_sys The event system from which the event must come from.
  * @param info Information about the event. For instance, it is possible to ask the library to allocate/free the memory for a payload. See examples for details.
  * @param ev Returned event.
- * @return dpu_offload_status_t 
+ * @return result of UCS_PTR_STATUS in the context of errors
+ * @return DO_ERROR in case of an error during the library's handling of the event.
+ * @return EVENT_DONE if the emittion completed right away, the library returns the event
+ * @return EVENT_INPROGRESS if emitting the event is still in progress (e.g., communication not completed). One can check on completion using event_completed().
  * 
  * Examples:
  *  - get an event that does not require a payload.
@@ -97,7 +102,6 @@ int event_channel_emit_with_payload(dpu_offload_event_t *ev, uint64_t my_id, uin
  *      {
  *          // Event completed right away
  *          free(my_payload);
- *          event_return(&my_ev);
  *      } else if (rc == EVENT_INPROGRESS)
  *          // Nothing to do, event is in progress. The user will check for completion using event_completed()
  *      } else {
@@ -113,8 +117,7 @@ int event_channel_emit_with_payload(dpu_offload_event_t *ev, uint64_t my_id, uin
  *      int rc = event_channel_emit_with_payload(myev, econtext_id, dest_ep, NULL, my_payload, my_payload_size);
  *      if (rc == EVENT_DONE)
  *      {
- *          // Event completed right away
- *          event_return(&my_ev);
+ *          // Event completed right away. Nothing else to do.
  *      } else if (rc == EVENT_INPROGRESS)
  *          // Nothing to do, event is in progress
  *          ucs_list_add_tail(&(econtext->ongoing_events), &(myev->item));
