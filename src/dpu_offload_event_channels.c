@@ -288,7 +288,7 @@ static void notification_emit_cb(void *user_data, const char *type_str)
     DBG("evt %p now completed", ev);
 }
 
-int event_channel_emit(dpu_offload_event_t *ev, uint64_t my_id, uint64_t type, ucp_ep_h dest_ep, void *ctx, void *payload, size_t payload_size)
+int event_channel_emit_with_payload(dpu_offload_event_t *ev, uint64_t my_id, uint64_t type, ucp_ep_h dest_ep, void *ctx, void *payload, size_t payload_size)
 {
     ucp_request_param_t params;
     DBG("Sending notification of type %" PRIu64 " (client_id=%" PRIu64 ")", type, my_id);
@@ -308,6 +308,45 @@ int event_channel_emit(dpu_offload_event_t *ev, uint64_t my_id, uint64_t type, u
     {
         // Immediate completion, the callback is *not* invoked
         ev->ctx.complete = 1;
+        assert(ev->event_system);
+        assert(ev->event_system->econtext);
+        assert(ev->event_system->econtext->event_channels);
+        dpu_offload_status_t rc = event_return(ev->event_system->econtext->event_channels, &ev);
+        CHECK_ERR_RETURN((rc), DO_ERROR, "event_return() failed");
+        return EVENT_DONE;
+    }
+
+    if (UCS_PTR_IS_ERR(ev->req))
+        return UCS_PTR_STATUS(ev->req);
+
+    return EVENT_INPROGRESS;
+}
+
+int event_channel_emit(dpu_offload_event_t *ev, uint64_t my_id, uint64_t type, ucp_ep_h dest_ep, void *ctx)
+{
+    ucp_request_param_t params;
+    DBG("Sending notification of type %" PRIu64 " (client_id=%" PRIu64 ")", type, my_id);
+    ev->ctx.complete = 0;
+    ev->ctx.hdr.type = type;
+    ev->ctx.hdr.id = my_id;
+    ev->user_context = ctx;
+    params.op_attr_mask = UCP_OP_ATTR_FIELD_CALLBACK |
+                          UCP_OP_ATTR_FIELD_DATATYPE |
+                          UCP_OP_ATTR_FIELD_USER_DATA;
+    params.datatype = ucp_dt_make_contig(1);
+    params.user_data = &ev;
+    params.cb.send = (ucp_send_nbx_callback_t)notification_emit_cb;
+    ev->req = ucp_am_send_nbx(dest_ep, AM_EVENT_MSG_ID, &(ev->ctx.hdr), sizeof(am_header_t), ev->payload, ev->payload_size, &params);
+    DBG("Event %p successfully emitted", ev);
+    if (ev->req == NULL)
+    {
+        // Immediate completion, the callback is *not* invoked
+        ev->ctx.complete = 1;
+        assert(ev->event_system);
+        assert(ev->event_system->econtext);
+        assert(ev->event_system->econtext->event_channels);
+        dpu_offload_status_t rc = event_return(ev->event_system->econtext->event_channels, &ev);
+        CHECK_ERR_RETURN((rc), DO_ERROR, "event_return() failed");
         return EVENT_DONE;
     }
 
@@ -330,23 +369,50 @@ dpu_offload_status_t event_channels_fini(dpu_offload_ev_sys_t **ev_sys)
     *ev_sys = NULL;
 }
 
-dpu_offload_status_t event_get(dpu_offload_ev_sys_t *ev_sys, dpu_offload_event_t **ev)
+dpu_offload_status_t event_get(dpu_offload_ev_sys_t *ev_sys, dpu_offload_event_info_t *info, dpu_offload_event_t **ev)
 {
     dpu_offload_event_t *_ev;
+    CHECK_ERR_RETURN((ev_sys == NULL), DO_ERROR, "Undefine event system");
     DYN_LIST_GET(ev_sys->free_evs, dpu_offload_event_t, item, _ev);
     if (_ev != NULL)
     {
         ev_sys->num_used_evs++;
         _ev->ctx.complete = 0;
+        _ev->payload_size = 0;
+        _ev->payload = NULL;
+        _ev->event_system = ev_sys;
+
+        if (info == NULL || info->payload_size == 0)
+            goto out;
+
+        // If we get here, it means that we need to manage a payload buffer for that event
+        _ev->manage_payload_buf = true;
+        _ev->payload_size = info->payload_size;
+        _ev->payload = malloc(info->payload_size); // No advanced memory management at the moment, just malloc
     }
+
+out:
     *ev = _ev;
     return DO_SUCCESS;
 }
 
 dpu_offload_status_t event_return(dpu_offload_ev_sys_t *ev_sys, dpu_offload_event_t **ev)
 {
+    if (ev == NULL || (*ev) == NULL)
+        return DO_SUCCESS;
+
     if (!(*ev)->ctx.complete)
         return EVENT_INPROGRESS;
+
+    // If the event has a payload buffer that the library is managing, free that buffer
+    if ((*ev)->manage_payload_buf && (*ev)->payload != NULL)
+    {
+        free((*ev)->payload);
+        (*ev)->payload = NULL;
+        // Reset to some default values
+        (*ev)->manage_payload_buf = false;
+        (*ev)->payload_size = 0;
+    }
 
     DYN_LIST_RETURN(ev_sys->free_evs, (*ev), item);
     ev_sys->num_used_evs--;
@@ -405,7 +471,7 @@ static dpu_offload_status_t op_completion_cb(struct dpu_offload_ev_sys *ev_sys, 
 
     // Find the operation and add it to the local list of active operations
     op_desc_t *cur_op, *next_op, *op = NULL;
-    ucs_list_for_each_safe(cur_op, next_op, ACTIVE_OPS(econtext), item)
+    ucs_list_for_each_safe(cur_op, next_op, &(econtext->active_ops), item)
     {
         if (cur_op->id == _data[0])
         {
@@ -454,7 +520,7 @@ static dpu_offload_status_t op_start_cb(struct dpu_offload_ev_sys *ev_sys, execu
     op_desc->completed = false;
     op_desc->op_definition = op_cfg;
 
-    ucs_list_add_tail(ACTIVE_OPS(econtext), &(op_desc->item));
+    ucs_list_add_tail(&(econtext->active_ops), &(op_desc->item));
 
     // Call the init function of the operation
     op_cfg->op_init();
@@ -493,9 +559,9 @@ static dpu_offload_status_t peer_cache_entries_request_recv_cb(struct dpu_offloa
 {
     assert(econtext);
     assert(data);
-    rank_info_t *rank_info = (rank_info_t*)data;
+    rank_info_t *rank_info = (rank_info_t *)data;
 
-    DBG("Cache entry requested received for gp/rank %"PRIu64"/%"PRIu64, rank_info->group_id, rank_info->group_rank);
+    DBG("Cache entry requested received for gp/rank %" PRIu64 "/%" PRIu64, rank_info->group_id, rank_info->group_rank);
 
     if (is_in_cache(&(econtext->engine->procs_cache), rank_info->group_id, rank_info->group_rank))
     {
@@ -504,11 +570,11 @@ static dpu_offload_status_t peer_cache_entries_request_recv_cb(struct dpu_offloa
         ucp_ep_h dest;
         group_cache_t *gp_caches;
         dpu_offload_event_t *send_cache_ev;
-        event_get(econtext->event_channels, &send_cache_ev);
+        event_get(econtext->event_channels, NULL, &send_cache_ev);
         assert(econtext->type == CONTEXT_SERVER);
         dest = econtext->server->connected_clients.clients[hdr->id].ep;
-        gp_caches = (group_cache_t*) econtext->engine->procs_cache.data.base;
-        DBG("Sending group cache to DPU #%"PRIu64, hdr->id);
+        gp_caches = (group_cache_t *)econtext->engine->procs_cache.data.base;
+        DBG("Sending group cache to DPU #%" PRIu64, hdr->id);
         rc = send_group_cache(econtext, dest, rank_info->group_id, send_cache_ev);
         CHECK_ERR_RETURN((rc), DO_ERROR, "send_group_cache() failed");
 
@@ -518,7 +584,7 @@ static dpu_offload_status_t peer_cache_entries_request_recv_cb(struct dpu_offloa
         return DO_SUCCESS;
     }
 
-    // If the entry is not in the cache we forward the request 
+    // If the entry is not in the cache we forward the request
     // and also trigger the send of our cache for the target group
     // Fixme: forward should happen only when the request is coming from a local rank, not a DPU
     if (econtext->engine->on_dpu)
@@ -591,14 +657,14 @@ static dpu_offload_status_t peer_cache_entries_recv_cb(struct dpu_offload_ev_sys
 /**
  * @brief add_group_rank_recv_cb is invoked on the DPU when receiving a notification from a rank running on the local host
  * that a new group/rank had been created
- * 
+ *
  * @param ev_sys Associated event/notification system
  * @param econtext Associated execution contexxt
  * @param hdr Header of the received notification
  * @param hdr_size Size of the header
  * @param data Payload associated to the notification
  * @param data_len Size of the payload
- * @return dpu_offload_status_t 
+ * @return dpu_offload_status_t
  */
 static dpu_offload_status_t add_group_rank_recv_cb(struct dpu_offload_ev_sys *ev_sys, execution_context_t *econtext, am_header_t *hdr, size_t hdr_size, void *data, size_t data_len)
 {
@@ -606,7 +672,7 @@ static dpu_offload_status_t add_group_rank_recv_cb(struct dpu_offload_ev_sys *ev
     assert(data);
 
     offloading_engine_t *engine = (offloading_engine_t *)econtext->engine;
-    rank_info_t *rank_info = (rank_info_t*)data;
+    rank_info_t *rank_info = (rank_info_t *)data;
 
     if (!is_in_cache(&(econtext->engine->procs_cache), rank_info->group_id, rank_info->group_rank))
     {

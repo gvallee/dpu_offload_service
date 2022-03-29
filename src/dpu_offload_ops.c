@@ -41,31 +41,19 @@ dpu_offload_status_t op_desc_get(offloading_engine_t *engine, const uint64_t id,
 
 dpu_offload_status_t op_desc_submit(execution_context_t *econtext, op_desc_t *desc)
 {
-    ucs_list_link_t *target_list;
-    switch (econtext->type)
-    {
-    case CONTEXT_CLIENT:
-        target_list = &(econtext->client->active_ops);
-        break;
-    case CONTEXT_SERVER:
-        target_list = &(econtext->server->active_ops);
-        break;
-    default:
-        target_list = NULL;
-    }
-    CHECK_ERR_RETURN((target_list == NULL), DO_ERROR, "unable to find target list");
+    CHECK_ERR_RETURN((econtext == NULL), DO_ERROR, "undefined execution context");
 
     // Note: no need to register an notification handler for operation completion, we get one by default
 
     // Send the submit command to the DPU
     dpu_offload_event_t *start_ev;
-    int rc = event_get(econtext->event_channels, &start_ev);
+    int rc = event_get(econtext->event_channels, NULL, &start_ev);
     CHECK_ERR_RETURN((rc != 0 || start_ev == NULL), DO_ERROR, "unable to get event to start the operation");
 
     // Add the descriptor to the local list of active operations.
     // The list is used by the notification handler so it needs to happen before
     // the event is emited.
-    ucs_list_add_tail(target_list, &(desc->item));
+    ucs_list_add_tail(&(econtext->active_ops), &(desc->item));
 
     // Everything is now all set, emit the event associated to the notification
     void *ev_data = &(desc->id);
@@ -80,8 +68,8 @@ dpu_offload_status_t op_desc_submit(execution_context_t *econtext, op_desc_t *de
         // fixme: at the moment only clients can start a offload op on the DPU, so client->server
         peer_ep = NULL;
     }
-    rc = event_channel_emit(start_ev, ECONTEXT_ID(econtext), AM_OP_START_MSG_ID, peer_ep, desc, ev_data, ev_data_len);
-    CHECK_ERR_GOTO((rc != EVENT_DONE && rc != EVENT_INPROGRESS), error_out, "event_channel_emit() failed");
+    rc = event_channel_emit_with_payload(start_ev, ECONTEXT_ID(econtext), AM_OP_START_MSG_ID, peer_ep, desc, ev_data, ev_data_len);
+    CHECK_ERR_GOTO((rc != EVENT_DONE && rc != EVENT_INPROGRESS), error_out, "event_channel_emit_with_payload() failed");
 
     return DO_SUCCESS;
 
@@ -101,7 +89,7 @@ dpu_offload_status_t progress_active_ops(execution_context_t *econtext)
 {
     CHECK_ERR_RETURN((econtext == NULL), DO_ERROR, "undefined execution context");
     op_desc_t *cur_op, *next_op, *op = NULL;
-    ucs_list_for_each_safe(cur_op, next_op, ACTIVE_OPS(econtext), item)
+    ucs_list_for_each_safe(cur_op, next_op, &(econtext->active_ops), item)
     {
         if (cur_op->op_definition->op_progress != NULL)
             cur_op->op_definition->op_progress();

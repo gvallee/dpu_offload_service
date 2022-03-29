@@ -92,19 +92,6 @@ typedef enum
     _sys;                                         \
 })
 
-#define ACTIVE_OPS(_exec_ctx) ({                  \
-    ucs_list_link_t *_list;                       \
-    if (_exec_ctx->type == CONTEXT_CLIENT)        \
-    {                                             \
-        _list = &(_exec_ctx->client->active_ops); \
-    }                                             \
-    else                                          \
-    {                                             \
-        _list = &(_exec_ctx->server->active_ops); \
-    }                                             \
-    _list;                                        \
-})
-
 #define EXECUTION_CONTEXT_DONE(_exec_ctx) ({ \
     bool _done;                              \
     if (_exec_ctx->type == CONTEXT_CLIENT)   \
@@ -307,6 +294,9 @@ typedef struct am_req
     int complete;
 } am_req_t;
 
+// Forward declaration
+struct execution_context;
+
 /**
  * @brief dpu_offload_ev_sys_t is the structure representing the event system used to implement notifications.
  */
@@ -330,6 +320,9 @@ typedef struct dpu_offload_ev_sys
 
     // Array of callback functions, i.e., array of pointers, organized based on the notification type, a.k.a. notification ID
     dyn_array_t notification_callbacks;
+
+    // Execution context the event system is associated with.
+    struct execution_context *econtext;
 } dpu_offload_ev_sys_t;
 
 typedef struct connected_clients
@@ -415,9 +408,6 @@ typedef struct dpu_offload_server_t
 
     dpu_offload_ev_sys_t *event_channels;
 
-    /* Active operations: a server can execute operations on behalf of all the clients that are connected */
-    ucs_list_link_t active_ops;
-
     union
     {
         struct
@@ -454,9 +444,6 @@ typedef struct dpu_offload_client_t
 
     dpu_offload_ev_sys_t *event_channels;
 
-    /* Active operations: a client can execute operations on behalf of the server it is connected to */
-    ucs_list_link_t active_ops;
-
     union
     {
         struct
@@ -476,7 +463,6 @@ typedef struct dpu_offload_client_t
     } conn_data;
 } dpu_offload_client_t;
 
-struct execution_context;
 typedef int (*execution_context_progress_fn)(struct execution_context *);
 
 struct offloading_engine; // forward declaration
@@ -523,6 +509,9 @@ typedef struct execution_context
     // pending_rdv_recvs is the current list of pending AM RDV receives.
     // Once completed, the element is returned to free_pending_rdv_recv.
     ucs_list_link_t pending_rdv_recvs;
+
+    /* Active operations that are running in the execution context */
+    ucs_list_link_t active_ops;
 
     // During bootstrapping, the execution context acts either as a client or server.
     union
@@ -577,7 +566,27 @@ typedef struct dpu_offload_event
     
     // user_context is the user-defined context for the event. Can be NULL.
     void *user_context;
+
+    // Specifies whether the payload buffer needs to be managed by the library.
+    // If so, it uses the payload_size from the infro structure used when getting
+    // the event to allocate/get the buffer and associate it to the event.
+    bool manage_payload_buf;
+
+    // payload buffer when the library manages it.
+    void *payload;
+
+    // payload size when the library manages the payload buffer.
+    size_t payload_size;
+
+    // event_system is the event system the event was initially from
+    dpu_offload_ev_sys_t *event_system;
 } dpu_offload_event_t;
+
+typedef struct dpu_offload_event_info
+{
+    // Size of the payload that the library needs to be managing. If 0 not payload needs to be managed
+    size_t payload_size;
+} dpu_offload_event_info_t;
 
 typedef enum
 {

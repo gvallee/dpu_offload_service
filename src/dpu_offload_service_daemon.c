@@ -636,6 +636,7 @@ static dpu_offload_status_t execution_context_init(offloading_engine_t *offload_
     ucs_list_head_init(&(ctx->ongoing_events));
     DYN_LIST_ALLOC(ctx->free_pending_rdv_recv, 32, pending_am_rdv_recv_t, item);
     ucs_list_head_init(&(ctx->pending_rdv_recvs));
+    ucs_list_head_init(&(ctx->active_ops));
     *econtext = ctx;
     return DO_SUCCESS;
 error_out:
@@ -701,6 +702,7 @@ execution_context_t *client_init(offloading_engine_t *offload_engine, init_param
     rc = event_channels_init(ctx);
     CHECK_ERR_GOTO((rc), error_out, "event_channel_init() failed");
     CHECK_ERR_GOTO((ctx->event_channels == NULL), error_out, "event channel object is undefined");
+    ctx->client->event_channels->econtext = (struct execution_context *)ctx;
     ctx->client->event_channels = ctx->event_channels;
     DBG("event channels successfully initialized");
 
@@ -1310,6 +1312,7 @@ execution_context_t *server_init(offloading_engine_t *offloading_engine, init_pa
     rc = event_channels_init(execution_context);
     CHECK_ERR_GOTO((rc), error_out, "event_channel_init() failed");
     CHECK_ERR_GOTO((execution_context->event_channels == NULL), error_out, "event channel handle is undefined");
+    execution_context->server->event_channels->econtext = (struct execution_context *)execution_context;
     execution_context->server->event_channels = execution_context->event_channels;
 
     /* Initialize Active Message data handler */
