@@ -523,7 +523,7 @@ static dpu_offload_status_t oob_connect(execution_context_t *econtext)
              client->conn_data.oob.addr_msg_str);
 
     // We send our "rank", i.e., unique application ID
-    DBG("Sending my group/rank info (%"PRId64"/%"PRId64"), len=%ld", econtext->rank.group_id, econtext->rank.group_rank, sizeof(econtext->rank));
+    DBG("Sending my group/rank info (%" PRId64 "/%" PRId64 "), len=%ld", econtext->rank.group_id, econtext->rank.group_rank, sizeof(econtext->rank));
     struct ucx_context *rank_request = NULL;
     send_param.user_data = NULL;
     rank_request = ucp_tag_send_nbx(client->server_ep, &(econtext->rank), sizeof(rank_info_t), client->conn_data.oob.tag + 1,
@@ -926,7 +926,7 @@ static dpu_offload_status_t ucx_listener_server(dpu_offload_server_t *server)
 }
 
 static void oob_recv_addr_handler(void *request, ucs_status_t status,
-                             ucp_tag_recv_info_t *info)
+                                  ucp_tag_recv_info_t *info)
 {
     struct ucx_context *context = (struct ucx_context *)request;
     context->completed = 1;
@@ -936,7 +936,7 @@ static void oob_recv_addr_handler(void *request, ucs_status_t status,
 }
 
 static void oob_recv_rank_handler(void *request, ucs_status_t status,
-                             ucp_tag_recv_info_t *info)
+                                  ucp_tag_recv_info_t *info)
 {
     struct ucx_context *context = (struct ucx_context *)request;
     context->completed = 1;
@@ -996,11 +996,14 @@ static inline dpu_offload_status_t oob_server_ucx_client_connection(execution_co
     assert(server->ucp_worker);
     assert(server->conn_data.oob.addr_msg_str);
 
-    server->conn_data.oob.peer_addr_len = msg->len;
+    server->connected_clients.clients[server->connected_clients.num_connected_clients].peer_addr_len = msg->len;
     CHECK_ERR_GOTO((msg <= 0), error_out, "invalid message length: %ld", msg->len);
-    server->conn_data.oob.peer_addr = malloc(server->conn_data.oob.peer_addr_len);
-    CHECK_ERR_GOTO((server->conn_data.oob.peer_addr == NULL), error_out, "unable to allocate memory for peer address (%ld bytes)", server->conn_data.oob.peer_addr_len);
-    memcpy(server->conn_data.oob.peer_addr, msg + 1, server->conn_data.oob.peer_addr_len);
+    server->connected_clients.clients[server->connected_clients.num_connected_clients].peer_addr = malloc(server->conn_data.oob.peer_addr_len);
+    CHECK_ERR_GOTO((server->connected_clients.clients[server->connected_clients.num_connected_clients].peer_addr == NULL),
+                   error_out,
+                   "unable to allocate memory for peer address (%ld bytes)",
+                   server->conn_data.oob.peer_addr_len);
+    memcpy(server->connected_clients.clients[server->connected_clients.num_connected_clients].peer_addr, msg + 1, server->conn_data.oob.peer_addr_len);
     free(msg);
 
     ep_params.field_mask = UCP_EP_PARAM_FIELD_REMOTE_ADDRESS |
@@ -1038,11 +1041,11 @@ static inline dpu_offload_status_t oob_server_ucx_client_connection(execution_co
                                        ucp_dt_make_contig(1), msg_tag, oob_recv_rank_handler);
     DBG("Receiving rank info (len=%ld, req=%p)", sizeof(rank_info_t), rank_request);
     ucx_wait(server->ucp_worker, rank_request, "receive", NULL);
-    DBG("group/rank received: (%"PRId64"/%"PRId64")", peer_data.group_id, peer_data.group_rank);
+    DBG("group/rank received: (%" PRId64 "/%" PRId64 ")", peer_data.group_id, peer_data.group_rank);
     if (peer_data.group_id != INVALID_GROUP && peer_data.group_rank != INVALID_RANK)
     {
         // Update the pointer to track cache entries, i.e., groups/ranks, for the peer
-        DBG("Adding gp/rank %"PRId64"/%"PRId64" to cache", peer_data.group_id, peer_data.group_rank);
+        DBG("Adding gp/rank %" PRId64 "/%" PRId64 " to cache", peer_data.group_id, peer_data.group_rank);
         peer_cache_entry_t *cache_entry = SET_GROUP_RANK_CACHE_ENTRY(econtext, peer_data.group_id, peer_data.group_rank);
         assert(server->connected_clients.clients);
         assert(server->connected_clients.clients[server->connected_clients.num_connected_clients].cache_entries);
@@ -1113,7 +1116,7 @@ static dpu_offload_status_t oob_server_listen(execution_context_t *econtext)
     uint64_t client_id = generate_unique_client_id(econtext);
     size_sent = send(econtext->server->conn_data.oob.sock, &client_id, sizeof(uint64_t), 0);
     DBG("Client ID sent (len: %ld)", size_sent);
-    
+
     rc = oob_server_ucx_client_connection(econtext, client_addr);
     CHECK_ERR_RETURN((rc), DO_ERROR, "oob_server_ucx_client_connection() failed");
 
@@ -1343,7 +1346,7 @@ execution_context_t *server_init(offloading_engine_t *offloading_engine, init_pa
                 CHECK_ERR_GOTO((rc), error_out, "unable to register engine's default notification to new execution context (type: %ld)", i);
                 n++;
             }
-            
+
             if (n == offloading_engine->num_default_notifications)
             {
                 // All done, no need to continue parsing the array.

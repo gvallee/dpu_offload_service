@@ -254,8 +254,18 @@ typedef struct peer_cache_entry
 
 typedef struct peer_info
 {
+    // Length of the peer's address
+    size_t peer_addr_len;
+
+    // Peer's address. Used to create endpoint when using OOB 
+    void *peer_addr;
+
+    // UCX endpoint to communicate with the peer
     ucp_ep_h ep;
+
+    // Peer's endpoint status
     ucs_status_t ep_status;
+
     //  Array of group/proc entries, one per group. A rank can belong to multiple groups but have a single endpoint.
     peer_cache_entry_t **cache_entries;
 } peer_info_t;
@@ -856,6 +866,9 @@ typedef struct remote_dpu_info
     // DPU's hostname
     char *hostname;
 
+    // Pointer to the address. Used for example to create new endpoint
+    void *peer_addr;
+
     // Initialization paramaters for bootstrapping
     init_params_t init_params;
 
@@ -870,6 +883,9 @@ typedef struct remote_dpu_info
 
     // Execution context to communication with it
     execution_context_t *econtext;
+
+    // Worker to use to communicate with the DPU
+    ucp_worker_h ucp_worker;
 
     // Pointer to the endpoint to communicate with the DPU
     ucp_ep_h ep;

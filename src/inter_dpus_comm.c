@@ -164,6 +164,9 @@ static void *connect_thread(void *arg)
     remote_dpu_info_t **list_dpus = (remote_dpu_info_t **)offload_engine->dpus.base;
     list_dpus[remote_dpu_info->idx]->ep = client->client->server_ep;
     list_dpus[remote_dpu_info->idx]->econtext = client;
+    list_dpus[remote_dpu_info->idx]->peer_addr = client->client->conn_data.oob.peer_addr;
+    list_dpus[remote_dpu_info->idx]->ucp_worker = client->client->ucp_worker;
+    assert(list_dpus[remote_dpu_info->idx]->peer_addr);
     DBG("-> DPU #%ld: addr=%s, port=%d, ep=%p, econtext=%p",
         remote_dpu_info->idx,
         list_dpus[remote_dpu_info->idx]->init_params.conn_params->addr_str,
