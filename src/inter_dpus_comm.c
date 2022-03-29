@@ -72,6 +72,7 @@ dpu_offload_parse_list_dpus(offloading_engine_t *engine, offloading_config_t *co
     char *token;
     size_t n_connecting_from = 0;
     size_t n_connecting_to = 0;
+    remote_dpu_info_t **dpu_info = (remote_dpu_info_t **)engine->dpus.base;
 
     token = strtok(config_data->list_dpus, ",");
 
@@ -86,12 +87,16 @@ dpu_offload_parse_list_dpus(offloading_engine_t *engine, offloading_config_t *co
         DBG("Checking hostname %s (i am %s)", token, config_data->local_dpu.hostname);
         if (strncmp(token, config_data->local_dpu.hostname, strlen(token)) == 0)
         {
+            remote_dpu_info_t *new_remote_dpu;
             DBG("%s is me", token);
             pre = false;
             *my_dpu_id = dpu_idx;
-            // We set the element in the list of DPUs to NULL because it is us.
-            remote_dpu_info_t **dpu_info = (remote_dpu_info_t **)engine->dpus.base;
-            dpu_info[dpu_idx] = NULL;
+            // We need an entry in the list of DPUs to support communications with self after a look up to a local rank.
+            DYN_LIST_GET(config_data->info_connecting_to.pool_remote_dpu_info, remote_dpu_info_t, item, new_remote_dpu); // fixme: correctly return object
+            new_remote_dpu->idx = dpu_idx;
+            new_remote_dpu->hostname = config_data->local_dpu.hostname;
+            new_remote_dpu->init_params.conn_params = NULL;
+            dpu_info[dpu_idx] = new_remote_dpu; 
             dpu_idx++;
             token = strtok(NULL, ",");
             continue;
@@ -99,10 +104,9 @@ dpu_offload_parse_list_dpus(offloading_engine_t *engine, offloading_config_t *co
 
         if (pre == true)
         {
-            n_connecting_from++;
-            remote_dpu_info_t **dpu_info = (remote_dpu_info_t **)engine->dpus.base;
             remote_dpu_info_t *new_remote_dpu;
             conn_params_t *new_conn_params;
+            n_connecting_from++;
             DYN_LIST_GET(config_data->info_connecting_to.pool_remote_dpu_info, remote_dpu_info_t, item, new_remote_dpu); // fixme: correctly return object
             assert(new_remote_dpu);
             DYN_LIST_GET(engine->pool_conn_params, conn_params_t, item, new_conn_params); // fixme: correctly return object
@@ -132,9 +136,37 @@ dpu_offload_parse_list_dpus(offloading_engine_t *engine, offloading_config_t *co
     return DO_SUCCESS;
 }
 
+static int set_default_econtext(connected_peer_data_t *connected_peer_data)
+{
+    assert(connected_peer_data);
+    assert(connected_peer_data->econtext);
+    if (connected_peer_data->econtext->engine->default_econtext == NULL)
+        connected_peer_data->econtext->engine->default_econtext = connected_peer_data->econtext;
+}
+
 void connected_to_server_dpu(void *data)
 {
+    assert(data);
+    connected_peer_data_t *connected_peer = (connected_peer_data_t*)data;
+    DBG("Successfully connected to server DPU at %s\n", connected_peer->peer_addr);
+    set_default_econtext(connected_peer);
 
+    /* Update data in the list of DPUs */
+    assert(connected_peer->econtext);
+    assert(connected_peer->econtext->engine);
+    remote_dpu_info_t **list_dpus = LIST_DPUS_FROM_ECONTEXT(connected_peer->econtext);
+    size_t i;
+    for (i = 0; i < connected_peer->econtext->engine->num_dpus; i++)
+    {
+        if (list_dpus[i]->init_params.conn_params != NULL)
+        {
+            if (strncmp(connected_peer->peer_addr, list_dpus[i]->init_params.conn_params->addr_str, strlen(connected_peer->peer_addr)))
+            {
+                list_dpus[i]->econtext = connected_peer->econtext;
+                break;
+            }
+        }
+    }
 }
 
 static void *connect_thread(void *arg)
@@ -200,15 +232,21 @@ connect_to_dpus(offloading_engine_t *offload_engine, dpu_inter_connect_info_t *i
     return DO_SUCCESS;
 }
 
-void client_dpu_connected(void * data)
+void client_dpu_connected(void *data)
 {
-    DBG("DPU is now conencted");
+    DBG("New client DPU is now connected");
+    assert(data);
+    connected_peer_data_t *connected_peer = (connected_peer_data_t*)data;
+    set_default_econtext(connected_peer);
 }
 
 dpu_offload_status_t inter_dpus_connect_mgr(offloading_engine_t *engine, offloading_config_t *cfg)
 {
+    CHECK_ERR_RETURN((engine == NULL), DO_ERROR, "undefined engine");
+    CHECK_ERR_RETURN((cfg == NULL), DO_ERROR, "undefined configuration");
     engine->on_dpu = true;
     DBG("Connection manager: expecting %ld inbound connections and %ld outbound connections", cfg->num_connecting_dpus, cfg->info_connecting_to.num_connect_to);
+
     if (cfg->num_connecting_dpus > 0)
     {
         // Some DPUs will be connecting to us so we start a new server.

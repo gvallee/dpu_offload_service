@@ -27,6 +27,18 @@ typedef enum
     CONTEXT_SERVER
 } daemon_type_t;
 
+#define INIT_WORKER(_ucp_context, _ucp_worker) ({                                                                  \
+    ucp_worker_params_t _worker_params;                                                                            \
+    ucs_status_t _status;                                                                                          \
+    int _ret = DO_SUCCESS;                                                                                         \
+    memset(&_worker_params, 0, sizeof(_worker_params));                                                            \
+    _worker_params.field_mask = UCP_WORKER_PARAM_FIELD_THREAD_MODE;                                                \
+    _worker_params.thread_mode = UCS_THREAD_MODE_MULTI;                                                            \
+    _status = ucp_worker_create(_ucp_context, &_worker_params, _ucp_worker);                                       \
+    CHECK_ERR_RETURN((_status != UCS_OK), DO_ERROR, "ucp_worker_create() failed: %s", ucs_status_string(_status)); \
+    _ret;                                                                                                          \
+})
+
 #define ECONTEXT_ID(_exec_ctx) ({          \
     uint64_t _my_id;                       \
     if (_exec_ctx->type == CONTEXT_CLIENT) \
@@ -352,6 +364,12 @@ typedef struct connected_peer_data
 {
     // IP of the peer that just completed its connection
     char *peer_addr;
+
+    // Associated execution context
+    struct execution_context *econtext;
+
+    // Peer's ID
+    uint64_t peer_id;
 } connected_peer_data_t;
 
 typedef struct conn_params
@@ -381,6 +399,9 @@ typedef struct init_params
     // worker to use to perform the initial connection.
     // If NULL, a new worker will be created
     ucp_worker_h worker;
+
+    // UCP context and reusing a worker from another library
+    ucp_context_h ucp_context;
 
     // Specifies whether a unique ID is passed in and should be used when creating the execution context
     bool id_set;
@@ -429,7 +450,6 @@ typedef struct dpu_offload_server_t
     bool done;
     conn_params_t conn_params;
     ucp_worker_h ucp_worker;
-    ucp_context_h ucp_context;
     pthread_t connect_tid;
     pthread_mutex_t mutex;
     pthread_mutexattr_t mattr;
@@ -472,7 +492,6 @@ typedef struct dpu_offload_client_t
     connect_completed_cb connected_cb;
 
     ucp_worker_h ucp_worker;
-    ucp_context_h ucp_context;
     ucp_ep_h server_ep;
     ucs_status_t server_ep_status;
     pthread_mutex_t mutex;
@@ -736,6 +755,15 @@ typedef struct offloading_engine
     // On DPU to simply communications with other DPUs, we set a default execution context
     // so we can always easily get events
     execution_context_t *default_econtext;
+
+    // Worker to communicate with self
+    ucp_worker_h self_worker;
+
+    // UCP context associated to self_worker
+    ucp_context_h ucp_context;
+
+    // Self endpoint
+    ucp_ep_h self_ep;
 
     /* we track the clients used for inter-DPU connection separately. Servers are at the */
     /* moment in the servers list. */

@@ -49,7 +49,7 @@ typedef enum
     UCX_LISTENER
 } conn_mode_t;
 
-dpu_offload_status_t offload_engine_init(offloading_engine_t **engine);
+dpu_offload_status_t offload_engine_init(offloading_engine_t **engine, init_params_t *init_params);
 void offload_engine_fini(offloading_engine_t **engine);
 
 /**

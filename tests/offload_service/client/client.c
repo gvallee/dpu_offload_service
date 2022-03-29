@@ -9,5 +9,5 @@
 int main(int argc, char **argv)
 {
     // We let the library create a worker
-    return run_client_test(NULL);
+    return run_client_test(NULL, NULL);
 }
