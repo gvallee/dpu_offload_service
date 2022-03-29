@@ -1003,12 +1003,12 @@ static inline dpu_offload_status_t oob_server_ucx_client_connection(execution_co
 
     server->connected_clients.clients[server->connected_clients.num_connected_clients].peer_addr_len = msg->len;
     CHECK_ERR_GOTO((msg <= 0), error_out, "invalid message length: %ld", msg->len);
-    server->connected_clients.clients[server->connected_clients.num_connected_clients].peer_addr = malloc(server->conn_data.oob.peer_addr_len);
+    server->connected_clients.clients[server->connected_clients.num_connected_clients].peer_addr = malloc(msg->len);
     CHECK_ERR_GOTO((server->connected_clients.clients[server->connected_clients.num_connected_clients].peer_addr == NULL),
                    error_out,
                    "unable to allocate memory for peer address (%ld bytes)",
-                   server->conn_data.oob.peer_addr_len);
-    memcpy(server->connected_clients.clients[server->connected_clients.num_connected_clients].peer_addr, msg + 1, server->conn_data.oob.peer_addr_len);
+                   server->connected_clients.clients[server->connected_clients.num_connected_clients].peer_addr_len);
+    memcpy(server->connected_clients.clients[server->connected_clients.num_connected_clients].peer_addr, msg + 1, msg->len);
     free(msg);
 
     ep_params.field_mask = UCP_EP_PARAM_FIELD_REMOTE_ADDRESS |
@@ -1018,7 +1018,7 @@ static inline dpu_offload_status_t oob_server_ucx_client_connection(execution_co
     ep_params.err_mode = err_handling_opt.ucp_err_mode;
     ep_params.err_handler.cb = err_cb;
     ep_params.err_handler.arg = NULL;
-    ep_params.address = server->conn_data.oob.peer_addr;
+    ep_params.address = server->connected_clients.clients[server->connected_clients.num_connected_clients].peer_addr;
     ep_params.user_data = &(server->connected_clients.clients[server->connected_clients.num_connected_clients].ep_status);
     ucp_worker_h worker = server->ucp_worker;
     CHECK_ERR_GOTO((worker == NULL), error_out, "undefined worker");
@@ -1075,7 +1075,7 @@ static inline dpu_offload_status_t oob_server_ucx_client_connection(execution_co
                            error_out,
                            "Address of DPU #%ld is undefined", i);
             assert(server);
-            assert(server->conn_data.oob.peer_addr);
+            assert(server->connected_clients.clients[server->connected_clients.num_connected_clients].peer_addr);
             if (strncmp(list_dpus[i]->init_params.conn_params->addr_str, client_addr, strlen(client_addr)) == 0)
             {
                 // Set the endpoint to communicate with that remote DPU
