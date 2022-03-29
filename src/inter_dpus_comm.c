@@ -132,6 +132,11 @@ dpu_offload_parse_list_dpus(offloading_engine_t *engine, offloading_config_t *co
     return DO_SUCCESS;
 }
 
+void connected_to_server_dpu(void *data)
+{
+
+}
+
 static void *connect_thread(void *arg)
 {
     remote_dpu_info_t *remote_dpu_info = (remote_dpu_info_t *)arg;
@@ -153,6 +158,7 @@ static void *connect_thread(void *arg)
         remote_dpu_info->init_params.conn_params->port);
     // Inter-DPU connection, no group/rank
     remote_dpu_info->init_params.proc_info = &invalid_group_rank;
+    remote_dpu_info->init_params.connected_cb = connected_to_server_dpu;
     execution_context_t *client = client_init(offload_engine, &(remote_dpu_info->init_params));
     if (client == NULL)
     {
@@ -164,6 +170,9 @@ static void *connect_thread(void *arg)
     remote_dpu_info_t **list_dpus = (remote_dpu_info_t **)offload_engine->dpus.base;
     list_dpus[remote_dpu_info->idx]->ep = client->client->server_ep;
     list_dpus[remote_dpu_info->idx]->econtext = client;
+    list_dpus[remote_dpu_info->idx]->peer_addr = client->client->conn_data.oob.peer_addr;
+    list_dpus[remote_dpu_info->idx]->ucp_worker = client->client->ucp_worker;
+    assert(list_dpus[remote_dpu_info->idx]->peer_addr);
     DBG("-> DPU #%ld: addr=%s, port=%d, ep=%p, econtext=%p",
         remote_dpu_info->idx,
         list_dpus[remote_dpu_info->idx]->init_params.conn_params->addr_str,
@@ -191,6 +200,11 @@ connect_to_dpus(offloading_engine_t *offload_engine, dpu_inter_connect_info_t *i
     return DO_SUCCESS;
 }
 
+void client_dpu_connected(void * data)
+{
+    DBG("DPU is now conencted");
+}
+
 dpu_offload_status_t inter_dpus_connect_mgr(offloading_engine_t *engine, offloading_config_t *cfg)
 {
     engine->on_dpu = true;
@@ -201,6 +215,7 @@ dpu_offload_status_t inter_dpus_connect_mgr(offloading_engine_t *engine, offload
         DBG("Starting server to let other DPUs connect to us (init_params=%p, conn_params=%p)...",
             &(cfg->local_dpu.interdpu_init_params),
             &(cfg->local_dpu.interdpu_init_params.conn_params));
+        cfg->local_dpu.interdpu_init_params.connected_cb = client_dpu_connected;
         execution_context_t *server = server_init(cfg->offloading_engine, &(cfg->local_dpu.interdpu_init_params));
         CHECK_ERR_RETURN((server == NULL), DO_ERROR, "server_init() failed");
         CHECK_ERR_RETURN((cfg->offloading_engine->num_servers + 1 >= cfg->offloading_engine->num_max_servers),

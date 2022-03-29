@@ -254,8 +254,18 @@ typedef struct peer_cache_entry
 
 typedef struct peer_info
 {
+    // Length of the peer's address
+    size_t peer_addr_len;
+
+    // Peer's address. Used to create endpoint when using OOB
+    void *peer_addr;
+
+    // UCX endpoint to communicate with the peer
     ucp_ep_h ep;
+
+    // Peer's endpoint status
     ucs_status_t ep_status;
+
     //  Array of group/proc entries, one per group. A rank can belong to multiple groups but have a single endpoint.
     peer_cache_entry_t **cache_entries;
 } peer_info_t;
@@ -333,6 +343,17 @@ typedef struct connected_clients
     peer_info_t *clients;
 } connected_clients_t;
 
+/**
+ * @brief connected_peer_data is the data that can be passed to a connection completion
+ * callback. In other words, it gathers all the data to identify a peer that just
+ * successfully completed its connection.
+ */
+typedef struct connected_peer_data
+{
+    // IP of the peer that just completed its connection
+    char *peer_addr;
+} connected_peer_data_t;
+
 typedef struct conn_params
 {
     ucs_list_link_t item;
@@ -341,6 +362,12 @@ typedef struct conn_params
     int port;
     struct sockaddr_storage saddr;
 } conn_params_t;
+
+/**
+ * @brief connect_completed_cb is the type of the callback used when a connection completes.
+ * It can be used both on a client and server.
+ */
+typedef void (*connect_completed_cb)(void *);
 
 typedef struct init_params
 {
@@ -360,6 +387,9 @@ typedef struct init_params
 
     // Optional unique ID to use when creating the execution context
     uint64_t id;
+
+    // Callback to invoke when a connection completes
+    connect_completed_cb connected_cb;
 } init_params_t;
 
 #define ENGINE_LOCK(_engine)                   \
@@ -373,7 +403,6 @@ typedef struct init_params
     {                                            \
         pthread_mutex_unlock(&(_engine->mutex)); \
     } while (0)
-
 
 #define ECONTEXT_LOCK(_econtext)                             \
     do                                                       \
@@ -406,6 +435,9 @@ typedef struct dpu_offload_server_t
     pthread_mutexattr_t mattr;
     connected_clients_t connected_clients;
 
+    // Callback to invoke when a connection completes
+    connect_completed_cb connected_cb;
+
     dpu_offload_ev_sys_t *event_channels;
 
     union
@@ -435,6 +467,9 @@ typedef struct dpu_offload_client_t
     int mode;
     conn_params_t conn_params;
     bool done;
+
+    // Callback to invoke when a connection completes
+    connect_completed_cb connected_cb;
 
     ucp_worker_h ucp_worker;
     ucp_context_h ucp_context;
@@ -547,7 +582,7 @@ typedef struct dpu_offload_event
     // The event that has sub-events is not considered completed unless all sub-events are completed.
     // event_completed() can be used to easily check for completion.
     ucs_list_link_t sub_events;
-    
+
     // sub_events_initialized tracks whether the sub-event list has been initialized.
     bool sub_events_initialized;
 
@@ -563,7 +598,7 @@ typedef struct dpu_offload_event
 
     // data is the payload associated to the event. Can be NULL.
     void *data;
-    
+
     // user_context is the user-defined context for the event. Can be NULL.
     void *user_context;
 
@@ -612,24 +647,24 @@ typedef struct group_cache
     dyn_array_t ranks;
 } group_cache_t;
 
-#define GET_GROUP_RANK_CACHE_ENTRY(_cache, _gp_id, _rank)                                       \
-    ({                                                                                          \
-        peer_cache_entry_t *_entry = NULL;                                                      \
-        group_cache_t *_gp_cache = (group_cache_t *)(_cache)->data.base;                        \
-        dyn_array_t *_rank_cache = &(_gp_cache[_gp_id].ranks);                                  \
-        if (_gp_cache[_gp_id].initialized == false)                                             \
-        {                                                                                       \
-            /* Cache for the group is empty */                                                  \
-            DYN_ARRAY_ALLOC(_rank_cache, DEFAULT_NUM_PEERS, peer_cache_entry_t);                \
-            _gp_cache[_gp_id].initialized = true;                                               \
-            (_cache)->size++;                                                                   \
-        }                                                                                       \
-        if (_rank >= _rank_cache->num_elts)                                                     \
-            DYN_ARRAY_GROW(_rank_cache, peer_cache_entry_t, _rank);                             \
-        assert(_rank < _rank_cache->num_elts);                                                  \
-        peer_cache_entry_t *_ptr = (peer_cache_entry_t *)_rank_cache->base;                     \
-        _entry = &(_ptr[_rank]);                                                                \
-        _entry;                                                                                 \
+#define GET_GROUP_RANK_CACHE_ENTRY(_cache, _gp_id, _rank)                        \
+    ({                                                                           \
+        peer_cache_entry_t *_entry = NULL;                                       \
+        group_cache_t *_gp_cache = (group_cache_t *)(_cache)->data.base;         \
+        dyn_array_t *_rank_cache = &(_gp_cache[_gp_id].ranks);                   \
+        if (_gp_cache[_gp_id].initialized == false)                              \
+        {                                                                        \
+            /* Cache for the group is empty */                                   \
+            DYN_ARRAY_ALLOC(_rank_cache, DEFAULT_NUM_PEERS, peer_cache_entry_t); \
+            _gp_cache[_gp_id].initialized = true;                                \
+            (_cache)->size++;                                                    \
+        }                                                                        \
+        if (_rank >= _rank_cache->num_elts)                                      \
+            DYN_ARRAY_GROW(_rank_cache, peer_cache_entry_t, _rank);              \
+        assert(_rank < _rank_cache->num_elts);                                   \
+        peer_cache_entry_t *_ptr = (peer_cache_entry_t *)_rank_cache->base;      \
+        _entry = &(_ptr[_rank]);                                                 \
+        _entry;                                                                  \
     })
 
 #define SET_GROUP_RANK_CACHE_ENTRY(__econtext, __gp_id, __rank)                                        \
@@ -638,11 +673,11 @@ typedef struct group_cache
                                                                  __gp_id, __rank);                     \
         if (__entry != NULL)                                                                           \
         {                                                                                              \
-        __entry->peer.proc_info.group_id = __gp_id;                                                    \
-        __entry->peer.proc_info.group_rank = __rank;                                                   \
-        __entry->num_shadow_dpus = 1; /* fixme: find a way to get the DPUs config from here */         \
-        __entry->shadow_dpus[0] = ECONTEXT_ID(__econtext);                                             \
-        __entry->set = true;                                                                           \
+            __entry->peer.proc_info.group_id = __gp_id;                                                \
+            __entry->peer.proc_info.group_rank = __rank;                                               \
+            __entry->num_shadow_dpus = 1; /* fixme: find a way to get the DPUs config from here */     \
+            __entry->shadow_dpus[0] = ECONTEXT_ID(__econtext);                                         \
+            __entry->set = true;                                                                       \
         }                                                                                              \
         __entry;                                                                                       \
     })
@@ -664,7 +699,6 @@ typedef struct group_cache
         _cache[_peer_data->group_rank].set = true;                                                \
     } while (0)
 
-
 #define SET_PEER_CACHE_ENTRY(_peer_cache, _entry)                                          \
     ({                                                                                     \
         int64_t _gp_id = (_entry)->peer.proc_info.group_id;                                \
@@ -685,7 +719,7 @@ typedef struct group_cache
 
 typedef struct offloading_engine
 {
-    
+
     pthread_mutex_t mutex;
     int done;
 
@@ -701,7 +735,7 @@ typedef struct offloading_engine
 
     // On DPU to simply communications with other DPUs, we set a default execution context
     // so we can always easily get events
-    execution_context_t *default_econtext; 
+    execution_context_t *default_econtext;
 
     /* we track the clients used for inter-DPU connection separately. Servers are at the */
     /* moment in the servers list. */
@@ -799,7 +833,7 @@ typedef struct pending_notification
 /**
  * @brief LIST_DPUS_FROM_ENGINE returns the pointer to the array of remote_dpu_info_t structures
  * representing the list of known DPU, based on a engine. This is relevant mainly on DPUs
- * 
+ *
  * @parma[in] engine
  */
 #define LIST_DPUS_FROM_ENGINE(_engine) ({                   \
@@ -814,7 +848,7 @@ typedef struct pending_notification
 /**
  * @brief LIST_DPUS_FROM_ENGINE returns the pointer to the array of remote_dpu_info_t structures
  * representing the list of known DPU, based on a execution context. This is relevant mainly on DPUs
- * 
+ *
  * @parma[in] econtext
  */
 #define LIST_DPUS_FROM_ECONTEXT(_econtext) ({               \
@@ -856,6 +890,9 @@ typedef struct remote_dpu_info
     // DPU's hostname
     char *hostname;
 
+    // Pointer to the address. Used for example to create new endpoint
+    void *peer_addr;
+
     // Initialization paramaters for bootstrapping
     init_params_t init_params;
 
@@ -870,6 +907,9 @@ typedef struct remote_dpu_info
 
     // Execution context to communication with it
     execution_context_t *econtext;
+
+    // Worker to use to communicate with the DPU
+    ucp_worker_h ucp_worker;
 
     // Pointer to the endpoint to communicate with the DPU
     ucp_ep_h ep;

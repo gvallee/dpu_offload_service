@@ -40,12 +40,12 @@ dpu_offload_status_t send_add_group_rank_request(execution_context_t *econtext, 
         .group_rank = rank,
     };
     rc = event_channel_emit_with_payload(ev,
-                            ECONTEXT_ID(econtext),
-                            AM_ADD_GP_RANK_MSG_ID,
-                            ep,
-                            NULL,
-                            &rank_info,
-                            sizeof(rank_info_t));
+                                         ECONTEXT_ID(econtext),
+                                         AM_ADD_GP_RANK_MSG_ID,
+                                         ep,
+                                         NULL,
+                                         &rank_info,
+                                         sizeof(rank_info_t));
     CHECK_ERR_RETURN((rc != EVENT_DONE && rc != EVENT_INPROGRESS), DO_ERROR, "event_channel_emit_with_payload() failed");
     *e = ev;
     return DO_SUCCESS;
@@ -66,12 +66,12 @@ dpu_offload_status_t send_cache_entry_request(execution_context_t *econtext, ucp
 
     DBG("Sending cache entry request for rank:%ld/gp:%ld", requested_peer->group_rank, requested_peer->group_id);
     rc = event_channel_emit_with_payload(cache_entry_request_ev,
-                            ECONTEXT_ID(econtext),
-                            AM_PEER_CACHE_ENTRIES_REQUEST_MSG_ID,
-                            ep,
-                            NULL,
-                            requested_peer,
-                            sizeof(rank_info_t));
+                                         ECONTEXT_ID(econtext),
+                                         AM_PEER_CACHE_ENTRIES_REQUEST_MSG_ID,
+                                         ep,
+                                         NULL,
+                                         requested_peer,
+                                         sizeof(rank_info_t));
     CHECK_ERR_RETURN((rc != EVENT_DONE && rc != EVENT_INPROGRESS), DO_ERROR, "event_channel_emit_with_payload() failed");
 
     *ev = cache_entry_request_ev;
@@ -84,18 +84,18 @@ dpu_offload_status_t send_cache_entry(execution_context_t *econtext, ucp_ep_h ep
     dpu_offload_status_t rc = event_get(econtext->event_channels, NULL, &send_cache_entry_ev);
     CHECK_ERR_RETURN((rc), DO_ERROR, "event_get() failed");
 
-    DBG("Sending cache entry for rank:%"PRId64"/gp:%"PRId64" (msg size=%ld, notif type=%d)",
-        cache_entry->peer.proc_info.group_rank, 
+    DBG("Sending cache entry for rank:%" PRId64 "/gp:%" PRId64 " (msg size=%ld, notif type=%d)",
+        cache_entry->peer.proc_info.group_rank,
         cache_entry->peer.proc_info.group_id,
         sizeof(peer_cache_entry_t),
         AM_PEER_CACHE_ENTRIES_MSG_ID);
     rc = event_channel_emit_with_payload(send_cache_entry_ev,
-                            ECONTEXT_ID(econtext),
-                            AM_PEER_CACHE_ENTRIES_MSG_ID,
-                            ep,
-                            NULL,
-                            cache_entry,
-                            sizeof(peer_cache_entry_t));
+                                         ECONTEXT_ID(econtext),
+                                         AM_PEER_CACHE_ENTRIES_MSG_ID,
+                                         ep,
+                                         NULL,
+                                         cache_entry,
+                                         sizeof(peer_cache_entry_t));
     CHECK_ERR_RETURN((rc != EVENT_DONE && rc != EVENT_INPROGRESS), DO_ERROR, "event_channel_emit_with_payload() failed");
 
     // Put the event on the ongoing events list used while progressing the execution context.
@@ -208,7 +208,7 @@ dpu_offload_status_t get_dpu_id_by_group_rank(offloading_engine_t *engine, int64
         cache_entry->events_initialized = true;
     }
     ucs_list_add_tail(&(cache_entry->events), &(cache_entry_updated_ev->item));
-    DBG("Cache entry %p for gp/rank %"PRIu64"/%"PRIu64" now has %ld update events",
+    DBG("Cache entry %p for gp/rank %" PRIu64 "/%" PRIu64 " now has %ld update events",
         cache_entry, gp_id, rank, ucs_list_length(&(cache_entry->events)));
     *ev = cache_entry_updated_ev;
 
@@ -220,10 +220,10 @@ dpu_offload_status_t get_dpu_id_by_group_rank(offloading_engine_t *engine, int64
         size_t i;
         dpu_offload_status_t rc;
         dpu_offload_event_t *metaev = NULL;
-        remote_dpu_info_t **list_dpus = (remote_dpu_info_t **)engine->dpus.base;
+        remote_dpu_info_t **list_dpus = LIST_DPUS_FROM_ENGINE(engine);
         execution_context_t *meta_econtext = NULL;
 
-        for(i = 0; i < engine->num_dpus; i++)
+        for (i = 0; i < engine->num_dpus; i++)
         {
             if (list_dpus[i] != NULL && list_dpus[i]->ep != NULL)
             {
@@ -270,9 +270,25 @@ dpu_offload_status_t get_dpu_id_by_group_rank(offloading_engine_t *engine, int64
 ucp_ep_h get_dpu_ep_by_id(offloading_engine_t *engine, uint64_t id)
 {
     remote_dpu_info_t **list_dpus = LIST_DPUS_FROM_ENGINE(engine);
-    DBG("Looking up entry for DPU #%"PRIu64, id);
+    DBG("Looking up entry for DPU #%" PRIu64, id);
     if (list_dpus != NULL && list_dpus[id] == NULL)
         return NULL;
+
+    assert(list_dpus[id]->peer_addr != NULL);
+    if (list_dpus[id]->ep == NULL && list_dpus[id]->peer_addr != NULL)
+    {
+        ucp_ep_params_t ep_params;
+        ep_params.field_mask = UCP_EP_PARAM_FIELD_REMOTE_ADDRESS;
+        ep_params.address = list_dpus[id]->peer_addr;
+        /* NOT SUPPORTED FOR NOW
+        ep_params.err_mode = err_handling_opt.ucp_err_mode;
+        ep_params.err_handler.cb = err_cb;
+        ep_params.err_handler.arg = NULL;
+        */
+        assert(list_dpus[id]->ucp_worker);
+        ucs_status_t status = ucp_ep_create(list_dpus[id]->ucp_worker, &ep_params, &(list_dpus[id]->ep));
+    }
+
     return list_dpus[id]->ep;
 }
 
@@ -460,7 +476,7 @@ bool parse_line_dpu_version_1(offloading_config_t *data, char *line)
                 }
             }
 
-            // Is it an outbound connection? 
+            // Is it an outbound connection?
             remote_dpu_info_t *connect_to, *next_connect_to;
             ucs_list_for_each_safe(connect_to, next_connect_to, &(data->info_connecting_to.connect_to), item)
             {
