@@ -59,12 +59,12 @@ int event_channel_emit(dpu_offload_event_t *ev, uint64_t my_id, uint64_t type, u
  * @param ctx User-defined context to help identify the context of the event upon local completion.
  * @param payload User-defined payload associated to the event.
  * @param payload_size Size of the user-defined payload.
- * @return result of UCS_PTR_STATUS in the context of errors during communications
+ * @return result of UCS_PTR_STATUS in the context of errors during communications.
  * @return DO_ERROR in case of an error during the library's handling of the event.
- * @return EVENT_DONE if the emittion completed right away, the library returns the event
+ * @return EVENT_DONE if the emittion completed right away, the library returns the event.
  * @return EVENT_INPROGRESS if emitting the event is still in progress (e.g., communication not completed). One can check on completion using event_completed().
  * 
- * Example: the user uses the ongoing event list so that the event is implicitly returned when completed, with an event payload managed outside of the offloading library.
+ * Example: the user uses the ongoing events list so that the event is implicitly returned when completed, with an event payload managed outside of the offloading library.
  *      dpu_offload_event_t *my_ev;
  *      event_get(ev_sys, NULL, &my_ev);
  *      int rc = event_channel_emit_with_payload(my_ev, my_id, my_notification_type, dest_ep, NULL, &my_global_static_object, object_size);
@@ -87,9 +87,9 @@ int event_channel_emit_with_payload(dpu_offload_event_t *ev, uint64_t my_id, uin
  * @param ev_sys The event system from which the event must come from.
  * @param info Information about the event. For instance, it is possible to ask the library to allocate/free the memory for a payload. See examples for details.
  * @param ev Returned event.
- * @return result of UCS_PTR_STATUS in the context of errors
+ * @return result of UCS_PTR_STATUS in the context of errors.
  * @return DO_ERROR in case of an error during the library's handling of the event.
- * @return EVENT_DONE if the emittion completed right away, the library returns the event
+ * @return EVENT_DONE if the emittion completed right away, the library returns the event.
  * @return EVENT_INPROGRESS if emitting the event is still in progress (e.g., communication not completed). One can check on completion using event_completed().
  * 
  * Examples:

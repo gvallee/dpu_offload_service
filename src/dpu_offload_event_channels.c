@@ -385,7 +385,7 @@ dpu_offload_status_t event_get(dpu_offload_ev_sys_t *ev_sys, dpu_offload_event_i
         if (info == NULL || info->payload_size == 0)
             goto out;
 
-        // If we get here, it needs we need to manage a payload for that event
+        // If we get here, it means that we need to manage a payload buffer for that event
         _ev->manage_payload_buf = true;
         _ev->payload_size = info->payload_size;
         _ev->payload = malloc(info->payload_size); // No advanced memory management at the moment, just malloc
