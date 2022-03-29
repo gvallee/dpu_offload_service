@@ -339,10 +339,15 @@ dpu_offload_status_t client_init_context(execution_context_t *econtext, init_par
     }
 
     // If we have a group/rank in the init params, we pass it down
-    if (init_params != NULL)
+    if (init_params != NULL && init_params->proc_info != NULL)
     {
         econtext->rank.group_id = init_params->proc_info->group_id;
         econtext->rank.group_rank = init_params->proc_info->group_rank;
+    }
+
+    if (init_params != NULL && init_params->connected_cb != NULL)
+    {
+        econtext->client->connected_cb = init_params->connected_cb;
     }
 
     switch (econtext->client->mode)
@@ -1120,6 +1125,15 @@ static dpu_offload_status_t oob_server_listen(execution_context_t *econtext)
     rc = oob_server_ucx_client_connection(econtext, client_addr);
     CHECK_ERR_RETURN((rc), DO_ERROR, "oob_server_ucx_client_connection() failed");
 
+    if (econtext->server->connected_cb != NULL)
+    {
+        DBG("Invoking connection completion callback...");
+        connected_peer_data_t cb_data = {
+            .peer_addr = client_addr,
+        };
+        econtext->server->connected_cb(&cb_data);
+    }
+
     return DO_SUCCESS;
 }
 
@@ -1145,16 +1159,25 @@ static void *connect_thread(void *arg)
                 DBG("Progressing worker...");
                 ucp_worker_progress(econtext->server->ucp_worker);
             }
+
+            if (econtext->server->connected_cb != NULL)
+            {
+                DBG("Invoking connection completion callback...");
+                econtext->server->connected_cb(NULL);
+            }
+
             break;
         }
         default:
         {
+            // Note: the connection completion callback is called at the end of oob_server_listen()
             int rc = oob_server_listen(econtext);
             if (rc)
             {
                 ERR_MSG("oob_server_listen() failed");
                 pthread_exit(NULL);
             }
+
             pthread_exit(NULL); // fixme: properly support multiple connections
         }
         }
@@ -1221,7 +1244,11 @@ dpu_offload_status_t server_init_context(execution_context_t *econtext, init_par
             econtext->server->id = init_params->id;
     }
 
-    DBG("starting server connection thread");
+    if (init_params != NULL && init_params->connected_cb != NULL)
+    {
+        econtext->server->connected_cb = init_params->connected_cb;
+    }
+
     ret = pthread_mutex_init(&(econtext->server->mutex), NULL);
     CHECK_ERR_RETURN((ret), DO_ERROR, "pthread_mutex_init() failed: %s", strerror(errno));
     CHECK_ERR_RETURN((econtext->server->connected_clients.clients == NULL), DO_ERROR, "Unable to allocate resources for list of connected clients");
@@ -1322,6 +1349,7 @@ execution_context_t *server_init(offloading_engine_t *offloading_engine, init_pa
     rc = dpu_offload_set_am_recv_handlers(execution_context);
     CHECK_ERR_GOTO((rc), error_out, "dpu_offload_set_am_recv_handlers() failed");
 
+    /* Start the server to accept connections */
     ucs_status_t status = start_server(execution_context);
     CHECK_ERR_GOTO((status != UCS_OK), error_out, "start_server() failed");
 
