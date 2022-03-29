@@ -57,11 +57,13 @@ static int send_term_message(execution_context_t *econtext)
         fprintf(stderr, "event_channel_emit_with_payload() failed\n");
         return -1;
     }
-    ucs_list_add_tail(&(econtext->ongoing_events), &(evt->item));
-
-    while (!ucs_list_is_empty(&(econtext->ongoing_events)))
+    if (rc != EVENT_DONE)
     {
-        econtext->progress(econtext);
+        ucs_list_add_tail(&(econtext->ongoing_events), &(evt->item));
+        while (!ucs_list_is_empty(&(econtext->ongoing_events)))
+        {
+            econtext->progress(econtext);
+        }
     }
 
     return 0;
@@ -142,7 +144,10 @@ int main(int argc, char **argv)
         new_entry->peer.proc_info.group_rank = 42;
         new_entry->peer.proc_info.group_id = 42;
         new_entry->set = true;
-        new_entry->num_shadow_dpus = 0;
+        // The shadow DPU is myself.
+        new_entry->num_shadow_dpus = 1;
+        new_entry->shadow_dpus[0] = config_data.local_dpu.id;
+        new_entry->peer.addr_len = 43;
         SET_PEER_CACHE_ENTRY(&(offload_engine->procs_cache), new_entry);
         if (!is_in_cache(&(offload_engine->procs_cache), 42, 42))
         {
@@ -219,10 +224,11 @@ int main(int argc, char **argv)
 
         if (remote_dpu_id != 1)
         {
-            fprintf(stderr, "returned DPU is %" PRIu64 " instead of 1", remote_dpu_id);
+            fprintf(stderr, "returned DPU is %" PRIu64 " instead of 1\n", remote_dpu_id);
             send_term_message(econtext);
             goto error_out;
         }
+        fprintf(stderr, "Successfully got the remote DPU ID, getting the corresponding endpoint...\n");
 
         ucp_ep_h target_dpu_ep = get_dpu_ep_by_id(offload_engine, remote_dpu_id);
         if (target_dpu_ep == NULL)
@@ -231,11 +237,12 @@ int main(int argc, char **argv)
             send_term_message(econtext);
             goto error_out;
         }
-
-        send_term_message(econtext);
+        fprintf(stderr, "Successfully retrieved endpoint (%p)\n", target_dpu_ep);
         fprintf(stderr, "All done, notify DPU #1...\n");
+        send_term_message(econtext);
     }
 
+    fprintf(stderr, "Finalizing...\n");
     offload_engine_fini(&offload_engine);
     fprintf(stderr, "client all done, exiting successfully\n");
 
