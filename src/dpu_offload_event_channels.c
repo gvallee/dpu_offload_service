@@ -628,8 +628,8 @@ static dpu_offload_status_t peer_cache_entries_recv_cb(struct dpu_offload_ev_sys
 
         // Now that we know for sure we have the group ID, we can move the received data into the local cache
         int64_t group_rank = entries[idx].peer.proc_info.group_rank;
-        DBG("Received a cache entry for rank:%ld, group:%ld (msg size=%ld, peer addr len=%ld)",
-            group_rank, group_id, data_len, entries[idx].peer.addr_len);
+        DBG("Received a cache entry for rank:%ld, group:%ld from DPU %"PRId64" (msg size=%ld, peer addr len=%ld)",
+            group_rank, group_id, hdr->id, data_len, entries[idx].peer.addr_len);
 
         if (!is_in_cache(cache, group_id, group_rank))
         {

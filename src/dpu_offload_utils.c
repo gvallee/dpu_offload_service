@@ -185,6 +185,7 @@ dpu_offload_status_t get_dpu_id_by_group_rank(offloading_engine_t *engine, int64
         dyn_array_t *gp_data, *gps_data = &(engine->procs_cache.data);
         DYN_ARRAY_GET_ELT(gps_data, gp_id, dyn_array_t, gp_data);
         peer_cache_entry_t *cache_entry = GET_GROUP_RANK_CACHE_ENTRY(&(engine->procs_cache), gp_id, rank);
+        DBG("%"PRId64"/%"PRId64" is in the cache, DPU ID = %"PRId64, rank, gp_id, cache_entry->shadow_dpus[dpu_idx]);
         *ev = NULL;
         *dpu_id = cache_entry->shadow_dpus[dpu_idx];
         return DO_SUCCESS;
