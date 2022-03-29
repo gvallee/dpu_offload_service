@@ -92,19 +92,6 @@ typedef enum
     _sys;                                         \
 })
 
-#define ACTIVE_OPS(_exec_ctx) ({                  \
-    ucs_list_link_t *_list;                       \
-    if (_exec_ctx->type == CONTEXT_CLIENT)        \
-    {                                             \
-        _list = &(_exec_ctx->client->active_ops); \
-    }                                             \
-    else                                          \
-    {                                             \
-        _list = &(_exec_ctx->server->active_ops); \
-    }                                             \
-    _list;                                        \
-})
-
 #define EXECUTION_CONTEXT_DONE(_exec_ctx) ({ \
     bool _done;                              \
     if (_exec_ctx->type == CONTEXT_CLIENT)   \
@@ -421,9 +408,6 @@ typedef struct dpu_offload_server_t
 
     dpu_offload_ev_sys_t *event_channels;
 
-    /* Active operations: a server can execute operations on behalf of all the clients that are connected */
-    ucs_list_link_t active_ops;
-
     union
     {
         struct
@@ -459,9 +443,6 @@ typedef struct dpu_offload_client_t
     pthread_mutex_t mutex;
 
     dpu_offload_ev_sys_t *event_channels;
-
-    /* Active operations: a client can execute operations on behalf of the server it is connected to */
-    ucs_list_link_t active_ops;
 
     union
     {
@@ -528,6 +509,9 @@ typedef struct execution_context
     // pending_rdv_recvs is the current list of pending AM RDV receives.
     // Once completed, the element is returned to free_pending_rdv_recv.
     ucs_list_link_t pending_rdv_recvs;
+
+    /* Active operations that are running in the execution context */
+    ucs_list_link_t active_ops;
 
     // During bootstrapping, the execution context acts either as a client or server.
     union

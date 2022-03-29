@@ -471,7 +471,7 @@ static dpu_offload_status_t op_completion_cb(struct dpu_offload_ev_sys *ev_sys, 
 
     // Find the operation and add it to the local list of active operations
     op_desc_t *cur_op, *next_op, *op = NULL;
-    ucs_list_for_each_safe(cur_op, next_op, ACTIVE_OPS(econtext), item)
+    ucs_list_for_each_safe(cur_op, next_op, &(econtext->active_ops), item)
     {
         if (cur_op->id == _data[0])
         {
@@ -520,7 +520,7 @@ static dpu_offload_status_t op_start_cb(struct dpu_offload_ev_sys *ev_sys, execu
     op_desc->completed = false;
     op_desc->op_definition = op_cfg;
 
-    ucs_list_add_tail(ACTIVE_OPS(econtext), &(op_desc->item));
+    ucs_list_add_tail(&(econtext->active_ops), &(op_desc->item));
 
     // Call the init function of the operation
     op_cfg->op_init();

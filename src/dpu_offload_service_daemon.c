@@ -636,6 +636,7 @@ static dpu_offload_status_t execution_context_init(offloading_engine_t *offload_
     ucs_list_head_init(&(ctx->ongoing_events));
     DYN_LIST_ALLOC(ctx->free_pending_rdv_recv, 32, pending_am_rdv_recv_t, item);
     ucs_list_head_init(&(ctx->pending_rdv_recvs));
+    ucs_list_head_init(&(ctx->active_ops));
     *econtext = ctx;
     return DO_SUCCESS;
 error_out:

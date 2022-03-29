@@ -41,19 +41,7 @@ dpu_offload_status_t op_desc_get(offloading_engine_t *engine, const uint64_t id,
 
 dpu_offload_status_t op_desc_submit(execution_context_t *econtext, op_desc_t *desc)
 {
-    ucs_list_link_t *target_list;
-    switch (econtext->type)
-    {
-    case CONTEXT_CLIENT:
-        target_list = &(econtext->client->active_ops);
-        break;
-    case CONTEXT_SERVER:
-        target_list = &(econtext->server->active_ops);
-        break;
-    default:
-        target_list = NULL;
-    }
-    CHECK_ERR_RETURN((target_list == NULL), DO_ERROR, "unable to find target list");
+    CHECK_ERR_RETURN((econtext == NULL), DO_ERROR, "undefined execution context");
 
     // Note: no need to register an notification handler for operation completion, we get one by default
 
@@ -65,7 +53,7 @@ dpu_offload_status_t op_desc_submit(execution_context_t *econtext, op_desc_t *de
     // Add the descriptor to the local list of active operations.
     // The list is used by the notification handler so it needs to happen before
     // the event is emited.
-    ucs_list_add_tail(target_list, &(desc->item));
+    ucs_list_add_tail(&(econtext->active_ops), &(desc->item));
 
     // Everything is now all set, emit the event associated to the notification
     void *ev_data = &(desc->id);
@@ -101,7 +89,7 @@ dpu_offload_status_t progress_active_ops(execution_context_t *econtext)
 {
     CHECK_ERR_RETURN((econtext == NULL), DO_ERROR, "undefined execution context");
     op_desc_t *cur_op, *next_op, *op = NULL;
-    ucs_list_for_each_safe(cur_op, next_op, ACTIVE_OPS(econtext), item)
+    ucs_list_for_each_safe(cur_op, next_op, &(econtext->active_ops), item)
     {
         if (cur_op->op_definition->op_progress != NULL)
             cur_op->op_definition->op_progress();
