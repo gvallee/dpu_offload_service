@@ -707,8 +707,8 @@ execution_context_t *client_init(offloading_engine_t *offload_engine, init_param
     rc = event_channels_init(ctx);
     CHECK_ERR_GOTO((rc), error_out, "event_channel_init() failed");
     CHECK_ERR_GOTO((ctx->event_channels == NULL), error_out, "event channel object is undefined");
-    ctx->client->event_channels->econtext = (struct execution_context *)ctx;
     ctx->client->event_channels = ctx->event_channels;
+    ctx->client->event_channels->econtext = (struct execution_context *)ctx;
     DBG("event channels successfully initialized");
 
     /* Initialize Active Message data handler */
@@ -1335,15 +1335,17 @@ execution_context_t *server_init(offloading_engine_t *offloading_engine, init_pa
     DBG("initializing server context...");
     rc = server_init_context(execution_context, init_params);
     CHECK_ERR_GOTO((rc), error_out, "server_init_context() failed");
-    DBG("server handle successfully created (worker=%p)", execution_context->server->ucp_worker);
+    CHECK_ERR_GOTO((execution_context->server == NULL), error_out, "undefined server handle");
+    DBG("server handle %p successfully created (worker=%p)", execution_context->server, execution_context->server->ucp_worker);
     offloading_engine->servers[offloading_engine->num_servers] = execution_context;
     offloading_engine->num_servers++;
 
     rc = event_channels_init(execution_context);
     CHECK_ERR_GOTO((rc), error_out, "event_channel_init() failed");
     CHECK_ERR_GOTO((execution_context->event_channels == NULL), error_out, "event channel handle is undefined");
-    execution_context->server->event_channels->econtext = (struct execution_context *)execution_context;
+    DBG("event channel %p successfully initialized", execution_context->event_channels);
     execution_context->server->event_channels = execution_context->event_channels;
+    execution_context->server->event_channels->econtext = (struct execution_context *)execution_context;
 
     /* Initialize Active Message data handler */
     rc = dpu_offload_set_am_recv_handlers(execution_context);
