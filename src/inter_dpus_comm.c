@@ -247,6 +247,35 @@ dpu_offload_status_t inter_dpus_connect_mgr(offloading_engine_t *engine, offload
     engine->on_dpu = true;
     DBG("Connection manager: expecting %ld inbound connections and %ld outbound connections", cfg->num_connecting_dpus, cfg->info_connecting_to.num_connect_to);
 
+    /* Init UCP if necessary */
+    engine->ucp_context = INIT_UCX();
+    DBG("UCX successfully initialized, context: %p", engine->ucp_context);
+    
+    // Create a self worker
+    INIT_WORKER(engine->ucp_context, &(engine->self_worker));
+
+    /* self EP */
+    static ucp_address_t *local_addr;
+    size_t local_addr_len;
+    ucp_worker_get_address(engine->self_worker, &local_addr, &local_addr_len);
+
+    ucp_ep_params_t ep_params;
+    ep_params.field_mask = UCP_EP_PARAM_FIELD_REMOTE_ADDRESS;
+    /*
+                           | UCP_EP_PARAM_FIELD_ERR_HANDLING_MODE
+                           | UCP_EP_PARAM_FIELD_ERR_HANDLER
+                           | UCP_EP_PARAM_FIELD_USER_DATA;
+    */
+    ep_params.address = local_addr;
+    // ep_params.err_mode = err_handling_opt.ucp_err_mode;
+    // ep_params.err_handler.cb = err_cb;
+    // ep_params.err_handler.arg = NULL;
+    // ep_params.user_data = &(client->server_ep_status);
+    ucp_ep_h self_ep;
+    ucs_status_t status = ucp_ep_create(engine->self_worker, &ep_params, &self_ep);
+    CHECK_ERR_RETURN((status != UCS_OK), DO_ERROR, "ucp_ep_create() failed");
+    engine->self_ep = self_ep;
+
     if (cfg->num_connecting_dpus > 0)
     {
         // Some DPUs will be connecting to us so we start a new server.

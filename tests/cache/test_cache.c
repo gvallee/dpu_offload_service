@@ -13,7 +13,7 @@ int main(int argc, char **argv)
 {
     /* Initialize everything we need for the test */
     offloading_engine_t *offload_engine;
-    dpu_offload_status_t rc = offload_engine_init(&offload_engine, NULL);
+    dpu_offload_status_t rc = offload_engine_init(&offload_engine);
     if (rc || offload_engine == NULL)
     {
         fprintf(stderr, "offload_engine_init() failed\n");

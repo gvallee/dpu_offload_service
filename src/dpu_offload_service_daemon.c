@@ -276,12 +276,13 @@ static void send_cb(void *request, ucs_status_t status, void *user_data)
 #define DO_INIT_WORKER(_econtext, _init_params)                                                                    \
     do                                                                                                             \
     {                                                                                                              \
-        ucp_worker_h _econtext_worker = GET_WORKER(_econtext);                                                     \
+        ucp_worker_h _econtext_worker;                                                                             \
         if ((_init_params) == NULL || (_init_params)->worker == NULL)                                              \
         {                                                                                                          \
             dpu_offload_status_t _ret = init_context(&((_econtext)->engine->ucp_context),                          \
                                                      &(_econtext_worker));                                         \
             CHECK_ERR_RETURN((_ret != 0), DO_ERROR, "init_context() failed");                                      \
+            SET_WORKER((_econtext), _econtext_worker);                                                             \
             DBG("context successfully initialized (worker=%p)", _econtext_worker);                                 \
         }                                                                                                          \
         if ((_init_params) != NULL && (_init_params)->worker != NULL)                                              \
@@ -296,7 +297,7 @@ static void send_cb(void *request, ucs_status_t status, void *user_data)
             /*   not available at the time and set during the creation of the execution contexts.               */ \
             if ((_econtext)->engine->ucp_context == NULL)                                                          \
                 (_econtext)->engine->ucp_context = (_init_params)->ucp_context;                                    \
-            _econtext_worker = (_init_params)->worker;                                                             \
+            SET_WORKER(_econtext, (_init_params)->worker);                                                         \
         }                                                                                                          \
     } while (0)
 
@@ -329,6 +330,7 @@ dpu_offload_status_t client_init_context(execution_context_t *econtext, init_par
 
     // Make sure we correctly handle whether the UCX context/worker is provided
     DO_INIT_WORKER(econtext, init_params);
+    assert(econtext->client->ucp_worker);
 
     // If we have a group/rank in the init params, we pass it down
     if (init_params != NULL && init_params->proc_info != NULL)
@@ -562,7 +564,7 @@ dpu_offload_status_t lib_progress(execution_context_t *econtext)
         return econtext->progress(econtext);
 }
 
-dpu_offload_status_t offload_engine_init(offloading_engine_t **engine, init_params_t *init_params)
+dpu_offload_status_t offload_engine_init(offloading_engine_t **engine)
 {
     offloading_engine_t *d = malloc(sizeof(offloading_engine_t));
     CHECK_ERR_RETURN((d == NULL), DO_ERROR, "Unable to allocate resources");
@@ -593,54 +595,6 @@ dpu_offload_status_t offload_engine_init(offloading_engine_t **engine, init_para
     GROUPS_CACHE_INIT(&(d->procs_cache));
     dpu_offload_status_t rc = ev_channels_init(&(d->default_notifications));
     CHECK_ERR_RETURN((rc), DO_ERROR, "ev_channels_init() failed");
-
-    /* Finally init UCP if necessary*/
-    if (init_params == NULL || init_params->worker == NULL)
-    {
-        ucp_params_t ucp_params;
-        ucs_status_t status;
-        ucp_config_t *config;
-        memset(&ucp_params, 0, sizeof(ucp_params));
-        /* UCP initialization */
-        status = ucp_config_read(NULL, NULL, &config);
-        ucp_params.field_mask = UCP_PARAM_FIELD_FEATURES;
-        ucp_params.features = UCP_FEATURE_TAG | UCP_FEATURE_AM;
-        status = ucp_init(&ucp_params, config, &(d->ucp_context));
-        CHECK_ERR_RETURN((status != UCS_OK), DO_ERROR, "ucp_init() failed: %s", ucs_status_string(status));
-        ucp_config_print(config, stdout, NULL, UCS_CONFIG_PRINT_CONFIG);
-        ucp_config_release(config);
-
-        // Create a self worker
-        INIT_WORKER(d->ucp_context, &(d->self_worker));
-    }
-    else
-    {
-        assert(init_params->ucp_context);
-        d->self_worker = init_params->worker;
-        d->ucp_context = init_params->ucp_context;
-    }
-
-    /* self EP */
-    static ucp_address_t *local_addr;
-    size_t local_addr_len;
-    ucp_worker_get_address(d->self_worker, &local_addr, &local_addr_len);
-
-    ucp_ep_params_t ep_params;
-    ep_params.field_mask = UCP_EP_PARAM_FIELD_REMOTE_ADDRESS;
-    /*
-                           | UCP_EP_PARAM_FIELD_ERR_HANDLING_MODE
-                           | UCP_EP_PARAM_FIELD_ERR_HANDLER
-                           | UCP_EP_PARAM_FIELD_USER_DATA;
-    */
-    ep_params.address = local_addr;
-    // ep_params.err_mode = err_handling_opt.ucp_err_mode;
-    // ep_params.err_handler.cb = err_cb;
-    // ep_params.err_handler.arg = NULL;
-    // ep_params.user_data = &(client->server_ep_status);
-    ucp_ep_h self_ep;
-    ucs_status_t status = ucp_ep_create(d->self_worker, &ep_params, &self_ep);
-    CHECK_ERR_RETURN((status != UCS_OK), DO_ERROR, "ucp_ep_create() failed");
-    d->self_ep = self_ep;
 
     *engine = d;
     return DO_SUCCESS;
@@ -1320,6 +1274,7 @@ dpu_offload_status_t server_init_context(execution_context_t *econtext, init_par
 
     // Make sure we correctly handle whether the UCX context/worker is provided
     DO_INIT_WORKER(econtext, init_params);
+    assert(econtext->server->ucp_worker);
 
     switch (econtext->server->mode)
     {
@@ -1340,6 +1295,7 @@ dpu_offload_status_t server_init_context(execution_context_t *econtext, init_par
         econtext->server->conn_data.oob.local_addr_len = 0;
         econtext->server->conn_data.oob.peer_addr_len = 0;
         econtext->server->conn_data.oob.listenfd = -1;
+        assert(econtext->server->ucp_worker);
         ucs_status_t status = ucp_worker_get_address(econtext->server->ucp_worker,
                                                      &(econtext->server->conn_data.oob.local_addr),
                                                      &(econtext->server->conn_data.oob.local_addr_len));
