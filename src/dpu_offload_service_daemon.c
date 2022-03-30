@@ -1086,6 +1086,15 @@ static inline dpu_offload_status_t oob_server_ucx_client_connection(execution_co
         // Update the pointer to track cache entries, i.e., groups/ranks, for the peer
         DBG("Adding gp/rank %" PRId64 "/%" PRId64 " to cache", peer_data.group_id, peer_data.group_rank);
         peer_cache_entry_t *cache_entry = SET_GROUP_RANK_CACHE_ENTRY(econtext, peer_data.group_id, peer_data.group_rank);
+        CHECK_ERR_GOTO((cache_entry == NULL), error_out, "undefined cache entry");
+        cache_entry->peer.addr_len = server->connected_clients.clients[server->connected_clients.num_connected_clients].peer_addr_len;
+        if (server->connected_clients.clients[server->connected_clients.num_connected_clients].peer_addr != NULL)
+        {
+            assert(server->connected_clients.clients[server->connected_clients.num_connected_clients].peer_addr_len < MAX_ADDR_LEN);
+            memcpy(cache_entry->peer.addr,
+                   server->connected_clients.clients[server->connected_clients.num_connected_clients].peer_addr,
+                   server->connected_clients.clients[server->connected_clients.num_connected_clients].peer_addr_len);
+        }
         assert(server->connected_clients.clients);
         assert(server->connected_clients.clients[server->connected_clients.num_connected_clients].cache_entries);
         server->connected_clients.clients[server->connected_clients.num_connected_clients].cache_entries[0] = cache_entry;
