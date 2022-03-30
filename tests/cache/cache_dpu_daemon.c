@@ -187,7 +187,7 @@ int main(int argc, char **argv)
 
         if (target_dpu_ep != list_dpus[config_data.local_dpu.id]->ep)
         {
-            fprintf(stderr, "invalid endpoint was returned (%p instead of %p)\n", target_dpu_ep, list_dpus[config_data.local_dpu.id]->conn_status);
+            fprintf(stderr, "invalid endpoint was returned (%p instead of %p)\n", target_dpu_ep, list_dpus[config_data.local_dpu.id]->ep);
             goto error_out;
         }
     }

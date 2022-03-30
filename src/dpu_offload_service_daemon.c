@@ -1097,9 +1097,10 @@ static inline dpu_offload_status_t oob_server_ucx_client_connection(execution_co
         size_t i;
         remote_dpu_info_t **list_dpus = LIST_DPUS_FROM_ECONTEXT(econtext);
         CHECK_ERR_RETURN((list_dpus == NULL), DO_ERROR, "unable to get list of DPUs");
+        assert(econtext->engine);
         for (i = 0; i < econtext->engine->num_dpus; i++)
         {
-            if (list_dpus[i] == NULL)
+            if (SELF_DPU(econtext->engine, i))
                 continue;
 
             CHECK_ERR_GOTO((list_dpus[i]->init_params.conn_params == NULL),

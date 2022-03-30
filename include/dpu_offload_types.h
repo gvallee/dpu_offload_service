@@ -221,6 +221,21 @@ typedef struct rank_info
 
 #define MAX_SHADOW_DPUS (8)
 
+#define SELF_DPU(_engine, _dpu_index) ({                                             \
+    bool _is_self = (_engine)->on_dpu;                                               \
+    if (_is_self == true)                                                            \
+    {                                                                                \
+        _is_self = false;                                                            \
+        if ((_engine)->config != NULL)                                               \
+        {                                                                            \
+            offloading_config_t *_config = (offloading_config_t *)(_engine)->config; \
+            if (_dpu_index == _config->local_dpu.id)                                 \
+                _is_self = true;                                                     \
+        }                                                                            \
+    }                                                                                \
+    _is_self;                                                                        \
+})
+
 // peer_data_t stores all the information related to a rank in a group,
 // it is designed in a way it can be directly sent without requiring
 // memory copies.
@@ -736,11 +751,18 @@ typedef struct group_cache
         _ptr;                                                                              \
     })
 
+// Forward declaration
+struct offloading_config;
+
 typedef struct offloading_engine
 {
 
     pthread_mutex_t mutex;
     int done;
+
+    // All the configuration details associated to the engine.
+    // In most cases, this is the data from the configuration file.
+    struct offloading_config *config;
 
     /* client here is used to track the bootstrapping as a client. */
     /* it can only be at most one (the offload engine bootstraps only once */

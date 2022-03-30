@@ -96,7 +96,7 @@ dpu_offload_parse_list_dpus(offloading_engine_t *engine, offloading_config_t *co
             new_remote_dpu->idx = dpu_idx;
             new_remote_dpu->hostname = config_data->local_dpu.hostname;
             new_remote_dpu->init_params.conn_params = NULL;
-            dpu_info[dpu_idx] = new_remote_dpu; 
+            dpu_info[dpu_idx] = new_remote_dpu;
             dpu_idx++;
             token = strtok(NULL, ",");
             continue;
@@ -147,7 +147,7 @@ static int set_default_econtext(connected_peer_data_t *connected_peer_data)
 void connected_to_server_dpu(void *data)
 {
     assert(data);
-    connected_peer_data_t *connected_peer = (connected_peer_data_t*)data;
+    connected_peer_data_t *connected_peer = (connected_peer_data_t *)data;
     DBG("Successfully connected to server DPU at %s\n", connected_peer->peer_addr);
     set_default_econtext(connected_peer);
 
@@ -236,7 +236,7 @@ void client_dpu_connected(void *data)
 {
     DBG("New client DPU is now connected");
     assert(data);
-    connected_peer_data_t *connected_peer = (connected_peer_data_t*)data;
+    connected_peer_data_t *connected_peer = (connected_peer_data_t *)data;
     set_default_econtext(connected_peer);
 }
 
@@ -280,6 +280,7 @@ dpu_offload_status_t get_dpu_config(offloading_engine_t *offload_engine, offload
 {
     dpu_offload_status_t rc;
     uint64_t my_dpu_id;
+    CHECK_ERR_RETURN((offload_engine == NULL), DO_ERROR, "undefined offloading engine");
     config_data->config_file = getenv(OFFLOAD_CONFIG_FILE_PATH_ENVVAR);
 
     config_data->local_dpu.hostname[1023] = '\0';
@@ -332,6 +333,8 @@ dpu_offload_status_t get_dpu_config(offloading_engine_t *offload_engine, offload
         config_data->local_dpu.interdpu_conn_params.addr_str,
         config_data->local_dpu.interdpu_conn_params.port,
         config_data->local_dpu.host_conn_params.port);
+
+    offload_engine->config = (struct offloading_config *)config_data;
 
     return DO_SUCCESS;
 }
