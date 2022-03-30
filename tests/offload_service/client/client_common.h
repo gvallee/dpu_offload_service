@@ -61,10 +61,10 @@ static inline int run_client_test(ucp_worker_h worker, ucp_context_h ucp_context
         init_params.ucp_context = ucp_context;
         init_params.conn_params = NULL;
         init_params.proc_info = NULL;
-        rc = offload_engine_init(&offload_engine, &init_params);
+        rc = offload_engine_init(&offload_engine);
     }
     else
-        rc = offload_engine_init(&offload_engine, NULL);
+        rc = offload_engine_init(&offload_engine);
      
     if (rc || offload_engine == NULL)
     {

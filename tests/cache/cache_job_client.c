@@ -50,7 +50,7 @@ int main(int argc, char **argv)
 
     /* Initialize everything we need for the test */
     offloading_engine_t *offload_engine;
-    rc = offload_engine_init(&offload_engine, NULL);
+    rc = offload_engine_init(&offload_engine);
     if (rc || offload_engine == NULL)
     {
         fprintf(stderr, "offload_engine_init() failed\n");

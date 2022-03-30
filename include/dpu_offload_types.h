@@ -27,6 +27,24 @@ typedef enum
     CONTEXT_SERVER
 } daemon_type_t;
 
+#define INIT_UCX() ({                                                      \
+    ucp_params_t ucp_params;                                               \
+    ucs_status_t status;                                                   \
+    ucp_config_t *config;                                                  \
+    ucp_context_h ucp_context = NULL;                                      \
+    memset(&ucp_params, 0, sizeof(ucp_params));                            \
+    status = ucp_config_read(NULL, NULL, &config);                         \
+    ucp_params.field_mask = UCP_PARAM_FIELD_FEATURES;                      \
+    ucp_params.features = UCP_FEATURE_TAG | UCP_FEATURE_AM;                \
+    status = ucp_init(&ucp_params, config, &(ucp_context));                \
+    CHECK_ERR_RETURN((status != UCS_OK), DO_ERROR,                         \
+                     "ucp_init() failed: %s",                              \
+                     ucs_status_string(status));                           \
+    /* ucp_config_print(config, stdout, NULL, UCS_CONFIG_PRINT_CONFIG); */ \
+    ucp_config_release(config);                                            \
+    ucp_context;                                                           \
+})
+
 #define INIT_WORKER(_ucp_context, _ucp_worker) ({                                                                  \
     ucp_worker_params_t _worker_params;                                                                            \
     ucs_status_t _status;                                                                                          \
@@ -90,6 +108,17 @@ typedef enum
     }                                         \
     _w;                                       \
 })
+
+#define SET_WORKER(_exec_ctx, _worker) do {        \
+    if ((_exec_ctx)->type == CONTEXT_CLIENT)       \
+    {                                              \
+        (_exec_ctx)->client->ucp_worker = _worker; \
+    }                                              \
+    else                                           \
+    {                                              \
+        (_exec_ctx)->server->ucp_worker = _worker; \
+    }                                              \
+} while (0)
 
 #define EV_SYS(_exec_ctx) ({                      \
     dpu_offload_ev_sys_t *_sys;                   \
