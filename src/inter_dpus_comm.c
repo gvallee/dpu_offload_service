@@ -274,7 +274,10 @@ dpu_offload_status_t inter_dpus_connect_mgr(offloading_engine_t *engine, offload
     ucp_ep_h self_ep;
     ucs_status_t status = ucp_ep_create(engine->self_worker, &ep_params, &self_ep);
     CHECK_ERR_RETURN((status != UCS_OK), DO_ERROR, "ucp_ep_create() failed");
-    engine->self_ep = self_ep;
+    engine->self_ep = self_ep; // fixme: correctly free
+
+    remote_dpu_info_t **list_dpus = LIST_DPUS_FROM_ENGINE(engine);
+    list_dpus[cfg->local_dpu.id]->ep = engine->self_ep;
 
     if (cfg->num_connecting_dpus > 0)
     {
