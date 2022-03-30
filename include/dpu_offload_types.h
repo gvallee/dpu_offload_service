@@ -27,6 +27,18 @@ typedef enum
     CONTEXT_SERVER
 } daemon_type_t;
 
+#define INIT_WORKER(_ucp_context, _ucp_worker) ({                                                                  \
+    ucp_worker_params_t _worker_params;                                                                            \
+    ucs_status_t _status;                                                                                          \
+    int _ret = DO_SUCCESS;                                                                                         \
+    memset(&_worker_params, 0, sizeof(_worker_params));                                                            \
+    _worker_params.field_mask = UCP_WORKER_PARAM_FIELD_THREAD_MODE;                                                \
+    _worker_params.thread_mode = UCS_THREAD_MODE_MULTI;                                                            \
+    _status = ucp_worker_create(_ucp_context, &_worker_params, _ucp_worker);                                       \
+    CHECK_ERR_RETURN((_status != UCS_OK), DO_ERROR, "ucp_worker_create() failed: %s", ucs_status_string(_status)); \
+    _ret;                                                                                                          \
+})
+
 #define ECONTEXT_ID(_exec_ctx) ({          \
     uint64_t _my_id;                       \
     if (_exec_ctx->type == CONTEXT_CLIENT) \
@@ -209,6 +221,21 @@ typedef struct rank_info
 
 #define MAX_SHADOW_DPUS (8)
 
+#define SELF_DPU(_engine, _dpu_index) ({                                             \
+    bool _is_self = (_engine)->on_dpu;                                               \
+    if (_is_self == true)                                                            \
+    {                                                                                \
+        _is_self = false;                                                            \
+        if ((_engine)->config != NULL)                                               \
+        {                                                                            \
+            offloading_config_t *_config = (offloading_config_t *)(_engine)->config; \
+            if (_dpu_index == _config->local_dpu.id)                                 \
+                _is_self = true;                                                     \
+        }                                                                            \
+    }                                                                                \
+    _is_self;                                                                        \
+})
+
 // peer_data_t stores all the information related to a rank in a group,
 // it is designed in a way it can be directly sent without requiring
 // memory copies.
@@ -352,6 +379,12 @@ typedef struct connected_peer_data
 {
     // IP of the peer that just completed its connection
     char *peer_addr;
+
+    // Associated execution context
+    struct execution_context *econtext;
+
+    // Peer's ID
+    uint64_t peer_id;
 } connected_peer_data_t;
 
 typedef struct conn_params
@@ -381,6 +414,9 @@ typedef struct init_params
     // worker to use to perform the initial connection.
     // If NULL, a new worker will be created
     ucp_worker_h worker;
+
+    // UCP context and reusing a worker from another library
+    ucp_context_h ucp_context;
 
     // Specifies whether a unique ID is passed in and should be used when creating the execution context
     bool id_set;
@@ -429,7 +465,6 @@ typedef struct dpu_offload_server_t
     bool done;
     conn_params_t conn_params;
     ucp_worker_h ucp_worker;
-    ucp_context_h ucp_context;
     pthread_t connect_tid;
     pthread_mutex_t mutex;
     pthread_mutexattr_t mattr;
@@ -472,7 +507,6 @@ typedef struct dpu_offload_client_t
     connect_completed_cb connected_cb;
 
     ucp_worker_h ucp_worker;
-    ucp_context_h ucp_context;
     ucp_ep_h server_ep;
     ucs_status_t server_ep_status;
     pthread_mutex_t mutex;
@@ -717,11 +751,18 @@ typedef struct group_cache
         _ptr;                                                                              \
     })
 
+// Forward declaration
+struct offloading_config;
+
 typedef struct offloading_engine
 {
 
     pthread_mutex_t mutex;
     int done;
+
+    // All the configuration details associated to the engine.
+    // In most cases, this is the data from the configuration file.
+    struct offloading_config *config;
 
     /* client here is used to track the bootstrapping as a client. */
     /* it can only be at most one (the offload engine bootstraps only once */
@@ -736,6 +777,15 @@ typedef struct offloading_engine
     // On DPU to simply communications with other DPUs, we set a default execution context
     // so we can always easily get events
     execution_context_t *default_econtext;
+
+    // Worker to communicate with self
+    ucp_worker_h self_worker;
+
+    // UCP context associated to self_worker
+    ucp_context_h ucp_context;
+
+    // Self endpoint
+    ucp_ep_h self_ep;
 
     /* we track the clients used for inter-DPU connection separately. Servers are at the */
     /* moment in the servers list. */

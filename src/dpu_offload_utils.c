@@ -185,7 +185,7 @@ dpu_offload_status_t get_dpu_id_by_group_rank(offloading_engine_t *engine, int64
         dyn_array_t *gp_data, *gps_data = &(engine->procs_cache.data);
         DYN_ARRAY_GET_ELT(gps_data, gp_id, dyn_array_t, gp_data);
         peer_cache_entry_t *cache_entry = GET_GROUP_RANK_CACHE_ENTRY(&(engine->procs_cache), gp_id, rank);
-        DBG("%"PRId64"/%"PRId64" is in the cache, DPU ID = %"PRId64, rank, gp_id, cache_entry->shadow_dpus[dpu_idx]);
+        DBG("%" PRId64 "/%" PRId64 " is in the cache, DPU ID = %" PRId64, rank, gp_id, cache_entry->shadow_dpus[dpu_idx]);
         *ev = NULL;
         *dpu_id = cache_entry->shadow_dpus[dpu_idx];
         return DO_SUCCESS;
@@ -226,7 +226,7 @@ dpu_offload_status_t get_dpu_id_by_group_rank(offloading_engine_t *engine, int64
 
         for (i = 0; i < engine->num_dpus; i++)
         {
-            if (list_dpus[i] != NULL && list_dpus[i]->ep != NULL)
+            if (list_dpus[i] != NULL && list_dpus[i]->ep != NULL && list_dpus[i]->init_params.conn_params != NULL)
             {
                 DBG("Sending cache entry request to DPU #%ld", i);
                 execution_context_t *econtext = ECONTEXT_FOR_DPU_COMMUNICATION(engine, i);
@@ -275,7 +275,6 @@ ucp_ep_h get_dpu_ep_by_id(offloading_engine_t *engine, uint64_t id)
     if (list_dpus != NULL && list_dpus[id] == NULL)
         return NULL;
 
-    assert(list_dpus[id]->peer_addr != NULL);
     if (list_dpus[id]->ep == NULL && list_dpus[id]->peer_addr != NULL)
     {
         ucp_ep_params_t ep_params;
@@ -432,6 +431,29 @@ bool parse_line_dpu_version_1(offloading_config_t *data, char *line)
             list_dpus_from_list[i].version_1.interdpu_port = interdpu_conn_port;
             list_dpus_from_list[i].version_1.rank_port = host_conn_port;
 
+            /* Save the configuration details */
+            remote_dpu_info_t **list_dpus = (remote_dpu_info_t **)data->offloading_engine->dpus.base;
+            for (j = 0; j < data->offloading_engine->num_dpus; j++)
+            {
+                if (list_dpus[j] == NULL)
+                    continue;
+
+                if (strncmp(list_dpus_from_list[i].version_1.hostname, list_dpus[j]->hostname, strlen(list_dpus[j]->hostname)) == 0)
+                {
+                    DBG("Saving configuration details for DPU #%ld, %s (addr: %s)",
+                        j,
+                        list_dpus_from_list[i].version_1.hostname,
+                        list_dpus_from_list[i].version_1.addr);
+
+                    // We found the DPU in the engine's list
+                    if (list_dpus[j]->init_params.conn_params != NULL)
+                    {
+                        list_dpus[j]->init_params.conn_params->addr_str = list_dpus_from_list[i].version_1.addr;
+                        list_dpus[j]->init_params.conn_params->port = list_dpus_from_list[i].version_1.interdpu_port;
+                    }
+                }
+            }
+
             if (strncmp(data->local_dpu.hostname, list_dpus_from_list[i].version_1.hostname, strlen(list_dpus_from_list[i].version_1.hostname)) == 0)
             {
                 // This is the DPU's configuration we were looking for
@@ -453,28 +475,10 @@ bool parse_line_dpu_version_1(offloading_config_t *data, char *line)
                 data->local_dpu.host_conn_params.addr_str = data->local_dpu.config->version_1.addr;
                 data->local_dpu.host_conn_params.port = data->local_dpu.config->version_1.rank_port;
                 data->local_dpu.host_conn_params.port_str = NULL;
+
+                list_dpus[data->local_dpu.id]->ep = data->offloading_engine->self_ep;
                 // data->local_dpu.id is already set while parsing the list of DPUs to use for the job
                 rc = true;
-            }
-
-            /* Save the configuration details */
-            remote_dpu_info_t **list_dpus = (remote_dpu_info_t **)data->offloading_engine->dpus.base;
-            for (j = 0; j < data->offloading_engine->num_dpus; j++)
-            {
-                if (list_dpus[j] == NULL)
-                    continue;
-
-                if (strncmp(list_dpus_from_list[i].version_1.hostname, list_dpus[j]->hostname, strlen(list_dpus[j]->hostname)) == 0)
-                {
-                    DBG("Saving configuration details for DPU #%ld, %s (addr: %s)",
-                        j,
-                        list_dpus_from_list[i].version_1.hostname,
-                        list_dpus_from_list[i].version_1.addr);
-
-                    // We found the DPU in the engine's list
-                    list_dpus[j]->init_params.conn_params->addr_str = list_dpus_from_list[i].version_1.addr;
-                    list_dpus[j]->init_params.conn_params->port = list_dpus_from_list[i].version_1.interdpu_port;
-                }
             }
 
             // Is it an outbound connection?

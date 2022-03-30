@@ -45,5 +45,5 @@ int main(int argc, char **argv)
         return EXIT_FAILURE;
     }
 
-    return run_client_test(ucp_worker);
+    return run_client_test(ucp_worker, ucp_context);
 }

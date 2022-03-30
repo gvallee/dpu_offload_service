@@ -79,7 +79,7 @@ int main(int argc, char **argv)
 {
     fprintf(stderr, "Creating offload engine...\n");
     offloading_engine_t *offload_engine;
-    dpu_offload_status_t rc = offload_engine_init(&offload_engine);
+    dpu_offload_status_t rc = offload_engine_init(&offload_engine, NULL);
     if (rc || offload_engine == NULL)
     {
         fprintf(stderr, "offload_engine_init() failed\n");
@@ -87,7 +87,7 @@ int main(int argc, char **argv)
     }
 
     /*
-     * REGISTER A NOTIFICATION CALLBACK AT THE ENGINE LEVEL SO THAT ALL EXECUTION CONTEXTS 
+     * REGISTER A NOTIFICATION CALLBACK AT THE ENGINE LEVEL SO THAT ALL EXECUTION CONTEXTS
      * FOR INTER-DPU COMMUNICATIONS WILL AUTOMATICALLY HAVE IT.
      */
     fprintf(stderr, "Registering callback for notifications of test completion %d\n", TEST_COMPLETED_NOTIF_ID);
@@ -127,6 +127,8 @@ int main(int argc, char **argv)
 
     fprintf(stderr, "I am DPU #%ld, starting the test\n", config_data.local_dpu.id);
 
+    remote_dpu_info_t **list_dpus = LIST_DPUS_FROM_ENGINE(offload_engine);
+    uint64_t remote_dpu_id;
     if (config_data.local_dpu.id == 1)
     {
         /* DPU #1 */
@@ -160,11 +162,38 @@ int main(int argc, char **argv)
         {
             offload_engine_progress(offload_engine);
         }
+
+        // Last test with local cache: look up the cache entry that is already in the cache
+        dpu_offload_event_t *ev;
+        rc = get_dpu_id_by_group_rank(offload_engine, 42, 42, 0, &remote_dpu_id, &ev);
+        if (rc != DO_SUCCESS)
+        {
+            fprintf(stderr, "first get_dpu_id_by_host_rank() failed\n");
+            goto error_out;
+        }
+
+        if (ev != NULL)
+        {
+            fprintf(stderr, "get_dpu_id_by_group_rank() did not complete right away but was expected to\n");
+            goto error_out;
+        }
+
+        ucp_ep_h target_dpu_ep = get_dpu_ep_by_id(offload_engine, remote_dpu_id);
+        if (target_dpu_ep == NULL)
+        {
+            fprintf(stderr, "get_dpu_ep_by_id() failed\n");
+            goto error_out;
+        }
+
+        if (target_dpu_ep != list_dpus[config_data.local_dpu.id]->ep)
+        {
+            fprintf(stderr, "invalid endpoint was returned (%p instead of %p)\n", target_dpu_ep, list_dpus[config_data.local_dpu.id]->ep);
+            goto error_out;
+        }
     }
     else
     {
         /* DPU #0 */
-        remote_dpu_info_t **list_dpus = LIST_DPUS_FROM_ENGINE(offload_engine);
 
         // We need to make sure we have the connection to DPU #1
         remote_dpu_info_t *dpu1_config;
@@ -178,7 +207,6 @@ int main(int argc, char **argv)
         fprintf(stderr, "Now connected to DPU #1 (econtext=%p)\n", dpu1_config->econtext);
 
         dpu_offload_event_t *ev;
-        uint64_t remote_dpu_id;
         execution_context_t *econtext = ECONTEXT_FOR_DPU_COMMUNICATION(offload_engine, 1);
         if (econtext == NULL)
         {

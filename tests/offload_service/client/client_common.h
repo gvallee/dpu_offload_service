@@ -50,10 +50,22 @@ static dpu_offload_status_t init_worker(ucp_context_h ucp_context, ucp_worker_h 
     return DO_SUCCESS;
 }
 
-static inline int run_client_test(ucp_worker_h worker)
+static inline int run_client_test(ucp_worker_h worker, ucp_context_h ucp_context)
 {
     offloading_engine_t *offload_engine;
-    dpu_offload_status_t rc = offload_engine_init(&offload_engine);
+    init_params_t init_params;
+    dpu_offload_status_t rc;
+    if (worker != NULL)
+    {
+        init_params.worker = worker;
+        init_params.ucp_context = ucp_context;
+        init_params.conn_params = NULL;
+        init_params.proc_info = NULL;
+        rc = offload_engine_init(&offload_engine, &init_params);
+    }
+    else
+        rc = offload_engine_init(&offload_engine, NULL);
+     
     if (rc || offload_engine == NULL)
     {
         fprintf(stderr, "offload_engine_init() failed\n");
@@ -61,12 +73,8 @@ static inline int run_client_test(ucp_worker_h worker)
     }
 
     execution_context_t *client;
-    init_params_t init_params;
     if (worker != NULL)
     {
-        init_params.worker = worker;
-        init_params.conn_params = NULL;
-        init_params.proc_info = NULL;
         client = client_init(offload_engine, &init_params);
     }
     else

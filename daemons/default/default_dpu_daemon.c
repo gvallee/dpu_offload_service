@@ -39,7 +39,7 @@ int main(int argc, char **argv)
      * AND INITIALIZE THE OFFLOADING SERVICE.
      */
     offloading_engine_t *offload_engine;
-    int rc = offload_engine_init(&offload_engine);
+    int rc = offload_engine_init(&offload_engine, NULL);
     if (rc || offload_engine == NULL)
     {
         fprintf(stderr, "offload_engine_init() failed\n");
