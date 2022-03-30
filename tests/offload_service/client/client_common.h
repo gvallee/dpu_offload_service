@@ -54,6 +54,7 @@ static inline int run_client_test(ucp_worker_h worker, ucp_context_h ucp_context
 {
     offloading_engine_t *offload_engine;
     init_params_t init_params;
+    RESET_INIT_PARAMS(&init_params);
     dpu_offload_status_t rc;
     if (worker != NULL)
     {

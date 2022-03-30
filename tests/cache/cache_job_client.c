@@ -65,9 +65,9 @@ int main(int argc, char **argv)
         .group_id = 0,
         .group_rank = my_rank,
     };
-    init_params_t init_params = {
-        .proc_info = &my_rank_info,
-    };
+    init_params_t init_params;
+    RESET_INIT_PARAMS(&init_params);
+    init_params.proc_info = &my_rank_info;
     execution_context_t *client = client_init(offload_engine, &init_params);
     if (client == NULL)
     {

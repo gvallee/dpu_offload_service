@@ -457,6 +457,15 @@ typedef struct init_params
     connect_completed_cb connected_cb;
 } init_params_t;
 
+#define RESET_INIT_PARAMS(_params) do { \
+    (_params)->conn_params = NULL;      \
+    (_params)->proc_info = NULL;        \
+    (_params)->worker = NULL;           \
+    (_params)->ucp_context = NULL;      \
+    (_params)->id_set = false;          \
+    (_params)->connected_cb = NULL;     \
+} while(0)
+
 #define ENGINE_LOCK(_engine)                   \
     do                                         \
     {                                          \

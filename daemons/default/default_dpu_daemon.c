@@ -68,6 +68,7 @@ int main(int argc, char **argv)
 
     init_params_t init_params;
     conn_params_t server_params;
+    RESET_INIT_PARAMS(&init_params);
     server_params.addr_str = strdup(bootstrap_conn_ip);
     server_params.port = bootstrap_conn_port+1;
     init_params.conn_params = &server_params;
