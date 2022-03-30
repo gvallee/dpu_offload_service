@@ -279,6 +279,10 @@ static void send_cb(void *request, ucs_status_t status, void *user_data)
         ucp_worker_h _econtext_worker;                                                                             \
         if ((_init_params) == NULL || (_init_params)->worker == NULL)                                              \
         {                                                                                                          \
+            if ((_econtext)->engine->ucp_context == NULL)                                                          \
+            {                                                                                                      \
+                (_econtext)->engine->ucp_context = INIT_UCX();                                                     \
+            }                                                                                                      \
             dpu_offload_status_t _ret = init_context(&((_econtext)->engine->ucp_context),                          \
                                                      &(_econtext_worker));                                         \
             CHECK_ERR_RETURN((_ret != 0), DO_ERROR, "init_context() failed");                                      \
