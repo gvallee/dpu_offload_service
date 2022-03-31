@@ -140,8 +140,12 @@ static int set_default_econtext(connected_peer_data_t *connected_peer_data)
 {
     assert(connected_peer_data);
     assert(connected_peer_data->econtext);
+    assert(connected_peer_data->econtext->engine);
+    offloading_engine_t *engine = connected_peer_data->econtext->engine;
+    ENGINE_LOCK(engine);
     if (connected_peer_data->econtext->engine->default_econtext == NULL)
         connected_peer_data->econtext->engine->default_econtext = connected_peer_data->econtext;
+    ENGINE_UNLOCK(engine);
 }
 
 void connected_to_server_dpu(void *data)
@@ -198,6 +202,7 @@ static void *connect_thread(void *arg)
         pthread_exit(NULL);
     }
     DBG("Connection successfully established");
+    ENGINE_LOCK(offload_engine);
     offload_engine->inter_dpus_clients[offload_engine->num_inter_dpus_clients] = client;
     remote_dpu_info_t **list_dpus = (remote_dpu_info_t **)offload_engine->dpus.base;
     list_dpus[remote_dpu_info->idx]->ep = client->client->server_ep;
@@ -212,7 +217,6 @@ static void *connect_thread(void *arg)
         list_dpus[remote_dpu_info->idx]->ep,
         list_dpus[remote_dpu_info->idx]->econtext);
 
-    ENGINE_LOCK(offload_engine);
     if (offload_engine->default_econtext == NULL)
         offload_engine->default_econtext = client;
     offload_engine->num_connected_dpus++;
