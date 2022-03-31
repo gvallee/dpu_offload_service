@@ -122,12 +122,16 @@ dpu_offload_status_t send_group_cache(execution_context_t *econtext, ucp_ep_h de
             dpu_offload_event_t *e;
             dpu_offload_status_t rc = send_cache_entry(econtext, dest, cache_entry, &e);
             CHECK_ERR_RETURN((rc), DO_ERROR, "send_cache_entry() failed");
-            if (!metaev->sub_events_initialized)
+            if (e != NULL)
             {
-                ucs_list_head_init(&(metaev->sub_events));
-                metaev->sub_events_initialized = true;
+                // If the event did not complete right away, we add it as a sub-event to the meta-event so we can track everything
+                if (!metaev->sub_events_initialized)
+                {
+                    ucs_list_head_init(&(metaev->sub_events));
+                    metaev->sub_events_initialized = true;
+                }
+                ucs_list_add_tail(&(metaev->sub_events), &(e->item));
             }
-            ucs_list_add_tail(&(metaev->sub_events), &(e->item));
         }
     }
     return DO_SUCCESS;
@@ -243,12 +247,16 @@ dpu_offload_status_t get_dpu_id_by_group_rank(offloading_engine_t *engine, int64
                 dpu_offload_event_t *subev;
                 rc = send_cache_entry_request(econtext, dpu_ep, &rank_data, &subev);
                 CHECK_ERR_RETURN((rc), DO_ERROR, "send_cache_entry_request() failed");
-                if (metaev->sub_events_initialized == false)
+                if (subev != NULL)
                 {
-                    ucs_list_head_init(&(metaev->sub_events));
-                    metaev->sub_events_initialized = true;
+                    // If the event did not complete right away, we add it as a sub-event to the meta-event so we can track everything
+                    if (metaev->sub_events_initialized == false)
+                    {
+                        ucs_list_head_init(&(metaev->sub_events));
+                        metaev->sub_events_initialized = true;
+                    }
+                    ucs_list_add_tail(&(metaev->sub_events), &(subev->item));
                 }
-                ucs_list_add_tail(&(metaev->sub_events), &(subev->item));
             }
         }
         if (metaev)
