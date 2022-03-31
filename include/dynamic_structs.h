@@ -139,7 +139,7 @@ typedef struct dyn_array
 #define DYN_ARRAY_GROW(_dyn_array, _type, _size)                                                        \
     do                                                                                                  \
     {                                                                                                   \
-        size_t _initial_num_elts, _new_num_elts, _i;                                                    \
+        size_t _initial_num_elts, _new_num_elts;                                                        \
         _initial_num_elts = _new_num_elts = (_dyn_array)->num_elts;                                     \
         while (_new_num_elts * sizeof(_type) <= _size * sizeof(_type))                                  \
         {                                                                                               \
