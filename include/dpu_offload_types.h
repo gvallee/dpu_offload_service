@@ -1071,6 +1071,8 @@ dpu_offload_status_t find_config_from_platform_configfile(char *, char *, offloa
         (_data)->num_connecting_dpus = 0;                                                                 \
         (_data)->local_dpu.config = NULL;                                                                 \
         (_data)->local_dpu.hostname[0] = '\0';                                                            \
+        RESET_INIT_PARAMS(&((_data)->local_dpu.interdpu_init_params));                                    \
+        RESET_INIT_PARAMS(&((_data)->local_dpu.host_init_params));                                        \
         (_data)->local_dpu.interdpu_conn_params.port = -1;                                                \
         (_data)->local_dpu.interdpu_conn_params.port_str = NULL;                                          \
         (_data)->local_dpu.interdpu_conn_params.addr_str = NULL;                                          \
