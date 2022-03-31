@@ -288,9 +288,10 @@ static void notification_emit_cb(void *user_data, const char *type_str)
     DBG("evt %p now completed", ev);
 }
 
-int event_channel_emit_with_payload(dpu_offload_event_t *ev, uint64_t my_id, uint64_t type, ucp_ep_h dest_ep, void *ctx, void *payload, size_t payload_size)
+int event_channel_emit_with_payload(dpu_offload_event_t **event, uint64_t my_id, uint64_t type, ucp_ep_h dest_ep, void *ctx, void *payload, size_t payload_size)
 {
     ucp_request_param_t params;
+    dpu_offload_event_t *ev = *event;
     DBG("Sending notification of type %" PRIu64 " (client_id=%" PRIu64 ")", type, my_id);
     ev->ctx.complete = 0;
     ev->ctx.hdr.type = type;
@@ -311,7 +312,7 @@ int event_channel_emit_with_payload(dpu_offload_event_t *ev, uint64_t my_id, uin
         assert(ev->event_system);
         assert(ev->event_system->econtext);
         assert(ev->event_system->econtext->event_channels);
-        dpu_offload_status_t rc = event_return(ev->event_system->econtext->event_channels, &ev);
+        dpu_offload_status_t rc = event_return(event);
         CHECK_ERR_RETURN((rc), DO_ERROR, "event_return() failed");
         return EVENT_DONE;
     }
@@ -322,9 +323,10 @@ int event_channel_emit_with_payload(dpu_offload_event_t *ev, uint64_t my_id, uin
     return EVENT_INPROGRESS;
 }
 
-int event_channel_emit(dpu_offload_event_t *ev, uint64_t my_id, uint64_t type, ucp_ep_h dest_ep, void *ctx)
+int event_channel_emit(dpu_offload_event_t **event, uint64_t my_id, uint64_t type, ucp_ep_h dest_ep, void *ctx)
 {
     ucp_request_param_t params;
+    dpu_offload_event_t *ev = *event;
     DBG("Sending notification of type %" PRIu64 " (client_id=%" PRIu64 ")", type, my_id);
     ev->ctx.complete = 0;
     ev->ctx.hdr.type = type;
@@ -345,7 +347,7 @@ int event_channel_emit(dpu_offload_event_t *ev, uint64_t my_id, uint64_t type, u
         assert(ev->event_system);
         assert(ev->event_system->econtext);
         assert(ev->event_system->econtext->event_channels);
-        dpu_offload_status_t rc = event_return(ev->event_system->econtext->event_channels, &ev);
+        dpu_offload_status_t rc = event_return(event);
         CHECK_ERR_RETURN((rc), DO_ERROR, "event_return() failed");
         return EVENT_DONE;
     }
@@ -396,7 +398,7 @@ out:
     return DO_SUCCESS;
 }
 
-dpu_offload_status_t event_return(dpu_offload_ev_sys_t *ev_sys, dpu_offload_event_t **ev)
+dpu_offload_status_t event_return(dpu_offload_event_t **ev)
 {
     if (ev == NULL || (*ev) == NULL)
         return DO_SUCCESS;
@@ -414,8 +416,9 @@ dpu_offload_status_t event_return(dpu_offload_ev_sys_t *ev_sys, dpu_offload_even
         (*ev)->payload_size = 0;
     }
 
-    DYN_LIST_RETURN(ev_sys->free_evs, (*ev), item);
-    ev_sys->num_used_evs--;
+    DYN_LIST_RETURN((*ev)->event_system->free_evs, (*ev), item);
+    (*ev)->event_system->num_used_evs--;
+    DBG("event %p successfully returned", *ev);
     *ev = NULL; // so it cannot be used any longer
     return DO_SUCCESS;
 }
@@ -425,15 +428,16 @@ dpu_offload_status_t event_return(dpu_offload_ev_sys_t *ev_sys, dpu_offload_even
  * The function is aware of sub-events. If all the sub-events are completed and the
  * request of the event is NULL, the event is reported as completed.
  *
- * @param ev_sys Event system to use when events need to be returned
  * @param ev Event to check for completion.
  * @return true when the event is completed
  * @return false when the event is still in progress
  */
-bool event_completed(dpu_offload_ev_sys_t *ev_sys, dpu_offload_event_t *ev)
+bool event_completed(dpu_offload_event_t *ev)
 {
     if (ev->ctx.complete)
         return true;
+
+    assert(ev->event_system);
 
     // Update the list of sub-event by removing the completed ones
     if (ev->sub_events_initialized)
@@ -444,7 +448,7 @@ bool event_completed(dpu_offload_ev_sys_t *ev_sys, dpu_offload_event_t *ev)
             if (subevt->ctx.complete)
             {
                 ucs_list_del(&(subevt->item));
-                dpu_offload_status_t rc = event_return(ev_sys, &subevt);
+                dpu_offload_status_t rc = event_return(&subevt);
                 CHECK_ERR_RETURN((rc), DO_ERROR, "event_return() failed");
             }
         }
@@ -579,7 +583,8 @@ static dpu_offload_status_t peer_cache_entries_request_recv_cb(struct dpu_offloa
         CHECK_ERR_RETURN((rc), DO_ERROR, "send_group_cache() failed");
 
         // Add the event to the list of pending events so it completed implicitely
-        ucs_list_add_tail(&(econtext->ongoing_events), &(send_cache_ev->item));
+        if (send_cache_ev != NULL && !event_completed(send_cache_ev))
+            ucs_list_add_tail(&(econtext->ongoing_events), &(send_cache_ev->item));
 
         return DO_SUCCESS;
     }
@@ -600,7 +605,8 @@ static dpu_offload_status_t peer_cache_entries_request_recv_cb(struct dpu_offloa
             CHECK_ERR_RETURN((rc), DO_ERROR, "send_group_cache() failed");
 
             // Add the event to the list of pending events so it completed implicitely
-            ucs_list_add_tail(&(econtext->ongoing_events), &(req_fwd_ev->item));
+            if (req_fwd_ev != NULL && !event_completed(req_fwd_ev))
+                ucs_list_add_tail(&(econtext->ongoing_events), &(req_fwd_ev->item));
 
             return DO_SUCCESS;
         }

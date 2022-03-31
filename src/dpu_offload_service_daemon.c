@@ -624,7 +624,7 @@ static dpu_offload_status_t execution_context_progress(execution_context_t *ctx)
                 ucp_request_free(ev->req);
                 ev->req = NULL;
             }
-            event_return(ctx->event_channels, &ev);
+            event_return(&ev);
         }
     }
 

@@ -85,7 +85,7 @@ int main(int argc, char **argv)
     /* Check we got all the expected data in the cache */
     CHECK_CACHE(offload_engine);
 
-    event_return(client->event_channels, &ev);
+    event_return(&ev);
 
     client_fini(&client);
     offload_engine_fini(&offload_engine);

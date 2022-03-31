@@ -68,13 +68,13 @@ dpu_offload_status_t op_desc_submit(execution_context_t *econtext, op_desc_t *de
         // fixme: at the moment only clients can start a offload op on the DPU, so client->server
         peer_ep = NULL;
     }
-    rc = event_channel_emit_with_payload(start_ev, ECONTEXT_ID(econtext), AM_OP_START_MSG_ID, peer_ep, desc, ev_data, ev_data_len);
+    rc = event_channel_emit_with_payload(&start_ev, ECONTEXT_ID(econtext), AM_OP_START_MSG_ID, peer_ep, desc, ev_data, ev_data_len);
     CHECK_ERR_GOTO((rc != EVENT_DONE && rc != EVENT_INPROGRESS), error_out, "event_channel_emit_with_payload() failed");
 
     return DO_SUCCESS;
 
 error_out:
-    event_return(econtext->event_channels, &start_ev);
+    event_return(&start_ev);
     return DO_ERROR;
 }
 

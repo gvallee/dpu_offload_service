@@ -39,7 +39,7 @@ dpu_offload_status_t send_add_group_rank_request(execution_context_t *econtext, 
         .group_id = group_id,
         .group_rank = rank,
     };
-    rc = event_channel_emit_with_payload(ev,
+    rc = event_channel_emit_with_payload(&ev,
                                          ECONTEXT_ID(econtext),
                                          AM_ADD_GP_RANK_MSG_ID,
                                          ep,
@@ -65,7 +65,7 @@ dpu_offload_status_t send_cache_entry_request(execution_context_t *econtext, ucp
     CHECK_ERR_RETURN((rc), DO_ERROR, "event_get() failed");
 
     DBG("Sending cache entry request for rank:%ld/gp:%ld", requested_peer->group_rank, requested_peer->group_id);
-    rc = event_channel_emit_with_payload(cache_entry_request_ev,
+    rc = event_channel_emit_with_payload(&cache_entry_request_ev,
                                          ECONTEXT_ID(econtext),
                                          AM_PEER_CACHE_ENTRIES_REQUEST_MSG_ID,
                                          ep,
@@ -89,7 +89,7 @@ dpu_offload_status_t send_cache_entry(execution_context_t *econtext, ucp_ep_h ep
         cache_entry->peer.proc_info.group_id,
         sizeof(peer_cache_entry_t),
         AM_PEER_CACHE_ENTRIES_MSG_ID);
-    rc = event_channel_emit_with_payload(send_cache_entry_ev,
+    rc = event_channel_emit_with_payload(&send_cache_entry_ev,
                                          ECONTEXT_ID(econtext),
                                          AM_PEER_CACHE_ENTRIES_MSG_ID,
                                          ep,
@@ -254,7 +254,8 @@ dpu_offload_status_t get_dpu_id_by_group_rank(offloading_engine_t *engine, int64
         if (metaev)
         {
             assert(meta_econtext);
-            ucs_list_add_tail(&(meta_econtext->ongoing_events), &(metaev->item));
+            if (!event_completed(metaev))
+                ucs_list_add_tail(&(meta_econtext->ongoing_events), &(metaev->item));
         }
     }
     else

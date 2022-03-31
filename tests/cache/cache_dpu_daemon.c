@@ -51,13 +51,13 @@ static int send_term_message(execution_context_t *econtext)
         return -1;
     }
 
-    rc = event_channel_emit_with_payload(evt, ECONTEXT_ID(econtext), TEST_COMPLETED_NOTIF_ID, GET_DEST_EP(econtext), econtext, NULL, 0);
+    rc = event_channel_emit_with_payload(&evt, ECONTEXT_ID(econtext), TEST_COMPLETED_NOTIF_ID, GET_DEST_EP(econtext), econtext, NULL, 0);
     if (rc != EVENT_DONE && rc != EVENT_INPROGRESS)
     {
         fprintf(stderr, "event_channel_emit_with_payload() failed\n");
         return -1;
     }
-    if (rc != EVENT_DONE)
+    if (rc == EVENT_INPROGRESS)
     {
         ucs_list_add_tail(&(econtext->ongoing_events), &(evt->item));
         while (!ucs_list_is_empty(&(econtext->ongoing_events)))
@@ -226,11 +226,11 @@ int main(int argc, char **argv)
         if (ev != NULL)
         {
             fprintf(stderr, "Waiting for look up to complete (ev=%p)\n", ev);
-            while (!event_completed(econtext->event_channels, ev))
+            while (!event_completed(ev))
                 econtext->progress(econtext);
 
             fprintf(stderr, "Look up completed\n");
-            rc = event_return(econtext->event_channels, &ev);
+            rc = event_return(&ev);
             if (rc != DO_SUCCESS)
             {
                 fprintf(stderr, "event_return() failed\n");
