@@ -136,17 +136,20 @@ typedef struct dyn_array
         (_dyn_array)->base = NULL;  \
     } while (0)
 
-#define DYN_ARRAY_GROW(_dyn_array, _type, _size)                                         \
-    do                                                                                   \
-    {                                                                                    \
-        size_t _new_num_elts = (_dyn_array)->num_elts;                                   \
-        while (_new_num_elts * sizeof(_type) <= _size * sizeof(_type))                   \
-        {                                                                                \
-            _new_num_elts += (_dyn_array)->num_elts_alloc;                               \
-        }                                                                                \
-        (_dyn_array)->base = realloc((_dyn_array)->base, _new_num_elts * sizeof(_type)); \
-        (_dyn_array)->num_elts = _new_num_elts;                                          \
-        assert((_dyn_array)->base);                                                      \
+#define DYN_ARRAY_GROW(_dyn_array, _type, _size)                                                        \
+    do                                                                                                  \
+    {                                                                                                   \
+        size_t _initial_num_elts, _new_num_elts, _i;                                                    \
+        _initial_num_elts = _new_num_elts = (_dyn_array)->num_elts;                                     \
+        while (_new_num_elts * sizeof(_type) <= _size * sizeof(_type))                                  \
+        {                                                                                               \
+            _new_num_elts += (_dyn_array)->num_elts_alloc;                                              \
+        }                                                                                               \
+        (_dyn_array)->base = realloc((_dyn_array)->base, _new_num_elts * sizeof(_type));                \
+        char *_start = (char *)(((ptrdiff_t)((_dyn_array)->base)) + _initial_num_elts * sizeof(_type)); \
+        memset(_start, 0, (_new_num_elts - _initial_num_elts) * sizeof(_type));                         \
+        (_dyn_array)->num_elts = _new_num_elts;                                                         \
+        assert((_dyn_array)->base);                                                                     \
     } while (0)
 
 #define DYN_ARRAY_GET_ELT(_dyn_array, _idx, _type, _elt) \
