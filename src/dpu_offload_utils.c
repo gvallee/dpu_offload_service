@@ -31,21 +31,21 @@ const char *config_file_version_token = "Format version:";
 dpu_offload_status_t send_add_group_rank_request(execution_context_t *econtext, ucp_ep_h ep, int64_t group_id, int64_t rank, dpu_offload_event_t **e)
 {
     dpu_offload_event_t *ev;
-    dpu_offload_status_t rc = event_get(econtext->event_channels, NULL, &ev);
+    dpu_offload_event_info_t ev_info;
+    ev_info.payload_size = sizeof(rank_info_t);
+    dpu_offload_status_t rc = event_get(econtext->event_channels, &ev_info, &ev);
     CHECK_ERR_RETURN((rc), DO_ERROR, "event_get() failed");
 
     DBG("Sending request to add group/rank");
-    rank_info_t rank_info = {
-        .group_id = group_id,
-        .group_rank = rank,
-    };
-    rc = event_channel_emit_with_payload(&ev,
-                                         ECONTEXT_ID(econtext),
-                                         AM_ADD_GP_RANK_MSG_ID,
-                                         ep,
-                                         NULL,
-                                         &rank_info,
-                                         sizeof(rank_info_t));
+    rank_info_t *rank_info = (rank_info_t *)ev->payload;
+    rank_info->group_id = group_id;
+    rank_info->group_rank = rank;
+
+    rc = event_channel_emit(&ev,
+                            ECONTEXT_ID(econtext),
+                            AM_ADD_GP_RANK_MSG_ID,
+                            ep,
+                            NULL);
     CHECK_ERR_RETURN((rc != EVENT_DONE && rc != EVENT_INPROGRESS), DO_ERROR, "event_channel_emit_with_payload() failed");
     *e = ev;
     return DO_SUCCESS;
