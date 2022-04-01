@@ -500,6 +500,7 @@ bool parse_line_dpu_version_1(offloading_config_t *data, char *line)
                     DBG("Saving connection parameters to connect to %s (%p)", connect_to->hostname, connect_to);
                     conn_params_t *new_conn_params;
                     DYN_LIST_GET(data->offloading_engine->pool_conn_params, conn_params_t, item, new_conn_params); // fixme: properly return it
+                    RESET_CONN_PARAMS(new_conn_params);
                     connect_to->init_params.conn_params = new_conn_params;
                     connect_to->init_params.conn_params->addr_str = list_dpus_from_list[i].version_1.addr;
                     connect_to->init_params.conn_params->port = list_dpus_from_list[i].version_1.interdpu_port;

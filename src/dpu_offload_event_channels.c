@@ -519,7 +519,7 @@ bool event_completed(dpu_offload_event_t *ev)
         }
     }
 
-    // If there is no more sub-event and the request of the event is complete, it is all done
+    // If there is no more sub-events and the request of the event is complete, it is all done
     if (ev->sub_events_initialized && ucs_list_is_empty(&(ev->sub_events)) && ev->req == NULL)
     {
         ev->ctx.complete = true;

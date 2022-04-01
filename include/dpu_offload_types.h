@@ -449,6 +449,14 @@ typedef struct conn_params
     struct sockaddr_storage saddr;
 } conn_params_t;
 
+#define RESET_CONN_PARAMS(_params)  \
+    do                              \
+    {                               \
+        (_params)->addr_str = NULL; \
+        (_params)->port_str = NULL; \
+        (_params)->port = -1;       \
+    } while (0)
+
 /**
  * @brief connect_completed_cb is the type of the callback used when a connection completes.
  * It can be used both on a client and server.
@@ -749,17 +757,22 @@ typedef struct dpu_offload_event
         (__ev)->was_pending = false;        \
     } while (0)
 
-#define CHECK_EVENT(__ev)                                                                    \
-    do                                                                                       \
-    {                                                                                        \
-        assert((__ev)->payload_size == 0);                                                   \
-        assert((__ev)->ctx.complete == 0);                                                   \
-        assert((__ev)->ctx.hdr.type == 0);                                                   \
-        assert((__ev)->ctx.hdr.id == 0);                                                     \
-        assert((__ev)->manage_payload_buf == false);                                         \
-        assert((__ev)->dest_ep == NULL);                                                     \
-        assert((__ev)->was_pending == false);                                                \
-        assert(!(__ev)->sub_events_initialized || ucs_list_is_empty(&((__ev)->sub_events))); \
+#define CHECK_EVENT(__ev)                                                                         \
+    do                                                                                            \
+    {                                                                                             \
+        assert((__ev)->payload_size == 0);                                                        \
+        assert((__ev)->ctx.complete == 0);                                                        \
+        assert((__ev)->ctx.hdr.type == 0);                                                        \
+        assert((__ev)->ctx.hdr.id == 0);                                                          \
+        assert((__ev)->manage_payload_buf == false);                                              \
+        assert((__ev)->dest_ep == NULL);                                                          \
+        assert((__ev)->was_pending == false);                                                     \
+        if ((__ev)->sub_events_initialized)                                                       \
+        {                                                                                         \
+            if (!ucs_list_is_empty(&((__ev)->sub_events)))                                        \
+                fprintf(stderr, "Num sub events: %ld\n", ucs_list_length(&((__ev)->sub_events))); \
+            assert(ucs_list_is_empty(&((__ev)->sub_events)));                                     \
+        }                                                                                         \
     } while (0)
 
 typedef struct dpu_offload_event_info
