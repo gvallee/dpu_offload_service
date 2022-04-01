@@ -427,20 +427,32 @@ dpu_offload_status_t event_channels_fini(dpu_offload_ev_sys_t **ev_sys)
     *ev_sys = NULL;
 }
 
-#define RESET_EVENT(__ev)                                                                    \
+#define RESET_EVENT(__ev)                   \
+    do                                      \
+    {                                       \
+        (__ev)->context = NULL;             \
+        (__ev)->payload_size = 0;           \
+        (__ev)->payload = NULL;             \
+        (__ev)->event_system = NULL;        \
+        (__ev)->req = NULL;                 \
+        (__ev)->ctx.complete = 0;           \
+        (__ev)->ctx.hdr.type = 0;           \
+        (__ev)->ctx.hdr.id = 0;             \
+        (__ev)->manage_payload_buf = false; \
+        (__ev)->dest_ep = NULL;             \
+        (__ev)->was_pending = false;        \
+    } while (0)
+
+#define CHECK_EVENT(__ev)                                                                    \
     do                                                                                       \
     {                                                                                        \
-        (__ev)->context = NULL;                                                              \
-        (__ev)->payload_size = 0;                                                            \
-        (__ev)->payload = NULL;                                                              \
-        (__ev)->event_system = NULL;                                                         \
-        (__ev)->req = NULL;                                                                  \
-        (__ev)->ctx.complete = 0;                                                            \
-        (__ev)->ctx.hdr.type = 0;                                                            \
-        (__ev)->ctx.hdr.id = 0;                                                              \
-        (__ev)->manage_payload_buf = false;                                                  \
-        (__ev)->dest_ep = NULL;                                                              \
-        (__ev)->was_pending = false;                                                         \
+        assert((__ev)->payload_size == 0);                                                   \
+        assert((__ev)->ctx.complete == 0);                                                   \
+        assert((__ev)->ctx.hdr.type == 0);                                                   \
+        assert((__ev)->ctx.hdr.id == 0);                                                     \
+        assert((__ev)->manage_payload_buf == false);                                         \
+        assert((__ev)->dest_ep == NULL);                                                     \
+        assert((__ev)->was_pending == false);                                                \
         assert(!(__ev)->sub_events_initialized || ucs_list_is_empty(&((__ev)->sub_events))); \
     } while (0)
 
@@ -455,6 +467,7 @@ dpu_offload_status_t event_get(dpu_offload_ev_sys_t *ev_sys, dpu_offload_event_i
     {
         ev_sys->num_used_evs++;
         RESET_EVENT(_ev);
+        CHECK_EVENT(_ev);
         _ev->event_system = ev_sys;
 
         if (info == NULL || info->payload_size == 0)
@@ -500,7 +513,6 @@ dpu_offload_status_t event_return(dpu_offload_event_t **ev)
     DYN_LIST_RETURN(((*ev)->event_system->free_evs), (*ev), item);
     SYS_EVENT_UNLOCK((*ev)->event_system);
     DBG("event %p successfully returned", *ev);
-    RESET_EVENT((*ev));
     *ev = NULL; // so it cannot be used any longer
     return DO_SUCCESS;
 }
