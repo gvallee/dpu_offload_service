@@ -1000,6 +1000,18 @@ typedef struct pending_notification
     execution_context_t *econtext;
 } pending_notification_t;
 
+#define RESET_PENDING_NOTIF(_notif) \
+    do                              \
+    {                               \
+        (_notif)->type = 0;         \
+        (_notif)->src_id = 0;       \
+        (_notif)->header = NULL;    \
+        (_notif)->header_size = 0;  \
+        (_notif)->data = NULL;      \
+        (_notif)->data_size = 0;    \
+        (_notif)->econtext = NULL;  \
+    } while (0)
+
 /*********************/
 /* DPU CONFIGURATION */
 /*********************/

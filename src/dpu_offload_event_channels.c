@@ -32,7 +32,7 @@ static int handle_am_msg(execution_context_t *econtext, am_header_t *hdr, size_t
         DBG("callback not available for %" PRIu64, hdr->type);
         DYN_LIST_GET(econtext->event_channels->free_pending_notifications, pending_notification_t, item, pending_notif);
         CHECK_ERR_RETURN((pending_notif == NULL), UCS_ERR_NO_MESSAGE, "unable to get pending notification object");
-
+        RESET_PENDING_NOTIF(pending_notif);
         pending_notif->type = hdr->type;
         pending_notif->src_id = hdr->id;
         pending_notif->data_size = length;
@@ -41,6 +41,7 @@ static int handle_am_msg(execution_context_t *econtext, am_header_t *hdr, size_t
         if (pending_notif->data_size > 0)
         {
             pending_notif->data = malloc(pending_notif->data_size);
+            CHECK_ERR_RETURN((pending_notif->data == NULL), DO_ERROR, "unable to allocate pending notification's data");
             memcpy(pending_notif->data, data, pending_notif->data_size);
         }
         else
@@ -50,6 +51,7 @@ static int handle_am_msg(execution_context_t *econtext, am_header_t *hdr, size_t
         if (pending_notif->header_size > 0)
         {
             pending_notif->header = malloc(pending_notif->header_size);
+            CHECK_ERR_RETURN((pending_notif->header == NULL), DO_ERROR, "unable to allocate pending notification's header");
             memcpy(pending_notif->header, hdr, pending_notif->header_size);
         }
         else
@@ -577,7 +579,6 @@ static dpu_offload_status_t op_start_cb(struct dpu_offload_ev_sys *ev_sys, execu
             break;
         }
     }
-
     CHECK_ERR_RETURN((op_cfg == NULL), DO_ERROR, "unable to find a matching registered function");
 
     // Instantiate the operation
@@ -585,12 +586,9 @@ static dpu_offload_status_t op_start_cb(struct dpu_offload_ev_sys *ev_sys, execu
     DYN_LIST_GET(econtext->engine->free_op_descs, op_desc_t, item, op_desc);
     CHECK_ERR_RETURN((op_desc == NULL), DO_ERROR, "unable to get a free operation descriptor");
     RESET_OP_DESC(op_desc);
-
     ucs_list_add_tail(&(econtext->active_ops), &(op_desc->item));
-
     // Call the init function of the operation
     op_cfg->op_init();
-
     return DO_SUCCESS;
 }
 
