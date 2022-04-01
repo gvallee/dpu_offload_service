@@ -144,6 +144,7 @@ static inline int run_client_test(ucp_worker_h worker, ucp_context_h ucp_context
         fprintf(stderr, "Successfully received the expected response from the server\n");
 
     // NOTIFICATIONS TEST
+    fprintf(stderr, "STARTING TEST OF THE NOTIFICATION SYSTEM\n");
 
     /* First with emitting a bunch of events and manually managing all of them */
     EMIT_MANY_EVS_WITH_EXPLICIT_MGT(client);
