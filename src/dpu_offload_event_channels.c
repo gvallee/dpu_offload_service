@@ -427,35 +427,6 @@ dpu_offload_status_t event_channels_fini(dpu_offload_ev_sys_t **ev_sys)
     *ev_sys = NULL;
 }
 
-#define RESET_EVENT(__ev)                   \
-    do                                      \
-    {                                       \
-        (__ev)->context = NULL;             \
-        (__ev)->payload_size = 0;           \
-        (__ev)->payload = NULL;             \
-        (__ev)->event_system = NULL;        \
-        (__ev)->req = NULL;                 \
-        (__ev)->ctx.complete = 0;           \
-        (__ev)->ctx.hdr.type = 0;           \
-        (__ev)->ctx.hdr.id = 0;             \
-        (__ev)->manage_payload_buf = false; \
-        (__ev)->dest_ep = NULL;             \
-        (__ev)->was_pending = false;        \
-    } while (0)
-
-#define CHECK_EVENT(__ev)                                                                    \
-    do                                                                                       \
-    {                                                                                        \
-        assert((__ev)->payload_size == 0);                                                   \
-        assert((__ev)->ctx.complete == 0);                                                   \
-        assert((__ev)->ctx.hdr.type == 0);                                                   \
-        assert((__ev)->ctx.hdr.id == 0);                                                     \
-        assert((__ev)->manage_payload_buf == false);                                         \
-        assert((__ev)->dest_ep == NULL);                                                     \
-        assert((__ev)->was_pending == false);                                                \
-        assert(!(__ev)->sub_events_initialized || ucs_list_is_empty(&((__ev)->sub_events))); \
-    } while (0)
-
 dpu_offload_status_t event_get(dpu_offload_ev_sys_t *ev_sys, dpu_offload_event_info_t *info, dpu_offload_event_t **ev)
 {
     dpu_offload_event_t *_ev;
@@ -614,7 +585,7 @@ static dpu_offload_status_t op_start_cb(struct dpu_offload_ev_sys *ev_sys, execu
     DYN_LIST_GET(econtext->engine->free_op_descs, op_desc_t, item, op_desc);
     CHECK_ERR_RETURN((op_desc == NULL), DO_ERROR, "unable to get a free operation descriptor");
     RESET_OP_DESC(op_desc);
-    
+
     ucs_list_add_tail(&(econtext->active_ops), &(op_desc->item));
 
     // Call the init function of the operation

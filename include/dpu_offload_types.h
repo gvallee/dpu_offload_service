@@ -733,6 +733,35 @@ typedef struct dpu_offload_event
     dpu_offload_ev_sys_t *event_system;
 } dpu_offload_event_t;
 
+#define RESET_EVENT(__ev)                   \
+    do                                      \
+    {                                       \
+        (__ev)->context = NULL;             \
+        (__ev)->payload_size = 0;           \
+        (__ev)->payload = NULL;             \
+        (__ev)->event_system = NULL;        \
+        (__ev)->req = NULL;                 \
+        (__ev)->ctx.complete = 0;           \
+        (__ev)->ctx.hdr.type = 0;           \
+        (__ev)->ctx.hdr.id = 0;             \
+        (__ev)->manage_payload_buf = false; \
+        (__ev)->dest_ep = NULL;             \
+        (__ev)->was_pending = false;        \
+    } while (0)
+
+#define CHECK_EVENT(__ev)                                                                    \
+    do                                                                                       \
+    {                                                                                        \
+        assert((__ev)->payload_size == 0);                                                   \
+        assert((__ev)->ctx.complete == 0);                                                   \
+        assert((__ev)->ctx.hdr.type == 0);                                                   \
+        assert((__ev)->ctx.hdr.id == 0);                                                     \
+        assert((__ev)->manage_payload_buf == false);                                         \
+        assert((__ev)->dest_ep == NULL);                                                     \
+        assert((__ev)->was_pending == false);                                                \
+        assert(!(__ev)->sub_events_initialized || ucs_list_is_empty(&((__ev)->sub_events))); \
+    } while (0)
+
 typedef struct dpu_offload_event_info
 {
     // Size of the payload that the library needs to be managing. If 0 not payload needs to be managed
