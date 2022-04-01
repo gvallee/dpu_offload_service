@@ -214,6 +214,15 @@ typedef struct op_desc
     bool completed;
 } op_desc_t;
 
+#define RESET_OP_DESC(_op_desc)           \
+    do                                    \
+    {                                     \
+        (_op_desc)->id = 0;               \
+        (_op_desc)->op_definition = NULL; \
+        (_op_desc)->op_data = NULL;       \
+        (_op_desc)->completed = false;    \
+    } while (0)
+
 #if 0
 typedef struct active_ops
 {

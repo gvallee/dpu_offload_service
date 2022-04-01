@@ -613,11 +613,8 @@ static dpu_offload_status_t op_start_cb(struct dpu_offload_ev_sys *ev_sys, execu
     op_desc_t *op_desc;
     DYN_LIST_GET(econtext->engine->free_op_descs, op_desc_t, item, op_desc);
     CHECK_ERR_RETURN((op_desc == NULL), DO_ERROR, "unable to get a free operation descriptor");
-
-    op_desc->id = _data[0];
-    op_desc->completed = false;
-    op_desc->op_definition = op_cfg;
-
+    RESET_OP_DESC(op_desc);
+    
     ucs_list_add_tail(&(econtext->active_ops), &(op_desc->item));
 
     // Call the init function of the operation
