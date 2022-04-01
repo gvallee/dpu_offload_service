@@ -34,40 +34,45 @@ typedef struct dyn_list
     mem_chunk_t mem_chunks[MAX_MEM_CHUNKS];
 } dyn_list_t;
 
-#define GROW_DYN_LIST(_dyn_list, _type, __elt)                                           \
-    do                                                                                   \
-    {                                                                                    \
-        assert(_dyn_list);                                                               \
-        if ((_dyn_list)->num_mem_chunks + 1 < MAX_MEM_CHUNKS)                            \
-        {                                                                                \
-            size_t _chunk_size = (_dyn_list)->num_elts_alloc * sizeof(_type);            \
-            void *_chunk = malloc(_chunk_size);                                          \
-            if (_chunk != NULL)                                                          \
-            {                                                                            \
-                (_dyn_list)->mem_chunks[(_dyn_list)->num_mem_chunks].ptr = _chunk;       \
-                (_dyn_list)->mem_chunks[(_dyn_list)->num_mem_chunks].size = _chunk_size; \
-                (_dyn_list)->num_mem_chunks++;                                           \
-                int _i;                                                                  \
-                for (_i = 0; _i < (_dyn_list)->num_elts_alloc; _i++)                     \
-                {                                                                        \
-                    _type *_e = (_type *)((ptrdiff_t)_chunk + _i * sizeof(_type));       \
-                    ucs_list_add_tail(&((_dyn_list)->list), &(_e->__elt));               \
-                }                                                                        \
-                (_dyn_list)->num_elts += (_dyn_list)->num_elts_alloc;                    \
-            }                                                                            \
-        }                                                                                \
+#define GROW_DYN_LIST(__dyn_list, __type, __elt)                                                                           \
+    do                                                                                                                     \
+    {                                                                                                                      \
+        assert(__dyn_list);                                                                                                \
+        if ((__dyn_list)->num_mem_chunks + 1 < MAX_MEM_CHUNKS)                                                             \
+        {                                                                                                                  \
+            size_t _chunk_size = (__dyn_list)->num_elts_alloc * sizeof(__type);                                            \
+            void *_chunk = malloc(_chunk_size);                                                                            \
+            if (_chunk != NULL)                                                                                            \
+            {                                                                                                              \
+                (__dyn_list)->mem_chunks[(__dyn_list)->num_mem_chunks].ptr = _chunk;                                       \
+                (__dyn_list)->mem_chunks[(__dyn_list)->num_mem_chunks].size = _chunk_size;                                 \
+                (__dyn_list)->num_mem_chunks++;                                                                            \
+                int _i;                                                                                                    \
+                for (_i = 0; _i < (__dyn_list)->num_elts_alloc; _i++)                                                      \
+                {                                                                                                          \
+                    __type *_e = (__type *)(_chunk);                                                                       \
+                    ucs_list_add_tail(&((__dyn_list)->list), &(_e[_i].__elt));                                             \
+                }                                                                                                          \
+                assert(ucs_list_length(&((__dyn_list)->list)) == ((__dyn_list)->num_elts + (__dyn_list)->num_elts_alloc)); \
+                (__dyn_list)->num_elts += (__dyn_list)->num_elts_alloc;                                                    \
+            }                                                                                                              \
+        }                                                                                                                  \
     } while (0)
 
 #define DYN_LIST_ALLOC(_dyn_list, _num_elts_alloc, _type, _elt) \
     do                                                          \
     {                                                           \
         (_dyn_list) = malloc(sizeof(dyn_list_t));               \
-        if (_dyn_list != NULL)                                  \
+        if ((_dyn_list) != NULL)                                \
         {                                                       \
-            ucs_list_head_init(&((_dyn_list)->list));           \
+            (_dyn_list)->num_mem_chunks = 0;                    \
+            (_dyn_list)->num_elts = 0;                          \
             (_dyn_list)->num_elts_alloc = _num_elts_alloc;      \
-            GROW_DYN_LIST(_dyn_list, _type, _elt);              \
+            ucs_list_head_init(&((_dyn_list)->list));           \
+            GROW_DYN_LIST((_dyn_list), _type, _elt);            \
         }                                                       \
+        else                                                    \
+            (_dyn_list) = NULL;                                 \
     } while (0)
 
 #define DYN_LIST_FREE(_dyn_list, _type, _elt)                                        \
