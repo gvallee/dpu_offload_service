@@ -113,7 +113,7 @@ int event_channel_emit_with_payload(dpu_offload_event_t **ev, uint64_t my_id, ui
  *          .payload_size = my_payload_size,
  *      };
  *      event_get(ev_sys, &ev_info, &myev);
- *      memcpy(myev->payload, my_data, sizeof(my_data));
+ *      memcpy(myev->payload, my_data, sizeof(my_payload_size));
  *      int rc = event_channel_emit_with_payload(myev, econtext_id, dest_ep, NULL, my_payload, my_payload_size);
  *      if (rc == EVENT_DONE)
  *      {
