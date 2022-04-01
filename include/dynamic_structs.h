@@ -6,6 +6,7 @@
 
 #include <stdlib.h>
 #include <assert.h>
+#include <stddef.h>
 
 #include <ucs/datastruct/list.h>
 
@@ -71,6 +72,8 @@ typedef struct dyn_list
                 (__dyn_list)->num_elts += (__dyn_list)->num_elts_alloc;                                                \
             }                                                                                                          \
         }                                                                                                              \
+        else                                                                                                           \
+            (__dyn_list) = NULL; /* not elegant but this is an error case so good for now */                           \
     } while (0)
 
 #define DYN_LIST_ALLOC(_dyn_list, _num_elts_alloc, _type, _elt) \
