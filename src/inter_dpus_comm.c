@@ -34,17 +34,17 @@ extern execution_context_t *client_init(offloading_engine_t *, init_params_t *);
         remote_dpu_info_t *new_conn_to;                                                                     \
         DYN_LIST_GET(_cfg->info_connecting_to.pool_remote_dpu_info, remote_dpu_info_t, item, new_conn_to);  \
         assert(new_conn_to);                                                                                \
+        RESET_REMOTE_DPU_INFO(new_conn_to);                                                                 \
         new_conn_to->idx = _idx;                                                                            \
         remote_dpu_info_t **_list_dpus = (remote_dpu_info_t **)_econtext->dpus.base;                        \
         _list_dpus[_idx] = new_conn_to;                                                                     \
         conn_params_t *new_conn_params;                                                                     \
         DYN_LIST_GET(_cfg->offloading_engine->pool_conn_params, conn_params_t, item, new_conn_params);      \
         assert(new_conn_params);                                                                            \
+        RESET_CONN_PARAMS(new_conn_params);                                                                 \
         new_conn_to->hostname = _dpu_hostname;                                                              \
         new_conn_to->init_params.conn_params = new_conn_params;                                             \
         /* all connection parameters are not available at this point, we only have the list of hostnames */ \
-        new_conn_to->init_params.conn_params->port_str = NULL;                                              \
-        new_conn_to->init_params.conn_params->port = -1;                                                    \
         new_conn_to->offload_engine = _cfg->offloading_engine;                                              \
         ucs_list_add_tail(&(_cfg->info_connecting_to.connect_to), &(new_conn_to->item));                    \
         _cfg->info_connecting_to.num_connect_to++;                                                          \
@@ -93,6 +93,8 @@ dpu_offload_parse_list_dpus(offloading_engine_t *engine, offloading_config_t *co
             *my_dpu_id = dpu_idx;
             // We need an entry in the list of DPUs to support communications with self after a look up to a local rank.
             DYN_LIST_GET(config_data->info_connecting_to.pool_remote_dpu_info, remote_dpu_info_t, item, new_remote_dpu); // fixme: correctly return object
+            assert(new_remote_dpu);
+            RESET_REMOTE_DPU_INFO(new_remote_dpu);
             new_remote_dpu->idx = dpu_idx;
             new_remote_dpu->hostname = config_data->local_dpu.hostname;
             new_remote_dpu->init_params.conn_params = NULL;
@@ -109,8 +111,10 @@ dpu_offload_parse_list_dpus(offloading_engine_t *engine, offloading_config_t *co
             n_connecting_from++;
             DYN_LIST_GET(config_data->info_connecting_to.pool_remote_dpu_info, remote_dpu_info_t, item, new_remote_dpu); // fixme: correctly return object
             assert(new_remote_dpu);
+            RESET_REMOTE_DPU_INFO(new_remote_dpu);
             DYN_LIST_GET(engine->pool_conn_params, conn_params_t, item, new_conn_params); // fixme: correctly return object
             assert(new_conn_params);
+            RESET_CONN_PARAMS(new_conn_params);
             new_remote_dpu->idx = dpu_idx;
             new_remote_dpu->hostname = dpu_config->version_1.hostname;
             new_remote_dpu->init_params.conn_params = new_conn_params;
@@ -254,7 +258,7 @@ dpu_offload_status_t inter_dpus_connect_mgr(offloading_engine_t *engine, offload
     /* Init UCP if necessary */
     engine->ucp_context = INIT_UCX();
     DBG("UCX successfully initialized, context: %p", engine->ucp_context);
-    
+
     // Create a self worker
     INIT_WORKER(engine->ucp_context, &(engine->self_worker));
 

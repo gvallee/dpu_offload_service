@@ -1113,6 +1113,20 @@ typedef struct remote_dpu_info
     ucp_ep_h ep;
 } remote_dpu_info_t;
 
+#define RESET_REMOTE_DPU_INFO(_info)                        \
+    do                                                      \
+    {                                                       \
+        (_info)->idx = 0;                                   \
+        (_info)->hostname = NULL;                           \
+        (_info)->peer_addr = NULL;                          \
+        RESET_INIT_PARAMS(&((_info)->init_params));         \
+        (_info)->conn_status = CONNECT_STATUS_DISCONNECTED; \
+        (_info)->offload_engine = NULL;                     \
+        (_info)->econtext = NULL;                           \
+        (_info)->ucp_worker = NULL;                         \
+        (_info)->ep = NULL;                                 \
+    } while (0)
+
 typedef struct dpu_config_data
 {
     union
