@@ -68,7 +68,6 @@ dpu_offload_status_t host_offload_init(offload_config_t *cfg)
 
 static void dvm_start(offload_config_t *cfg)
 {
-    int rc;
     cfg->infra.pmix.dvm_argc = 5;
     cfg->infra.pmix.dvm_argv = (char**) calloc(cfg->infra.pmix.dvm_argc + 1, sizeof(char*));
     cfg->infra.pmix.dvm_argv[0] = strdup("/global/scratch/users/geoffroy/projects/pmix/x86/install/prrte/bin/prte");
@@ -96,7 +95,6 @@ static void wait_from_dvm_complete_bootstrap(offload_config_t *cfg)
 
 static void prun_start(offload_config_t *cfg)
 {
-    int rc;
     if (cfg->infra.pmix.dvm_pid <= 0)
     {
         fprintf(stderr, "ERROR: invalid DVM pid (%d)\n", cfg->infra.pmix.dvm_pid);
@@ -128,8 +126,6 @@ static void prun_start(offload_config_t *cfg)
 static inline dpu_offload_status_t
 bootstrap_pmix_infrastructure(offload_config_t *cfg)
 {
-    int rc;
-    
     // Sanity checks
     if (cfg->associated_bluefield == NULL) {
         fprintf(stderr, "ERROR: no associated BlueField DPU detected\n");
@@ -150,7 +146,6 @@ bootstrap_pmix_infrastructure(offload_config_t *cfg)
 static inline dpu_offload_status_t
 finalize_pmix_infrastructure(offload_config_t *cfg)
 {
-    int rc;
     if (cfg->infra.pmix.service_started == true)
     {
         if (cfg->infra.pmix.service_pid > 0)
@@ -207,9 +202,8 @@ finalize_pmix_infrastructure(offload_config_t *cfg)
 
 dpu_offload_status_t dpu_offload_service_start(offload_config_t *cfg)
 {
-    int rc;
     if (cfg->with_pmix) {
-        rc = bootstrap_pmix_infrastructure(cfg);
+        int rc = bootstrap_pmix_infrastructure(cfg);
         if (rc != DPU_OFFLOAD_SUCCESS)
             return rc;
     } else {
