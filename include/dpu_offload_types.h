@@ -688,6 +688,19 @@ typedef struct pending_am_rdv_recv
     void *user_data;
 } pending_am_rdv_recv_t;
 
+#define RESET_PENDING_RDV_RECV(_rdv_recv) \
+    do                                    \
+    {                                     \
+        (_rdv_recv)->econtext = NULL;     \
+        (_rdv_recv)->hdr_len = 0;         \
+        (_rdv_recv)->hdr = NULL;          \
+        (_rdv_recv)->req = NULL;          \
+        (_rdv_recv)->payload_size = 0;    \
+        (_rdv_recv)->buff_size = 0;       \
+        (_rdv_recv)->desc = NULL;         \
+        (_rdv_recv)->user_data = NULL;    \
+    } while (0)
+
 /**
  * @brief dpu_offload_event_t represents an event, i.e., the implementation of a notification
  */

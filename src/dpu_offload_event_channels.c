@@ -94,6 +94,7 @@ static ucs_status_t am_notification_recv_rdv_msg(execution_context_t *econtext, 
     ECONTEXT_LOCK(econtext);
     DYN_LIST_GET(econtext->free_pending_rdv_recv, pending_am_rdv_recv_t, item, pending_recv);
     ECONTEXT_UNLOCK(econtext);
+    RESET_PENDING_RDV_RECV(pending_recv);
     assert(pending_recv);
     DBG("RDV message to be received for type %ld", hdr->type);
     // Make sure we have space for the payload, note that we do not know the data size to
