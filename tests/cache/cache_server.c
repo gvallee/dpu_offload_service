@@ -62,7 +62,7 @@ int main(int argc, char **argv)
         server->progress(server);
     }
 
-    event_return(server->event_channels, &ev);
+    event_return(&ev);
 
     server_fini(&server);
     offload_engine_fini(&offload_engine);

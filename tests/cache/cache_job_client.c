@@ -90,10 +90,10 @@ int main(int argc, char **argv)
 
     if (ev != NULL)
     {
-        while (!event_completed(client->event_channels, ev))
+        while (!event_completed(ev))
             client->progress(client);
         
-        rc = event_return(client->event_channels, &ev);
+        rc = event_return(&ev);
         if (rc != DO_SUCCESS)
         {
             fprintf(stderr, "event_return() failed\n");

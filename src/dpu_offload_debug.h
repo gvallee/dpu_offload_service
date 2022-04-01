@@ -21,7 +21,7 @@ extern char *my_hostname;
             __FILE__, __LINE__, __func__, my_hostname, getpid() __VA_OPT__(, ) __VA_ARGS__); \
 } while(0)
 #else
-#define DO_DBG() \
+#define DBG(...) \
     do           \
     {            \
     } while (0)

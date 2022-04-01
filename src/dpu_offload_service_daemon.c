@@ -24,6 +24,7 @@
 #include "dpu_offload_ops.h"
 
 extern dpu_offload_status_t register_default_notifications(dpu_offload_ev_sys_t *);
+extern int send_event_msg(dpu_offload_event_t **event);
 
 // A lot of the code is from ucp_client_serrver.c from UCX
 
@@ -565,7 +566,8 @@ dpu_offload_status_t lib_progress(execution_context_t *econtext)
     if (econtext->engine != NULL)
         return offload_engine_progress(econtext->engine);
     else
-        return econtext->progress(econtext);
+        econtext->progress(econtext);
+    return DO_SUCCESS;
 }
 
 dpu_offload_status_t offload_engine_init(offloading_engine_t **engine)
@@ -604,14 +606,18 @@ dpu_offload_status_t offload_engine_init(offloading_engine_t **engine)
     return DO_SUCCESS;
 }
 
-static dpu_offload_status_t execution_context_progress(execution_context_t *ctx)
+static void execution_context_progress(execution_context_t *ctx)
 {
+    assert(ctx);
     // Progress the UCX worker to eventually complete some communications
     ECONTEXT_LOCK(ctx);
-    ucp_worker_progress(GET_WORKER(ctx));
+    ucp_worker_h worker = GET_WORKER(ctx);
     ECONTEXT_UNLOCK(ctx);
 
+    ucp_worker_progress(worker);
+
     // Progress the ongoing events
+    ECONTEXT_LOCK(ctx);
     dpu_offload_event_t *ev, *next_ev;
     ucs_list_for_each_safe(ev, next_ev, (&(ctx->ongoing_events)), item)
     {
@@ -624,12 +630,23 @@ static dpu_offload_status_t execution_context_progress(execution_context_t *ctx)
                 ucp_request_free(ev->req);
                 ev->req = NULL;
             }
-            event_return(ctx->event_channels, &ev);
+            event_return(&ev);
         }
     }
 
+    // Progress pending emits
+    while (!ucs_list_is_empty(&(ctx->event_channels->pending_emits)) &&
+           ucs_list_length(&(ctx->event_channels->pending_emits)) < ctx->event_channels->max_pending_emits)
+    {
+        dpu_offload_event_t *event = ucs_list_extract_head(&(ctx->event_channels->pending_emits), dpu_offload_event_t, item);
+        int rc = send_event_msg(&event);
+        if (rc != EVENT_DONE && rc != EVENT_INPROGRESS)
+            ucs_list_add_tail(&(ctx->event_channels->pending_emits), &(event->item));
+    }
+
     // Progress all active operations
-    return progress_active_ops(ctx);
+    dpu_offload_status_t rc = progress_active_ops(ctx);
+    ECONTEXT_UNLOCK(ctx);
 }
 
 static dpu_offload_status_t execution_context_init(offloading_engine_t *offload_engine, uint64_t type, execution_context_t **econtext)

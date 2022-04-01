@@ -9,4 +9,4 @@
 # $HEADER$
 #
 
-SUBDIRS = offload_service process_spawn cache
+SUBDIRS = offload_service process_spawn cache dyn_structs

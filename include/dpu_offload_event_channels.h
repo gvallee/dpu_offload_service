@@ -42,7 +42,7 @@ dpu_offload_status_t engine_register_default_notification_handler(offloading_eng
  * @param ctx User-defined context to help identify the context of the event upon local completion.
  * @return result of UCS_PTR_STATUS in the context of errors, EVENT_DONE if the emittion completed right away, EVENT_INPROGRESS if emitting the event is still in progress (e.g., communication not completed). One can check on completion using ev->req.
  */
-int event_channel_emit(dpu_offload_event_t *ev, uint64_t my_id, uint64_t type, ucp_ep_h dest_ep, void *ctx);
+int event_channel_emit(dpu_offload_event_t **ev, uint64_t my_id, uint64_t type, ucp_ep_h dest_ep, void *ctx);
 
 
 /**
@@ -79,7 +79,7 @@ int event_channel_emit(dpu_offload_event_t *ev, uint64_t my_id, uint64_t type, u
  *          return -1;
  *      }
  */
-int event_channel_emit_with_payload(dpu_offload_event_t *ev, uint64_t my_id, uint64_t type, ucp_ep_h dest_ep, void *ctx, void *payload, size_t payload_size);
+int event_channel_emit_with_payload(dpu_offload_event_t **ev, uint64_t my_id, uint64_t type, ucp_ep_h dest_ep, void *ctx, void *payload, size_t payload_size);
 
 /**
  * @brief Get an event from a pool of event. Using a pool of events prevents dynamic allocations.
@@ -113,7 +113,7 @@ int event_channel_emit_with_payload(dpu_offload_event_t *ev, uint64_t my_id, uin
  *          .payload_size = my_payload_size,
  *      };
  *      event_get(ev_sys, &ev_info, &myev);
- *      memcpy(myev->payload, my_data, sizeof(my_data));
+ *      memcpy(myev->payload, my_data, sizeof(my_payload_size));
  *      int rc = event_channel_emit_with_payload(myev, econtext_id, dest_ep, NULL, my_payload, my_payload_size);
  *      if (rc == EVENT_DONE)
  *      {
@@ -127,17 +127,16 @@ int event_channel_emit_with_payload(dpu_offload_event_t *ev, uint64_t my_id, uin
  *      }
  */
 dpu_offload_status_t event_get(dpu_offload_ev_sys_t *ev_sys, dpu_offload_event_info_t *info, dpu_offload_event_t **ev);
-dpu_offload_status_t event_return(dpu_offload_ev_sys_t *ev_sys, dpu_offload_event_t **ev);
+dpu_offload_status_t event_return(dpu_offload_event_t **ev);
 
 /**
  * @brief event_completed checks whether an event is completed or not. If the event is completed,
  * it is also implicitly returned.
  * 
- * @param ev_sys Event system to use to return the event in case of completion
  * @param ev Event to check
  * @return true 
  * @return false 
  */
-bool event_completed(dpu_offload_ev_sys_t *ev_sys, dpu_offload_event_t *ev);
+bool event_completed(dpu_offload_event_t *ev);
 
 #endif // DPU_OFFLOAD_EVENT_CHANNELS_H_

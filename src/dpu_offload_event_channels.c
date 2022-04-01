@@ -8,6 +8,7 @@
 
 #include <inttypes.h>
 #include <string.h>
+#include <errno.h>
 
 #include <ucp/api/ucp.h>
 
@@ -18,18 +19,20 @@
 
 #define DEFAULT_NUM_EVTS (32)
 #define DEFAULT_NUM_NOTIFICATION_CALLBACKS (5000)
+#define DEFAULT_MAX_PENDING_EMITS (10)
 
 static int handle_am_msg(execution_context_t *econtext, am_header_t *hdr, size_t header_length, void *data, size_t length)
 {
+    SYS_EVENT_LOCK(econtext->event_channels);
     notification_callback_entry_t *list_callbacks = (notification_callback_entry_t *)econtext->event_channels->notification_callbacks.base;
-    DBG("Notification of type %" PRIu64 " received via RDV message, dispatching...", hdr->type);
+    DBG("Notification of type %" PRIu64 " received, dispatching...", hdr->type);
     if (list_callbacks[hdr->type].set == false)
     {
         pending_notification_t *pending_notif;
         DBG("callback not available for %" PRIu64, hdr->type);
         DYN_LIST_GET(econtext->event_channels->free_pending_notifications, pending_notification_t, item, pending_notif);
         CHECK_ERR_RETURN((pending_notif == NULL), UCS_ERR_NO_MESSAGE, "unable to get pending notification object");
-
+        RESET_PENDING_NOTIF(pending_notif);
         pending_notif->type = hdr->type;
         pending_notif->src_id = hdr->id;
         pending_notif->data_size = length;
@@ -38,6 +41,7 @@ static int handle_am_msg(execution_context_t *econtext, am_header_t *hdr, size_t
         if (pending_notif->data_size > 0)
         {
             pending_notif->data = malloc(pending_notif->data_size);
+            CHECK_ERR_RETURN((pending_notif->data == NULL), DO_ERROR, "unable to allocate pending notification's data");
             memcpy(pending_notif->data, data, pending_notif->data_size);
         }
         else
@@ -47,6 +51,7 @@ static int handle_am_msg(execution_context_t *econtext, am_header_t *hdr, size_t
         if (pending_notif->header_size > 0)
         {
             pending_notif->header = malloc(pending_notif->header_size);
+            CHECK_ERR_RETURN((pending_notif->header == NULL), DO_ERROR, "unable to allocate pending notification's header");
             memcpy(pending_notif->header, hdr, pending_notif->header_size);
         }
         else
@@ -54,14 +59,21 @@ static int handle_am_msg(execution_context_t *econtext, am_header_t *hdr, size_t
             pending_notif->header = NULL;
         }
         ucs_list_add_tail(&(econtext->event_channels->pending_notifications), &(pending_notif->item));
+        SYS_EVENT_UNLOCK(econtext->event_channels);
         return UCS_OK;
     }
 
     notification_cb cb = list_callbacks[hdr->type].cb;
-    CHECK_ERR_RETURN((cb == NULL), UCS_ERR_NO_MESSAGE, "Callback is undefined");
+    CHECK_ERR_GOTO((cb == NULL), error_out, "Callback is undefined");
     struct dpu_offload_ev_sys *ev_sys = EV_SYS(econtext);
+    // Callbacks are responsible for handling any necessary locking
+    // and can call any event API so we unlock before invoking it.
+    SYS_EVENT_UNLOCK(econtext->event_channels);
     cb(ev_sys, econtext, hdr, header_length, data, length);
     return UCS_OK;
+error_out:
+    SYS_EVENT_UNLOCK(econtext->event_channels);
+    return UCS_ERR_NO_MESSAGE;
 }
 
 static void am_rdv_recv_cb(void *request, ucs_status_t status, size_t length, void *user_data)
@@ -69,15 +81,20 @@ static void am_rdv_recv_cb(void *request, ucs_status_t status, size_t length, vo
     pending_am_rdv_recv_t *recv_info = (pending_am_rdv_recv_t *)user_data;
     int rc = handle_am_msg(recv_info->econtext, recv_info->hdr, recv_info->hdr_len, recv_info->user_data, recv_info->payload_size);
     ucp_request_free(request);
+    ECONTEXT_LOCK(recv_info->econtext);
     ucs_list_del(&(recv_info->item));
     DYN_LIST_RETURN(recv_info->econtext->free_pending_rdv_recv, recv_info, item);
+    ECONTEXT_UNLOCK(recv_info->econtext);
 }
 
 static ucs_status_t am_notification_recv_rdv_msg(execution_context_t *econtext, am_header_t *hdr, size_t hdr_len, size_t payload_size, void *desc)
 {
     ucp_request_param_t am_rndv_recv_request_params;
     pending_am_rdv_recv_t *pending_recv;
+    ECONTEXT_LOCK(econtext);
     DYN_LIST_GET(econtext->free_pending_rdv_recv, pending_am_rdv_recv_t, item, pending_recv);
+    ECONTEXT_UNLOCK(econtext);
+    RESET_PENDING_RDV_RECV(pending_recv);
     assert(pending_recv);
     DBG("RDV message to be received for type %ld", hdr->type);
     // Make sure we have space for the payload, note that we do not know the data size to
@@ -136,12 +153,12 @@ static ucs_status_t am_notification_msg_cb(void *arg, const void *header, size_t
                                            void *data, size_t length,
                                            const ucp_am_recv_param_t *param)
 {
-    CHECK_ERR_RETURN((header == NULL), UCS_ERR_NO_MESSAGE, "header is undefined");
-    CHECK_ERR_RETURN((header_length != sizeof(am_header_t)), UCS_ERR_NO_MESSAGE, "header len is invalid");
+    assert(header != NULL);
+    assert(header_length == sizeof(am_header_t));
     execution_context_t *econtext = (execution_context_t *)arg;
     am_header_t *hdr = (am_header_t *)header;
-    CHECK_ERR_RETURN((hdr == NULL), UCS_ERR_NO_MESSAGE, "header is NULL");
-    CHECK_ERR_RETURN((hdr->type >= econtext->event_channels->notification_callbacks.num_elts), UCS_ERR_NO_MESSAGE, "notification callback %" PRIu64 " is out of range", hdr->type);
+    assert(hdr != NULL);
+    assert(hdr->type < econtext->event_channels->notification_callbacks.num_elts);
 
     if (param->recv_attr & UCP_AM_RECV_ATTR_FLAG_RNDV)
     {
@@ -161,11 +178,18 @@ dpu_offload_status_t ev_channels_init(dpu_offload_ev_sys_t **ev_channels)
     size_t num_evts = DEFAULT_NUM_EVTS;
     size_t num_free_pending_notifications = DEFAULT_NUM_NOTIFICATION_CALLBACKS;
     DYN_LIST_ALLOC(event_channels->free_evs, num_evts, dpu_offload_event_t, item);
+    assert(event_channels->free_evs);
     DYN_LIST_ALLOC(event_channels->free_pending_notifications, num_free_pending_notifications, pending_notification_t, item);
+    assert(event_channels->free_pending_notifications);
     ucs_list_head_init(&(event_channels->pending_notifications));
+    ucs_list_head_init(&(event_channels->pending_emits));
+    event_channels->max_pending_emits = DEFAULT_MAX_PENDING_EMITS;
     event_channels->num_used_evs = 0;
+    event_channels->num_pending_sends = 0;
     DYN_ARRAY_ALLOC(&(event_channels->notification_callbacks), DEFAULT_NUM_NOTIFICATION_CALLBACKS, notification_callback_entry_t);
     CHECK_ERR_RETURN((event_channels->notification_callbacks.base == NULL), DO_ERROR, "Resource allocation failed");
+    int ret = pthread_mutex_init(&(event_channels->mutex), NULL);
+    CHECK_ERR_RETURN((ret), DO_ERROR, "pthread_mutex_init() failed: %s", strerror(errno));
     *ev_channels = event_channels;
     return DO_SUCCESS;
 }
@@ -204,7 +228,9 @@ dpu_offload_status_t event_channel_register(dpu_offload_ev_sys_t *ev_sys, uint64
     CHECK_ERR_RETURN((ev_sys == NULL), DO_ERROR, "undefined event system");
     notification_callback_entry_t *list_callbacks = (notification_callback_entry_t *)ev_sys->notification_callbacks.base;
     notification_callback_entry_t *entry;
+    SYS_EVENT_LOCK(ev_sys);
     DYN_ARRAY_GET_ELT(&(ev_sys->notification_callbacks), type, notification_callback_entry_t, entry);
+    SYS_EVENT_UNLOCK(ev_sys);
     CHECK_ERR_RETURN((entry == NULL), DO_ERROR, "unable to get callback %ld", type);
     CHECK_ERR_RETURN((entry->set == true), DO_ERROR, "type %" PRIu64 " is already set", type);
 
@@ -214,6 +240,7 @@ dpu_offload_status_t event_channel_register(dpu_offload_ev_sys_t *ev_sys, uint64
 
     /* check for any pending notification that would match */
     pending_notification_t *pending_notif, *next_pending_notif;
+    SYS_EVENT_LOCK(ev_sys);
     ucs_list_for_each_safe(pending_notif, next_pending_notif, (&(ev_sys->pending_notifications)), item)
     {
         if (pending_notif->type == type)
@@ -237,6 +264,7 @@ dpu_offload_status_t event_channel_register(dpu_offload_ev_sys_t *ev_sys, uint64
             }
         }
     }
+    SYS_EVENT_UNLOCK(ev_sys);
 
     return DO_SUCCESS;
 }
@@ -248,7 +276,9 @@ dpu_offload_status_t engine_register_default_notification_handler(offloading_eng
 
     notification_callback_entry_t *list_callbacks = (notification_callback_entry_t *)engine->default_notifications->notification_callbacks.base;
     notification_callback_entry_t *entry;
+    ENGINE_LOCK(engine);
     DYN_ARRAY_GET_ELT(&(engine->default_notifications->notification_callbacks), type, notification_callback_entry_t, entry);
+    ENGINE_UNLOCK(engine);
     CHECK_ERR_RETURN((entry == NULL), DO_ERROR, "unable to get callback %ld", type);
     CHECK_ERR_RETURN((entry->set == true), DO_ERROR, "type %" PRIu64 " is already set", type);
 
@@ -272,10 +302,13 @@ dpu_offload_status_t event_channel_deregister(dpu_offload_ev_sys_t *ev_sys, uint
     return DO_SUCCESS;
 }
 
+static size_t num_completed_emit = 0;
 static void notification_emit_cb(void *user_data, const char *type_str)
 {
     dpu_offload_event_t *ev;
     am_req_t *ctx;
+    num_completed_emit++;
+    DBG("New completion, %ld emit have now completed", num_completed_emit);
     if (user_data == NULL)
     {
         ERR_MSG("user_data passed to %s mustn't be NULL", type_str);
@@ -284,80 +317,107 @@ static void notification_emit_cb(void *user_data, const char *type_str)
     ev = (dpu_offload_event_t *)user_data;
     if (ev == NULL)
         return;
+    DBG("ev=%p ctx=%p id=%" PRIu64, ev, &(ev->ctx), ev->ctx.hdr.id);
     ev->ctx.complete = 1;
-    DBG("evt %p now completed", ev);
+    execution_context_t *econtext = ev->event_system->econtext;
+    DBG("Associated econtext: %p", econtext);
+    DBG("evt %p now completed, %ld events left on the ongoing list", ev, ucs_list_length(&(econtext->ongoing_events)));
 }
 
-int event_channel_emit_with_payload(dpu_offload_event_t *ev, uint64_t my_id, uint64_t type, ucp_ep_h dest_ep, void *ctx, void *payload, size_t payload_size)
+uint64_t num_ev_sent = 0;
+
+int send_event_msg(dpu_offload_event_t **event)
 {
     ucp_request_param_t params;
+    params.op_attr_mask = UCP_OP_ATTR_FIELD_CALLBACK |
+                          UCP_OP_ATTR_FIELD_DATATYPE |
+                          UCP_OP_ATTR_FIELD_USER_DATA;
+    params.datatype = ucp_dt_make_contig(1);
+    params.user_data = *event;
+    params.cb.send = (ucp_send_nbx_callback_t)notification_emit_cb;
+    (*event)->req = ucp_am_send_nbx((*event)->dest_ep,
+                                    AM_EVENT_MSG_ID,
+                                    &((*event)->ctx.hdr),
+                                    sizeof(am_header_t),
+                                    (*event)->payload,
+                                    (*event)->payload_size,
+                                    &params);
+    DBG("Event %p %ld successfully emitted", (*event), num_ev_sent);
+    num_ev_sent++;
+    if ((*event)->req == NULL)
+    {
+        // Immediate completion, the callback is *not* invoked
+        DBG("ucp_am_send_nbx() completed right away");
+        dpu_offload_status_t rc = event_return(event);
+        CHECK_ERR_RETURN((rc), DO_ERROR, "event_return() failed");
+        return EVENT_DONE;
+    }
+
+    if (UCS_PTR_IS_ERR((*event)->req))
+        return UCS_PTR_STATUS((*event)->req);
+
+    DBG("ucp_am_send_nbx() did not completed right away");
+    SYS_EVENT_LOCK((*event)->event_system);
+    (*event)->event_system->num_pending_sends++;
+    SYS_EVENT_UNLOCK((*event)->event_system);
+    (*event)->was_pending = true;
+
+    return EVENT_INPROGRESS;
+}
+
+int event_channel_emit_with_payload(dpu_offload_event_t **event, uint64_t my_id, uint64_t type, ucp_ep_h dest_ep, void *ctx, void *payload, size_t payload_size)
+{
+    assert(event);
+    dpu_offload_event_t *ev = *event;
+    assert(ev);
     DBG("Sending notification of type %" PRIu64 " (client_id=%" PRIu64 ")", type, my_id);
     ev->ctx.complete = 0;
     ev->ctx.hdr.type = type;
     ev->ctx.hdr.id = my_id;
     ev->user_context = ctx;
-    params.op_attr_mask = UCP_OP_ATTR_FIELD_CALLBACK |
-                          UCP_OP_ATTR_FIELD_DATATYPE |
-                          UCP_OP_ATTR_FIELD_USER_DATA;
-    params.datatype = ucp_dt_make_contig(1);
-    params.user_data = &ev;
-    params.cb.send = (ucp_send_nbx_callback_t)notification_emit_cb;
-    ev->req = ucp_am_send_nbx(dest_ep, AM_EVENT_MSG_ID, &(ev->ctx.hdr), sizeof(am_header_t), payload, payload_size, &params);
-    DBG("Event %p successfully emitted", ev);
-    if (ev->req == NULL)
+    ev->payload = payload;
+    ev->payload_size = payload_size;
+    ev->dest_ep = dest_ep;
+
+    if (ev->event_system->num_pending_sends >= ev->event_system->max_pending_emits)
     {
-        // Immediate completion, the callback is *not* invoked
-        ev->ctx.complete = 1;
-        assert(ev->event_system);
-        assert(ev->event_system->econtext);
-        assert(ev->event_system->econtext->event_channels);
-        dpu_offload_status_t rc = event_return(ev->event_system->econtext->event_channels, &ev);
-        CHECK_ERR_RETURN((rc), DO_ERROR, "event_return() failed");
-        return EVENT_DONE;
+        DBG("Queuing event for later emission");
+        assert(ev->manage_payload_buf == false);
+        SYS_EVENT_LOCK(ev->event_system);
+        ucs_list_add_tail(&(ev->event_system->pending_emits), &(ev->item));
+        SYS_EVENT_UNLOCK(ev->event_system);
+        return EVENT_INPROGRESS;
     }
 
-    if (UCS_PTR_IS_ERR(ev->req))
-        return UCS_PTR_STATUS(ev->req);
-
-    return EVENT_INPROGRESS;
+    return send_event_msg(event);
 }
 
-int event_channel_emit(dpu_offload_event_t *ev, uint64_t my_id, uint64_t type, ucp_ep_h dest_ep, void *ctx)
+int event_channel_emit(dpu_offload_event_t **event, uint64_t my_id, uint64_t type, ucp_ep_h dest_ep, void *ctx)
 {
-    ucp_request_param_t params;
+    dpu_offload_event_t *ev = *event;
     DBG("Sending notification of type %" PRIu64 " (client_id=%" PRIu64 ")", type, my_id);
     ev->ctx.complete = 0;
     ev->ctx.hdr.type = type;
     ev->ctx.hdr.id = my_id;
     ev->user_context = ctx;
-    params.op_attr_mask = UCP_OP_ATTR_FIELD_CALLBACK |
-                          UCP_OP_ATTR_FIELD_DATATYPE |
-                          UCP_OP_ATTR_FIELD_USER_DATA;
-    params.datatype = ucp_dt_make_contig(1);
-    params.user_data = &ev;
-    params.cb.send = (ucp_send_nbx_callback_t)notification_emit_cb;
-    ev->req = ucp_am_send_nbx(dest_ep, AM_EVENT_MSG_ID, &(ev->ctx.hdr), sizeof(am_header_t), ev->payload, ev->payload_size, &params);
-    DBG("Event %p successfully emitted", ev);
-    if (ev->req == NULL)
+    ev->dest_ep = dest_ep;
+
+    SYS_EVENT_LOCK(ev->event_system);
+    if (ev->event_system->num_pending_sends >= ev->event_system->max_pending_emits)
     {
-        // Immediate completion, the callback is *not* invoked
-        ev->ctx.complete = 1;
-        assert(ev->event_system);
-        assert(ev->event_system->econtext);
-        assert(ev->event_system->econtext->event_channels);
-        dpu_offload_status_t rc = event_return(ev->event_system->econtext->event_channels, &ev);
-        CHECK_ERR_RETURN((rc), DO_ERROR, "event_return() failed");
-        return EVENT_DONE;
+        DBG("Queuing event for later emission");
+        assert(ev->manage_payload_buf == false);
+        ucs_list_add_tail(&(ev->event_system->pending_emits), &(ev->item));
+        SYS_EVENT_UNLOCK(ev->event_system);
+        return EVENT_INPROGRESS;
     }
-
-    if (UCS_PTR_IS_ERR(ev->req))
-        return UCS_PTR_STATUS(ev->req);
-
-    return EVENT_INPROGRESS;
+    SYS_EVENT_UNLOCK(ev->event_system);
+    return send_event_msg(event);
 }
 
 dpu_offload_status_t event_channels_fini(dpu_offload_ev_sys_t **ev_sys)
 {
+    SYS_EVENT_LOCK(*ev_sys);
     if ((*ev_sys)->num_used_evs > 0)
     {
         WARN_MSG("[WARN] %ld events objects have not been returned", (*ev_sys)->num_used_evs);
@@ -365,6 +425,7 @@ dpu_offload_status_t event_channels_fini(dpu_offload_ev_sys_t **ev_sys)
 
     DYN_LIST_FREE((*ev_sys)->free_evs, dpu_offload_event_t, item);
     DYN_LIST_FREE((*ev_sys)->free_pending_notifications, pending_notification_t, item);
+    SYS_EVENT_UNLOCK(*ev_sys);
     free(*ev_sys);
     *ev_sys = NULL;
 }
@@ -373,13 +434,17 @@ dpu_offload_status_t event_get(dpu_offload_ev_sys_t *ev_sys, dpu_offload_event_i
 {
     dpu_offload_event_t *_ev;
     CHECK_ERR_RETURN((ev_sys == NULL), DO_ERROR, "Undefine event system");
+    SYS_EVENT_LOCK(ev_sys);
     DYN_LIST_GET(ev_sys->free_evs, dpu_offload_event_t, item, _ev);
+    SYS_EVENT_UNLOCK(ev_sys);
+    DBG("Got event %p from list %p\n", _ev, ev_sys->free_evs);
     if (_ev != NULL)
     {
+        SYS_EVENT_LOCK(ev_sys);
         ev_sys->num_used_evs++;
-        _ev->ctx.complete = 0;
-        _ev->payload_size = 0;
-        _ev->payload = NULL;
+        SYS_EVENT_UNLOCK(ev_sys);
+        RESET_EVENT(_ev);
+        CHECK_EVENT(_ev);
         _ev->event_system = ev_sys;
 
         if (info == NULL || info->payload_size == 0)
@@ -389,6 +454,7 @@ dpu_offload_status_t event_get(dpu_offload_ev_sys_t *ev_sys, dpu_offload_event_i
         _ev->manage_payload_buf = true;
         _ev->payload_size = info->payload_size;
         _ev->payload = malloc(info->payload_size); // No advanced memory management at the moment, just malloc
+        assert(_ev->payload);
     }
 
 out:
@@ -396,26 +462,40 @@ out:
     return DO_SUCCESS;
 }
 
-dpu_offload_status_t event_return(dpu_offload_ev_sys_t *ev_sys, dpu_offload_event_t **ev)
+dpu_offload_status_t event_return(dpu_offload_event_t **ev)
 {
+    assert(ev);
+    assert(*ev);
     if (ev == NULL || (*ev) == NULL)
         return DO_SUCCESS;
 
-    if (!(*ev)->ctx.complete)
+    if ((*ev)->req)
+    {
+        WARN_MSG("returning an event that is still in progress");
         return EVENT_INPROGRESS;
+    }
+
+    assert((*ev)->event_system);
+    if ((*ev)->was_pending)
+    {
+        SYS_EVENT_LOCK((*ev)->event_system);
+        (*ev)->event_system->num_pending_sends--;
+        SYS_EVENT_UNLOCK((*ev)->event_system);
+    }
 
     // If the event has a payload buffer that the library is managing, free that buffer
     if ((*ev)->manage_payload_buf && (*ev)->payload != NULL)
     {
         free((*ev)->payload);
         (*ev)->payload = NULL;
-        // Reset to some default values
-        (*ev)->manage_payload_buf = false;
         (*ev)->payload_size = 0;
     }
 
-    DYN_LIST_RETURN(ev_sys->free_evs, (*ev), item);
-    ev_sys->num_used_evs--;
+    SYS_EVENT_LOCK((*ev)->event_system);
+    (*ev)->event_system->num_used_evs--;
+    DYN_LIST_RETURN(((*ev)->event_system->free_evs), (*ev), item);
+    SYS_EVENT_UNLOCK((*ev)->event_system);
+    DBG("event %p successfully returned", *ev);
     *ev = NULL; // so it cannot be used any longer
     return DO_SUCCESS;
 }
@@ -425,15 +505,16 @@ dpu_offload_status_t event_return(dpu_offload_ev_sys_t *ev_sys, dpu_offload_even
  * The function is aware of sub-events. If all the sub-events are completed and the
  * request of the event is NULL, the event is reported as completed.
  *
- * @param ev_sys Event system to use when events need to be returned
  * @param ev Event to check for completion.
  * @return true when the event is completed
  * @return false when the event is still in progress
  */
-bool event_completed(dpu_offload_ev_sys_t *ev_sys, dpu_offload_event_t *ev)
+bool event_completed(dpu_offload_event_t *ev)
 {
     if (ev->ctx.complete)
         return true;
+
+    assert(ev->event_system);
 
     // Update the list of sub-event by removing the completed ones
     if (ev->sub_events_initialized)
@@ -444,13 +525,13 @@ bool event_completed(dpu_offload_ev_sys_t *ev_sys, dpu_offload_event_t *ev)
             if (subevt->ctx.complete)
             {
                 ucs_list_del(&(subevt->item));
-                dpu_offload_status_t rc = event_return(ev_sys, &subevt);
+                dpu_offload_status_t rc = event_return(&subevt);
                 CHECK_ERR_RETURN((rc), DO_ERROR, "event_return() failed");
             }
         }
     }
 
-    // If there is no more sub-event and the request of the event is complete, it is all done
+    // If there is no more sub-events and the request of the event is complete, it is all done
     if (ev->sub_events_initialized && ucs_list_is_empty(&(ev->sub_events)) && ev->req == NULL)
     {
         ev->ctx.complete = true;
@@ -508,23 +589,16 @@ static dpu_offload_status_t op_start_cb(struct dpu_offload_ev_sys *ev_sys, execu
             break;
         }
     }
-
     CHECK_ERR_RETURN((op_cfg == NULL), DO_ERROR, "unable to find a matching registered function");
 
     // Instantiate the operation
     op_desc_t *op_desc;
     DYN_LIST_GET(econtext->engine->free_op_descs, op_desc_t, item, op_desc);
     CHECK_ERR_RETURN((op_desc == NULL), DO_ERROR, "unable to get a free operation descriptor");
-
-    op_desc->id = _data[0];
-    op_desc->completed = false;
-    op_desc->op_definition = op_cfg;
-
+    RESET_OP_DESC(op_desc);
     ucs_list_add_tail(&(econtext->active_ops), &(op_desc->item));
-
     // Call the init function of the operation
     op_cfg->op_init();
-
     return DO_SUCCESS;
 }
 
@@ -579,7 +653,8 @@ static dpu_offload_status_t peer_cache_entries_request_recv_cb(struct dpu_offloa
         CHECK_ERR_RETURN((rc), DO_ERROR, "send_group_cache() failed");
 
         // Add the event to the list of pending events so it completed implicitely
-        ucs_list_add_tail(&(econtext->ongoing_events), &(send_cache_ev->item));
+        if (send_cache_ev != NULL && !event_completed(send_cache_ev))
+            ucs_list_add_tail(&(econtext->ongoing_events), &(send_cache_ev->item));
 
         return DO_SUCCESS;
     }
@@ -600,7 +675,8 @@ static dpu_offload_status_t peer_cache_entries_request_recv_cb(struct dpu_offloa
             CHECK_ERR_RETURN((rc), DO_ERROR, "send_group_cache() failed");
 
             // Add the event to the list of pending events so it completed implicitely
-            ucs_list_add_tail(&(econtext->ongoing_events), &(req_fwd_ev->item));
+            if (req_fwd_ev != NULL && !event_completed(req_fwd_ev))
+                ucs_list_add_tail(&(econtext->ongoing_events), &(req_fwd_ev->item));
 
             return DO_SUCCESS;
         }
@@ -628,7 +704,7 @@ static dpu_offload_status_t peer_cache_entries_recv_cb(struct dpu_offload_ev_sys
 
         // Now that we know for sure we have the group ID, we can move the received data into the local cache
         int64_t group_rank = entries[idx].peer.proc_info.group_rank;
-        DBG("Received a cache entry for rank:%ld, group:%ld from DPU %"PRId64" (msg size=%ld, peer addr len=%ld)",
+        DBG("Received a cache entry for rank:%ld, group:%ld from DPU %" PRId64 " (msg size=%ld, peer addr len=%ld)",
             group_rank, group_id, hdr->id, data_len, entries[idx].peer.addr_len);
 
         if (!is_in_cache(cache, group_id, group_rank))

@@ -31,21 +31,21 @@ const char *config_file_version_token = "Format version:";
 dpu_offload_status_t send_add_group_rank_request(execution_context_t *econtext, ucp_ep_h ep, int64_t group_id, int64_t rank, dpu_offload_event_t **e)
 {
     dpu_offload_event_t *ev;
-    dpu_offload_status_t rc = event_get(econtext->event_channels, NULL, &ev);
+    dpu_offload_event_info_t ev_info;
+    ev_info.payload_size = sizeof(rank_info_t);
+    dpu_offload_status_t rc = event_get(econtext->event_channels, &ev_info, &ev);
     CHECK_ERR_RETURN((rc), DO_ERROR, "event_get() failed");
 
     DBG("Sending request to add group/rank");
-    rank_info_t rank_info = {
-        .group_id = group_id,
-        .group_rank = rank,
-    };
-    rc = event_channel_emit_with_payload(ev,
-                                         ECONTEXT_ID(econtext),
-                                         AM_ADD_GP_RANK_MSG_ID,
-                                         ep,
-                                         NULL,
-                                         &rank_info,
-                                         sizeof(rank_info_t));
+    rank_info_t *rank_info = (rank_info_t *)ev->payload;
+    rank_info->group_id = group_id;
+    rank_info->group_rank = rank;
+
+    rc = event_channel_emit(&ev,
+                            ECONTEXT_ID(econtext),
+                            AM_ADD_GP_RANK_MSG_ID,
+                            ep,
+                            NULL);
     CHECK_ERR_RETURN((rc != EVENT_DONE && rc != EVENT_INPROGRESS), DO_ERROR, "event_channel_emit_with_payload() failed");
     *e = ev;
     return DO_SUCCESS;
@@ -65,7 +65,7 @@ dpu_offload_status_t send_cache_entry_request(execution_context_t *econtext, ucp
     CHECK_ERR_RETURN((rc), DO_ERROR, "event_get() failed");
 
     DBG("Sending cache entry request for rank:%ld/gp:%ld", requested_peer->group_rank, requested_peer->group_id);
-    rc = event_channel_emit_with_payload(cache_entry_request_ev,
+    rc = event_channel_emit_with_payload(&cache_entry_request_ev,
                                          ECONTEXT_ID(econtext),
                                          AM_PEER_CACHE_ENTRIES_REQUEST_MSG_ID,
                                          ep,
@@ -89,7 +89,7 @@ dpu_offload_status_t send_cache_entry(execution_context_t *econtext, ucp_ep_h ep
         cache_entry->peer.proc_info.group_id,
         sizeof(peer_cache_entry_t),
         AM_PEER_CACHE_ENTRIES_MSG_ID);
-    rc = event_channel_emit_with_payload(send_cache_entry_ev,
+    rc = event_channel_emit_with_payload(&send_cache_entry_ev,
                                          ECONTEXT_ID(econtext),
                                          AM_PEER_CACHE_ENTRIES_MSG_ID,
                                          ep,
@@ -122,12 +122,16 @@ dpu_offload_status_t send_group_cache(execution_context_t *econtext, ucp_ep_h de
             dpu_offload_event_t *e;
             dpu_offload_status_t rc = send_cache_entry(econtext, dest, cache_entry, &e);
             CHECK_ERR_RETURN((rc), DO_ERROR, "send_cache_entry() failed");
-            if (!metaev->sub_events_initialized)
+            if (e != NULL)
             {
-                ucs_list_head_init(&(metaev->sub_events));
-                metaev->sub_events_initialized = true;
+                // If the event did not complete right away, we add it as a sub-event to the meta-event so we can track everything
+                if (!metaev->sub_events_initialized)
+                {
+                    ucs_list_head_init(&(metaev->sub_events));
+                    metaev->sub_events_initialized = true;
+                }
+                ucs_list_add_tail(&(metaev->sub_events), &(e->item));
             }
-            ucs_list_add_tail(&(metaev->sub_events), &(e->item));
         }
     }
     return DO_SUCCESS;
@@ -243,18 +247,23 @@ dpu_offload_status_t get_dpu_id_by_group_rank(offloading_engine_t *engine, int64
                 dpu_offload_event_t *subev;
                 rc = send_cache_entry_request(econtext, dpu_ep, &rank_data, &subev);
                 CHECK_ERR_RETURN((rc), DO_ERROR, "send_cache_entry_request() failed");
-                if (metaev->sub_events_initialized == false)
+                if (subev != NULL)
                 {
-                    ucs_list_head_init(&(metaev->sub_events));
-                    metaev->sub_events_initialized = true;
+                    // If the event did not complete right away, we add it as a sub-event to the meta-event so we can track everything
+                    if (metaev->sub_events_initialized == false)
+                    {
+                        ucs_list_head_init(&(metaev->sub_events));
+                        metaev->sub_events_initialized = true;
+                    }
+                    ucs_list_add_tail(&(metaev->sub_events), &(subev->item));
                 }
-                ucs_list_add_tail(&(metaev->sub_events), &(subev->item));
             }
         }
         if (metaev)
         {
             assert(meta_econtext);
-            ucs_list_add_tail(&(meta_econtext->ongoing_events), &(metaev->item));
+            if (!event_completed(metaev))
+                ucs_list_add_tail(&(meta_econtext->ongoing_events), &(metaev->item));
         }
     }
     else
@@ -491,6 +500,7 @@ bool parse_line_dpu_version_1(offloading_config_t *data, char *line)
                     DBG("Saving connection parameters to connect to %s (%p)", connect_to->hostname, connect_to);
                     conn_params_t *new_conn_params;
                     DYN_LIST_GET(data->offloading_engine->pool_conn_params, conn_params_t, item, new_conn_params); // fixme: properly return it
+                    RESET_CONN_PARAMS(new_conn_params);
                     connect_to->init_params.conn_params = new_conn_params;
                     connect_to->init_params.conn_params->addr_str = list_dpus_from_list[i].version_1.addr;
                     connect_to->init_params.conn_params->port = list_dpus_from_list[i].version_1.interdpu_port;

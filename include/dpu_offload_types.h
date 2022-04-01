@@ -109,36 +109,40 @@ typedef enum
     _w;                                       \
 })
 
-#define SET_WORKER(_exec_ctx, _worker) do {        \
-    if ((_exec_ctx)->type == CONTEXT_CLIENT)       \
-    {                                              \
-        (_exec_ctx)->client->ucp_worker = _worker; \
-    }                                              \
-    else                                           \
-    {                                              \
-        (_exec_ctx)->server->ucp_worker = _worker; \
-    }                                              \
-} while (0)
+#define SET_WORKER(_exec_ctx, _worker)                 \
+    do                                                 \
+    {                                                  \
+        if ((_exec_ctx)->type == CONTEXT_CLIENT)       \
+        {                                              \
+            (_exec_ctx)->client->ucp_worker = _worker; \
+        }                                              \
+        else                                           \
+        {                                              \
+            (_exec_ctx)->server->ucp_worker = _worker; \
+        }                                              \
+    } while (0)
 
-#define EV_SYS(_exec_ctx) ({                      \
-    dpu_offload_ev_sys_t *_sys;                   \
-    if (_exec_ctx->type == CONTEXT_CLIENT)        \
-    {                                             \
-        _sys = _exec_ctx->client->event_channels; \
-    }                                             \
-    else                                          \
-    {                                             \
-        _sys = _exec_ctx->server->event_channels; \
-    }                                             \
-    _sys;                                         \
+#define EV_SYS(_exec_ctx) ({                        \
+    dpu_offload_ev_sys_t *_sys;                     \
+    if ((_exec_ctx)->type == CONTEXT_CLIENT)        \
+    {                                               \
+        _sys = (_exec_ctx)->client->event_channels; \
+    }                                               \
+    else                                            \
+    {                                               \
+        _sys = (_exec_ctx)->server->event_channels; \
+    }                                               \
+    _sys;                                           \
 })
 
 #define EXECUTION_CONTEXT_DONE(_exec_ctx) ({ \
     bool _done;                              \
-    if (_exec_ctx->type == CONTEXT_CLIENT)   \
-        _done = _exec_ctx->client->done;     \
+    ECONTEXT_LOCK((_exec_ctx));              \
+    if ((_exec_ctx)->type == CONTEXT_CLIENT) \
+        _done = (_exec_ctx)->client->done;   \
     else                                     \
-        _done = _exec_ctx->server->done;     \
+        _done = (_exec_ctx)->server->done;   \
+    ECONTEXT_UNLOCK((_exec_ctx));            \
     _done;                                   \
 })
 
@@ -209,6 +213,15 @@ typedef struct op_desc
     void *op_data;
     bool completed;
 } op_desc_t;
+
+#define RESET_OP_DESC(_op_desc)           \
+    do                                    \
+    {                                     \
+        (_op_desc)->id = 0;               \
+        (_op_desc)->op_definition = NULL; \
+        (_op_desc)->op_data = NULL;       \
+        (_op_desc)->completed = false;    \
+    } while (0)
 
 #if 0
 typedef struct active_ops
@@ -368,6 +381,8 @@ struct execution_context;
  */
 typedef struct dpu_offload_ev_sys
 {
+    pthread_mutex_t mutex;
+
     // Pool of available events from which objects are taken when invoking event_get().
     // Once the object obtained, one can populate the event-specific data and emit the event.
     // From a communication point-of-view, these objects are therefore used on the send side.
@@ -386,6 +401,15 @@ typedef struct dpu_offload_ev_sys
 
     // Array of callback functions, i.e., array of pointers, organized based on the notification type, a.k.a. notification ID
     dyn_array_t notification_callbacks;
+
+    // Number of remote events sent but not completed yet
+    size_t num_pending_sends;
+
+    // Maximum number of pending emit operations (in progress emits)
+    size_t max_pending_emits;
+
+    // List of pending emits
+    ucs_list_link_t pending_emits;
 
     // Execution context the event system is associated with.
     struct execution_context *econtext;
@@ -425,6 +449,14 @@ typedef struct conn_params
     struct sockaddr_storage saddr;
 } conn_params_t;
 
+#define RESET_CONN_PARAMS(_params)  \
+    do                              \
+    {                               \
+        (_params)->addr_str = NULL; \
+        (_params)->port_str = NULL; \
+        (_params)->port = -1;       \
+    } while (0)
+
 /**
  * @brief connect_completed_cb is the type of the callback used when a connection completes.
  * It can be used both on a client and server.
@@ -457,43 +489,57 @@ typedef struct init_params
     connect_completed_cb connected_cb;
 } init_params_t;
 
-#define RESET_INIT_PARAMS(_params) do { \
-    (_params)->conn_params = NULL;      \
-    (_params)->proc_info = NULL;        \
-    (_params)->worker = NULL;           \
-    (_params)->ucp_context = NULL;      \
-    (_params)->id_set = false;          \
-    (_params)->connected_cb = NULL;     \
-} while(0)
-
-#define ENGINE_LOCK(_engine)                   \
-    do                                         \
-    {                                          \
-        pthread_mutex_lock(&(_engine->mutex)); \
+#define RESET_INIT_PARAMS(_params)      \
+    do                                  \
+    {                                   \
+        (_params)->conn_params = NULL;  \
+        (_params)->proc_info = NULL;    \
+        (_params)->worker = NULL;       \
+        (_params)->ucp_context = NULL;  \
+        (_params)->id_set = false;      \
+        (_params)->connected_cb = NULL; \
     } while (0)
 
-#define ENGINE_UNLOCK(_engine)                   \
+#define SYS_EVENT_LOCK(_sys_evt)                  \
+    do                                            \
+    {                                             \
+        pthread_mutex_lock(&((_sys_evt)->mutex)); \
+    } while (0)
+
+#define SYS_EVENT_UNLOCK(_sys_evt)                  \
+    do                                              \
+    {                                               \
+        pthread_mutex_unlock(&((_sys_evt)->mutex)); \
+    } while (0)
+
+#define ENGINE_LOCK(_engine)                     \
     do                                           \
     {                                            \
-        pthread_mutex_unlock(&(_engine->mutex)); \
+        pthread_mutex_lock(&((_engine)->mutex)); \
     } while (0)
 
-#define ECONTEXT_LOCK(_econtext)                             \
-    do                                                       \
-    {                                                        \
-        if (_econtext->type == CONTEXT_CLIENT)               \
-            pthread_mutex_lock(&(_econtext->client->mutex)); \
-        else                                                 \
-            pthread_mutex_lock(&(_econtext->server->mutex)); \
+#define ENGINE_UNLOCK(_engine)                     \
+    do                                             \
+    {                                              \
+        pthread_mutex_unlock(&((_engine)->mutex)); \
     } while (0)
 
-#define ECONTEXT_UNLOCK(_econtext)                             \
+#define ECONTEXT_LOCK(_econtext)                               \
     do                                                         \
     {                                                          \
-        if (_econtext->type == CONTEXT_CLIENT)                 \
-            pthread_mutex_unlock(&(_econtext->client->mutex)); \
+        if ((_econtext)->type == CONTEXT_CLIENT)               \
+            pthread_mutex_lock(&((_econtext)->client->mutex)); \
         else                                                   \
-            pthread_mutex_unlock(&(_econtext->server->mutex)); \
+            pthread_mutex_lock(&((_econtext)->server->mutex)); \
+    } while (0)
+
+#define ECONTEXT_UNLOCK(_econtext)                               \
+    do                                                           \
+    {                                                            \
+        if ((_econtext)->type == CONTEXT_CLIENT)                 \
+            pthread_mutex_unlock(&((_econtext)->client->mutex)); \
+        else                                                     \
+            pthread_mutex_unlock(&((_econtext)->server->mutex)); \
     } while (0)
 
 typedef struct dpu_offload_server_t
@@ -570,7 +616,7 @@ typedef struct dpu_offload_client_t
     } conn_data;
 } dpu_offload_client_t;
 
-typedef int (*execution_context_progress_fn)(struct execution_context *);
+typedef void (*execution_context_progress_fn)(struct execution_context *);
 
 struct offloading_engine; // forward declaration
 
@@ -642,6 +688,18 @@ typedef struct pending_am_rdv_recv
     void *user_data;
 } pending_am_rdv_recv_t;
 
+#define RESET_PENDING_RDV_RECV(_rdv_recv)                                                                  \
+    do                                                                                                     \
+    {                                                                                                      \
+        (_rdv_recv)->econtext = NULL;                                                                      \
+        (_rdv_recv)->hdr_len = 0;                                                                          \
+        (_rdv_recv)->hdr = NULL;                                                                           \
+        (_rdv_recv)->req = NULL;                                                                           \
+        (_rdv_recv)->payload_size = 0;                                                                     \
+        (_rdv_recv)->desc = NULL;                                                                          \
+        /* Do not reset user_data and buff_size as it is used over time as a buffer to minimize mallocs */ \
+    } while (0)
+
 /**
  * @brief dpu_offload_event_t represents an event, i.e., the implementation of a notification
  */
@@ -685,9 +743,49 @@ typedef struct dpu_offload_event
     // payload size when the library manages the payload buffer.
     size_t payload_size;
 
+    // Destination endpoint for remote events
+    ucp_ep_h dest_ep;
+
+    // Specifies whether the event was pending or not
+    bool was_pending;
+
     // event_system is the event system the event was initially from
     dpu_offload_ev_sys_t *event_system;
 } dpu_offload_event_t;
+
+#define RESET_EVENT(__ev)                   \
+    do                                      \
+    {                                       \
+        (__ev)->context = NULL;             \
+        (__ev)->payload_size = 0;           \
+        (__ev)->payload = NULL;             \
+        (__ev)->event_system = NULL;        \
+        (__ev)->req = NULL;                 \
+        (__ev)->ctx.complete = 0;           \
+        (__ev)->ctx.hdr.type = 0;           \
+        (__ev)->ctx.hdr.id = 0;             \
+        (__ev)->manage_payload_buf = false; \
+        (__ev)->dest_ep = NULL;             \
+        (__ev)->was_pending = false;        \
+    } while (0)
+
+#define CHECK_EVENT(__ev)                                                                         \
+    do                                                                                            \
+    {                                                                                             \
+        assert((__ev)->payload_size == 0);                                                        \
+        assert((__ev)->ctx.complete == 0);                                                        \
+        assert((__ev)->ctx.hdr.type == 0);                                                        \
+        assert((__ev)->ctx.hdr.id == 0);                                                          \
+        assert((__ev)->manage_payload_buf == false);                                              \
+        assert((__ev)->dest_ep == NULL);                                                          \
+        assert((__ev)->was_pending == false);                                                     \
+        if ((__ev)->sub_events_initialized)                                                       \
+        {                                                                                         \
+            if (!ucs_list_is_empty(&((__ev)->sub_events)))                                        \
+                fprintf(stderr, "Num sub events: %ld\n", ucs_list_length(&((__ev)->sub_events))); \
+            assert(ucs_list_is_empty(&((__ev)->sub_events)));                                     \
+        }                                                                                         \
+    } while (0)
 
 typedef struct dpu_offload_event_info
 {
@@ -914,6 +1012,18 @@ typedef struct pending_notification
     execution_context_t *econtext;
 } pending_notification_t;
 
+#define RESET_PENDING_NOTIF(_notif) \
+    do                              \
+    {                               \
+        (_notif)->type = 0;         \
+        (_notif)->src_id = 0;       \
+        (_notif)->header = NULL;    \
+        (_notif)->header_size = 0;  \
+        (_notif)->data = NULL;      \
+        (_notif)->data_size = 0;    \
+        (_notif)->econtext = NULL;  \
+    } while (0)
+
 /*********************/
 /* DPU CONFIGURATION */
 /*********************/
@@ -1003,6 +1113,20 @@ typedef struct remote_dpu_info
     ucp_ep_h ep;
 } remote_dpu_info_t;
 
+#define RESET_REMOTE_DPU_INFO(_info)                        \
+    do                                                      \
+    {                                                       \
+        (_info)->idx = 0;                                   \
+        (_info)->hostname = NULL;                           \
+        (_info)->peer_addr = NULL;                          \
+        RESET_INIT_PARAMS(&((_info)->init_params));         \
+        (_info)->conn_status = CONNECT_STATUS_DISCONNECTED; \
+        (_info)->offload_engine = NULL;                     \
+        (_info)->econtext = NULL;                           \
+        (_info)->ucp_worker = NULL;                         \
+        (_info)->ep = NULL;                                 \
+    } while (0)
+
 typedef struct dpu_config_data
 {
     union
@@ -1071,6 +1195,8 @@ dpu_offload_status_t find_config_from_platform_configfile(char *, char *, offloa
         (_data)->num_connecting_dpus = 0;                                                                 \
         (_data)->local_dpu.config = NULL;                                                                 \
         (_data)->local_dpu.hostname[0] = '\0';                                                            \
+        RESET_INIT_PARAMS(&((_data)->local_dpu.interdpu_init_params));                                    \
+        RESET_INIT_PARAMS(&((_data)->local_dpu.host_init_params));                                        \
         (_data)->local_dpu.interdpu_conn_params.port = -1;                                                \
         (_data)->local_dpu.interdpu_conn_params.port_str = NULL;                                          \
         (_data)->local_dpu.interdpu_conn_params.addr_str = NULL;                                          \

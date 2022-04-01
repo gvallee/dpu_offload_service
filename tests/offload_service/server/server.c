@@ -98,6 +98,7 @@ int main(int argc, char **argv)
     }
 
     // NOTIFICATIONS TEST
+    fprintf(stderr, "STARTING TEST OF THE NOTIFICATION SYSTEM\n");
 
     /* First we are the receiving side of a bunch of events */
     WAIT_FOR_ALL_EVENTS(server);
