@@ -109,36 +109,40 @@ typedef enum
     _w;                                       \
 })
 
-#define SET_WORKER(_exec_ctx, _worker) do {        \
-    if ((_exec_ctx)->type == CONTEXT_CLIENT)       \
-    {                                              \
-        (_exec_ctx)->client->ucp_worker = _worker; \
-    }                                              \
-    else                                           \
-    {                                              \
-        (_exec_ctx)->server->ucp_worker = _worker; \
-    }                                              \
-} while (0)
+#define SET_WORKER(_exec_ctx, _worker)                 \
+    do                                                 \
+    {                                                  \
+        if ((_exec_ctx)->type == CONTEXT_CLIENT)       \
+        {                                              \
+            (_exec_ctx)->client->ucp_worker = _worker; \
+        }                                              \
+        else                                           \
+        {                                              \
+            (_exec_ctx)->server->ucp_worker = _worker; \
+        }                                              \
+    } while (0)
 
-#define EV_SYS(_exec_ctx) ({                      \
-    dpu_offload_ev_sys_t *_sys;                   \
-    if (_exec_ctx->type == CONTEXT_CLIENT)        \
-    {                                             \
-        _sys = _exec_ctx->client->event_channels; \
-    }                                             \
-    else                                          \
-    {                                             \
-        _sys = _exec_ctx->server->event_channels; \
-    }                                             \
-    _sys;                                         \
+#define EV_SYS(_exec_ctx) ({                        \
+    dpu_offload_ev_sys_t *_sys;                     \
+    if ((_exec_ctx)->type == CONTEXT_CLIENT)        \
+    {                                               \
+        _sys = (_exec_ctx)->client->event_channels; \
+    }                                               \
+    else                                            \
+    {                                               \
+        _sys = (_exec_ctx)->server->event_channels; \
+    }                                               \
+    _sys;                                           \
 })
 
 #define EXECUTION_CONTEXT_DONE(_exec_ctx) ({ \
     bool _done;                              \
-    if (_exec_ctx->type == CONTEXT_CLIENT)   \
-        _done = _exec_ctx->client->done;     \
+    ECONTEXT_LOCK((_exec_ctx));              \
+    if ((_exec_ctx)->type == CONTEXT_CLIENT) \
+        _done = (_exec_ctx)->client->done;   \
     else                                     \
-        _done = _exec_ctx->server->done;     \
+        _done = (_exec_ctx)->server->done;   \
+    ECONTEXT_UNLOCK((_exec_ctx));            \
     _done;                                   \
 })
 
@@ -368,6 +372,8 @@ struct execution_context;
  */
 typedef struct dpu_offload_ev_sys
 {
+    pthread_mutex_t mutex;
+
     // Pool of available events from which objects are taken when invoking event_get().
     // Once the object obtained, one can populate the event-specific data and emit the event.
     // From a communication point-of-view, these objects are therefore used on the send side.
@@ -386,6 +392,15 @@ typedef struct dpu_offload_ev_sys
 
     // Array of callback functions, i.e., array of pointers, organized based on the notification type, a.k.a. notification ID
     dyn_array_t notification_callbacks;
+
+    // Number of remote events sent but not completed yet
+    size_t num_pending_sends;
+
+    // Maximum number of pending emit operations (in progress emits)
+    size_t max_pending_emits;
+
+    // List of pending emits
+    ucs_list_link_t pending_emits;
 
     // Execution context the event system is associated with.
     struct execution_context *econtext;
@@ -457,43 +472,57 @@ typedef struct init_params
     connect_completed_cb connected_cb;
 } init_params_t;
 
-#define RESET_INIT_PARAMS(_params) do { \
-    (_params)->conn_params = NULL;      \
-    (_params)->proc_info = NULL;        \
-    (_params)->worker = NULL;           \
-    (_params)->ucp_context = NULL;      \
-    (_params)->id_set = false;          \
-    (_params)->connected_cb = NULL;     \
-} while(0)
-
-#define ENGINE_LOCK(_engine)                   \
-    do                                         \
-    {                                          \
-        pthread_mutex_lock(&(_engine->mutex)); \
+#define RESET_INIT_PARAMS(_params)      \
+    do                                  \
+    {                                   \
+        (_params)->conn_params = NULL;  \
+        (_params)->proc_info = NULL;    \
+        (_params)->worker = NULL;       \
+        (_params)->ucp_context = NULL;  \
+        (_params)->id_set = false;      \
+        (_params)->connected_cb = NULL; \
     } while (0)
 
-#define ENGINE_UNLOCK(_engine)                   \
+#define SYS_EVENT_LOCK(_sys_evt)                  \
+    do                                            \
+    {                                             \
+        pthread_mutex_lock(&((_sys_evt)->mutex)); \
+    } while (0)
+
+#define SYS_EVENT_UNLOCK(_sys_evt)                  \
+    do                                              \
+    {                                               \
+        pthread_mutex_unlock(&((_sys_evt)->mutex)); \
+    } while (0)
+
+#define ENGINE_LOCK(_engine)                     \
     do                                           \
     {                                            \
-        pthread_mutex_unlock(&(_engine->mutex)); \
+        pthread_mutex_lock(&((_engine)->mutex)); \
     } while (0)
 
-#define ECONTEXT_LOCK(_econtext)                             \
-    do                                                       \
-    {                                                        \
-        if (_econtext->type == CONTEXT_CLIENT)               \
-            pthread_mutex_lock(&(_econtext->client->mutex)); \
-        else                                                 \
-            pthread_mutex_lock(&(_econtext->server->mutex)); \
+#define ENGINE_UNLOCK(_engine)                     \
+    do                                             \
+    {                                              \
+        pthread_mutex_unlock(&((_engine)->mutex)); \
     } while (0)
 
-#define ECONTEXT_UNLOCK(_econtext)                             \
+#define ECONTEXT_LOCK(_econtext)                               \
     do                                                         \
     {                                                          \
-        if (_econtext->type == CONTEXT_CLIENT)                 \
-            pthread_mutex_unlock(&(_econtext->client->mutex)); \
+        if ((_econtext)->type == CONTEXT_CLIENT)               \
+            pthread_mutex_lock(&((_econtext)->client->mutex)); \
         else                                                   \
-            pthread_mutex_unlock(&(_econtext->server->mutex)); \
+            pthread_mutex_lock(&((_econtext)->server->mutex)); \
+    } while (0)
+
+#define ECONTEXT_UNLOCK(_econtext)                               \
+    do                                                           \
+    {                                                            \
+        if ((_econtext)->type == CONTEXT_CLIENT)                 \
+            pthread_mutex_unlock(&((_econtext)->client->mutex)); \
+        else                                                     \
+            pthread_mutex_unlock(&((_econtext)->server->mutex)); \
     } while (0)
 
 typedef struct dpu_offload_server_t
@@ -570,7 +599,7 @@ typedef struct dpu_offload_client_t
     } conn_data;
 } dpu_offload_client_t;
 
-typedef int (*execution_context_progress_fn)(struct execution_context *);
+typedef void (*execution_context_progress_fn)(struct execution_context *);
 
 struct offloading_engine; // forward declaration
 
@@ -684,6 +713,12 @@ typedef struct dpu_offload_event
 
     // payload size when the library manages the payload buffer.
     size_t payload_size;
+
+    // Destination endpoint for remote events
+    ucp_ep_h dest_ep;
+
+    // Specifies whether the event was pending or not
+    bool was_pending;
 
     // event_system is the event system the event was initially from
     dpu_offload_ev_sys_t *event_system;

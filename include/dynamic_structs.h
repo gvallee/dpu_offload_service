@@ -38,6 +38,7 @@ typedef struct dyn_list
     do                                                                                                                     \
     {                                                                                                                      \
         assert(__dyn_list);                                                                                                \
+        assert(ucs_list_length(&((__dyn_list)->list)) == 0);                                                               \
         if ((__dyn_list)->num_mem_chunks + 1 < MAX_MEM_CHUNKS)                                                             \
         {                                                                                                                  \
             size_t _chunk_size = (__dyn_list)->num_elts_alloc * sizeof(__type);                                            \
@@ -52,6 +53,13 @@ typedef struct dyn_list
                 {                                                                                                          \
                     __type *_e = (__type *)(_chunk);                                                                       \
                     ucs_list_add_tail(&((__dyn_list)->list), &(_e[_i].__elt));                                             \
+                }                                                                                                          \
+                if (ucs_list_length(&((__dyn_list)->list)) != ((__dyn_list)->num_elts + (__dyn_list)->num_elts_alloc))     \
+                {                                                                                                          \
+                    fprintf(stderr, "List size=%ld\n", ucs_list_length(&((__dyn_list)->list)));                            \
+                    fprintf(stderr, "Expected number of elements: %ld, num_elts_alloc=%ld\n",                              \
+                            ((__dyn_list)->num_elts + (__dyn_list)->num_elts_alloc),                                       \
+                            (__dyn_list)->num_elts_alloc);                                                                 \
                 }                                                                                                          \
                 assert(ucs_list_length(&((__dyn_list)->list)) == ((__dyn_list)->num_elts + (__dyn_list)->num_elts_alloc)); \
                 (__dyn_list)->num_elts += (__dyn_list)->num_elts_alloc;                                                    \
