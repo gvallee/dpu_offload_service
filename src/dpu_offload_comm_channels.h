@@ -61,12 +61,12 @@ static dpu_offload_status_t dpu_offload_set_am_recv_handlers(execution_context_t
     ucs_status_t status = ucp_worker_set_am_recv_handler(worker, &term_param);
     if (status != UCS_OK)
     {
-        return -1;
+        return DO_ERROR;
     }
 
     DBG("AM recv handlers successfully registered");
 
-    return 0;
+    return DO_SUCCESS;
 }
 
 #endif // _DPU_OFFLOAD_COMM_CHANNELS_H
