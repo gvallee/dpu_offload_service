@@ -436,10 +436,13 @@ dpu_offload_status_t event_get(dpu_offload_ev_sys_t *ev_sys, dpu_offload_event_i
     CHECK_ERR_RETURN((ev_sys == NULL), DO_ERROR, "Undefine event system");
     SYS_EVENT_LOCK(ev_sys);
     DYN_LIST_GET(ev_sys->free_evs, dpu_offload_event_t, item, _ev);
+    SYS_EVENT_UNLOCK(ev_sys);
     DBG("Got event %p from list %p\n", _ev, ev_sys->free_evs);
     if (_ev != NULL)
     {
+        SYS_EVENT_LOCK(ev_sys);
         ev_sys->num_used_evs++;
+        SYS_EVENT_UNLOCK(ev_sys);
         RESET_EVENT(_ev);
         CHECK_EVENT(_ev);
         _ev->event_system = ev_sys;
@@ -451,10 +454,10 @@ dpu_offload_status_t event_get(dpu_offload_ev_sys_t *ev_sys, dpu_offload_event_i
         _ev->manage_payload_buf = true;
         _ev->payload_size = info->payload_size;
         _ev->payload = malloc(info->payload_size); // No advanced memory management at the moment, just malloc
+        assert(_ev->payload);
     }
 
 out:
-    SYS_EVENT_UNLOCK(ev_sys);
     *ev = _ev;
     return DO_SUCCESS;
 }
@@ -474,12 +477,18 @@ dpu_offload_status_t event_return(dpu_offload_event_t **ev)
 
     assert((*ev)->event_system);
     if ((*ev)->was_pending)
+    {
+        SYS_EVENT_LOCK((*ev)->event_system);
         (*ev)->event_system->num_pending_sends--;
+        SYS_EVENT_UNLOCK((*ev)->event_system);
+    }
 
     // If the event has a payload buffer that the library is managing, free that buffer
     if ((*ev)->manage_payload_buf && (*ev)->payload != NULL)
     {
         free((*ev)->payload);
+        (*ev)->payload = NULL;
+        (*ev)->payload_size = 0;
     }
 
     SYS_EVENT_LOCK((*ev)->event_system);
