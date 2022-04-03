@@ -284,11 +284,14 @@ static void send_cb(void *request, ucs_status_t status, void *user_data)
             {                                                                                                      \
                 (_econtext)->engine->ucp_context = INIT_UCX();                                                     \
             }                                                                                                      \
-            dpu_offload_status_t _ret = init_context(&((_econtext)->engine->ucp_context),                          \
-                                                     &(_econtext_worker));                                         \
-            CHECK_ERR_RETURN((_ret != 0), DO_ERROR, "init_context() failed");                                      \
-            SET_WORKER((_econtext), _econtext_worker);                                                             \
-            DBG("context successfully initialized (worker=%p)", _econtext_worker);                                 \
+            if ((_econtext)->engine->ucp_worker == NULL)                                                           \
+            {                                                                                                      \
+                dpu_offload_status_t _ret = init_context(&((_econtext)->engine->ucp_context),                      \
+                                                         &(_econtext_worker));                                     \
+                CHECK_ERR_RETURN((_ret != 0), DO_ERROR, "init_context() failed");                                  \
+                SET_WORKER((_econtext), _econtext_worker);                                                         \
+                DBG("context successfully initialized (worker=%p)", _econtext_worker);                             \
+            }                                                                                                      \
         }                                                                                                          \
         if ((_init_params) != NULL && (_init_params)->worker != NULL)                                              \
         {                                                                                                          \
