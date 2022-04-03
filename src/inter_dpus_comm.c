@@ -212,7 +212,7 @@ static void *connect_thread(void *arg)
     list_dpus[remote_dpu_info->idx]->ep = client->client->server_ep;
     list_dpus[remote_dpu_info->idx]->econtext = client;
     list_dpus[remote_dpu_info->idx]->peer_addr = client->client->conn_data.oob.peer_addr;
-    list_dpus[remote_dpu_info->idx]->ucp_worker = client->client->ucp_worker;
+    list_dpus[remote_dpu_info->idx]->ucp_worker = GET_WORKER(client);
     assert(list_dpus[remote_dpu_info->idx]->peer_addr);
     DBG("-> DPU #%ld: addr=%s, port=%d, ep=%p, econtext=%p",
         remote_dpu_info->idx,
@@ -260,12 +260,12 @@ dpu_offload_status_t inter_dpus_connect_mgr(offloading_engine_t *engine, offload
     DBG("UCX successfully initialized, context: %p", engine->ucp_context);
 
     // Create a self worker
-    INIT_WORKER(engine->ucp_context, &(engine->self_worker));
+    INIT_WORKER(engine->ucp_context, &(engine->ucp_worker));
 
     /* self EP */
     static ucp_address_t *local_addr;
     size_t local_addr_len;
-    ucp_worker_get_address(engine->self_worker, &local_addr, &local_addr_len);
+    ucp_worker_get_address(engine->ucp_worker, &local_addr, &local_addr_len);
 
     ucp_ep_params_t ep_params;
     ep_params.field_mask = UCP_EP_PARAM_FIELD_REMOTE_ADDRESS;
@@ -280,7 +280,7 @@ dpu_offload_status_t inter_dpus_connect_mgr(offloading_engine_t *engine, offload
     // ep_params.err_handler.arg = NULL;
     // ep_params.user_data = &(client->server_ep_status);
     ucp_ep_h self_ep;
-    ucs_status_t status = ucp_ep_create(engine->self_worker, &ep_params, &self_ep);
+    ucs_status_t status = ucp_ep_create(engine->ucp_worker, &ep_params, &self_ep);
     CHECK_ERR_RETURN((status != UCS_OK), DO_ERROR, "ucp_ep_create() failed");
     engine->self_ep = self_ep; // fixme: correctly free
 
