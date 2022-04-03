@@ -744,20 +744,21 @@ typedef struct dpu_offload_event
     dpu_offload_ev_sys_t *event_system;
 } dpu_offload_event_t;
 
-#define RESET_EVENT(__ev)                   \
-    do                                      \
-    {                                       \
-        (__ev)->context = NULL;             \
-        (__ev)->payload_size = 0;           \
-        (__ev)->payload = NULL;             \
-        (__ev)->event_system = NULL;        \
-        (__ev)->req = NULL;                 \
-        (__ev)->ctx.complete = 0;           \
-        (__ev)->ctx.hdr.type = 0;           \
-        (__ev)->ctx.hdr.id = 0;             \
-        (__ev)->manage_payload_buf = false; \
-        (__ev)->dest_ep = NULL;             \
-        (__ev)->was_pending = false;        \
+#define RESET_EVENT(__ev)                       \
+    do                                          \
+    {                                           \
+        (__ev)->context = NULL;                 \
+        (__ev)->payload_size = 0;               \
+        (__ev)->payload = NULL;                 \
+        (__ev)->event_system = NULL;            \
+        (__ev)->req = NULL;                     \
+        (__ev)->ctx.complete = 0;               \
+        (__ev)->ctx.hdr.type = 0;               \
+        (__ev)->ctx.hdr.id = 0;                 \
+        (__ev)->manage_payload_buf = false;     \
+        (__ev)->dest_ep = NULL;                 \
+        (__ev)->was_pending = false;            \
+        (__ev)->sub_events_initialized = false; \
     } while (0)
 
 #define CHECK_EVENT(__ev)                                                                         \
