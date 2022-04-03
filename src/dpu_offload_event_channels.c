@@ -171,13 +171,21 @@ static ucs_status_t am_notification_msg_cb(void *arg, const void *header, size_t
     return handle_am_msg(econtext, hdr, header_length, data, length);
 }
 
+void init_event(void *ev_ptr)
+{
+    assert(ev_ptr);
+    dpu_offload_event_t *ev = (dpu_offload_event_t *)ev_ptr;
+    RESET_EVENT(ev);
+    ev->sub_events_initialized = false;
+}
+
 dpu_offload_status_t ev_channels_init(dpu_offload_ev_sys_t **ev_channels)
 {
     dpu_offload_ev_sys_t *event_channels = malloc(sizeof(dpu_offload_ev_sys_t));
     CHECK_ERR_RETURN((event_channels == NULL), DO_ERROR, "Resource allocation failed");
     size_t num_evts = DEFAULT_NUM_EVTS;
     size_t num_free_pending_notifications = DEFAULT_NUM_NOTIFICATION_CALLBACKS;
-    DYN_LIST_ALLOC(event_channels->free_evs, num_evts, dpu_offload_event_t, item);
+    DYN_LIST_ALLOC_WITH_INIT_CALLBACK(event_channels->free_evs, num_evts, dpu_offload_event_t, item, init_event);
     assert(event_channels->free_evs);
     DYN_LIST_ALLOC(event_channels->free_pending_notifications, num_free_pending_notifications, pending_notification_t, item);
     assert(event_channels->free_pending_notifications);

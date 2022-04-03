@@ -753,6 +753,11 @@ typedef struct dpu_offload_event
     dpu_offload_ev_sys_t *event_system;
 } dpu_offload_event_t;
 
+/**
+ * @brief RESET_EVENT does not reinitialize sub_events_initialized because if is done
+ * only once and reuse as events are reused. However, it is initialized when the
+ * dynamic list is initialized
+ */
 #define RESET_EVENT(__ev)                   \
     do                                      \
     {                                       \
