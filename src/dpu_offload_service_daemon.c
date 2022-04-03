@@ -312,8 +312,9 @@ dpu_offload_status_t client_init_context(execution_context_t *econtext, init_par
     dpu_offload_status_t rc;
     econtext->type = CONTEXT_CLIENT;
     econtext->client = malloc(sizeof(dpu_offload_client_t));
-    econtext->client->connected_cb = NULL;
     CHECK_ERR_RETURN((econtext->client == NULL), DO_ERROR, "Unable to allocate client handle\n");
+    econtext->client->econtext = (struct execution_context *)econtext;
+    econtext->client->connected_cb = NULL;
     ret = pthread_mutex_init(&(econtext->client->mutex), NULL);
     CHECK_ERR_RETURN((ret), DO_ERROR, "pthread_mutex_init() failed: %s", strerror(errno));
 
@@ -335,7 +336,7 @@ dpu_offload_status_t client_init_context(execution_context_t *econtext, init_par
 
     // Make sure we correctly handle whether the UCX context/worker is provided
     DO_INIT_WORKER(econtext, init_params);
-    assert(econtext->client->ucp_worker);
+    assert(GET_WORKER(econtext));
 
     // If we have a group/rank in the init params, we pass it down
     if (init_params != NULL && init_params->proc_info != NULL)
@@ -364,7 +365,7 @@ dpu_offload_status_t client_init_context(execution_context_t *econtext, init_par
         econtext->client->conn_data.oob.peer_addr_len = 0;
         econtext->client->conn_data.oob.sock = -1;
 
-        ucs_status_t status = ucp_worker_get_address(econtext->client->ucp_worker,
+        ucs_status_t status = ucp_worker_get_address(GET_WORKER(econtext),
                                                      &(econtext->client->conn_data.oob.local_addr),
                                                      &(econtext->client->conn_data.oob.local_addr_len));
         CHECK_ERR_RETURN((status != UCS_OK), DO_ERROR, "ucp_worker_get_address() failed");
@@ -404,7 +405,8 @@ static dpu_offload_status_t ucx_listener_client_connect(dpu_offload_client_t *cl
     ep_params.sockaddr.addr = (struct sockaddr *)&(client->conn_data.ucx_listener.connect_addr);
     ep_params.sockaddr.addrlen = sizeof(client->conn_data.ucx_listener.connect_addr);
     DBG("Connecting to %s:%s", client->conn_params.addr_str, client->conn_params.port_str);
-    ucs_status_t status = ucp_ep_create(client->ucp_worker, &ep_params, &(client->server_ep));
+    execution_context_t *econtext = (execution_context_t *)client->econtext;
+    ucs_status_t status = ucp_ep_create(GET_WORKER(econtext), &ep_params, &(client->server_ep));
     CHECK_ERR_RETURN((status != UCS_OK), DO_ERROR, "failed to connect to %s (%s)", client->conn_params.addr_str,
                      ucs_status_string(status));
     DBG("Endpoint %p successfully created", client->server_ep);
@@ -501,7 +503,7 @@ static dpu_offload_status_t oob_connect(execution_context_t *econtext)
     ep_params.err_handler.arg = NULL;
     ep_params.user_data = &(client->server_ep_status);
 
-    ucs_status_t status = ucp_ep_create(client->ucp_worker, &ep_params, &client->server_ep);
+    ucs_status_t status = ucp_ep_create(GET_WORKER(econtext), &ep_params, &client->server_ep);
     CHECK_ERR_RETURN((status != UCS_OK), DO_ERROR, "ucp_ep_create() failed");
 
     size_t msg_len = sizeof(uint64_t) + client->conn_data.oob.local_addr_len;
@@ -523,7 +525,7 @@ static dpu_offload_status_t oob_connect(execution_context_t *econtext)
     addr_request = ucp_tag_send_nbx(client->server_ep, msg, msg_len, client->conn_data.oob.tag,
                                     &send_param);
     // Because this is part of the bootstrapping, we wait for the sends to complete
-    ucx_wait(client->ucp_worker, addr_request, "send",
+    ucx_wait(GET_WORKER(econtext), addr_request, "send",
              client->conn_data.oob.addr_msg_str);
 
     // We send our "rank", i.e., unique application ID
@@ -532,7 +534,7 @@ static dpu_offload_status_t oob_connect(execution_context_t *econtext)
     send_param.user_data = NULL;
     rank_request = ucp_tag_send_nbx(client->server_ep, &(econtext->rank), sizeof(rank_info_t), client->conn_data.oob.tag + 1,
                                     &send_param);
-    ucx_wait(client->ucp_worker, rank_request, "send", NULL);
+    ucx_wait(GET_WORKER(econtext), rank_request, "send", NULL);
 
     free(msg);
     msg = NULL;
@@ -577,7 +579,7 @@ dpu_offload_status_t offload_engine_init(offloading_engine_t **engine)
     int ret = pthread_mutex_init(&(d->mutex), NULL);
     CHECK_ERR_RETURN((ret), DO_ERROR, "pthread_mutex_init() failed: %s", strerror(errno));
     d->done = 0;
-    d->self_worker = NULL;
+    d->ucp_worker = NULL;
     d->ucp_context = NULL;
     d->client = NULL;
     d->num_max_servers = DEFAULT_MAX_NUM_SERVERS;
@@ -852,11 +854,10 @@ void client_fini(execution_context_t **exec_ctx)
     dpu_offload_client_t *client = context->client;
     void *request = ucp_am_send_nbx(client->server_ep, AM_TERM_MSG_ID, NULL, 0ul, term_msg,
                                     msg_length, &params);
-    request_finalize(client->ucp_worker, request, &ctx);
+    request_finalize(GET_WORKER(*exec_ctx), request, &ctx);
     DBG("Termination message successfully sent");
 
-    ep_close(client->ucp_worker, client->server_ep);
-    ucp_worker_destroy(client->ucp_worker);
+    ep_close(GET_WORKER(*exec_ctx), client->server_ep);
 
     switch (context->client->mode)
     {
@@ -879,7 +880,7 @@ void client_fini(execution_context_t **exec_ctx)
             free(client->conn_data.oob.peer_addr);
             client->conn_data.oob.peer_addr = NULL;
         }
-        ucp_worker_release_address(client->ucp_worker, client->conn_data.oob.local_addr);
+        ucp_worker_release_address(GET_WORKER(*exec_ctx), client->conn_data.oob.local_addr);
     }
 
     event_channels_fini(&(client->event_channels));
@@ -941,7 +942,7 @@ static dpu_offload_status_t ucx_listener_server(dpu_offload_server_t *server)
     params.conn_handler.arg = &(server->conn_data.ucx_listener.context);
     /* Create a listener on the server side to listen on the given address.*/
     DBG("Creating listener on %s:%s", server->conn_params.addr_str, port_str);
-    status = ucp_listener_create(server->ucp_worker, &params, &(server->conn_data.ucx_listener.context.listener));
+    status = ucp_listener_create(GET_WORKER(server->econtext), &params, &(server->conn_data.ucx_listener.context.listener));
     CHECK_ERR_RETURN((status != UCS_OK), DO_ERROR, "failed to listen (%s)", ucs_status_string(status));
 
     /* Query the created listener to get the port it is listening on. */
@@ -1002,10 +1003,10 @@ static inline dpu_offload_status_t oob_server_ucx_client_connection(execution_co
     {
         ECONTEXT_LOCK(econtext);
         /* Progressing before probe to update the state */
-        ucp_worker_progress(server->ucp_worker);
+        ucp_worker_progress(GET_WORKER(econtext));
 
         /* Probing incoming events in non-block mode */
-        msg_tag = ucp_tag_probe_nb(server->ucp_worker, server->conn_data.oob.tag, server->conn_data.oob.tag_mask, 1, &info_tag);
+        msg_tag = ucp_tag_probe_nb(GET_WORKER(econtext), server->conn_data.oob.tag, server->conn_data.oob.tag_mask, 1, &info_tag);
         ECONTEXT_UNLOCK(econtext);
     } while (msg_tag == NULL);
 
@@ -1013,11 +1014,11 @@ static inline dpu_offload_status_t oob_server_ucx_client_connection(execution_co
     DBG("allocating space for message to receive: %ld", info_tag.length);
     msg = malloc(info_tag.length);
     CHECK_ERR_GOTO((msg == NULL), error_out, "unable to allocate memory");
-    assert(server->ucp_worker);
-    addr_request = ucp_tag_msg_recv_nb(server->ucp_worker, msg, info_tag.length,
+    assert(GET_WORKER(econtext));
+    addr_request = ucp_tag_msg_recv_nb(GET_WORKER(econtext), msg, info_tag.length,
                                        ucp_dt_make_contig(1), msg_tag, oob_recv_addr_handler);
     DBG("Receiving address length and data (len: %ld, req: %p)", info_tag.length, addr_request);
-    status = ucx_wait(server->ucp_worker, addr_request, "receive", server->conn_data.oob.addr_msg_str);
+    status = ucx_wait(GET_WORKER(econtext), addr_request, "receive", server->conn_data.oob.addr_msg_str);
     if (status != UCS_OK)
     {
         free(msg);
@@ -1025,7 +1026,6 @@ static inline dpu_offload_status_t oob_server_ucx_client_connection(execution_co
     }
     assert(addr_request);
     assert(server);
-    assert(server->ucp_worker);
     assert(server->conn_data.oob.addr_msg_str);
 
     server->connected_clients.clients[server->connected_clients.num_connected_clients].peer_addr_len = msg->len;
@@ -1047,7 +1047,7 @@ static inline dpu_offload_status_t oob_server_ucx_client_connection(execution_co
     ep_params.err_handler.arg = NULL;
     ep_params.address = server->connected_clients.clients[server->connected_clients.num_connected_clients].peer_addr;
     ep_params.user_data = &(server->connected_clients.clients[server->connected_clients.num_connected_clients].ep_status);
-    ucp_worker_h worker = server->ucp_worker;
+    ucp_worker_h worker = GET_WORKER(econtext);
     CHECK_ERR_GOTO((worker == NULL), error_out, "undefined worker");
     ucp_ep_h client_ep;
     status = ucp_ep_create(worker, &ep_params, &client_ep);
@@ -1062,17 +1062,17 @@ static inline dpu_offload_status_t oob_server_ucx_client_connection(execution_co
     do
     {
         /* Progressing before probe to update the state */
-        ucp_worker_progress(server->ucp_worker);
+        ucp_worker_progress(GET_WORKER(econtext));
 
         /* Probing incoming events in non-block mode */
-        msg_tag = ucp_tag_probe_nb(server->ucp_worker, server->conn_data.oob.tag + 1, server->conn_data.oob.tag_mask, 1, &info_tag);
+        msg_tag = ucp_tag_probe_nb(GET_WORKER(econtext), server->conn_data.oob.tag + 1, server->conn_data.oob.tag_mask, 1, &info_tag);
     } while (msg_tag == NULL);
     DBG("Ready to receive peer data\n");
     rank_info_t peer_data;
-    rank_request = ucp_tag_msg_recv_nb(server->ucp_worker, &peer_data, sizeof(rank_info_t),
+    rank_request = ucp_tag_msg_recv_nb(GET_WORKER(econtext), &peer_data, sizeof(rank_info_t),
                                        ucp_dt_make_contig(1), msg_tag, oob_recv_rank_handler);
     DBG("Receiving rank info (len=%ld, req=%p)", sizeof(rank_info_t), rank_request);
-    ucx_wait(server->ucp_worker, rank_request, "receive", NULL);
+    ucx_wait(GET_WORKER(econtext), rank_request, "receive", NULL);
     DBG("group/rank received: (%" PRId64 "/%" PRId64 ")", peer_data.group_id, peer_data.group_rank);
     if (peer_data.group_id != INVALID_GROUP && peer_data.group_rank != INVALID_RANK)
     {
@@ -1196,7 +1196,7 @@ static void *connect_thread(void *arg)
             while (econtext->server->conn_data.ucx_listener.context.conn_request == NULL)
             {
                 DBG("Progressing worker...");
-                ucp_worker_progress(econtext->server->ucp_worker);
+                ucp_worker_progress(GET_WORKER(econtext));
             }
 
             if (econtext->server->connected_cb != NULL)
@@ -1255,6 +1255,7 @@ dpu_offload_status_t server_init_context(execution_context_t *econtext, init_par
     econtext->type = CONTEXT_SERVER;
     econtext->server = malloc(sizeof(dpu_offload_server_t));
     CHECK_ERR_RETURN((econtext->server == NULL), DO_ERROR, "Unable to allocate server handle");
+    econtext->server->econtext = (struct execution_context *)econtext;
     econtext->server->mode = OOB; // By default, we connect with the OOB mode
     econtext->server->connected_clients.clients = malloc(DEFAULT_MAX_NUM_CLIENTS * sizeof(peer_info_t));
     econtext->server->connected_clients.num_connected_clients = 0;
@@ -1295,7 +1296,7 @@ dpu_offload_status_t server_init_context(execution_context_t *econtext, init_par
 
     // Make sure we correctly handle whether the UCX context/worker is provided
     DO_INIT_WORKER(econtext, init_params);
-    assert(econtext->server->ucp_worker);
+    assert(GET_WORKER(econtext));
 
     switch (econtext->server->mode)
     {
@@ -1316,8 +1317,9 @@ dpu_offload_status_t server_init_context(execution_context_t *econtext, init_par
         econtext->server->conn_data.oob.local_addr_len = 0;
         econtext->server->conn_data.oob.peer_addr_len = 0;
         econtext->server->conn_data.oob.listenfd = -1;
-        assert(econtext->server->ucp_worker);
-        ucs_status_t status = ucp_worker_get_address(econtext->server->ucp_worker,
+        ucp_worker_h worker = GET_WORKER(econtext);
+        assert(worker);
+        ucs_status_t status = ucp_worker_get_address(worker,
                                                      &(econtext->server->conn_data.oob.local_addr),
                                                      &(econtext->server->conn_data.oob.local_addr_len));
         CHECK_ERR_RETURN((status != UCS_OK), DO_ERROR, "ucp_worker_get_address() failed");
@@ -1368,7 +1370,7 @@ execution_context_t *server_init(offloading_engine_t *offloading_engine, init_pa
     rc = server_init_context(execution_context, init_params);
     CHECK_ERR_GOTO((rc), error_out, "server_init_context() failed");
     CHECK_ERR_GOTO((execution_context->server == NULL), error_out, "undefined server handle");
-    DBG("server handle %p successfully created (worker=%p)", execution_context->server, execution_context->server->ucp_worker);
+    DBG("server handle %p successfully created (worker=%p)", execution_context->server, GET_WORKER(execution_context));
     offloading_engine->servers[offloading_engine->num_servers] = execution_context;
     offloading_engine->num_servers++;
 
@@ -1447,7 +1449,7 @@ void server_fini(execution_context_t **exec_ctx)
     int i;
     for (i = 0; i < server->connected_clients.num_connected_clients; i++)
     {
-        ep_close(server->ucp_worker, server->connected_clients.clients[i].ep);
+        ep_close(GET_WORKER(*exec_ctx), server->connected_clients.clients[i].ep);
     }
 
     switch (server->mode)
@@ -1460,14 +1462,14 @@ void server_fini(execution_context_t **exec_ctx)
     }
     default:
         /* OOB */
-        ucp_worker_release_address(server->ucp_worker, server->conn_data.oob.local_addr);
+        ucp_worker_release_address(GET_WORKER(*exec_ctx), server->conn_data.oob.local_addr);
         if (server->conn_data.oob.peer_addr != NULL)
         {
             free(server->conn_data.oob.peer_addr);
             server->conn_data.oob.peer_addr = NULL;
         }
     }
-    ucp_worker_destroy(server->ucp_worker);
+    ucp_worker_destroy(GET_WORKER(*exec_ctx));
 
     event_channels_fini(&(server->event_channels));
 

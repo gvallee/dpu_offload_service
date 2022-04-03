@@ -96,30 +96,15 @@ typedef enum
     _ep;                                                                   \
 })
 
-#define GET_WORKER(_exec_ctx) ({              \
-    ucp_worker_h _w;                          \
-    if ((_exec_ctx)->type == CONTEXT_CLIENT)  \
-    {                                         \
-        _w = (_exec_ctx)->client->ucp_worker; \
-    }                                         \
-    else                                      \
-    {                                         \
-        _w = (_exec_ctx)->server->ucp_worker; \
-    }                                         \
-    _w;                                       \
+#define GET_WORKER(_exec_ctx) ({                       \
+    ucp_worker_h _w = (_exec_ctx)->engine->ucp_worker; \
+    _w;                                                \
 })
 
-#define SET_WORKER(_exec_ctx, _worker)                 \
-    do                                                 \
-    {                                                  \
-        if ((_exec_ctx)->type == CONTEXT_CLIENT)       \
-        {                                              \
-            (_exec_ctx)->client->ucp_worker = _worker; \
-        }                                              \
-        else                                           \
-        {                                              \
-            (_exec_ctx)->server->ucp_worker = _worker; \
-        }                                              \
+#define SET_WORKER(_exec_ctx, _worker)             \
+    do                                             \
+    {                                              \
+        (_exec_ctx)->engine->ucp_worker = _worker; \
     } while (0)
 
 #define EV_SYS(_exec_ctx) ({                        \
@@ -545,10 +530,13 @@ typedef struct init_params
 typedef struct dpu_offload_server_t
 {
     uint64_t id;
+
+    // Execution context the server is associated to
+    struct execution_context *econtext;
+
     int mode;
     bool done;
     conn_params_t conn_params;
-    ucp_worker_h ucp_worker;
     pthread_t connect_tid;
     pthread_mutex_t mutex;
     pthread_mutexattr_t mattr;
@@ -583,6 +571,10 @@ typedef struct dpu_offload_server_t
 typedef struct dpu_offload_client_t
 {
     uint64_t id; // Identifier assigned by server
+
+    // Execution context the server is associated to
+    struct execution_context *econtext;
+
     int mode;
     conn_params_t conn_params;
     bool done;
@@ -590,7 +582,6 @@ typedef struct dpu_offload_client_t
     // Callback to invoke when a connection completes
     connect_completed_cb connected_cb;
 
-    ucp_worker_h ucp_worker;
     ucp_ep_h server_ep;
     ucs_status_t server_ep_status;
     pthread_mutex_t mutex;
@@ -914,10 +905,10 @@ typedef struct offloading_engine
     // so we can always easily get events
     execution_context_t *default_econtext;
 
-    // Worker to communicate with self
-    ucp_worker_h self_worker;
+    // Engine's worker
+    ucp_worker_h ucp_worker;
 
-    // UCP context associated to self_worker
+    // Engine's UCP context
     ucp_context_h ucp_context;
 
     // Self endpoint
