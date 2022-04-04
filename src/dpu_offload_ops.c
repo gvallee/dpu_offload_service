@@ -85,6 +85,7 @@ dpu_offload_status_t op_desc_return(offloading_engine_t *engine, op_desc_t **des
     return DO_SUCCESS;
 }
 
+// This is function assumes the execution context is properly locked before it is invoked
 dpu_offload_status_t progress_active_ops(execution_context_t *econtext)
 {
     CHECK_ERR_RETURN((econtext == NULL), DO_ERROR, "undefined execution context");

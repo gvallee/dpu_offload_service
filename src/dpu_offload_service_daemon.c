@@ -104,6 +104,13 @@ dpu_offload_status_t set_sock_addr(char *addr, uint16_t port, struct sockaddr_st
     return DO_SUCCESS;
 }
 
+/**
+ * @brief Note: the function assumes the econtext is locked before it is invoked
+ * 
+ * @param econtext 
+ * @param client_addr 
+ * @return int 
+ */
 static int oob_server_accept(execution_context_t *econtext, char *client_addr)
 {
     int connfd;
@@ -115,6 +122,7 @@ static int oob_server_accept(execution_context_t *econtext, char *client_addr)
 
     if (econtext->server->conn_data.oob.listenfd == -1)
     {
+        int accept_sock;
         econtext->server->conn_data.oob.listenfd = socket(AF_INET, SOCK_STREAM, 0);
 
         memset(&servaddr, 0, sizeof(servaddr));
@@ -124,25 +132,32 @@ static int oob_server_accept(execution_context_t *econtext, char *client_addr)
 
         setsockopt(econtext->server->conn_data.oob.listenfd, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval));
 
+        fprintf(stderr, "bind()\n");
         rc = bind(econtext->server->conn_data.oob.listenfd, (struct sockaddr *)&servaddr, sizeof(servaddr));
-        CHECK_ERR_RETURN((rc), DO_ERROR, "bind() failed: %s", strerror(errno));
+        CHECK_ERR_GOTO((rc), error_out, "bind() failed: %s", strerror(errno));
+        fprintf(stderr, "listen()\n");
         rc = listen(econtext->server->conn_data.oob.listenfd, 1024);
-        CHECK_ERR_RETURN((rc), DO_ERROR, "listen() failed: %s", strerror(errno));
+        CHECK_ERR_GOTO((rc), error_out, "listen() failed: %s", strerror(errno));
 
         // fixme: debug when multi-connections are required
         DBG("Accepting connection on port %" PRIu16 "...", server_port);
         struct sockaddr_in addr;
         int addr_len = sizeof(client_addr);
-        econtext->server->conn_data.oob.sock = accept(econtext->server->conn_data.oob.listenfd, (struct sockaddr *)&addr, &addr_len);
+        accept_sock = accept(econtext->server->conn_data.oob.listenfd, (struct sockaddr *)&addr, &addr_len);
+        econtext->server->conn_data.oob.sock = accept_sock;
         struct in_addr ipAddr = addr.sin_addr;
         inet_ntop(AF_INET, &ipAddr, client_addr, INET_ADDRSTRLEN);
         DBG("Connection accepted from %s on fd=%d", client_addr, econtext->server->conn_data.oob.sock);
     }
     return DO_SUCCESS;
+
+error_out:
+    return DO_ERROR;
 }
 
 #define MAX_RETRY (300) // Never try to connect for more than 5 minutes
 
+// This function assumes the associated execution context is properly locked before it is invoked
 dpu_offload_status_t oob_client_connect(dpu_offload_client_t *client, sa_family_t af)
 {
     int listenfd = -1;
@@ -378,6 +393,7 @@ dpu_offload_status_t client_init_context(execution_context_t *econtext, init_par
     return DO_SUCCESS;
 }
 
+// This function assumes the client structure is properly lock before it is invoked
 static dpu_offload_status_t ucx_listener_client_connect(dpu_offload_client_t *client)
 {
     set_sock_addr(client->conn_params.addr_str, client->conn_params.port, &(client->conn_data.ucx_listener.connect_addr));
@@ -477,18 +493,19 @@ static void oob_send_cb(void *request, ucs_status_t status, void *ctx)
 static dpu_offload_status_t oob_connect(execution_context_t *econtext)
 {
     CHECK_ERR_RETURN((econtext == NULL), DO_ERROR, "undefined client handle");
+    ECONTEXT_LOCK(econtext);
     dpu_offload_client_t *client = econtext->client;
-    CHECK_ERR_RETURN((client->conn_data.oob.local_addr == NULL), DO_ERROR, "undefined local address");
+    CHECK_ERR_GOTO((client->conn_data.oob.local_addr == NULL), error_out, "undefined local address");
     DBG("local address length: %lu", client->conn_data.oob.local_addr_len);
 
     size_t addr_len;
     int rc = oob_client_connect(client, ai_family);
-    CHECK_ERR_RETURN((rc), DO_ERROR, "oob_client_connect() failed");
+    CHECK_ERR_GOTO((rc), error_out, "oob_client_connect() failed");
     ssize_t size_recvd = recv(client->conn_data.oob.sock, &addr_len, sizeof(addr_len), MSG_WAITALL);
     DBG("Addr len received (len: %ld): %ld", size_recvd, addr_len);
     client->conn_data.oob.peer_addr_len = addr_len;
     client->conn_data.oob.peer_addr = malloc(client->conn_data.oob.peer_addr_len);
-    CHECK_ERR_RETURN((client->conn_data.oob.peer_addr == NULL), DO_ERROR, "Unable to allocate memory");
+    CHECK_ERR_GOTO((client->conn_data.oob.peer_addr == NULL), error_out, "Unable to allocate memory");
     size_recvd = recv(client->conn_data.oob.sock, client->conn_data.oob.peer_addr, client->conn_data.oob.peer_addr_len, MSG_WAITALL);
     DBG("Received the address (size: %ld)", size_recvd);
     size_recvd = recv(client->conn_data.oob.sock, &(client->id), sizeof(client->id), MSG_WAITALL);
@@ -507,12 +524,12 @@ static dpu_offload_status_t oob_connect(execution_context_t *econtext)
     ep_params.user_data = &(client->server_ep_status);
 
     ucs_status_t status = ucp_ep_create(GET_WORKER(econtext), &ep_params, &client->server_ep);
-    CHECK_ERR_RETURN((status != UCS_OK), DO_ERROR, "ucp_ep_create() failed");
+    CHECK_ERR_GOTO((status != UCS_OK), error_out, "ucp_ep_create() failed");
 
     size_t msg_len = sizeof(uint64_t) + client->conn_data.oob.local_addr_len;
     DBG("Allocating msg (len: %ld)", msg_len);
     struct oob_msg *msg = malloc(msg_len);
-    CHECK_ERR_RETURN((msg == NULL), DO_ERROR, "Memory allocation failed for msg");
+    CHECK_ERR_GOTO((msg == NULL), error_out, "Memory allocation failed for msg");
     memset(msg, 0, msg_len);
     DBG("sending local addr to server, len=%ld", msg_len);
     msg->len = client->conn_data.oob.local_addr_len;
@@ -527,26 +544,33 @@ static dpu_offload_status_t oob_connect(execution_context_t *econtext)
     // We send everything required to create an endpoint to the server
     addr_request = ucp_tag_send_nbx(client->server_ep, msg, msg_len, client->conn_data.oob.tag,
                                     &send_param);
+    ECONTEXT_UNLOCK(econtext);
     // Because this is part of the bootstrapping, we wait for the sends to complete
     ucx_wait(GET_WORKER(econtext), addr_request, "send",
              client->conn_data.oob.addr_msg_str);
 
     // We send our "rank", i.e., unique application ID
+    ECONTEXT_LOCK(econtext);
     DBG("Sending my group/rank info (%" PRId64 "/%" PRId64 "), len=%ld", econtext->rank.group_id, econtext->rank.group_rank, sizeof(econtext->rank));
     struct ucx_context *rank_request = NULL;
     send_param.user_data = NULL;
     rank_request = ucp_tag_send_nbx(client->server_ep, &(econtext->rank), sizeof(rank_info_t), client->conn_data.oob.tag + 1,
                                     &send_param);
+    ECONTEXT_UNLOCK(econtext);
     ucx_wait(GET_WORKER(econtext), rank_request, "send", NULL);
 
     free(msg);
     msg = NULL;
-
     return DO_SUCCESS;
+
+error_out:
+    ECONTEXT_UNLOCK(econtext);
+    return DO_ERROR;
 }
 
 dpu_offload_status_t offload_engine_progress(offloading_engine_t *engine)
 {
+    ENGINE_LOCK(engine);
     if (engine->on_dpu)
     {
         size_t i;
@@ -563,6 +587,7 @@ dpu_offload_status_t offload_engine_progress(offloading_engine_t *engine)
             econtext->progress(econtext);
         }
     }
+    ENGINE_UNLOCK(engine);
     return DO_SUCCESS;
 }
 
@@ -658,6 +683,8 @@ static dpu_offload_status_t execution_context_init(offloading_engine_t *offload_
 {
     execution_context_t *ctx = malloc(sizeof(execution_context_t));
     CHECK_ERR_GOTO((ctx == NULL), error_out, "unable to allocate execution context");
+    int ret = pthread_mutex_init(&(ctx->mutex), NULL);
+    CHECK_ERR_GOTO((ret), error_out, "pthread_mutex_init() failed: %s", strerror(errno));
     ctx->type = CONTEXT_CLIENT;
     ctx->engine = offload_engine;
     ctx->progress = execution_context_progress;
@@ -762,7 +789,9 @@ execution_context_t *client_init(offloading_engine_t *offload_engine, init_param
     }
     }
 
+    ECONTEXT_LOCK(ctx);
     rc = register_default_notifications(ctx->event_channels);
+    ECONTEXT_UNLOCK(ctx);
     CHECK_ERR_GOTO((rc), error_out, "register_default_notfications() failed");
 
     return ctx;
@@ -981,6 +1010,13 @@ static void oob_recv_rank_handler(void *request, ucs_status_t status,
         status, ucs_status_string(status), info->length);
 }
 
+/**
+ * @brief Note: this function assumes the execution context is NOT locked before it is invoked.
+ *
+ * @param econtext
+ * @param client_addr
+ * @return dpu_offload_status_t
+ */
 static inline dpu_offload_status_t oob_server_ucx_client_connection(execution_context_t *econtext, char *client_addr)
 {
     struct oob_msg *msg = NULL;
@@ -995,6 +1031,7 @@ static inline dpu_offload_status_t oob_server_ucx_client_connection(execution_co
     int ret;
 
     CHECK_ERR_RETURN((econtext == NULL), DO_ERROR, "undefined execution context");
+    ECONTEXT_LOCK(econtext);
 
     dpu_offload_server_t *server = econtext->server;
     CHECK_ERR_RETURN((server == NULL), DO_ERROR, "server handle is undefined");
@@ -1004,16 +1041,15 @@ static inline dpu_offload_status_t oob_server_ucx_client_connection(execution_co
     /* Receive client UCX address */
     do
     {
-        ECONTEXT_LOCK(econtext);
         /* Progressing before probe to update the state */
+        ECONTEXT_UNLOCK(econtext);
         ucp_worker_progress(GET_WORKER(econtext));
+        ECONTEXT_LOCK(econtext);
 
         /* Probing incoming events in non-block mode */
         msg_tag = ucp_tag_probe_nb(GET_WORKER(econtext), server->conn_data.oob.tag, server->conn_data.oob.tag_mask, 1, &info_tag);
-        ECONTEXT_UNLOCK(econtext);
     } while (msg_tag == NULL);
 
-    ECONTEXT_LOCK(econtext);
     DBG("allocating space for message to receive: %ld", info_tag.length);
     msg = malloc(info_tag.length);
     CHECK_ERR_GOTO((msg == NULL), error_out, "unable to allocate memory");
@@ -1021,7 +1057,9 @@ static inline dpu_offload_status_t oob_server_ucx_client_connection(execution_co
     addr_request = ucp_tag_msg_recv_nb(GET_WORKER(econtext), msg, info_tag.length,
                                        ucp_dt_make_contig(1), msg_tag, oob_recv_addr_handler);
     DBG("Receiving address length and data (len: %ld, req: %p)", info_tag.length, addr_request);
+    ECONTEXT_UNLOCK(econtext);
     status = ucx_wait(GET_WORKER(econtext), addr_request, "receive", server->conn_data.oob.addr_msg_str);
+    ECONTEXT_LOCK(econtext);
     if (status != UCS_OK)
     {
         free(msg);
@@ -1065,7 +1103,9 @@ static inline dpu_offload_status_t oob_server_ucx_client_connection(execution_co
     do
     {
         /* Progressing before probe to update the state */
+        ECONTEXT_UNLOCK(econtext);
         ucp_worker_progress(GET_WORKER(econtext));
+        ECONTEXT_LOCK(econtext);
 
         /* Probing incoming events in non-block mode */
         msg_tag = ucp_tag_probe_nb(GET_WORKER(econtext), server->conn_data.oob.tag + 1, server->conn_data.oob.tag_mask, 1, &info_tag);
@@ -1075,7 +1115,9 @@ static inline dpu_offload_status_t oob_server_ucx_client_connection(execution_co
     rank_request = ucp_tag_msg_recv_nb(GET_WORKER(econtext), &peer_data, sizeof(rank_info_t),
                                        ucp_dt_make_contig(1), msg_tag, oob_recv_rank_handler);
     DBG("Receiving rank info (len=%ld, req=%p)", sizeof(rank_info_t), rank_request);
+    ECONTEXT_UNLOCK(econtext);
     ucx_wait(GET_WORKER(econtext), rank_request, "receive", NULL);
+    ECONTEXT_LOCK(econtext);
     DBG("group/rank received: (%" PRId64 "/%" PRId64 ")", peer_data.group_id, peer_data.group_rank);
     if (peer_data.group_id != INVALID_GROUP && peer_data.group_rank != INVALID_RANK)
     {
@@ -1101,7 +1143,7 @@ static inline dpu_offload_status_t oob_server_ucx_client_connection(execution_co
         /* Check if it is a DPU we are expecting to connect to us */
         size_t i;
         remote_dpu_info_t **list_dpus = LIST_DPUS_FROM_ECONTEXT(econtext);
-        CHECK_ERR_RETURN((list_dpus == NULL), DO_ERROR, "unable to get list of DPUs");
+        CHECK_ERR_GOTO((list_dpus == NULL), error_out, "unable to get list of DPUs");
         assert(econtext->engine);
         for (i = 0; i < econtext->engine->num_dpus; i++)
         {
@@ -1141,15 +1183,23 @@ error_out:
     return DO_ERROR;
 }
 
+// This function assumes the execution context is properly locked before it is invoked
 static inline uint64_t generate_unique_client_id(execution_context_t *econtext)
 {
     // For now we only use the slot that the client will have in the list of connected clients
     return (uint64_t)econtext->server->connected_clients.num_connected_clients;
 }
 
+/**
+ * @brief Note that this function assumes the execution context is NOT locked before it is invoked.
+ * 
+ * @param econtext 
+ * @return dpu_offload_status_t 
+ */
 static dpu_offload_status_t oob_server_listen(execution_context_t *econtext)
 {
     /* OOB connection establishment */
+    ECONTEXT_LOCK(econtext);
     char client_addr[INET_ADDRSTRLEN];
     dpu_offload_status_t rc = oob_server_accept(econtext, client_addr);
     CHECK_ERR_RETURN((rc), DO_ERROR, "oob_server_accept() failed");
@@ -1162,8 +1212,10 @@ static dpu_offload_status_t oob_server_listen(execution_context_t *econtext)
     size_sent = send(econtext->server->conn_data.oob.sock, &client_id, sizeof(uint64_t), 0);
     DBG("Client ID sent (len: %ld)", size_sent);
 
+    ECONTEXT_UNLOCK(econtext);
     rc = oob_server_ucx_client_connection(econtext, client_addr);
     CHECK_ERR_RETURN((rc), DO_ERROR, "oob_server_ucx_client_connection() failed");
+    ECONTEXT_LOCK(econtext);
 
     if (econtext->server->connected_cb != NULL)
     {
@@ -1176,7 +1228,11 @@ static dpu_offload_status_t oob_server_listen(execution_context_t *econtext)
         econtext->server->connected_cb(&cb_data);
     }
 
+    ECONTEXT_UNLOCK(econtext);
     return DO_SUCCESS;
+error_out:
+    ECONTEXT_UNLOCK(econtext);
+    return DO_ERROR;
 }
 
 static void *connect_thread(void *arg)
@@ -1188,9 +1244,13 @@ static void *connect_thread(void *arg)
         pthread_exit(NULL);
     }
 
-    while (!econtext->server->done)
+    ECONTEXT_LOCK(econtext);
+    bool done = econtext->server->done;
+    int mode = econtext->server->mode;
+    ECONTEXT_UNLOCK(econtext);
+    while (!done)
     {
-        switch (econtext->server->mode)
+        switch (mode)
         {
         case UCX_LISTENER:
         {
@@ -1223,6 +1283,10 @@ static void *connect_thread(void *arg)
             pthread_exit(NULL); // fixme: properly support multiple connections
         }
         }
+
+        ECONTEXT_LOCK(econtext);
+        done = econtext->server->done;
+        ECONTEXT_UNLOCK(econtext);
     }
 
     pthread_exit(NULL);
@@ -1397,9 +1461,12 @@ execution_context_t *server_init(offloading_engine_t *offloading_engine, init_pa
         DBG("Server created on %s:%d\n", init_params->conn_params->addr_str, init_params->conn_params->port);
 #endif
 
-    rc = register_default_notifications(execution_context->event_channels);
+    ECONTEXT_LOCK(execution_context);
+    dpu_offload_ev_sys_t *ev_sys = execution_context->event_channels;
+    rc = register_default_notifications(ev_sys);
     CHECK_ERR_GOTO((rc), error_out, "register_default_notfications() failed");
 
+    ENGINE_LOCK(offloading_engine);
     if (offloading_engine->num_default_notifications > 0)
     {
         notification_callback_entry_t *list_callbacks = (notification_callback_entry_t *)offloading_engine->default_notifications->notification_callbacks.base;
@@ -1421,10 +1488,14 @@ execution_context_t *server_init(offloading_engine_t *offloading_engine, init_pa
             }
         }
     }
+    ENGINE_UNLOCK(offloading_engine);
+    ECONTEXT_UNLOCK(execution_context);
 
     return execution_context;
 
 error_out:
+    ECONTEXT_UNLOCK(execution_context);
+    ENGINE_UNLOCK(offloading_engine);
     if (execution_context != NULL)
     {
         free(execution_context);

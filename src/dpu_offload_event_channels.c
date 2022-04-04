@@ -117,7 +117,8 @@ static ucs_status_t am_notification_recv_rdv_msg(execution_context_t *econtext, 
     am_rndv_recv_request_params.op_attr_mask = UCP_OP_ATTR_FIELD_CALLBACK |
                                                UCP_OP_ATTR_FIELD_USER_DATA |
                                                UCP_OP_ATTR_FIELD_DATATYPE |
-                                               UCP_OP_ATTR_FIELD_MEMORY_TYPE;
+                                               UCP_OP_ATTR_FIELD_MEMORY_TYPE |
+                                               UCP_OP_ATTR_FLAG_NO_IMM_CMPL;
     am_rndv_recv_request_params.cb.recv_am = &am_rdv_recv_cb;
     am_rndv_recv_request_params.datatype = ucp_dt_make_contig(1);
     am_rndv_recv_request_params.user_data = pending_recv;
@@ -210,35 +211,41 @@ dpu_offload_status_t event_channels_init(execution_context_t *econtext)
     dpu_offload_status_t rc = ev_channels_init(&(econtext->event_channels));
     CHECK_ERR_RETURN((rc), DO_ERROR, "ev_channels_init() failed");
     // Register the UCX AM handler
-    ucp_am_handler_param_t ev_eager_param;
-    ev_eager_param.field_mask = UCP_AM_HANDLER_PARAM_FIELD_ID |
-                                UCP_AM_HANDLER_PARAM_FIELD_CB |
-                                UCP_AM_HANDLER_PARAM_FIELD_ARG |
-                                UCP_AM_FLAG_WHOLE_MSG;
-    ev_eager_param.id = AM_EVENT_MSG_ID;
+    ucp_am_handler_param_t am_param;
+    am_param.field_mask = UCP_AM_HANDLER_PARAM_FIELD_ID |
+                          UCP_AM_HANDLER_PARAM_FIELD_CB |
+                          UCP_AM_HANDLER_PARAM_FIELD_ARG |
+                          UCP_AM_FLAG_WHOLE_MSG;
+    am_param.id = AM_EVENT_MSG_ID;
     // For all exchange, we receive the header first and from there post a receive for the either eager or RDV message.
-    ev_eager_param.cb = am_notification_msg_cb;
-    ev_eager_param.arg = econtext;
+    am_param.cb = am_notification_msg_cb;
+    am_param.arg = econtext;
     DBG("Registering AM eager callback for notifications (type=%d, econtext=%p, worker=%p, ev_param=%p)",
         AM_EVENT_MSG_ID,
         econtext,
         GET_WORKER(econtext),
-        &ev_eager_param);
+        &am_param);
     ucs_status_t status = ucp_worker_set_am_recv_handler(GET_WORKER(econtext),
-                                                         &ev_eager_param);
+                                                         &am_param);
     CHECK_ERR_RETURN((status != UCS_OK), DO_ERROR, "unable to set AM eager recv handler");
     return DO_SUCCESS;
 }
 
+/**
+ * @brief Note: the function assumes the event system is locked before it is invoked
+ * 
+ * @param ev_sys 
+ * @param type 
+ * @param cb 
+ * @return dpu_offload_status_t 
+ */
 dpu_offload_status_t event_channel_register(dpu_offload_ev_sys_t *ev_sys, uint64_t type, notification_cb cb)
 {
     CHECK_ERR_RETURN((cb == NULL), DO_ERROR, "Undefined callback");
     CHECK_ERR_RETURN((ev_sys == NULL), DO_ERROR, "undefined event system");
     notification_callback_entry_t *list_callbacks = (notification_callback_entry_t *)ev_sys->notification_callbacks.base;
     notification_callback_entry_t *entry;
-    SYS_EVENT_LOCK(ev_sys);
     DYN_ARRAY_GET_ELT(&(ev_sys->notification_callbacks), type, notification_callback_entry_t, entry);
-    SYS_EVENT_UNLOCK(ev_sys);
     CHECK_ERR_RETURN((entry == NULL), DO_ERROR, "unable to get callback %ld", type);
     CHECK_ERR_RETURN((entry->set == true), DO_ERROR, "type %" PRIu64 " is already set", type);
 
@@ -248,7 +255,6 @@ dpu_offload_status_t event_channel_register(dpu_offload_ev_sys_t *ev_sys, uint64
 
     /* check for any pending notification that would match */
     pending_notification_t *pending_notif, *next_pending_notif;
-    SYS_EVENT_LOCK(ev_sys);
     ucs_list_for_each_safe(pending_notif, next_pending_notif, (&(ev_sys->pending_notifications)), item)
     {
         if (pending_notif->type == type)
@@ -272,7 +278,6 @@ dpu_offload_status_t event_channel_register(dpu_offload_ev_sys_t *ev_sys, uint64
             }
         }
     }
-    SYS_EVENT_UNLOCK(ev_sys);
 
     return DO_SUCCESS;
 }
@@ -327,8 +332,10 @@ static void notification_emit_cb(void *user_data, const char *type_str)
         return;
     DBG("ev=%p ctx=%p id=%" PRIu64, ev, &(ev->ctx), ev->ctx.hdr.id);
     ev->ctx.complete = 1;
+    assert(ev->event_system);
     execution_context_t *econtext = ev->event_system->econtext;
     DBG("Associated econtext: %p", econtext);
+    assert(econtext);
     DBG("evt %p now completed, %ld events left on the ongoing list", ev, ucs_list_length(&(econtext->ongoing_events)));
 }
 
@@ -390,6 +397,7 @@ int event_channel_emit_with_payload(dpu_offload_event_t **event, uint64_t my_id,
     if (ev->event_system->num_pending_sends >= ev->event_system->max_pending_emits)
     {
         DBG("Queuing event for later emission");
+        assert(0);
         assert(ev->manage_payload_buf == false);
         SYS_EVENT_LOCK(ev->event_system);
         ucs_list_add_tail(&(ev->event_system->pending_emits), &(ev->item));
@@ -441,11 +449,11 @@ dpu_offload_status_t event_channels_fini(dpu_offload_ev_sys_t **ev_sys)
 dpu_offload_status_t event_get(dpu_offload_ev_sys_t *ev_sys, dpu_offload_event_info_t *info, dpu_offload_event_t **ev)
 {
     dpu_offload_event_t *_ev;
+    DBG("Getting event...");
     CHECK_ERR_RETURN((ev_sys == NULL), DO_ERROR, "Undefine event system");
     SYS_EVENT_LOCK(ev_sys);
     DYN_LIST_GET(ev_sys->free_evs, dpu_offload_event_t, item, _ev);
     SYS_EVENT_UNLOCK(ev_sys);
-    DBG("Got event %p from list %p\n", _ev, ev_sys->free_evs);
     if (_ev != NULL)
     {
         SYS_EVENT_LOCK(ev_sys);
@@ -466,6 +474,7 @@ dpu_offload_status_t event_get(dpu_offload_ev_sys_t *ev_sys, dpu_offload_event_i
     }
 
 out:
+    DBG("Got event %p from list %p", _ev, ev_sys->free_evs);
     *ev = _ev;
     return DO_SUCCESS;
 }
@@ -774,27 +783,32 @@ static dpu_offload_status_t add_group_rank_recv_cb(struct dpu_offload_ev_sys *ev
 dpu_offload_status_t register_default_notifications(dpu_offload_ev_sys_t *ev_sys)
 {
     CHECK_ERR_RETURN((ev_sys == NULL), DO_ERROR, "Undefined event channels");
+    SYS_EVENT_LOCK(ev_sys);
 
     int rc = event_channel_register(ev_sys, AM_OP_START_MSG_ID, op_start_cb);
-    CHECK_ERR_RETURN(rc, DO_ERROR, "cannot register handler to start operations");
+    CHECK_ERR_GOTO(rc, error_out, "cannot register handler to start operations");
 
     rc = event_channel_register(ev_sys, AM_OP_COMPLETION_MSG_ID, op_completion_cb);
-    CHECK_ERR_RETURN(rc, DO_ERROR, "cannot register handler for operation completion");
+    CHECK_ERR_GOTO(rc, error_out, "cannot register handler for operation completion");
 
     rc = event_channel_register(ev_sys, AM_XGVMI_ADD_MSG_ID, xgvmi_key_recv_cb);
-    CHECK_ERR_RETURN(rc, DO_ERROR, "cannot register handler for receiving XGVMI keys");
+    CHECK_ERR_GOTO(rc, error_out, "cannot register handler for receiving XGVMI keys");
 
     rc = event_channel_register(ev_sys, AM_XGVMI_DEL_MSG_ID, xgvmi_key_revoke_cb);
-    CHECK_ERR_RETURN(rc, DO_ERROR, "cannot register handler for revoke XGVMI keys");
+    CHECK_ERR_GOTO(rc, error_out, "cannot register handler for revoke XGVMI keys");
 
     rc = event_channel_register(ev_sys, AM_PEER_CACHE_ENTRIES_MSG_ID, peer_cache_entries_recv_cb);
-    CHECK_ERR_RETURN(rc, DO_ERROR, "cannot register handler for receiving peer cache entries");
+    CHECK_ERR_GOTO(rc, error_out, "cannot register handler for receiving peer cache entries");
 
     rc = event_channel_register(ev_sys, AM_PEER_CACHE_ENTRIES_REQUEST_MSG_ID, peer_cache_entries_request_recv_cb);
-    CHECK_ERR_RETURN(rc, DO_ERROR, "cannot register handler for receiving peer cache requests");
+    CHECK_ERR_GOTO(rc, error_out, "cannot register handler for receiving peer cache requests");
 
     rc = event_channel_register(ev_sys, AM_ADD_GP_RANK_MSG_ID, add_group_rank_recv_cb);
-    CHECK_ERR_RETURN(rc, DO_ERROR, "cannot register handler for receiving requests to add a group/rank");
+    CHECK_ERR_GOTO(rc, error_out, "cannot register handler for receiving requests to add a group/rank");
+    SYS_EVENT_UNLOCK(ev_sys);
 
     return DO_SUCCESS;
+error_out:
+    SYS_EVENT_UNLOCK(ev_sys);
+    return DO_ERROR;
 }

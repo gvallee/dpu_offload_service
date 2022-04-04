@@ -27,9 +27,16 @@ int main(int argc, char **argv)
         fprintf(stderr, "Number of mem chunks is %ld instead of expected 1\n", list_1->num_mem_chunks);
         goto error_out;
     }
-    if (list_1->mem_chunks[0].size != sizeof(dummy_t))
+    mem_chunk_t *mem_chunk_ptr;
+    DYN_ARRAY_GET_ELT(&(list_1->mem_chunks), 0UL, mem_chunk_t, mem_chunk_ptr);
+    if (mem_chunk_ptr == NULL)
     {
-        fprintf(stderr, "Mem chunk 0 is of size %ld instead of expected %ld\n", list_1->mem_chunks[0].size, sizeof(dummy_t));
+        fprintf(stderr, "Unable to get mem chunk #0\n");
+        goto error_out;
+    }
+    if (mem_chunk_ptr->size != sizeof(dummy_t))
+    {
+        fprintf(stderr, "Mem chunk 0 is of size %ld instead of expected %ld\n", mem_chunk_ptr->size, sizeof(dummy_t));
         goto error_out;
     }
     if (list_1->num_elts_alloc != 1)
@@ -63,9 +70,15 @@ int main(int argc, char **argv)
         fprintf(stderr, "Number of mem chunks is %ld instead of expected 1\n", list_1->num_mem_chunks);
         goto error_out;
     }
-    if (list_1->mem_chunks[0].size != sizeof(dummy_t))
+    DYN_ARRAY_GET_ELT(&(list_1->mem_chunks), 0UL, mem_chunk_t, mem_chunk_ptr);
+    if (mem_chunk_ptr == NULL)
     {
-        fprintf(stderr, "Mem chunk 0 is of size %ld instead of expected %ld\n", list_1->mem_chunks[0].size, sizeof(dummy_t));
+        fprintf(stderr, "Unable to get mem chunk #0\n");
+        goto error_out;
+    }
+    if (mem_chunk_ptr->size != sizeof(dummy_t))
+    {
+        fprintf(stderr, "Mem chunk 0 is of size %ld instead of expected %ld\n", mem_chunk_ptr->size, sizeof(dummy_t));
         goto error_out;
     }
     if (list_1->num_elts_alloc != 1)
@@ -86,9 +99,15 @@ int main(int argc, char **argv)
         fprintf(stderr, "Number of mem chunks is %ld instead of expected 1\n", list_1->num_mem_chunks);
         goto error_out;
     }
-    if (list_1->mem_chunks[0].size != sizeof(dummy_t))
+    DYN_ARRAY_GET_ELT(&(list_1->mem_chunks), 0UL, mem_chunk_t, mem_chunk_ptr);
+    if (mem_chunk_ptr == NULL)
     {
-        fprintf(stderr, "Mem chunk 0 is of size %ld instead of expected %ld\n", list_1->mem_chunks[0].size, sizeof(dummy_t));
+        fprintf(stderr, "Unable to get mem chunk #0\n");
+        goto error_out;
+    }
+    if (mem_chunk_ptr->size != sizeof(dummy_t))
+    {
+        fprintf(stderr, "Mem chunk 0 is of size %ld instead of expected %ld\n", mem_chunk_ptr->size, sizeof(dummy_t));
         goto error_out;
     }
     if (list_1->num_elts_alloc != 1)
@@ -123,9 +142,15 @@ int main(int argc, char **argv)
         size_t j;
         for (j = 0; j <= i; j++)
         {
-            if (list_1->mem_chunks[j].size != sizeof(dummy_t))
+            DYN_ARRAY_GET_ELT(&(list_1->mem_chunks), j, mem_chunk_t, mem_chunk_ptr);
+            if (mem_chunk_ptr == NULL)
             {
-                fprintf(stderr, "Mem chunk 0 is of size %ld instead of expected %ld\n", list_1->mem_chunks[j].size, sizeof(dummy_t));
+                fprintf(stderr, "Unable to get mem chunk #%ld\n", j);
+                goto error_out;
+            }
+            if (mem_chunk_ptr->size != sizeof(dummy_t))
+            {
+                fprintf(stderr, "Mem chunk 0 is of size %ld instead of expected %ld\n", mem_chunk_ptr->size, sizeof(dummy_t));
                 goto error_out;
             }
         }
@@ -159,12 +184,18 @@ int main(int argc, char **argv)
         size_t j;
         for (j = 0; j < 1000; j++)
         {
-            if (list_1->mem_chunks[j].size != sizeof(dummy_t))
+            DYN_ARRAY_GET_ELT(&(list_1->mem_chunks), j, mem_chunk_t, mem_chunk_ptr);
+            if (mem_chunk_ptr == NULL)
+            {
+                fprintf(stderr, "Unable to get mem chunk #%ld\n", j);
+                goto error_out;
+            }
+            if (mem_chunk_ptr->size != sizeof(dummy_t))
             {
                 fprintf(stderr, "l.%d: Mem chunk %ld is of size %ld instead of expected %ld\n",
                         __LINE__,
                         j,
-                        list_1->mem_chunks[j].size,
+                        mem_chunk_ptr->size,
                         sizeof(dummy_t));
                 goto error_out;
             }
