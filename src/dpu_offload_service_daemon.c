@@ -890,6 +890,7 @@ void client_fini(execution_context_t **exec_ctx)
     DBG("Termination message successfully sent");
 
     ep_close(GET_WORKER(*exec_ctx), client->server_ep);
+    dpu_offload_set_am_recv_handlers(context);
 
     switch (context->client->mode)
     {
@@ -916,6 +917,7 @@ void client_fini(execution_context_t **exec_ctx)
     }
 
     event_channels_fini(&(client->event_channels));
+    ucp_worker_destroy(GET_WORKER(*exec_ctx));
 
     free(context->client);
     context->client = NULL;
@@ -1532,6 +1534,8 @@ void server_fini(execution_context_t **exec_ctx)
         ep_close(GET_WORKER(*exec_ctx), peer_info->ep);
     }
 
+    dpu_offload_set_am_recv_handlers(context);
+
     switch (server->mode)
     {
     case UCX_LISTENER:
@@ -1549,9 +1553,9 @@ void server_fini(execution_context_t **exec_ctx)
             server->conn_data.oob.peer_addr = NULL;
         }
     }
-    ucp_worker_destroy(GET_WORKER(*exec_ctx));
 
     event_channels_fini(&(server->event_channels));
+    ucp_worker_destroy(GET_WORKER(*exec_ctx));
 
     free(context->server);
     context->server = NULL;

@@ -439,6 +439,18 @@ dpu_offload_status_t event_channels_fini(dpu_offload_ev_sys_t **ev_sys)
         WARN_MSG("[WARN] %ld events objects have not been returned", (*ev_sys)->num_used_evs);
     }
 
+    // Deregister the UCX AM handler
+    ucp_am_handler_param_t am_param;
+    am_param.field_mask = UCP_AM_HANDLER_PARAM_FIELD_ID |
+                          UCP_AM_HANDLER_PARAM_FIELD_CB;
+    am_param.id = AM_EVENT_MSG_ID;
+    // For all exchange, we receive the header first and from there post a receive for the either eager or RDV message.
+    am_param.cb = NULL;
+    /* FIXME: not working, create a crash, no idea why */
+    //ucs_status_t status = ucp_worker_set_am_recv_handler(GET_WORKER((*ev_sys)->econtext),
+    //                                                     &am_param);
+    //CHECK_ERR_RETURN((status != UCS_OK), DO_ERROR, "unable to reset UCX AM recv handler");
+
     DYN_LIST_FREE((*ev_sys)->free_evs, dpu_offload_event_t, item);
     DYN_LIST_FREE((*ev_sys)->free_pending_notifications, pending_notification_t, item);
     SYS_EVENT_UNLOCK(*ev_sys);
