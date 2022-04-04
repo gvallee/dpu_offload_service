@@ -29,7 +29,10 @@ int main(int argc, char **argv)
 
     POPULATE_CACHE(offload_engine);
 
-    ucp_ep_h remote_ep = server->server->connected_clients.clients[0].ep;
+    peer_info_t *peer_info;
+    DYN_ARRAY_GET_ELT(&(server->server->connected_clients.clients), 0UL, peer_info_t, peer_info);
+    assert(peer_info);
+    ucp_ep_h remote_ep = peer_info->ep;
     if (remote_ep == NULL)
     {
         fprintf(stderr, "undefined destination endpoint\n");

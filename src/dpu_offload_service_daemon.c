@@ -1069,14 +1069,16 @@ static inline dpu_offload_status_t oob_server_ucx_client_connection(execution_co
     assert(server);
     assert(server->conn_data.oob.addr_msg_str);
 
-    server->connected_clients.clients[server->connected_clients.num_connected_clients].peer_addr_len = msg->len;
-    CHECK_ERR_GOTO((msg <= 0), error_out, "invalid message length: %ld", msg->len);
-    server->connected_clients.clients[server->connected_clients.num_connected_clients].peer_addr = malloc(msg->len);
-    CHECK_ERR_GOTO((server->connected_clients.clients[server->connected_clients.num_connected_clients].peer_addr == NULL),
+    peer_info_t *client_ptr;
+    DYN_ARRAY_GET_ELT(&(server->connected_clients.clients), server->connected_clients.num_connected_clients, peer_info_t, client_ptr);
+    assert(client_ptr);
+    client_ptr->peer_addr_len = msg->len;
+    client_ptr->peer_addr = malloc(msg->len);
+    CHECK_ERR_GOTO((client_ptr->peer_addr == NULL),
                    error_out,
                    "unable to allocate memory for peer address (%ld bytes)",
-                   server->connected_clients.clients[server->connected_clients.num_connected_clients].peer_addr_len);
-    memcpy(server->connected_clients.clients[server->connected_clients.num_connected_clients].peer_addr, msg + 1, msg->len);
+                   client_ptr->peer_addr_len);
+    memcpy(client_ptr->peer_addr, msg + 1, msg->len);
     free(msg);
 
     ep_params.field_mask = UCP_EP_PARAM_FIELD_REMOTE_ADDRESS |
@@ -1086,8 +1088,8 @@ static inline dpu_offload_status_t oob_server_ucx_client_connection(execution_co
     ep_params.err_mode = err_handling_opt.ucp_err_mode;
     ep_params.err_handler.cb = err_cb;
     ep_params.err_handler.arg = NULL;
-    ep_params.address = server->connected_clients.clients[server->connected_clients.num_connected_clients].peer_addr;
-    ep_params.user_data = &(server->connected_clients.clients[server->connected_clients.num_connected_clients].ep_status);
+    ep_params.address = client_ptr->peer_addr;
+    ep_params.user_data = &(client_ptr->ep_status);
     ucp_worker_h worker = GET_WORKER(econtext);
     CHECK_ERR_GOTO((worker == NULL), error_out, "undefined worker");
     ucp_ep_h client_ep;
@@ -1097,7 +1099,7 @@ static inline dpu_offload_status_t oob_server_ucx_client_connection(execution_co
                    error_out,
                    "max number of clients (%d) has been reached",
                    DEFAULT_MAX_NUM_CLIENTS);
-    server->connected_clients.clients[server->connected_clients.num_connected_clients].ep = client_ep;
+    client_ptr->ep = client_ep;
     DBG("endpoint successfully created");
 
     do
@@ -1125,17 +1127,18 @@ static inline dpu_offload_status_t oob_server_ucx_client_connection(execution_co
         DBG("Adding gp/rank %" PRId64 "/%" PRId64 " to cache", peer_data.group_id, peer_data.group_rank);
         peer_cache_entry_t *cache_entry = SET_GROUP_RANK_CACHE_ENTRY(econtext, peer_data.group_id, peer_data.group_rank);
         CHECK_ERR_GOTO((cache_entry == NULL), error_out, "undefined cache entry");
-        cache_entry->peer.addr_len = server->connected_clients.clients[server->connected_clients.num_connected_clients].peer_addr_len;
-        if (server->connected_clients.clients[server->connected_clients.num_connected_clients].peer_addr != NULL)
+        cache_entry->peer.addr_len = client_ptr->peer_addr_len;
+        if (client_ptr->peer_addr != NULL)
         {
-            assert(server->connected_clients.clients[server->connected_clients.num_connected_clients].peer_addr_len < MAX_ADDR_LEN);
+            assert(client_ptr->peer_addr_len < MAX_ADDR_LEN);
             memcpy(cache_entry->peer.addr,
-                   server->connected_clients.clients[server->connected_clients.num_connected_clients].peer_addr,
-                   server->connected_clients.clients[server->connected_clients.num_connected_clients].peer_addr_len);
+                   client_ptr->peer_addr,
+                   client_ptr->peer_addr_len);
         }
-        assert(server->connected_clients.clients);
-        assert(server->connected_clients.clients[server->connected_clients.num_connected_clients].cache_entries);
-        server->connected_clients.clients[server->connected_clients.num_connected_clients].cache_entries[0] = cache_entry;
+        assert(client_ptr->cache_entries.num_elts > 0);
+        peer_cache_entry_t **cache_entries = (peer_cache_entry_t **)(client_ptr->cache_entries.base);
+        assert(cache_entries);
+        cache_entries[0] = cache_entry;
     }
 
     if (ECONTEXT_ON_DPU(econtext))
@@ -1157,7 +1160,6 @@ static inline dpu_offload_status_t oob_server_ucx_client_connection(execution_co
                            error_out,
                            "Address of DPU #%ld is undefined", i);
             assert(server);
-            assert(server->connected_clients.clients[server->connected_clients.num_connected_clients].peer_addr);
             if (strncmp(list_dpus[i]->init_params.conn_params->addr_str, client_addr, strlen(client_addr)) == 0)
             {
                 // Set the endpoint to communicate with that remote DPU
@@ -1319,20 +1321,22 @@ static dpu_offload_status_t start_server(execution_context_t *econtext)
 dpu_offload_status_t server_init_context(execution_context_t *econtext, init_params_t *init_params)
 {
     int ret;
+    size_t i;
     econtext->type = CONTEXT_SERVER;
     econtext->server = malloc(sizeof(dpu_offload_server_t));
     CHECK_ERR_RETURN((econtext->server == NULL), DO_ERROR, "Unable to allocate server handle");
     econtext->server->econtext = (struct execution_context *)econtext;
     econtext->server->mode = OOB; // By default, we connect with the OOB mode
-    econtext->server->connected_clients.clients = malloc(DEFAULT_MAX_NUM_CLIENTS * sizeof(peer_info_t));
+    //econtext->server->connected_clients.clients = malloc(DEFAULT_MAX_NUM_CLIENTS * sizeof(peer_info_t));
+    DYN_ARRAY_ALLOC(&(econtext->server->connected_clients.clients), DEFAULT_MAX_NUM_CLIENTS, peer_info_t);
     econtext->server->connected_clients.num_connected_clients = 0;
     econtext->server->connected_cb = NULL;
-    CHECK_ERR_RETURN((econtext->server->connected_clients.clients == NULL), DO_ERROR, "Unable to allocate resources to track connected clients");
-    int i;
     for (i = 0; i < DEFAULT_MAX_NUM_CLIENTS; i++)
     {
-        econtext->server->connected_clients.clients[i].cache_entries = malloc(MAX_CACHE_ENTRIES_PER_PROC * sizeof(peer_cache_entry_t *));
-        CHECK_ERR_RETURN((econtext->server->connected_clients.clients[i].cache_entries == NULL), DO_ERROR, "Unable to allocate resource to track ranks' cache entries");
+        peer_info_t *peer_info;
+        DYN_ARRAY_GET_ELT(&(econtext->server->connected_clients.clients), i, peer_info_t, peer_info);
+        assert(peer_info);
+        DYN_ARRAY_ALLOC(&(peer_info->cache_entries), MAX_CACHE_ENTRIES_PER_PROC, peer_cache_entry_t *);
     }
 
     if (init_params == NULL || init_params->conn_params == NULL)
@@ -1359,7 +1363,6 @@ dpu_offload_status_t server_init_context(execution_context_t *econtext, init_par
 
     ret = pthread_mutex_init(&(econtext->server->mutex), NULL);
     CHECK_ERR_RETURN((ret), DO_ERROR, "pthread_mutex_init() failed: %s", strerror(errno));
-    CHECK_ERR_RETURN((econtext->server->connected_clients.clients == NULL), DO_ERROR, "Unable to allocate resources for list of connected clients");
 
     // Make sure we correctly handle whether the UCX context/worker is provided
     DO_INIT_WORKER(econtext, init_params);
@@ -1505,6 +1508,7 @@ error_out:
 
 void server_fini(execution_context_t **exec_ctx)
 {
+    size_t i;
     if (exec_ctx == NULL || *exec_ctx == NULL)
         return;
 
@@ -1520,10 +1524,12 @@ void server_fini(execution_context_t **exec_ctx)
     pthread_mutex_destroy(&(server->mutex));
 
     /* Close the clients' endpoint */
-    int i;
     for (i = 0; i < server->connected_clients.num_connected_clients; i++)
     {
-        ep_close(GET_WORKER(*exec_ctx), server->connected_clients.clients[i].ep);
+        peer_info_t *peer_info;
+        DYN_ARRAY_GET_ELT(&(server->connected_clients.clients), i, peer_info_t, peer_info);
+        assert(peer_info);
+        ep_close(GET_WORKER(*exec_ctx), peer_info->ep);
     }
 
     switch (server->mode)

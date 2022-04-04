@@ -83,17 +83,23 @@ typedef enum
     _ep;                                    \
 })
 
-#define GET_CLIENT_EP(_exec_ctx, _client_id) ({                            \
-    ucp_ep_h _ep;                                                          \
-    if (_exec_ctx->type == CONTEXT_SERVER)                                 \
-    {                                                                      \
-        _ep = _exec_ctx->server->connected_clients.clients[_client_id].ep; \
-    }                                                                      \
-    else                                                                   \
-    {                                                                      \
-        _ep = NULL;                                                        \
-    }                                                                      \
-    _ep;                                                                   \
+#define GET_CLIENT_EP(_exec_ctx, _client_id) ({                              \
+    ucp_ep_h _ep;                                                            \
+    if (_exec_ctx->type == CONTEXT_SERVER)                                   \
+    {                                                                        \
+        peer_info_t *_pi;                                                    \
+        DYN_ARRAY_GET_ELT(&((_exec_ctx)->server->connected_clients.clients), \
+                          _client_id,                                        \
+                          peer_info_t,                                       \
+                          _pi);                                              \
+        assert(_pi);                                                         \
+        _ep = _pi->ep;                                                       \
+    }                                                                        \
+    else                                                                     \
+    {                                                                        \
+        _ep = NULL;                                                          \
+    }                                                                        \
+    _ep;                                                                     \
 })
 
 #define GET_WORKER(_exec_ctx) ({                       \
@@ -320,8 +326,9 @@ typedef struct peer_info
     // Peer's endpoint status
     ucs_status_t ep_status;
 
-    //  Array of group/proc entries, one per group. A rank can belong to multiple groups but have a single endpoint.
-    peer_cache_entry_t **cache_entries;
+    // Dynamic array of group/proc entries, one per group. A rank can belong to multiple groups but have a single endpoint.
+    // Type: peer_cache_entry_t *
+    dyn_array_t cache_entries;
 } peer_info_t;
 
 /**********************************************/
@@ -404,8 +411,8 @@ typedef struct connected_clients
 {
     size_t num_max_connected_clients;
     size_t num_connected_clients;
-    // Array of structures to track connected clients
-    peer_info_t *clients;
+    // Dynamic array of structures to track connected clients (type: peer_info_t)
+    dyn_array_t clients;
 } connected_clients_t;
 
 /**
@@ -485,93 +492,93 @@ typedef struct init_params
         (_params)->connected_cb = NULL; \
     } while (0)
 
-#define SYS_EVENT_LOCK(_sys_evt)                  \
-    do                                            \
-    {                                             \
+#define SYS_EVENT_LOCK(_sys_evt)                                              \
+    do                                                                        \
+    {                                                                         \
         fprintf(stderr, "**** %s l.%d Locking ev sys\n", __FILE__, __LINE__); \
-        pthread_mutex_lock(&((_sys_evt)->mutex)); \
-        fprintf(stderr, "**** %s l.%d ev sys locked\n", __FILE__, __LINE__); \
+        pthread_mutex_lock(&((_sys_evt)->mutex));                             \
+        fprintf(stderr, "**** %s l.%d ev sys locked\n", __FILE__, __LINE__);  \
     } while (0)
 
-#define SYS_EVENT_UNLOCK(_sys_evt)                  \
-    do                                              \
-    {                                               \
+#define SYS_EVENT_UNLOCK(_sys_evt)                                              \
+    do                                                                          \
+    {                                                                           \
         fprintf(stderr, "**** %s l.%d Unlocking ev sys\n", __FILE__, __LINE__); \
-        pthread_mutex_unlock(&((_sys_evt)->mutex)); \
-        fprintf(stderr, "**** %s l.%d ev sys unlocked\n", __FILE__, __LINE__); \
+        pthread_mutex_unlock(&((_sys_evt)->mutex));                             \
+        fprintf(stderr, "**** %s l.%d ev sys unlocked\n", __FILE__, __LINE__);  \
     } while (0)
 
-#define ENGINE_LOCK(_engine)                     \
-    do                                           \
-    {                                            \
+#define ENGINE_LOCK(_engine)                                                  \
+    do                                                                        \
+    {                                                                         \
         fprintf(stderr, "**** %s l.%d Locking engine\n", __FILE__, __LINE__); \
-        pthread_mutex_lock(&((_engine)->mutex)); \
-        fprintf(stderr, "**** %s l.%d Engine locked\n", __FILE__, __LINE__); \
+        pthread_mutex_lock(&((_engine)->mutex));                              \
+        fprintf(stderr, "**** %s l.%d Engine locked\n", __FILE__, __LINE__);  \
     } while (0)
 
-#define ENGINE_UNLOCK(_engine)                     \
-    do                                             \
-    {                                              \
+#define ENGINE_UNLOCK(_engine)                                                  \
+    do                                                                          \
+    {                                                                           \
         fprintf(stderr, "**** %s l.%d Unlocking engine\n", __FILE__, __LINE__); \
-        pthread_mutex_unlock(&((_engine)->mutex)); \
-        fprintf(stderr, "**** %s l.%d engine unlocked\n", __FILE__, __LINE__); \
+        pthread_mutex_unlock(&((_engine)->mutex));                              \
+        fprintf(stderr, "**** %s l.%d engine unlocked\n", __FILE__, __LINE__);  \
     } while (0)
 
-#define CLIENT_LOCK(_client)                     \
-    do                                           \
-    {                                            \
+#define CLIENT_LOCK(_client)                                                  \
+    do                                                                        \
+    {                                                                         \
         fprintf(stderr, "**** %s l.%d Locking client\n", __FILE__, __LINE__); \
-        pthread_mutex_lock(&((_client)->mutex)); \
-        fprintf(stderr, "**** %s l.%d Client locked\n", __FILE__, __LINE__); \
+        pthread_mutex_lock(&((_client)->mutex));                              \
+        fprintf(stderr, "**** %s l.%d Client locked\n", __FILE__, __LINE__);  \
     } while (0)
 
-#define CLIENT_UNLOCK(_client)                     \
-    do                                             \
-    {                                              \
+#define CLIENT_UNLOCK(_client)                                                  \
+    do                                                                          \
+    {                                                                           \
         fprintf(stderr, "**** %s l.%d Unlocking client\n", __FILE__, __LINE__); \
-        pthread_mutex_unlock(&((_client)->mutex)); \
-        fprintf(stderr, "**** %s l.%d Client unlocked\n", __FILE__, __LINE__); \
+        pthread_mutex_unlock(&((_client)->mutex));                              \
+        fprintf(stderr, "**** %s l.%d Client unlocked\n", __FILE__, __LINE__);  \
     } while (0)
 
-#define SERVER_LOCK(_server)                     \
-    do                                           \
-    {                                            \
+#define SERVER_LOCK(_server)                                                  \
+    do                                                                        \
+    {                                                                         \
         fprintf(stderr, "**** %s l.%d Locking server\n", __FILE__, __LINE__); \
-        pthread_mutex_lock(&((_server)->mutex)); \
-        fprintf(stderr, "**** %s l.%d Server locked\n", __FILE__, __LINE__); \
+        pthread_mutex_lock(&((_server)->mutex));                              \
+        fprintf(stderr, "**** %s l.%d Server locked\n", __FILE__, __LINE__);  \
     } while (0)
 
-#define SERVER_UNLOCK(_server)                     \
-    do                                             \
-    {                                              \
+#define SERVER_UNLOCK(_server)                                                  \
+    do                                                                          \
+    {                                                                           \
         fprintf(stderr, "**** %s l.%d Unlocking server\n", __FILE__, __LINE__); \
-        pthread_mutex_unlock(&((_server)->mutex)); \
-        fprintf(stderr, "**** %s l.%d Server unlocked\n", __FILE__, __LINE__);\
+        pthread_mutex_unlock(&((_server)->mutex));                              \
+        fprintf(stderr, "**** %s l.%d Server unlocked\n", __FILE__, __LINE__);  \
     } while (0)
 
-#define ECONTEXT_LOCK(_econtext)                   \
-    do                                             \
-    {                                              \
-        fprintf(stderr, "**** %s l.%d Locking econtext\n", __FILE__, __LINE__); \
-        pthread_mutex_lock(&((_econtext)->mutex)); \
-        fprintf(stderr, "**** %s l.%d Econtext locked\n", __FILE__, __LINE__); \
-        if ((_econtext)->type == CONTEXT_CLIENT)   \
-            CLIENT_LOCK((_econtext)->client);      \
-        else                                       \
-            SERVER_LOCK((_econtext)->server);      \
+#define ECONTEXT_LOCK(_econtext)                                                            \
+    do                                                                                      \
+    {                                                                                       \
+        fprintf(stderr, "**** %s l.%d Locking econtext\n", __FILE__, __LINE__);             \
+        pthread_mutex_lock(&((_econtext)->mutex));                                          \
+        fprintf(stderr, "**** %s l.%d Econtext locked\n", __FILE__, __LINE__);              \
+        if ((_econtext)->type == CONTEXT_CLIENT)                                            \
+            CLIENT_LOCK((_econtext)->client);                                               \
+        else                                                                                \
+            SERVER_LOCK((_econtext)->server);                                               \
         fprintf(stderr, "**** %s l.%d Econtext locked successfully\n", __FILE__, __LINE__); \
     } while (0)
 
-#define ECONTEXT_UNLOCK(_econtext)                   \
-    do                                               \
-    {                                                \
-        fprintf(stderr, "**** %s l.%d Unlocking econtext\n", __FILE__, __LINE__); \
-        pthread_mutex_unlock(&((_econtext)->mutex)); \
-        fprintf(stderr, "**** %s l.%d Econtext unlocked\n", __FILE__, __LINE__); \
-        if ((_econtext)->type == CONTEXT_CLIENT)     \
-            CLIENT_UNLOCK((_econtext)->client);      \
-        else                                         \
-            SERVER_UNLOCK((_econtext)->server);      \
+#define ECONTEXT_UNLOCK(_econtext)                                                            \
+    do                                                                                        \
+    {                                                                                         \
+        fprintf(stderr, "**** %s l.%d Unlocking econtext\n", __FILE__, __LINE__);             \
+        pthread_mutex_unlock(&((_econtext)->mutex));                                          \
+        fprintf(stderr, "**** %s l.%d Econtext unlocked\n", __FILE__, __LINE__);              \
+        if ((_econtext)->type == CONTEXT_CLIENT)                                              \
+            CLIENT_UNLOCK((_econtext)->client);                                               \
+        else                                                                                  \
+            SERVER_UNLOCK((_econtext)->server);                                               \
         fprintf(stderr, "**** %s l.%d Econtext unlocked successfully\n", __FILE__, __LINE__); \
     } while (0)
 
@@ -670,7 +677,7 @@ struct offloading_engine; // forward declaration
 typedef struct execution_context
 {
     pthread_mutex_t mutex;
-    
+
     // type specifies if the execution context is a server or a client during the bootstrapping process
     int type;
 
@@ -799,28 +806,28 @@ typedef struct dpu_offload_event
  * only once and reuse as events are reused. However, it is initialized when the
  * dynamic list is initialized
  */
-#define RESET_EVENT(__ev)                   \
-    do                                      \
-    {                                       \
+#define RESET_EVENT(__ev)                       \
+    do                                          \
+    {                                           \
         fprintf(stderr, "Reseting event...\n"); \
-        (__ev)->context = NULL;             \
-        (__ev)->payload_size = 0;           \
-        (__ev)->payload = NULL;             \
-        (__ev)->event_system = NULL;        \
-        (__ev)->req = NULL;                 \
-        (__ev)->ctx.complete = 0;           \
-        (__ev)->ctx.hdr.type = 0;           \
-        (__ev)->ctx.hdr.id = 0;             \
-        (__ev)->manage_payload_buf = false; \
-        (__ev)->dest_ep = NULL;             \
-        (__ev)->was_pending = false;        \
-        fprintf(stderr, "Event reset\n"); \
+        (__ev)->context = NULL;                 \
+        (__ev)->payload_size = 0;               \
+        (__ev)->payload = NULL;                 \
+        (__ev)->event_system = NULL;            \
+        (__ev)->req = NULL;                     \
+        (__ev)->ctx.complete = 0;               \
+        (__ev)->ctx.hdr.type = 0;               \
+        (__ev)->ctx.hdr.id = 0;                 \
+        (__ev)->manage_payload_buf = false;     \
+        (__ev)->dest_ep = NULL;                 \
+        (__ev)->was_pending = false;            \
+        fprintf(stderr, "Event reset\n");       \
     } while (0)
 
 #define CHECK_EVENT(__ev)                                                                         \
     do                                                                                            \
     {                                                                                             \
-        fprintf(stderr, "Checking event...\n"); \
+        fprintf(stderr, "Checking event...\n");                                                   \
         assert((__ev)->payload_size == 0);                                                        \
         assert((__ev)->ctx.complete == 0);                                                        \
         assert((__ev)->ctx.hdr.type == 0);                                                        \
@@ -834,7 +841,7 @@ typedef struct dpu_offload_event
                 fprintf(stderr, "Num sub events: %ld\n", ucs_list_length(&((__ev)->sub_events))); \
             assert(ucs_list_is_empty(&((__ev)->sub_events)));                                     \
         }                                                                                         \
-        fprintf(stderr, "Event checked\n"); \
+        fprintf(stderr, "Event checked\n");                                                       \
     } while (0)
 
 typedef struct dpu_offload_event_info

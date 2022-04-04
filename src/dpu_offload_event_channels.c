@@ -661,9 +661,12 @@ static dpu_offload_status_t peer_cache_entries_request_recv_cb(struct dpu_offloa
         ucp_ep_h dest;
         group_cache_t *gp_caches;
         dpu_offload_event_t *send_cache_ev;
+        peer_info_t *peer_info;
+        DYN_ARRAY_GET_ELT(&(econtext->server->connected_clients.clients), hdr->id, peer_info_t, peer_info);
+        assert(peer_info);
         event_get(econtext->event_channels, NULL, &send_cache_ev);
         assert(econtext->type == CONTEXT_SERVER);
-        dest = econtext->server->connected_clients.clients[hdr->id].ep;
+        dest = peer_info->ep;
         gp_caches = (group_cache_t *)econtext->engine->procs_cache.data.base;
         DBG("Sending group cache to DPU #%" PRIu64, hdr->id);
         rc = send_group_cache(econtext, dest, rank_info->group_id, send_cache_ev);
