@@ -38,6 +38,72 @@ static sa_family_t ai_family = AF_INET;
 #define OOB_DEFAULT_TAG 0x1337a880u
 #define UCX_ADDR_MSG "UCX address message"
 
+/* All the tag related code has been taken from UCC */
+
+/* Reflects the definition in UCS - The i-th bit */
+#define OFFLOAD_BIT(i) (1ul << (i))
+
+#define OFFLOAD_MASK(i) (OFFLOAD_BIT(i) - 1)
+
+/*
+ * UCP tag structure:
+ *
+ *  01        | 01234567 01234567 |    234   |      567    | 01234567 01234567 01234567 | 01234567 01234567
+ *            |                   |          |             |                            |
+ *  RESERV(2) | message tag (16)  | SCOPE(3) | SCOPE_ID(3) |     source rank (24)       |    team id (16)
+ */
+
+#define OFFLOAD_RESERVED_BITS 2
+#define OFFLOAD_SCOPE_BITS 3
+#define OFFLOAD_SCOPE_ID_BITS 3
+#define OFFLOAD_TAG_BITS 16
+#define OFFLOAD_SENDER_BITS 24
+#define OFFLOAD_ID_BITS 16
+
+#define OFFLOAD_RESERVED_BITS_OFFSET                                 \
+    (OFFLOAD_ID_BITS + OFFLOAD_SENDER_BITS + OFFLOAD_SCOPE_ID_BITS + \
+     OFFLOAD_SCOPE_BITS + OFFLOAD_TAG_BITS)
+
+#define OFFLOAD_TAG_BITS_OFFSET                                      \
+    (OFFLOAD_ID_BITS + OFFLOAD_SENDER_BITS + OFFLOAD_SCOPE_ID_BITS + \
+     OFFLOAD_SCOPE_BITS)
+
+#define OFFLOAD_SCOPE_BITS_OFFSET \
+    (OFFLOAD_ID_BITS + OFFLOAD_SENDER_BITS + OFFLOAD_SCOPE_ID_BITS)
+
+#define OFFLOAD_SCOPE_ID_BITS_OFFSET (OFFLOAD_ID_BITS + OFFLOAD_SENDER_BITS)
+#define OFFLOAD_SENDER_BITS_OFFSET (OFFLOAD_ID_BITS)
+#define OFFLOAD_ID_BITS_OFFSET 0
+
+#define OFFLOAD_MAX_TAG OFFLOAD_MASK(OFFLOAD_TAG_BITS)
+#define OFFLOAD_RESERVED_TAGS 8
+#define OFFLOAD_MAX_COLL_TAG (OFFLOAD_MAX_TAG - OFFLOAD_RESERVED_TAGS)
+#define OFFLOAD_SERVICE_TAG (OFFLOAD_MAX_COLL_TAG + 1)
+#define OFFLOAD_MAX_SENDER OFFLOAD_MASK(OFFLOAD_SENDER_BITS)
+#define OFFLOAD_MAX_ID OFFLOAD_MASK(OFFLOAD_ID_BITS)
+
+#define MAKE_TAG(_tag, _rank, _id, _scope_id, _scope)            \
+    ((((uint64_t)(_tag)) << OFFLOAD_TAG_BITS_OFFSET) |           \
+     (((uint64_t)(_rank)) << OFFLOAD_SENDER_BITS_OFFSET) |       \
+     (((uint64_t)(_scope)) << OFFLOAD_SCOPE_BITS_OFFSET) |       \
+     (((uint64_t)(_scope_id)) << OFFLOAD_SCOPE_ID_BITS_OFFSET) | \
+     (((uint64_t)(_id)) << OFFLOAD_ID_BITS_OFFSET))
+
+#define MAKE_SEND_TAG(_tag, _rank, _id, _scope_id, _scope) \
+    MAKE_TAG(_tag, _rank, _id, _scope_id, _scope)
+
+#define MAKE_RECV_TAG(_ucp_tag, _ucp_tag_mask, _tag, _src, _id,     \
+                      _scope_id, _scope)                            \
+    do                                                              \
+    {                                                               \
+        assert((_tag) <= OFFLOAD_MAX_TAG);                          \
+        assert((_src) <= OFFLOAD_MAX_SENDER);                       \
+        assert((_id) <= OFFLOAD_MAX_ID);                            \
+        (_ucp_tag_mask) = (uint64_t)(-1);                           \
+        (_ucp_tag) =                                                \
+            MAKE_TAG((_tag), (_src), (_id), (_scope_id), (_scope)); \
+    } while (0)
+
 static struct err_handling
 {
     ucp_err_handling_mode_t ucp_err_mode;
@@ -106,12 +172,12 @@ dpu_offload_status_t set_sock_addr(char *addr, uint16_t port, struct sockaddr_st
 
 /**
  * @brief Note: the function assumes the econtext is locked before it is invoked
- * 
- * @param econtext 
- * @param client_addr 
- * @return int 
+ *
+ * @param econtext
+ * @param client_addr
+ * @return dpu_offload_status_t
  */
-static int oob_server_accept(execution_context_t *econtext, char *client_addr)
+static dpu_offload_status_t oob_server_accept(execution_context_t *econtext, char *client_addr)
 {
     int connfd;
     struct sockaddr_in servaddr;
@@ -526,24 +592,28 @@ static dpu_offload_status_t oob_connect(execution_context_t *econtext)
     ucs_status_t status = ucp_ep_create(GET_WORKER(econtext), &ep_params, &client->server_ep);
     CHECK_ERR_GOTO((status != UCS_OK), error_out, "ucp_ep_create() failed");
 
-    size_t msg_len = sizeof(uint64_t) + client->conn_data.oob.local_addr_len;
-    DBG("Allocating msg (len: %ld)", msg_len);
-    struct oob_msg *msg = malloc(msg_len);
-    CHECK_ERR_GOTO((msg == NULL), error_out, "Memory allocation failed for msg");
-    memset(msg, 0, msg_len);
-    DBG("sending local addr to server, len=%ld", msg_len);
-    msg->len = client->conn_data.oob.local_addr_len;
-    memcpy(msg + 1, client->conn_data.oob.local_addr, client->conn_data.oob.local_addr_len);
-
+    struct ucx_context *addr_size_request = NULL;
     struct ucx_context *addr_request = NULL;
     ucp_request_param_t send_param;
     send_param.op_attr_mask = UCP_OP_ATTR_FIELD_CALLBACK |
+                              UCP_OP_ATTR_FIELD_DATATYPE |
                               UCP_OP_ATTR_FIELD_USER_DATA;
     send_param.cb.send = oob_send_cb;
+    send_param.datatype = ucp_dt_make_contig(1);
     send_param.user_data = (void *)client->conn_data.oob.addr_msg_str;
-    // We send everything required to create an endpoint to the server
-    addr_request = ucp_tag_send_nbx(client->server_ep, msg, msg_len, client->conn_data.oob.tag,
-                                    &send_param);
+
+    /* 1. Send the address size */
+    ucp_tag_t ucp_tag = MAKE_SEND_TAG(42 /*client->conn_data.oob.tag*/, 0, 0, 0, 0);
+    addr_size_request = ucp_tag_send_nbx(client->server_ep, &(client->conn_data.oob.local_addr_len), sizeof(size_t), ucp_tag, &send_param);
+    ECONTEXT_UNLOCK(econtext);
+    // Because this is part of the bootstrapping, we wait for the sends to complete
+    ucx_wait(GET_WORKER(econtext), addr_size_request, "send",
+             client->conn_data.oob.addr_msg_str);
+    DBG("Sent addr size to server: %ld\n", client->conn_data.oob.local_addr_len);
+    ECONTEXT_UNLOCK(econtext);
+
+    /* 2. Send the address itself */
+    addr_request = ucp_tag_send_nbx(client->server_ep, client->conn_data.oob.local_addr, client->conn_data.oob.local_addr_len, ucp_tag, &send_param);
     ECONTEXT_UNLOCK(econtext);
     // Because this is part of the bootstrapping, we wait for the sends to complete
     ucx_wait(GET_WORKER(econtext), addr_request, "send",
@@ -554,13 +624,10 @@ static dpu_offload_status_t oob_connect(execution_context_t *econtext)
     DBG("Sending my group/rank info (%" PRId64 "/%" PRId64 "), len=%ld", econtext->rank.group_id, econtext->rank.group_rank, sizeof(econtext->rank));
     struct ucx_context *rank_request = NULL;
     send_param.user_data = NULL;
-    rank_request = ucp_tag_send_nbx(client->server_ep, &(econtext->rank), sizeof(rank_info_t), client->conn_data.oob.tag + 1,
-                                    &send_param);
+    rank_request = ucp_tag_send_nbx(client->server_ep, &(econtext->rank), sizeof(rank_info_t), ucp_tag, &send_param);
     ECONTEXT_UNLOCK(econtext);
     ucx_wait(GET_WORKER(econtext), rank_request, "send", NULL);
 
-    free(msg);
-    msg = NULL;
     return DO_SUCCESS;
 
 error_out:
@@ -1002,6 +1069,13 @@ static void oob_recv_addr_handler(void *request, ucs_status_t status,
         status, ucs_status_string(status), info->length);
 }
 
+static void oob_recv_addr_handler_2(void *request, ucs_status_t status, const ucp_tag_recv_info_t *tag_info, void *user_data)
+{
+    DBG("Bootstrapping message received\n");
+    am_req_t *ctx = (am_req_t *)user_data;
+    ctx->complete = 1;
+}
+
 static void oob_recv_rank_handler(void *request, ucs_status_t status,
                                   ucp_tag_recv_info_t *info)
 {
@@ -1022,6 +1096,7 @@ static void oob_recv_rank_handler(void *request, ucs_status_t status,
 static inline dpu_offload_status_t oob_server_ucx_client_connection(execution_context_t *econtext, char *client_addr)
 {
     struct oob_msg *msg = NULL;
+    struct ucx_context *addr_size_request = NULL;
     struct ucx_context *addr_request = NULL;
     struct ucx_context *rank_request = NULL;
     size_t msg_len = 0;
@@ -1038,50 +1113,52 @@ static inline dpu_offload_status_t oob_server_ucx_client_connection(execution_co
     dpu_offload_server_t *server = econtext->server;
     CHECK_ERR_RETURN((server == NULL), DO_ERROR, "server handle is undefined");
 
-    DBG("Waiting for client's UCX info\n");
+    DBG("Waiting for client's UCX info");
 
     /* Receive client UCX address */
-    do
-    {
-        /* Progressing before probe to update the state */
-        ECONTEXT_UNLOCK(econtext);
-        ucp_worker_progress(GET_WORKER(econtext));
-        ECONTEXT_LOCK(econtext);
 
-        /* Probing incoming events in non-block mode */
-        msg_tag = ucp_tag_probe_nb(GET_WORKER(econtext), server->conn_data.oob.tag, server->conn_data.oob.tag_mask, 1, &info_tag);
-    } while (msg_tag == NULL);
-
-    DBG("allocating space for message to receive: %ld", info_tag.length);
-    msg = malloc(info_tag.length);
-    CHECK_ERR_GOTO((msg == NULL), error_out, "unable to allocate memory");
-    assert(GET_WORKER(econtext));
-    addr_request = ucp_tag_msg_recv_nb(GET_WORKER(econtext), msg, info_tag.length,
-                                       ucp_dt_make_contig(1), msg_tag, oob_recv_addr_handler);
-    DBG("Receiving address length and data (len: %ld, req: %p)", info_tag.length, addr_request);
+    /* 1. Receive the address size */
+    size_t client_addr_size = 0;
+    ucp_tag_t ucp_tag, ucp_tag_mask;
+    MAKE_RECV_TAG(ucp_tag, ucp_tag_mask, 42, 0, 0, 0, 0);
+    ucp_request_param_t recv_param;
+    am_req_t ctx;
+    ctx.complete = 0;
+    recv_param.op_attr_mask = UCP_OP_ATTR_FIELD_CALLBACK |
+                              UCP_OP_ATTR_FIELD_DATATYPE |
+                              UCP_OP_ATTR_FIELD_USER_DATA;
+    recv_param.datatype = ucp_dt_make_contig(1);
+    recv_param.user_data = &ctx;
+    recv_param.cb.recv = oob_recv_addr_handler_2;
+    addr_size_request = ucp_tag_recv_nbx(GET_WORKER(econtext), &client_addr_size, sizeof(size_t), ucp_tag, ucp_tag_mask, &recv_param);
     ECONTEXT_UNLOCK(econtext);
-    status = ucx_wait(GET_WORKER(econtext), addr_request, "receive", server->conn_data.oob.addr_msg_str);
+    request_finalize(GET_WORKER(econtext), addr_size_request, &ctx);
+    DBG("Client address size: %ld", client_addr_size);
     ECONTEXT_LOCK(econtext);
-    if (status != UCS_OK)
-    {
-        free(msg);
-        return -1;
-    }
-    assert(addr_request);
-    assert(server);
-    assert(server->conn_data.oob.addr_msg_str);
 
+    /* 2. Receive the address itself */
+    ctx.complete = 0; // Reset the context as not completed
+
+    // Get the buffer ready for the receive
     peer_info_t *client_ptr;
     DYN_ARRAY_GET_ELT(&(server->connected_clients.clients), server->connected_clients.num_connected_clients, peer_info_t, client_ptr);
     assert(client_ptr);
-    client_ptr->peer_addr_len = msg->len;
-    client_ptr->peer_addr = malloc(msg->len);
+    client_ptr->peer_addr_len = client_addr_size;
+    client_ptr->peer_addr = malloc(client_addr_size);
     CHECK_ERR_GOTO((client_ptr->peer_addr == NULL),
                    error_out,
                    "unable to allocate memory for peer address (%ld bytes)",
                    client_ptr->peer_addr_len);
-    memcpy(client_ptr->peer_addr, msg + 1, msg->len);
-    free(msg);
+
+    addr_request = ucp_tag_recv_nbx(GET_WORKER(econtext), client_ptr->peer_addr, client_addr_size, ucp_tag, ucp_tag_mask, &recv_param);
+    ECONTEXT_UNLOCK(econtext);
+    request_finalize(GET_WORKER(econtext), addr_request, &ctx);
+    DBG("Client address received");
+
+    assert(server);
+    assert(server->conn_data.oob.addr_msg_str);
+
+    /* 3. Create the endpoint using the address we just received */
 
     ep_params.field_mask = UCP_EP_PARAM_FIELD_REMOTE_ADDRESS |
                            UCP_EP_PARAM_FIELD_ERR_HANDLING_MODE |
@@ -1104,23 +1181,14 @@ static inline dpu_offload_status_t oob_server_ucx_client_connection(execution_co
     client_ptr->ep = client_ep;
     DBG("endpoint successfully created");
 
-    do
-    {
-        /* Progressing before probe to update the state */
-        ECONTEXT_UNLOCK(econtext);
-        ucp_worker_progress(GET_WORKER(econtext));
-        ECONTEXT_LOCK(econtext);
-
-        /* Probing incoming events in non-block mode */
-        msg_tag = ucp_tag_probe_nb(GET_WORKER(econtext), server->conn_data.oob.tag + 1, server->conn_data.oob.tag_mask, 1, &info_tag);
-    } while (msg_tag == NULL);
+    // receive the rank/group data
     DBG("Ready to receive peer data\n");
     rank_info_t peer_data;
-    rank_request = ucp_tag_msg_recv_nb(GET_WORKER(econtext), &peer_data, sizeof(rank_info_t),
-                                       ucp_dt_make_contig(1), msg_tag, oob_recv_rank_handler);
+    ctx.complete = 0; // Reset the context as not completed
+    rank_request = ucp_tag_recv_nbx(GET_WORKER(econtext), &peer_data, sizeof(rank_info_t), ucp_tag, ucp_tag_mask, &recv_param);
     DBG("Receiving rank info (len=%ld, req=%p)", sizeof(rank_info_t), rank_request);
     ECONTEXT_UNLOCK(econtext);
-    ucx_wait(GET_WORKER(econtext), rank_request, "receive", NULL);
+    request_finalize(GET_WORKER(econtext), rank_request, &ctx);
     ECONTEXT_LOCK(econtext);
     DBG("group/rank received: (%" PRId64 "/%" PRId64 ")", peer_data.group_id, peer_data.group_rank);
     if (peer_data.group_id != INVALID_GROUP && peer_data.group_rank != INVALID_RANK)
@@ -1196,9 +1264,9 @@ static inline uint64_t generate_unique_client_id(execution_context_t *econtext)
 
 /**
  * @brief Note that this function assumes the execution context is NOT locked before it is invoked.
- * 
- * @param econtext 
- * @return dpu_offload_status_t 
+ *
+ * @param econtext
+ * @return dpu_offload_status_t
  */
 static dpu_offload_status_t oob_server_listen(execution_context_t *econtext)
 {
@@ -1329,7 +1397,6 @@ dpu_offload_status_t server_init_context(execution_context_t *econtext, init_par
     CHECK_ERR_RETURN((econtext->server == NULL), DO_ERROR, "Unable to allocate server handle");
     econtext->server->econtext = (struct execution_context *)econtext;
     econtext->server->mode = OOB; // By default, we connect with the OOB mode
-    //econtext->server->connected_clients.clients = malloc(DEFAULT_MAX_NUM_CLIENTS * sizeof(peer_info_t));
     DYN_ARRAY_ALLOC(&(econtext->server->connected_clients.clients), DEFAULT_MAX_NUM_CLIENTS, peer_info_t);
     econtext->server->connected_clients.num_connected_clients = 0;
     econtext->server->connected_cb = NULL;
