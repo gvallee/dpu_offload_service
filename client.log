@@ -1,0 +1,1177 @@
+Allocating mem chunk dynamic array for list 0x248a120
+Growing list 0x248a120 (adding 8 elts)...
+Getting mem chunk entry #0...
+Adding new elements to list...
+List successfully grown
+Allocating mem chunk dynamic array for list 0x248e310
+Growing list 0x248e310 (adding 10000 elts)...
+Getting mem chunk entry #0...
+Adding new elements to list...
+List successfully grown
+Allocating mem chunk dynamic array for list 0x2492370
+Growing list 0x2492370 (adding 10000 elts)...
+Getting mem chunk entry #0...
+Adding new elements to list...
+List successfully grown
+Allocating mem chunk dynamic array for list 0x24963d0
+Growing list 0x24963d0 (adding 32 elts)...
+Getting mem chunk entry #0...
+Adding new elements to list...
+List successfully grown
+Allocating mem chunk dynamic array for list 0x249c300
+Growing list 0x249c300 (adding 32 elts)...
+Getting mem chunk entry #0...
+Adding new elements to list...
+Reseting event...
+Event reset
+Reseting event...
+Event reset
+Reseting event...
+Event reset
+Reseting event...
+Event reset
+Reseting event...
+Event reset
+Reseting event...
+Event reset
+Reseting event...
+Event reset
+Reseting event...
+Event reset
+Reseting event...
+Event reset
+Reseting event...
+Event reset
+Reseting event...
+Event reset
+Reseting event...
+Event reset
+Reseting event...
+Event reset
+Reseting event...
+Event reset
+Reseting event...
+Event reset
+Reseting event...
+Event reset
+Reseting event...
+Event reset
+Reseting event...
+Event reset
+Reseting event...
+Event reset
+Reseting event...
+Event reset
+Reseting event...
+Event reset
+Reseting event...
+Event reset
+Reseting event...
+Event reset
+Reseting event...
+Event reset
+Reseting event...
+Event reset
+Reseting event...
+Event reset
+Reseting event...
+Event reset
+Reseting event...
+Event reset
+Reseting event...
+Event reset
+Reseting event...
+Event reset
+Reseting event...
+Event reset
+Reseting event...
+Event reset
+List successfully grown
+Allocating mem chunk dynamic array for list 0x24a1570
+Growing list 0x24a1570 (adding 5000 elts)...
+Getting mem chunk entry #0...
+Adding new elements to list...
+List successfully grown
+Allocating mem chunk dynamic array for list 0x24c2b40
+Growing list 0x24c2b40 (adding 32 elts)...
+Getting mem chunk entry #0...
+Adding new elements to list...
+List successfully grown
+[1649166395.176062] [jupiter001:1102721:0]        memtrack.c:386  UCX  TRACE memtrack disabled
+[1649166395.176082] [jupiter001:1102721:0]           debug.c:1211 UCX  DEBUG using signal stack 0x14b9787f4000 size 141824
+[1649166395.187752] [jupiter001:1102721:0]            init.c:116  UCX  DEBUG /global/home/users/geoffroy/scratch/projects/dpu_offload/x86_64/install/ucx-1.12.0/lib/libucs.so.0 loaded at 0x14b977ab2000
+[1649166395.187777] [jupiter001:1102721:0]            init.c:117  UCX  DEBUG cmd line: /global/home/users/geoffroy/scratch/projects/dpu_offload/x86_64/dpu_offload_service/tests/offload_service/client/.libs/lt-client 
+[1649166395.187787] [jupiter001:1102721:0]          module.c:69   UCX  DEBUG ucs library path: /global/home/users/geoffroy/scratch/projects/dpu_offload/x86_64/install/ucx-1.12.0/lib/libucs.so.0
+[1649166395.187791] [jupiter001:1102721:0]          module.c:273  UCX  DEBUG loading modules for ucs
+[dpu_offload_service_daemon.c:l.816:client_init():jupiter001.hpcadvisorycouncil.com:pid=1102721] execution context successfully initialized
+[1649166395.199074] [jupiter001:1102721:0]            time.c:22   UCX  DEBUG measured arch clock speed: 2800000000.00 Hz
+[1649166395.199103] [jupiter001:1102721:0]     ucp_context.c:1779 UCX  INFO  UCP version is 1.12 (release 0)
+[1649166395.199119] [jupiter001:1102721:0]     ucp_context.c:1567 UCX  DEBUG estimated number of endpoints is 1
+[1649166395.199121] [jupiter001:1102721:0]     ucp_context.c:1574 UCX  DEBUG estimated number of endpoints per node is 1
+[1649166395.199125] [jupiter001:1102721:0]     ucp_context.c:1581 UCX  DEBUG estimated bcopy bandwidth is 6081740800.000000
+[1649166395.199132] [jupiter001:1102721:0]     ucp_context.c:1647 UCX  DEBUG allocation method[0] is md 'sysv'
+[1649166395.199133] [jupiter001:1102721:0]     ucp_context.c:1647 UCX  DEBUG allocation method[1] is md 'posix'
+[1649166395.199138] [jupiter001:1102721:0]     ucp_context.c:1659 UCX  DEBUG allocation method[2] is 'huge'
+[1649166395.199139] [jupiter001:1102721:0]     ucp_context.c:1659 UCX  DEBUG allocation method[3] is 'thp'
+[1649166395.199141] [jupiter001:1102721:0]     ucp_context.c:1647 UCX  DEBUG allocation method[4] is md '*'
+[1649166395.199142] [jupiter001:1102721:0]     ucp_context.c:1659 UCX  DEBUG allocation method[5] is 'mmap'
+[1649166395.199142] [jupiter001:1102721:0]     ucp_context.c:1659 UCX  DEBUG allocation method[6] is 'heap'
+[1649166395.199161] [jupiter001:1102721:0]          module.c:273  UCX  DEBUG loading modules for uct
+[1649166395.199165] [jupiter001:1102721:0]          module.c:239  UCX  TRACE loading module 'ib' with mode 0x1
+[1649166395.201379] [jupiter001:1102721:0]          module.c:180  UCX  TRACE loaded /global/scratch/users/geoffroy/projects/dpu_offload/x86_64/install/ucx-1.12.0/lib/ucx/libuct_ib.so.0.0.0 [0x24cb160]
+[1649166395.201387] [jupiter001:1102721:0]          module.c:239  UCX  TRACE loading module 'rdmacm' with mode 0x1
+[1649166395.202804] [jupiter001:1102721:0]          module.c:180  UCX  TRACE loaded /global/scratch/users/geoffroy/projects/dpu_offload/x86_64/install/ucx-1.12.0/lib/ucx/libuct_rdmacm.so.0.0.0 [0x24ccd90]
+[1649166395.202810] [jupiter001:1102721:0]          module.c:239  UCX  TRACE loading module 'cma' with mode 0x1
+[1649166395.203354] [jupiter001:1102721:0]          module.c:180  UCX  TRACE loaded /global/scratch/users/geoffroy/projects/dpu_offload/x86_64/install/ucx-1.12.0/lib/ucx/libuct_cma.so.0.0.0 [0x24cdfd0]
+[1649166395.203360] [jupiter001:1102721:0]          module.c:239  UCX  TRACE loading module 'knem' with mode 0x1
+[1649166395.203760] [jupiter001:1102721:0]          module.c:180  UCX  TRACE loaded /global/scratch/users/geoffroy/projects/dpu_offload/x86_64/install/ucx-1.12.0/lib/ucx/libuct_knem.so.0.0.0 [0x24ce740]
+[1649166395.203765] [jupiter001:1102721:0]          module.c:239  UCX  TRACE loading module 'xpmem' with mode 0x1
+[1649166395.204184] [jupiter001:1102721:0]          module.c:180  UCX  TRACE loaded /global/scratch/users/geoffroy/projects/dpu_offload/x86_64/install/ucx-1.12.0/lib/ucx/libuct_xpmem.so.0.0.0 [0x24ceea0]
+[1649166395.204244] [jupiter001:1102721:0]          module.c:273  UCX  DEBUG loading modules for uct_ib
+[1649166395.204543] [jupiter001:1102721:0]          cma_md.c:115  UCX  TRACE ptrace_scope is 0, CMA is supported
+[1649166395.204625] [jupiter001:1102721:0]        mm_xpmem.c:116  UCX  DEBUG xpmem version: 155653
+[1649166395.204725] [jupiter001:1102721:0]     ucp_context.c:819  UCX  TRACE posix/memory is enabled
+[1649166395.204747] [jupiter001:1102721:0]     ucp_context.c:819  UCX  TRACE sysv/memory is enabled
+[1649166395.204774] [jupiter001:1102721:0]     ucp_context.c:819  UCX  TRACE self/memory0 is enabled
+[1649166395.206492] [jupiter001:1102721:0]     ucp_context.c:819  UCX  TRACE tcp/lo is enabled
+[1649166395.206495] [jupiter001:1102721:0]     ucp_context.c:819  UCX  TRACE tcp/ib0_mlx5 is enabled
+[1649166395.206497] [jupiter001:1102721:0]     ucp_context.c:819  UCX  TRACE tcp/eth0 is enabled
+[1649166395.206674] [jupiter001:1102721:0]           ib_md.c:1568 UCX  TRACE opening IB device mlx5_0
+[1649166395.206841] [jupiter001:1102721:0]    ib_mlx5dv_md.c:646  UCX  DEBUG mlx5dv_open_device(mlx5_0) failed: Invalid argument
+[1649166395.206846] [jupiter001:1102721:0]           ib_md.c:1628 UCX  DEBUG mlx5_0: md open by 'uct_ib_mlx5_devx_md_ops' failed, trying next
+[1649166395.210145] [jupiter001:1102721:0]       ib_device.c:554  UCX  DEBUG PF: mlx5_0 vendor_id: 0x15b3 device_id: 4115
+[1649166395.210151] [jupiter001:1102721:0]    ib_mlx5dv_md.c:879  UCX  DEBUG checking for DC support on mlx5_0
+[1649166395.213129] [jupiter001:1102721:0]    ib_mlx5dv_md.c:953  UCX  DEBUG DC is supported on mlx5_0
+[1649166395.255083] [jupiter001:1102721:0]           async.c:231  UCX  DEBUG added async handler 0x24e2930 [id=5 ref 1] uct_ib_async_event_handler() to hash
+[1649166395.255192] [jupiter001:1102721:0]           async.c:509  UCX  DEBUG listening to async event fd 5 events 0x1 mode thread_spinlock
+[1649166395.255197] [jupiter001:1102721:0]       ib_device.c:668  UCX  DEBUG initialized device 'mlx5_0' (InfiniBand channel adapter) with 1 ports
+[1649166395.255456] [jupiter001:1102721:0]           ib_md.c:1673 UCX  DEBUG mlx5_0: cuda GPUDirect RDMA is disabled
+[1649166395.255462] [jupiter001:1102721:0]           ib_md.c:1673 UCX  DEBUG mlx5_0: rocm GPUDirect RDMA is disabled
+[1649166395.255494] [jupiter001:1102721:0]           mpool.c:100  UCX  DEBUG mpool rcache_mp: align 8, maxelems 4294967295, elemsize 144
+[1649166395.259459] [jupiter001:1102721:0]           async.c:231  UCX  DEBUG added async handler 0x24c92a0 [id=9 ref 1] ucs_rcache_invalidate_handler() to hash
+[1649166395.259469] [jupiter001:1102721:0]           async.c:509  UCX  DEBUG listening to async event fd 9 events 0x1 mode thread_spinlock
+[1649166395.259572] [jupiter001:1102721:0]          module.c:273  UCX  DEBUG loading modules for ucm
+[1649166395.259577] [jupiter001:1102721:0]           ib_md.c:1330 UCX  DEBUG mlx5_0: using registration cache
+[1649166395.259637] [jupiter001:1102721:0]           ib_md.c:1534 UCX  TRACE mlx5_0: PCIe gen3 16x, effective throughput 13448.090 MB/s 112.811 Gb/s
+[1649166395.259639] [jupiter001:1102721:0]           ib_md.c:1621 UCX  DEBUG mlx5_0: md open by 'uct_ib_mlx5_md_ops' is successful
+[1649166395.264026] [jupiter001:1102721:0]            topo.c:133  UCX  DEBUG bus id 0x50000 doesn't exist. sys_dev = 0
+[1649166395.264032] [jupiter001:1102721:0]       ib_device.c:1140 UCX  DEBUG mlx5_0 bus id 0:5:0.0 sys_dev 0
+[1649166395.264067] [jupiter001:1102721:0]            topo.c:124  UCX  DEBUG bus id 0x50000 exists. sys_dev = 0
+[1649166395.264069] [jupiter001:1102721:0]       ib_device.c:1140 UCX  DEBUG mlx5_0 bus id 0:5:0.0 sys_dev 0
+[1649166395.264098] [jupiter001:1102721:0]            topo.c:124  UCX  DEBUG bus id 0x50000 exists. sys_dev = 0
+[1649166395.264100] [jupiter001:1102721:0]       ib_device.c:1140 UCX  DEBUG mlx5_0 bus id 0:5:0.0 sys_dev 0
+[1649166395.264128] [jupiter001:1102721:0]            topo.c:124  UCX  DEBUG bus id 0x50000 exists. sys_dev = 0
+[1649166395.264129] [jupiter001:1102721:0]       ib_device.c:1140 UCX  DEBUG mlx5_0 bus id 0:5:0.0 sys_dev 0
+[1649166395.264178] [jupiter001:1102721:0]            topo.c:124  UCX  DEBUG bus id 0x50000 exists. sys_dev = 0
+[1649166395.264180] [jupiter001:1102721:0]       ib_device.c:1140 UCX  DEBUG mlx5_0 bus id 0:5:0.0 sys_dev 0
+[1649166395.264184] [jupiter001:1102721:0]     ucp_context.c:819  UCX  TRACE rc_verbs/mlx5_0:1 is enabled
+[1649166395.264186] [jupiter001:1102721:0]     ucp_context.c:819  UCX  TRACE rc_mlx5/mlx5_0:1 is enabled
+[1649166395.264188] [jupiter001:1102721:0]     ucp_context.c:819  UCX  TRACE dc_mlx5/mlx5_0:1 is enabled
+[1649166395.264190] [jupiter001:1102721:0]     ucp_context.c:819  UCX  TRACE ud_verbs/mlx5_0:1 is enabled
+[1649166395.264192] [jupiter001:1102721:0]     ucp_context.c:819  UCX  TRACE ud_mlx5/mlx5_0:1 is enabled
+[1649166395.264223] [jupiter001:1102721:0]           ib_md.c:1568 UCX  TRACE opening IB device mlx5_1
+[1649166395.264391] [jupiter001:1102721:0]    ib_mlx5dv_md.c:646  UCX  DEBUG mlx5dv_open_device(mlx5_1) failed: Invalid argument
+[1649166395.264393] [jupiter001:1102721:0]           ib_md.c:1628 UCX  DEBUG mlx5_1: md open by 'uct_ib_mlx5_devx_md_ops' failed, trying next
+[1649166395.267009] [jupiter001:1102721:0]       ib_device.c:554  UCX  DEBUG PF: mlx5_1 vendor_id: 0x15b3 device_id: 4115
+[1649166395.267011] [jupiter001:1102721:0]    ib_mlx5dv_md.c:879  UCX  DEBUG checking for DC support on mlx5_1
+[1649166395.268115] [jupiter001:1102721:0]    ib_mlx5dv_md.c:917  UCX  DEBUG failed to create DCT on mlx5_1: Operation not supported
+[1649166395.268590] [jupiter001:1102721:0]           async.c:231  UCX  DEBUG added async handler 0x24e2970 [id=12 ref 1] uct_ib_async_event_handler() to hash
+[1649166395.268611] [jupiter001:1102721:0]           async.c:509  UCX  DEBUG listening to async event fd 12 events 0x1 mode thread_spinlock
+[1649166395.268612] [jupiter001:1102721:0]       ib_device.c:668  UCX  DEBUG initialized device 'mlx5_1' (InfiniBand channel adapter) with 1 ports
+[1649166395.268698] [jupiter001:1102721:0]           ib_md.c:1673 UCX  DEBUG mlx5_1: cuda GPUDirect RDMA is disabled
+[1649166395.268703] [jupiter001:1102721:0]           ib_md.c:1673 UCX  DEBUG mlx5_1: rocm GPUDirect RDMA is disabled
+[1649166395.268706] [jupiter001:1102721:0]           mpool.c:100  UCX  DEBUG mpool rcache_mp: align 8, maxelems 4294967295, elemsize 144
+[1649166395.268766] [jupiter001:1102721:0]           ib_md.c:1330 UCX  DEBUG mlx5_1: using registration cache
+[1649166395.268812] [jupiter001:1102721:0]           ib_md.c:1534 UCX  TRACE mlx5_1: PCIe gen3 16x, effective throughput 13448.090 MB/s 112.811 Gb/s
+[1649166395.268814] [jupiter001:1102721:0]           ib_md.c:1621 UCX  DEBUG mlx5_1: md open by 'uct_ib_mlx5_md_ops' is successful
+[1649166395.271259] [jupiter001:1102721:0]       ib_device.c:768  UCX  TRACE mlx5_1:1 is not active (state: 1)
+[1649166395.271278] [jupiter001:1102721:0]       ib_device.c:1171 UCX  TRACE mlx5_1:1 does not support flags 0x0: Destination is unreachable
+[1649166395.271279] [jupiter001:1102721:0]       ib_device.c:1185 UCX  DEBUG no compatible IB ports found for flags 0x0
+[1649166395.271282] [jupiter001:1102721:0]          uct_md.c:113  UCX  DEBUG failed to query rc_verbs resources: No such device
+[1649166395.271283] [jupiter001:1102721:0]       ib_device.c:768  UCX  TRACE mlx5_1:1 is not active (state: 1)
+[1649166395.271284] [jupiter001:1102721:0]       ib_device.c:1171 UCX  TRACE mlx5_1:1 does not support flags 0x4: Destination is unreachable
+[1649166395.271285] [jupiter001:1102721:0]       ib_device.c:1185 UCX  DEBUG no compatible IB ports found for flags 0x4
+[1649166395.271286] [jupiter001:1102721:0]          uct_md.c:113  UCX  DEBUG failed to query rc_mlx5 resources: No such device
+[1649166395.271287] [jupiter001:1102721:0]       ib_device.c:768  UCX  TRACE mlx5_1:1 is not active (state: 1)
+[1649166395.271288] [jupiter001:1102721:0]       ib_device.c:1171 UCX  TRACE mlx5_1:1 does not support flags 0xc4: Destination is unreachable
+[1649166395.271289] [jupiter001:1102721:0]       ib_device.c:1185 UCX  DEBUG no compatible IB ports found for flags 0xc4
+[1649166395.271290] [jupiter001:1102721:0]          uct_md.c:113  UCX  DEBUG failed to query dc_mlx5 resources: No such device
+[1649166395.271297] [jupiter001:1102721:0]       ib_device.c:768  UCX  TRACE mlx5_1:1 is not active (state: 1)
+[1649166395.271298] [jupiter001:1102721:0]       ib_device.c:1171 UCX  TRACE mlx5_1:1 does not support flags 0x0: Destination is unreachable
+[1649166395.271299] [jupiter001:1102721:0]       ib_device.c:1185 UCX  DEBUG no compatible IB ports found for flags 0x0
+[1649166395.271300] [jupiter001:1102721:0]          uct_md.c:113  UCX  DEBUG failed to query ud_verbs resources: No such device
+[1649166395.271301] [jupiter001:1102721:0]       ib_device.c:768  UCX  TRACE mlx5_1:1 is not active (state: 1)
+[1649166395.271302] [jupiter001:1102721:0]       ib_device.c:1171 UCX  TRACE mlx5_1:1 does not support flags 0x4: Destination is unreachable
+[1649166395.271303] [jupiter001:1102721:0]       ib_device.c:1185 UCX  DEBUG no compatible IB ports found for flags 0x4
+[1649166395.271304] [jupiter001:1102721:0]          uct_md.c:113  UCX  DEBUG failed to query ud_mlx5 resources: No such device
+[1649166395.271305] [jupiter001:1102721:0]     ucp_context.c:891  UCX  DEBUG No tl resources found for md mlx5_1
+[1649166395.271306] [jupiter001:1102721:0]     ucp_context.c:1305 UCX  DEBUG closing md mlx5_1 because it has no selected transport resources
+[1649166395.271318] [jupiter001:1102721:0]           mpool.c:154  UCX  DEBUG mpool rcache_mp destroyed
+[1649166395.271429] [jupiter001:1102721:0]       ib_device.c:686  UCX  DEBUG destroying ib device mlx5_1
+[1649166395.271440] [jupiter001:1102721:0]           async.c:156  UCX  DEBUG removed async handler 0x24e2970 [id=12 ref 1] uct_ib_async_event_handler() from hash
+[1649166395.271442] [jupiter001:1102721:0]           async.c:562  UCX  DEBUG removing async handler 0x24e2970 [id=12 ref 1] uct_ib_async_event_handler()
+[1649166395.271445] [jupiter001:1102721:0]           async.c:582  UCX  TRACE waiting for 0x24e2970 [id=12 ref 1] uct_ib_async_event_handler() completion (called=0)
+[1649166395.271447] [jupiter001:1102721:0]           async.c:171  UCX  DEBUG release async handler 0x24e2970 [id=12 ref 0] uct_ib_async_event_handler()
+[1649166395.271812] [jupiter001:1102721:0]           ib_md.c:1568 UCX  TRACE opening IB device mlx5_2
+[1649166395.279521] [jupiter001:1102721:0]       ib_device.c:554  UCX  DEBUG PF: mlx5_2 vendor_id: 0x15b3 device_id: 41686
+[1649166395.279956] [jupiter001:1102721:0]    ib_mlx5dv_md.c:491  UCX  DEBUG mlx5_2: disable ODP because it's not supported for DevX QP
+[1649166395.280107] [jupiter001:1102721:0]           async.c:231  UCX  DEBUG added async handler 0x24d7aa0 [id=12 ref 1] uct_ib_async_event_handler() to hash
+[1649166395.280115] [jupiter001:1102721:0]           async.c:509  UCX  DEBUG listening to async event fd 12 events 0x1 mode thread_spinlock
+[1649166395.280117] [jupiter001:1102721:0]       ib_device.c:668  UCX  DEBUG initialized device 'mlx5_2' (InfiniBand channel adapter) with 1 ports
+[1649166395.280221] [jupiter001:1102721:0]           ib_md.c:1673 UCX  DEBUG mlx5_2: cuda GPUDirect RDMA is disabled
+[1649166395.280225] [jupiter001:1102721:0]           ib_md.c:1673 UCX  DEBUG mlx5_2: rocm GPUDirect RDMA is disabled
+[1649166395.280229] [jupiter001:1102721:0]           mpool.c:100  UCX  DEBUG mpool rcache_mp: align 8, maxelems 4294967295, elemsize 144
+[1649166395.280281] [jupiter001:1102721:0]           ib_md.c:1330 UCX  DEBUG mlx5_2: using registration cache
+[1649166395.280336] [jupiter001:1102721:0]           ib_md.c:1534 UCX  TRACE mlx5_2: PCIe gen3 16x, effective throughput 13448.090 MB/s 112.811 Gb/s
+[1649166395.280340] [jupiter001:1102721:0]           mpool.c:100  UCX  DEBUG mpool devx dbrec: align 64, maxelems 4294967295, elemsize 40
+[1649166395.280654] [jupiter001:1102721:0]           ib_md.c:1621 UCX  DEBUG mlx5_2: md open by 'uct_ib_mlx5_devx_md_ops' is successful
+[1649166395.283418] [jupiter001:1102721:0]            topo.c:133  UCX  DEBUG bus id 0x420000 doesn't exist. sys_dev = 1
+[1649166395.283422] [jupiter001:1102721:0]       ib_device.c:1140 UCX  DEBUG mlx5_2 bus id 0:66:0.0 sys_dev 1
+[1649166395.283471] [jupiter001:1102721:0]            topo.c:124  UCX  DEBUG bus id 0x420000 exists. sys_dev = 1
+[1649166395.283473] [jupiter001:1102721:0]       ib_device.c:1140 UCX  DEBUG mlx5_2 bus id 0:66:0.0 sys_dev 1
+[1649166395.283512] [jupiter001:1102721:0]            topo.c:124  UCX  DEBUG bus id 0x420000 exists. sys_dev = 1
+[1649166395.283514] [jupiter001:1102721:0]       ib_device.c:1140 UCX  DEBUG mlx5_2 bus id 0:66:0.0 sys_dev 1
+[1649166395.283541] [jupiter001:1102721:0]            topo.c:124  UCX  DEBUG bus id 0x420000 exists. sys_dev = 1
+[1649166395.283543] [jupiter001:1102721:0]       ib_device.c:1140 UCX  DEBUG mlx5_2 bus id 0:66:0.0 sys_dev 1
+[1649166395.283582] [jupiter001:1102721:0]            topo.c:124  UCX  DEBUG bus id 0x420000 exists. sys_dev = 1
+[1649166395.283584] [jupiter001:1102721:0]       ib_device.c:1140 UCX  DEBUG mlx5_2 bus id 0:66:0.0 sys_dev 1
+[1649166395.283588] [jupiter001:1102721:0]     ucp_context.c:819  UCX  TRACE rc_verbs/mlx5_2:1 is enabled
+[1649166395.283590] [jupiter001:1102721:0]     ucp_context.c:819  UCX  TRACE rc_mlx5/mlx5_2:1 is enabled
+[1649166395.283591] [jupiter001:1102721:0]     ucp_context.c:819  UCX  TRACE dc_mlx5/mlx5_2:1 is enabled
+[1649166395.283593] [jupiter001:1102721:0]     ucp_context.c:819  UCX  TRACE ud_verbs/mlx5_2:1 is enabled
+[1649166395.283594] [jupiter001:1102721:0]     ucp_context.c:819  UCX  TRACE ud_mlx5/mlx5_2:1 is enabled
+[1649166395.283615] [jupiter001:1102721:0]           ib_md.c:1568 UCX  TRACE opening IB device mlx5_3
+[1649166395.286896] [jupiter001:1102721:0]       ib_device.c:554  UCX  DEBUG PF: mlx5_3 vendor_id: 0x15b3 device_id: 41686
+[1649166395.287240] [jupiter001:1102721:0]    ib_mlx5dv_md.c:491  UCX  DEBUG mlx5_3: disable ODP because it's not supported for DevX QP
+[1649166395.287389] [jupiter001:1102721:0]           async.c:231  UCX  DEBUG added async handler 0x24db010 [id=14 ref 1] uct_ib_async_event_handler() to hash
+[1649166395.287397] [jupiter001:1102721:0]           async.c:509  UCX  DEBUG listening to async event fd 14 events 0x1 mode thread_spinlock
+[1649166395.287399] [jupiter001:1102721:0]       ib_device.c:668  UCX  DEBUG initialized device 'mlx5_3' (InfiniBand channel adapter) with 1 ports
+[1649166395.287490] [jupiter001:1102721:0]           ib_md.c:1673 UCX  DEBUG mlx5_3: cuda GPUDirect RDMA is disabled
+[1649166395.287495] [jupiter001:1102721:0]           ib_md.c:1673 UCX  DEBUG mlx5_3: rocm GPUDirect RDMA is disabled
+[1649166395.287498] [jupiter001:1102721:0]           mpool.c:100  UCX  DEBUG mpool rcache_mp: align 8, maxelems 4294967295, elemsize 144
+[1649166395.287557] [jupiter001:1102721:0]           ib_md.c:1330 UCX  DEBUG mlx5_3: using registration cache
+[1649166395.287619] [jupiter001:1102721:0]           ib_md.c:1534 UCX  TRACE mlx5_3: PCIe gen3 16x, effective throughput 13448.090 MB/s 112.811 Gb/s
+[1649166395.287622] [jupiter001:1102721:0]           mpool.c:100  UCX  DEBUG mpool devx dbrec: align 64, maxelems 4294967295, elemsize 40
+[1649166395.287774] [jupiter001:1102721:0]           ib_md.c:1621 UCX  DEBUG mlx5_3: md open by 'uct_ib_mlx5_devx_md_ops' is successful
+[1649166395.288957] [jupiter001:1102721:0]       ib_device.c:768  UCX  TRACE mlx5_3:1 is not active (state: 1)
+[1649166395.288959] [jupiter001:1102721:0]       ib_device.c:1171 UCX  TRACE mlx5_3:1 does not support flags 0x0: Destination is unreachable
+[1649166395.288960] [jupiter001:1102721:0]       ib_device.c:1185 UCX  DEBUG no compatible IB ports found for flags 0x0
+[1649166395.288962] [jupiter001:1102721:0]          uct_md.c:113  UCX  DEBUG failed to query rc_verbs resources: No such device
+[1649166395.288963] [jupiter001:1102721:0]       ib_device.c:768  UCX  TRACE mlx5_3:1 is not active (state: 1)
+[1649166395.288964] [jupiter001:1102721:0]       ib_device.c:1171 UCX  TRACE mlx5_3:1 does not support flags 0x4: Destination is unreachable
+[1649166395.288965] [jupiter001:1102721:0]       ib_device.c:1185 UCX  DEBUG no compatible IB ports found for flags 0x4
+[1649166395.288966] [jupiter001:1102721:0]          uct_md.c:113  UCX  DEBUG failed to query rc_mlx5 resources: No such device
+[1649166395.288971] [jupiter001:1102721:0]       ib_device.c:768  UCX  TRACE mlx5_3:1 is not active (state: 1)
+[1649166395.288973] [jupiter001:1102721:0]       ib_device.c:1171 UCX  TRACE mlx5_3:1 does not support flags 0xc4: Destination is unreachable
+[1649166395.288973] [jupiter001:1102721:0]       ib_device.c:1185 UCX  DEBUG no compatible IB ports found for flags 0xc4
+[1649166395.288974] [jupiter001:1102721:0]          uct_md.c:113  UCX  DEBUG failed to query dc_mlx5 resources: No such device
+[1649166395.288976] [jupiter001:1102721:0]       ib_device.c:768  UCX  TRACE mlx5_3:1 is not active (state: 1)
+[1649166395.288976] [jupiter001:1102721:0]       ib_device.c:1171 UCX  TRACE mlx5_3:1 does not support flags 0x0: Destination is unreachable
+[1649166395.288989] [jupiter001:1102721:0]       ib_device.c:1185 UCX  DEBUG no compatible IB ports found for flags 0x0
+[1649166395.288990] [jupiter001:1102721:0]          uct_md.c:113  UCX  DEBUG failed to query ud_verbs resources: No such device
+[1649166395.288991] [jupiter001:1102721:0]       ib_device.c:768  UCX  TRACE mlx5_3:1 is not active (state: 1)
+[1649166395.288992] [jupiter001:1102721:0]       ib_device.c:1171 UCX  TRACE mlx5_3:1 does not support flags 0x4: Destination is unreachable
+[1649166395.288993] [jupiter001:1102721:0]       ib_device.c:1185 UCX  DEBUG no compatible IB ports found for flags 0x4
+[1649166395.288994] [jupiter001:1102721:0]          uct_md.c:113  UCX  DEBUG failed to query ud_mlx5 resources: No such device
+[1649166395.288995] [jupiter001:1102721:0]     ucp_context.c:891  UCX  DEBUG No tl resources found for md mlx5_3
+[1649166395.288996] [jupiter001:1102721:0]     ucp_context.c:1305 UCX  DEBUG closing md mlx5_3 because it has no selected transport resources
+[1649166395.289089] [jupiter001:1102721:0]           mpool.c:154  UCX  DEBUG mpool devx dbrec destroyed
+[1649166395.289094] [jupiter001:1102721:0]           mpool.c:154  UCX  DEBUG mpool rcache_mp destroyed
+[1649166395.289157] [jupiter001:1102721:0]       ib_device.c:686  UCX  DEBUG destroying ib device mlx5_3
+[1649166395.289160] [jupiter001:1102721:0]           async.c:156  UCX  DEBUG removed async handler 0x24db010 [id=14 ref 1] uct_ib_async_event_handler() from hash
+[1649166395.289161] [jupiter001:1102721:0]           async.c:562  UCX  DEBUG removing async handler 0x24db010 [id=14 ref 1] uct_ib_async_event_handler()
+[1649166395.289165] [jupiter001:1102721:0]           async.c:582  UCX  TRACE waiting for 0x24db010 [id=14 ref 1] uct_ib_async_event_handler() completion (called=0)
+[1649166395.289166] [jupiter001:1102721:0]           async.c:171  UCX  DEBUG release async handler 0x24db010 [id=14 ref 0] uct_ib_async_event_handler()
+[1649166395.289619] [jupiter001:1102721:0]          cma_md.c:115  UCX  TRACE ptrace_scope is 0, CMA is supported
+[1649166395.289639] [jupiter001:1102721:0]     ucp_context.c:819  UCX  TRACE cma/memory is enabled
+[1649166395.289668] [jupiter001:1102721:0]           mpool.c:100  UCX  DEBUG mpool rcache_mp: align 8, maxelems 4294967295, elemsize 144
+[1649166395.289748] [jupiter001:1102721:0]     ucp_context.c:819  UCX  TRACE knem/memory is enabled
+[1649166395.289754] [jupiter001:1102721:0]        mm_xpmem.c:116  UCX  DEBUG xpmem version: 155653
+[1649166395.289772] [jupiter001:1102721:0]     ucp_context.c:819  UCX  TRACE xpmem/memory is enabled
+[1649166395.289786] [jupiter001:1102721:0]     ucp_context.c:1819 UCX  DEBUG created ucp context 0x24cad20 0x24cad20 [9 mds 19 tls] features 0x41 tl bitmap 0x7ffff 0x0
+[1649166395.289818] [jupiter001:1102721:0]      ucp_worker.c:2119 UCX  DIAG  multi-threaded worker is requested, but library is built without multi-thread support
+[1649166395.289885] [jupiter001:1102721:0]         uct_mem.c:106  UCX  TRACE allocating mm_recv_fifo: host memory length 8447 flags 0x3e0
+[1649166395.289887] [jupiter001:1102721:0]         uct_mem.c:110  UCX  TRACE   trying allocation method md
+[1649166395.289963] [jupiter001:1102721:0]             sys.c:653  UCX  TRACE   detected huge page size: 2097152
+[1649166395.289988] [jupiter001:1102721:0]        mm_posix.c:531  UCX  DEBUG   allocated posix shared memory at 0x14b978821000 length 12288
+[1649166395.289990] [jupiter001:1102721:0]         uct_mem.c:304  UCX  TRACE   allocated 12288 bytes at 0x14b978821000 using posix
+[1649166395.290009] [jupiter001:1102721:0]           mpool.c:100  UCX  DEBUG mpool mm_recv_desc: align 64, maxelems 4294967295, elemsize 8368
+[1649166395.290013] [jupiter001:1102721:0]         uct_mem.c:106  UCX  TRACE allocating mm_recv_desc: host memory length 4292720 flags 0x3e0
+[1649166395.290014] [jupiter001:1102721:0]         uct_mem.c:110  UCX  TRACE   trying allocation method md
+[1649166395.291293] [jupiter001:1102721:0]        mm_posix.c:326  UCX  DEBUG   shared memory mmap(addr=(nil), length=6291456, flags= HUGETLB, fd=16) failed: Invalid argument
+[1649166395.291298] [jupiter001:1102721:0]        mm_posix.c:531  UCX  DEBUG   allocated posix shared memory at 0x14b970171000 length 4296704
+[1649166395.291300] [jupiter001:1102721:0]         uct_mem.c:304  UCX  TRACE   allocated 4296704 bytes at 0x14b970171000 using posix
+[1649166395.291305] [jupiter001:1102721:0]           mpool.c:237  UCX  DEBUG mpool mm_recv_desc: allocated chunk 0x14b970171018 of 4296680 bytes with 512 elements
+[1649166395.291673] [jupiter001:1102721:0]        mm_iface.c:674  UCX  DEBUG created mm iface 0x24ca490 FIFO id 0xc00000038010d381 va 0x14b978821000 size 12288 (128 x 64 elems)
+[1649166395.291695] [jupiter001:1102721:0]      ucp_worker.c:1202 UCX  DEBUG created interface[0]=0x24ca490 using posix/memory on worker 0x25b2510
+[1649166395.291714] [jupiter001:1102721:0]         uct_mem.c:106  UCX  TRACE allocating mm_recv_fifo: host memory length 8447 flags 0x3e0
+[1649166395.291716] [jupiter001:1102721:0]         uct_mem.c:110  UCX  TRACE   trying allocation method md
+[1649166395.291719] [jupiter001:1102721:0]         mm_sysv.c:94   UCX  DEBUG   mm failed to allocate 8447 bytes with hugetlb
+[1649166395.291736] [jupiter001:1102721:0]         uct_mem.c:304  UCX  TRACE   allocated 12288 bytes at 0x14b978799000 using sysv
+[1649166395.291750] [jupiter001:1102721:0]           mpool.c:100  UCX  DEBUG mpool mm_recv_desc: align 64, maxelems 4294967295, elemsize 8368
+[1649166395.291752] [jupiter001:1102721:0]         uct_mem.c:106  UCX  TRACE allocating mm_recv_desc: host memory length 4292720 flags 0x3e0
+[1649166395.291753] [jupiter001:1102721:0]         uct_mem.c:110  UCX  TRACE   trying allocation method md
+[1649166395.291768] [jupiter001:1102721:0]         mm_sysv.c:94   UCX  DEBUG   mm failed to allocate 4292720 bytes with hugetlb
+[1649166395.291776] [jupiter001:1102721:0]         uct_mem.c:304  UCX  TRACE   allocated 4296704 bytes at 0x14b96fd58000 using sysv
+[1649166395.291783] [jupiter001:1102721:0]           mpool.c:237  UCX  DEBUG mpool mm_recv_desc: allocated chunk 0x14b96fd58018 of 4296680 bytes with 512 elements
+[1649166395.292846] [jupiter001:1102721:0]        mm_iface.c:674  UCX  DEBUG created mm iface 0x27f6990 FIFO id 0x7803a va 0x14b978799000 size 12288 (128 x 64 elems)
+[1649166395.292854] [jupiter001:1102721:0]      ucp_worker.c:1202 UCX  DEBUG created interface[1]=0x27f6990 using sysv/memory on worker 0x25b2510
+[1649166395.292865] [jupiter001:1102721:0]           mpool.c:100  UCX  DEBUG mpool self_msg_desc: align 64, maxelems 4294967295, elemsize 8200
+[1649166395.292867] [jupiter001:1102721:0]            self.c:222  UCX  DEBUG created self iface id 0xe9710f9d6b2c5b3 send_size 8192
+[1649166395.292870] [jupiter001:1102721:0]      ucp_worker.c:1202 UCX  DEBUG created interface[2]=0x260a050 using self/memory0 on worker 0x25b2510
+[1649166395.292893] [jupiter001:1102721:0]       tcp_iface.c:587  UCX  DEBUG using TCP port range: 0-0
+[1649166395.292895] [jupiter001:1102721:0]           mpool.c:100  UCX  DEBUG mpool uct_tcp_iface_tx_buf_mp: align 64, maxelems 4294967295, elemsize 8205
+[1649166395.292896] [jupiter001:1102721:0]           mpool.c:100  UCX  DEBUG mpool uct_tcp_iface_rx_buf_mp: align 64, maxelems 4294967295, elemsize 131090
+[1649166395.294605] [jupiter001:1102721:0]           async.c:231  UCX  DEBUG added async handler 0x24d31e0 [id=19 ref 1] uct_tcp_iface_connect_handler() to hash
+[1649166395.294631] [jupiter001:1102721:0]           async.c:509  UCX  DEBUG listening to async event fd 19 events 0x5 mode thread_spinlock
+[1649166395.294639] [jupiter001:1102721:0]       tcp_iface.c:537  UCX  DEBUG tcp_iface 0x260a580: listening for connections (fd=19) on 127.0.0.1:36321
+[1649166395.294663] [jupiter001:1102721:0]            sock.c:90   UCX  DEBUG ioctl(req=35142, ifr_name=lo) failed: Operation not supported
+[1649166395.294672] [jupiter001:1102721:0]         tcp_net.c:61   UCX  DEBUG speed of lo is UNKNOWN, assuming 100 Mbps
+[1649166395.294736] [jupiter001:1102721:0]      ucp_worker.c:1202 UCX  DEBUG created interface[3]=0x260a580 using tcp/lo on worker 0x25b2510
+[1649166395.294769] [jupiter001:1102721:0]       tcp_iface.c:587  UCX  DEBUG using TCP port range: 0-0
+[1649166395.294771] [jupiter001:1102721:0]           mpool.c:100  UCX  DEBUG mpool uct_tcp_iface_tx_buf_mp: align 64, maxelems 4294967295, elemsize 8205
+[1649166395.294772] [jupiter001:1102721:0]           mpool.c:100  UCX  DEBUG mpool uct_tcp_iface_rx_buf_mp: align 64, maxelems 4294967295, elemsize 131090
+[1649166395.294915] [jupiter001:1102721:0]           async.c:231  UCX  DEBUG added async handler 0x24d4920 [id=21 ref 1] uct_tcp_iface_connect_handler() to hash
+[1649166395.294923] [jupiter001:1102721:0]           async.c:509  UCX  DEBUG listening to async event fd 21 events 0x5 mode thread_spinlock
+[1649166395.294926] [jupiter001:1102721:0]       tcp_iface.c:537  UCX  DEBUG tcp_iface 0x286e010: listening for connections (fd=21) on 192.168.130.1:42141
+[1649166395.295290] [jupiter001:1102721:0]      ucp_worker.c:1202 UCX  DEBUG created interface[4]=0x286e010 using tcp/ib0_mlx5 on worker 0x25b2510
+[1649166395.295307] [jupiter001:1102721:0]       tcp_iface.c:587  UCX  DEBUG using TCP port range: 0-0
+[1649166395.295309] [jupiter001:1102721:0]           mpool.c:100  UCX  DEBUG mpool uct_tcp_iface_tx_buf_mp: align 64, maxelems 4294967295, elemsize 8205
+[1649166395.295310] [jupiter001:1102721:0]           mpool.c:100  UCX  DEBUG mpool uct_tcp_iface_rx_buf_mp: align 64, maxelems 4294967295, elemsize 131090
+[1649166395.295429] [jupiter001:1102721:0]           async.c:231  UCX  DEBUG added async handler 0x27e8010 [id=23 ref 1] uct_tcp_iface_connect_handler() to hash
+[1649166395.295436] [jupiter001:1102721:0]           async.c:509  UCX  DEBUG listening to async event fd 23 events 0x5 mode thread_spinlock
+[1649166395.295439] [jupiter001:1102721:0]       tcp_iface.c:537  UCX  DEBUG tcp_iface 0x286e780: listening for connections (fd=23) on 192.168.2.1:48829
+[1649166395.295500] [jupiter001:1102721:0]      ucp_worker.c:1202 UCX  DEBUG created interface[5]=0x286e780 using tcp/eth0 on worker 0x25b2510
+[1649166395.295763] [jupiter001:1102721:0]        ib_iface.c:866  UCX  DEBUG using pkey[0] 0xffff on mlx5_0:1/IB
+[1649166395.296790] [jupiter001:1102721:0]        ib_iface.c:1473 UCX  DEBUG created uct_ib_iface_t headroom_ofs 12 payload_ofs 92 hdr_ofs 91 data_sz 8256
+[1649166395.296814] [jupiter001:1102721:0]           mpool.c:100  UCX  DEBUG mpool rc_recv_desc: align 64, maxelems 4294967295, elemsize 8356
+[1649166395.296816] [jupiter001:1102721:0]           mpool.c:100  UCX  DEBUG mpool rc_send_desc: align 64, maxelems 4294967295, elemsize 8320
+[1649166395.296837] [jupiter001:1102721:0]           mpool.c:100  UCX  DEBUG mpool send-ops-mpool: align 64, maxelems 4294967295, elemsize 48
+[1649166395.297281] [jupiter001:1102721:0]           mpool.c:100  UCX  DEBUG mpool pending-ops: align 1, maxelems 4294967295, elemsize 64
+[1649166395.297304] [jupiter001:1102721:0]           mpool.c:100  UCX  DEBUG mpool rc_verbs_short_desc: align 64, maxelems 4294967295, elemsize 192
+[1649166395.298229] [jupiter001:1102721:0]        ib_iface.c:1008 UCX  DEBUG iface=0x25a2260: created RC QP 0x693 on mlx5_0:1 TX wr:409 sge:5 inl:124 resp:64 RX wr:0 sge:0 resp:64
+[1649166395.299039] [jupiter001:1102721:0]      ucp_worker.c:1202 UCX  DEBUG created interface[6]=0x25a2260 using rc_verbs/mlx5_0:1 on worker 0x25b2510
+[1649166395.299314] [jupiter001:1102721:0]        ib_iface.c:866  UCX  DEBUG using pkey[0] 0xffff on mlx5_0:1/IB
+[1649166395.299359] [jupiter001:1102721:0]       ib_device.c:1409 UCX  DEBUG max IB CQE size is 128
+[1649166395.300840] [jupiter001:1102721:0]        ib_iface.c:1473 UCX  DEBUG created uct_ib_iface_t headroom_ofs 12 payload_ofs 92 hdr_ofs 90 data_sz 8256
+[1649166395.300845] [jupiter001:1102721:0]           mpool.c:100  UCX  DEBUG mpool rc_recv_desc: align 64, maxelems 4294967295, elemsize 8356
+[1649166395.300847] [jupiter001:1102721:0]           mpool.c:100  UCX  DEBUG mpool rc_send_desc: align 64, maxelems 4294967295, elemsize 8320
+[1649166395.300867] [jupiter001:1102721:0]           mpool.c:100  UCX  DEBUG mpool send-ops-mpool: align 64, maxelems 4294967295, elemsize 48
+[1649166395.301387] [jupiter001:1102721:0]           mpool.c:100  UCX  DEBUG mpool pending-ops: align 1, maxelems 4294967295, elemsize 64
+[1649166395.301400] [jupiter001:1102721:0]         ib_mlx5.c:889  UCX  DEBUG SL=0 (AR support - unknown) was selected on mlx5_0:1, SLs with AR support = { <none> }, SLs without AR support = { <none> }
+[1649166395.301444] [jupiter001:1102721:0]  rc_mlx5_common.c:735  UCX  DEBUG ibv_alloc_dm(dev=mlx5_0 length=2048) failed: Invalid argument
+[1649166395.301447] [jupiter001:1102721:0]           mpool.c:100  UCX  DEBUG mpool rc_mlx5_atomic_desc: align 64, maxelems 4294967295, elemsize 72
+[1649166395.301462] [jupiter001:1102721:0]      ucp_worker.c:1202 UCX  DEBUG created interface[7]=0x27e8fc0 using rc_mlx5/mlx5_0:1 on worker 0x25b2510
+[1649166395.301610] [jupiter001:1102721:0]        ib_iface.c:866  UCX  DEBUG using pkey[0] 0xffff on mlx5_0:1/IB
+[1649166395.302908] [jupiter001:1102721:0]        ib_iface.c:1473 UCX  DEBUG created uct_ib_iface_t headroom_ofs 12 payload_ofs 92 hdr_ofs 90 data_sz 8256
+[1649166395.302913] [jupiter001:1102721:0]           mpool.c:100  UCX  DEBUG mpool rc_recv_desc: align 64, maxelems 4294967295, elemsize 8356
+[1649166395.302915] [jupiter001:1102721:0]           mpool.c:100  UCX  DEBUG mpool rc_send_desc: align 64, maxelems 4294967295, elemsize 8320
+[1649166395.302939] [jupiter001:1102721:0]           mpool.c:100  UCX  DEBUG mpool send-ops-mpool: align 64, maxelems 4294967295, elemsize 48
+[1649166395.303246] [jupiter001:1102721:0]           mpool.c:100  UCX  DEBUG mpool pending-ops: align 1, maxelems 4294967295, elemsize 112
+[1649166395.303249] [jupiter001:1102721:0]         ib_mlx5.c:889  UCX  DEBUG SL=0 (AR support - unknown) was selected on mlx5_0:1, SLs with AR support = { <none> }, SLs without AR support = { <none> }
+[1649166395.303290] [jupiter001:1102721:0]  rc_mlx5_common.c:735  UCX  DEBUG ibv_alloc_dm(dev=mlx5_0 length=2048) failed: Invalid argument
+[1649166395.303292] [jupiter001:1102721:0]           mpool.c:100  UCX  DEBUG mpool rc_mlx5_atomic_desc: align 64, maxelems 4294967295, elemsize 72
+[1649166395.303899] [jupiter001:1102721:0]         dc_mlx5.c:836  UCX  DEBUG creating dci pool 0 with 8 QPs
+[1649166395.305934] [jupiter001:1102721:0]         ib_mlx5.c:568  UCX  DEBUG tx wq 65536 bytes [bb=64, nwqe=1024] mmio_mode bf_post_mt
+[1649166395.306717] [jupiter001:1102721:0]         ib_mlx5.c:568  UCX  DEBUG tx wq 65536 bytes [bb=64, nwqe=1024] mmio_mode bf_post_mt
+[1649166395.307418] [jupiter001:1102721:0]         ib_mlx5.c:568  UCX  DEBUG tx wq 65536 bytes [bb=64, nwqe=1024] mmio_mode bf_post_mt
+[1649166395.308018] [jupiter001:1102721:0]         ib_mlx5.c:568  UCX  DEBUG tx wq 65536 bytes [bb=64, nwqe=1024] mmio_mode bf_post_mt
+[1649166395.308668] [jupiter001:1102721:0]         ib_mlx5.c:568  UCX  DEBUG tx wq 65536 bytes [bb=64, nwqe=1024] mmio_mode bf_post_mt
+[1649166395.309419] [jupiter001:1102721:0]         ib_mlx5.c:568  UCX  DEBUG tx wq 65536 bytes [bb=64, nwqe=1024] mmio_mode bf_post_mt
+[1649166395.310071] [jupiter001:1102721:0]         ib_mlx5.c:568  UCX  DEBUG tx wq 65536 bytes [bb=64, nwqe=1024] mmio_mode bf_post_mt
+[1649166395.310724] [jupiter001:1102721:0]         ib_mlx5.c:568  UCX  DEBUG tx wq 65536 bytes [bb=64, nwqe=1024] mmio_mode bf_post_mt
+[1649166395.310734] [jupiter001:1102721:0]         dc_mlx5.c:1387 UCX  DEBUG dc iface 0x2587010: using 'dcs_quota' policy with 8 dcis and 4608 cqes, dct 0x696
+[1649166395.310757] [jupiter001:1102721:0]         uct_mem.c:106  UCX  TRACE allocating rc_recv_desc: host memory length 37770032 flags 0x3e0
+[1649166395.310758] [jupiter001:1102721:0]         uct_mem.c:110  UCX  TRACE   trying allocation method huge
+[1649166395.310770] [jupiter001:1102721:0]         uct_mem.c:283  UCX  TRACE   failed to allocate 37770032 bytes from hugetlb: Out of memory
+[1649166395.310771] [jupiter001:1102721:0]         uct_mem.c:110  UCX  TRACE   trying allocation method thp
+[1649166395.310815] [jupiter001:1102721:0]         uct_mem.c:304  UCX  TRACE   allocated 39845888 bytes at 0x14b96d600000 using thp
+[1649166395.310833] [jupiter001:1102721:0]           mpool.c:237  UCX  DEBUG mpool rcache_mp: allocated chunk 0x14b97876f008 of 151544 bytes with 1052 elements
+[1649166395.319363] [jupiter001:1102721:0]           ib_md.c:546  UCX  TRACE ibv_reg_mr(0x24cdee0, 0x14b96d600000, 39845888) took 8.426 msec
+[1649166395.319369] [jupiter001:1102721:0]           ib_md.c:786  UCX  TRACE registered memory 0x14b96d600000..0x14b96fc00000 on mlx5_0 lkey 0x25244 rkey 0x25244 access 0xf flags 0x3e4
+[1649166395.319379] [jupiter001:1102721:0]          rcache.c:957  UCX  TRACE mlx5_0: created region 0x24e0870 [0x14b96d600000..0x14b96fc00000] gt rw ref 2 lkey 0x25244 rkey 0x25244 atomic_rkey 0xffffffff
+[1649166395.319383] [jupiter001:1102721:0]           mpool.c:237  UCX  DEBUG mpool rc_recv_desc: allocated chunk 0x14b96d600018 of 39845864 bytes with 4752 elements
+[1649166395.319634] [jupiter001:1102721:0]         dc_mlx5.c:1403 UCX  DEBUG created dc iface 0x2587010
+[1649166395.319677] [jupiter001:1102721:0]      ucp_worker.c:1202 UCX  DEBUG created interface[8]=0x2587010 using dc_mlx5/mlx5_0:1 on worker 0x25b2510
+[1649166395.319921] [jupiter001:1102721:0]        ib_iface.c:866  UCX  DEBUG using pkey[0] 0xffff on mlx5_0:1/IB
+[1649166395.320727] [jupiter001:1102721:0]        ib_iface.c:1473 UCX  DEBUG created uct_ib_iface_t headroom_ofs 12 payload_ofs 92 hdr_ofs 44 data_sz 4096
+[1649166395.321219] [jupiter001:1102721:0]        ib_iface.c:1008 UCX  DEBUG iface=0x259eaf0: created UD QP 0x69f on mlx5_0:1 TX wr:341 sge:6 inl:124 resp:0 RX wr:4096 sge:1 resp:0
+[1649166395.321579] [jupiter001:1102721:0]           mpool.c:100  UCX  DEBUG mpool ud_recv_skb: align 64, maxelems 4294967295, elemsize 4196
+[1649166395.321591] [jupiter001:1102721:0]         uct_mem.c:106  UCX  TRACE allocating ud_recv_skb: host memory length 540784 flags 0x3e0
+[1649166395.321595] [jupiter001:1102721:0]         uct_mem.c:110  UCX  TRACE   trying allocation method huge
+[1649166395.321610] [jupiter001:1102721:0]         uct_mem.c:283  UCX  TRACE   failed to allocate 540784 bytes from hugetlb: User-defined limit was reached
+[1649166395.321611] [jupiter001:1102721:0]         uct_mem.c:110  UCX  TRACE   trying allocation method thp
+[1649166395.321627] [jupiter001:1102721:0]         uct_mem.c:110  UCX  TRACE   trying allocation method md
+[1649166395.321629] [jupiter001:1102721:0]         uct_mem.c:110  UCX  TRACE   trying allocation method mmap
+[1649166395.321636] [jupiter001:1102721:0]         uct_mem.c:304  UCX  TRACE   allocated 544768 bytes at 0x14b9786e9000 using mmap
+[1649166395.321853] [jupiter001:1102721:0]           ib_md.c:546  UCX  TRACE ibv_reg_mr(0x24cdee0, 0x14b9786e9000, 544768) took 0.206 msec
+[1649166395.321856] [jupiter001:1102721:0]           ib_md.c:786  UCX  TRACE registered memory 0x14b9786e9000..0x14b97876e000 on mlx5_0 lkey 0x25e50 rkey 0x25e50 access 0xf flags 0x3e4
+[1649166395.321858] [jupiter001:1102721:0]          rcache.c:957  UCX  TRACE mlx5_0: created region 0x2c6c010 [0x14b9786e9000..0x14b97876e000] gt rw ref 2 lkey 0x25e50 rkey 0x25e50 atomic_rkey 0xffffffff
+[1649166395.321860] [jupiter001:1102721:0]           mpool.c:237  UCX  DEBUG mpool ud_recv_skb: allocated chunk 0x14b9786e9018 of 544744 bytes with 128 elements
+[1649166395.321887] [jupiter001:1102721:0]           mpool.c:100  UCX  DEBUG mpool ud_tx_skb: align 64, maxelems 4294967295, elemsize 4168
+[1649166395.321921] [jupiter001:1102721:0]        ud_iface.c:421  UCX  DEBUG iface 0x259eaf0: adding gid fe80::7cfe:9003:5d:7e4a to hash on device mlx5_0 port 1 index 0)
+[1649166395.321952] [jupiter001:1102721:0]        ud_iface.c:421  UCX  DEBUG iface 0x259eaf0: adding gid fe80:: to hash on device mlx5_0 port 1 index 1)
+[1649166395.321965] [jupiter001:1102721:0]        ud_iface.c:421  UCX  DEBUG iface 0x259eaf0: adding gid fe80:: to hash on device mlx5_0 port 1 index 2)
+[1649166395.321977] [jupiter001:1102721:0]        ud_iface.c:421  UCX  DEBUG iface 0x259eaf0: adding gid fe80:: to hash on device mlx5_0 port 1 index 3)
+[1649166395.321989] [jupiter001:1102721:0]        ud_iface.c:421  UCX  DEBUG iface 0x259eaf0: adding gid fe80:: to hash on device mlx5_0 port 1 index 4)
+[1649166395.322013] [jupiter001:1102721:0]        ud_iface.c:421  UCX  DEBUG iface 0x259eaf0: adding gid fe80:: to hash on device mlx5_0 port 1 index 5)
+[1649166395.322025] [jupiter001:1102721:0]        ud_iface.c:421  UCX  DEBUG iface 0x259eaf0: adding gid fe80:: to hash on device mlx5_0 port 1 index 6)
+[1649166395.322037] [jupiter001:1102721:0]        ud_iface.c:421  UCX  DEBUG iface 0x259eaf0: adding gid fe80:: to hash on device mlx5_0 port 1 index 7)
+[1649166395.322349] [jupiter001:1102721:0]     timer_wheel.c:41   UCX  DEBUG high res timer created log=23 resolution=2995.931429 usec wanted: 2500.000000 usec
+[1649166395.325927] [jupiter001:1102721:0]           async.c:231  UCX  DEBUG added async handler 0x259f740 [id=27 ref 1] uct_ud_iface_async_handler() to hash
+[1649166395.325943] [jupiter001:1102721:0]           async.c:509  UCX  DEBUG listening to async event fd 27 events 0x5 mode thread_spinlock
+[1649166395.325969] [jupiter001:1102721:0]      ucp_worker.c:1202 UCX  DEBUG created interface[9]=0x259eaf0 using ud_verbs/mlx5_0:1 on worker 0x25b2510
+[1649166395.326148] [jupiter001:1102721:0]        ib_iface.c:866  UCX  DEBUG using pkey[0] 0xffff on mlx5_0:1/IB
+[1649166395.326657] [jupiter001:1102721:0]        ib_iface.c:1473 UCX  DEBUG created uct_ib_iface_t headroom_ofs 12 payload_ofs 92 hdr_ofs 44 data_sz 4096
+[1649166395.327094] [jupiter001:1102721:0]        ib_iface.c:1008 UCX  DEBUG iface=0x2fd1d60: created UD QP 0x6a0 on mlx5_0:1 TX wr:341 sge:6 inl:124 resp:0 RX wr:4096 sge:1 resp:0
+[1649166395.327098] [jupiter001:1102721:0]         ib_mlx5.c:568  UCX  DEBUG tx wq 65536 bytes [bb=64, nwqe=1024] mmio_mode bf_post_mt
+[1649166395.327365] [jupiter001:1102721:0]           mpool.c:100  UCX  DEBUG mpool ud_recv_skb: align 64, maxelems 4294967295, elemsize 4196
+[1649166395.327368] [jupiter001:1102721:0]         uct_mem.c:106  UCX  TRACE allocating ud_recv_skb: host memory length 540784 flags 0x3e0
+[1649166395.327369] [jupiter001:1102721:0]         uct_mem.c:110  UCX  TRACE   trying allocation method huge
+[1649166395.327370] [jupiter001:1102721:0]         uct_mem.c:283  UCX  TRACE   failed to allocate 540784 bytes from hugetlb: User-defined limit was reached
+[1649166395.327371] [jupiter001:1102721:0]         uct_mem.c:110  UCX  TRACE   trying allocation method thp
+[1649166395.327382] [jupiter001:1102721:0]         uct_mem.c:110  UCX  TRACE   trying allocation method md
+[1649166395.327384] [jupiter001:1102721:0]         uct_mem.c:110  UCX  TRACE   trying allocation method mmap
+[1649166395.327389] [jupiter001:1102721:0]         uct_mem.c:304  UCX  TRACE   allocated 544768 bytes at 0x14b978663000 using mmap
+[1649166395.327570] [jupiter001:1102721:0]           ib_md.c:546  UCX  TRACE ibv_reg_mr(0x24cdee0, 0x14b978663000, 544768) took 0.173 msec
+[1649166395.327572] [jupiter001:1102721:0]           ib_md.c:786  UCX  TRACE registered memory 0x14b978663000..0x14b9786e8000 on mlx5_0 lkey 0x308fa rkey 0x308fa access 0xf flags 0x3e4
+[1649166395.327575] [jupiter001:1102721:0]          rcache.c:957  UCX  TRACE mlx5_0: created region 0x3068fe0 [0x14b978663000..0x14b9786e8000] gt rw ref 2 lkey 0x308fa rkey 0x308fa atomic_rkey 0xffffffff
+[1649166395.327581] [jupiter001:1102721:0]           mpool.c:237  UCX  DEBUG mpool ud_recv_skb: allocated chunk 0x14b978663018 of 544744 bytes with 128 elements
+[1649166395.327597] [jupiter001:1102721:0]           mpool.c:100  UCX  DEBUG mpool ud_tx_skb: align 64, maxelems 4294967295, elemsize 4168
+[1649166395.327616] [jupiter001:1102721:0]        ud_iface.c:421  UCX  DEBUG iface 0x2fd1d60: adding gid fe80::7cfe:9003:5d:7e4a to hash on device mlx5_0 port 1 index 0)
+[1649166395.327627] [jupiter001:1102721:0]        ud_iface.c:421  UCX  DEBUG iface 0x2fd1d60: adding gid fe80:: to hash on device mlx5_0 port 1 index 1)
+[1649166395.327639] [jupiter001:1102721:0]        ud_iface.c:421  UCX  DEBUG iface 0x2fd1d60: adding gid fe80:: to hash on device mlx5_0 port 1 index 2)
+[1649166395.327662] [jupiter001:1102721:0]        ud_iface.c:421  UCX  DEBUG iface 0x2fd1d60: adding gid fe80:: to hash on device mlx5_0 port 1 index 3)
+[1649166395.327672] [jupiter001:1102721:0]        ud_iface.c:421  UCX  DEBUG iface 0x2fd1d60: adding gid fe80:: to hash on device mlx5_0 port 1 index 4)
+[1649166395.327683] [jupiter001:1102721:0]        ud_iface.c:421  UCX  DEBUG iface 0x2fd1d60: adding gid fe80:: to hash on device mlx5_0 port 1 index 5)
+[1649166395.327693] [jupiter001:1102721:0]        ud_iface.c:421  UCX  DEBUG iface 0x2fd1d60: adding gid fe80:: to hash on device mlx5_0 port 1 index 6)
+[1649166395.327704] [jupiter001:1102721:0]        ud_iface.c:421  UCX  DEBUG iface 0x2fd1d60: adding gid fe80:: to hash on device mlx5_0 port 1 index 7)
+[1649166395.327720] [jupiter001:1102721:0]         ib_mlx5.c:889  UCX  DEBUG SL=0 (AR support - unknown) was selected on mlx5_0:1, SLs with AR support = { <none> }, SLs without AR support = { <none> }
+[1649166395.327770] [jupiter001:1102721:0]     timer_wheel.c:41   UCX  DEBUG high res timer created log=23 resolution=2995.931429 usec wanted: 2500.000000 usec
+[1649166395.327773] [jupiter001:1102721:0]           async.c:231  UCX  DEBUG added async handler 0x27dbd50 [id=28 ref 1] uct_ud_iface_async_handler() to hash
+[1649166395.327781] [jupiter001:1102721:0]           async.c:509  UCX  DEBUG listening to async event fd 28 events 0x5 mode thread_spinlock
+[1649166395.327805] [jupiter001:1102721:0]      ucp_worker.c:1202 UCX  DEBUG created interface[10]=0x2fd1d60 using ud_mlx5/mlx5_0:1 on worker 0x25b2510
+[1649166395.328179] [jupiter001:1102721:0]        ib_iface.c:866  UCX  DEBUG using pkey[0] 0xffff on mlx5_2:1/IB
+[1649166395.329169] [jupiter001:1102721:0]        ib_iface.c:1473 UCX  DEBUG created uct_ib_iface_t headroom_ofs 12 payload_ofs 92 hdr_ofs 91 data_sz 8256
+[1649166395.329174] [jupiter001:1102721:0]           mpool.c:100  UCX  DEBUG mpool rc_recv_desc: align 64, maxelems 4294967295, elemsize 8356
+[1649166395.329176] [jupiter001:1102721:0]           mpool.c:100  UCX  DEBUG mpool rc_send_desc: align 64, maxelems 4294967295, elemsize 8320
+[1649166395.329198] [jupiter001:1102721:0]           mpool.c:100  UCX  DEBUG mpool send-ops-mpool: align 64, maxelems 4294967295, elemsize 48
+[1649166395.329938] [jupiter001:1102721:0]           mpool.c:100  UCX  DEBUG mpool pending-ops: align 1, maxelems 4294967295, elemsize 64
+[1649166395.329947] [jupiter001:1102721:0]           mpool.c:100  UCX  DEBUG mpool rc_verbs_short_desc: align 64, maxelems 4294967295, elemsize 192
+[1649166395.330570] [jupiter001:1102721:0]        ib_iface.c:1008 UCX  DEBUG iface=0x2c950e0: created RC QP 0x29b on mlx5_2:1 TX wr:409 sge:5 inl:124 resp:64 RX wr:0 sge:0 resp:64
+[1649166395.331252] [jupiter001:1102721:0]      ucp_worker.c:1202 UCX  DEBUG created interface[11]=0x2c950e0 using rc_verbs/mlx5_2:1 on worker 0x25b2510
+[1649166395.331425] [jupiter001:1102721:0]        ib_iface.c:866  UCX  DEBUG using pkey[0] 0xffff on mlx5_2:1/IB
+[1649166395.332441] [jupiter001:1102721:0]        ib_iface.c:1473 UCX  DEBUG created uct_ib_iface_t headroom_ofs 12 payload_ofs 92 hdr_ofs 90 data_sz 8256
+[1649166395.332446] [jupiter001:1102721:0]           mpool.c:100  UCX  DEBUG mpool rc_recv_desc: align 64, maxelems 4294967295, elemsize 8356
+[1649166395.332448] [jupiter001:1102721:0]           mpool.c:100  UCX  DEBUG mpool rc_send_desc: align 64, maxelems 4294967295, elemsize 8320
+[1649166395.332487] [jupiter001:1102721:0]           mpool.c:100  UCX  DEBUG mpool send-ops-mpool: align 64, maxelems 4294967295, elemsize 48
+[1649166395.332794] [jupiter001:1102721:0]           mpool.c:237  UCX  DEBUG mpool devx dbrec: allocated chunk 0x306d010 of 8176 bytes with 127 elements
+[1649166395.333000] [jupiter001:1102721:0]           mpool.c:100  UCX  DEBUG mpool pending-ops: align 1, maxelems 4294967295, elemsize 64
+[1649166395.333216] [jupiter001:1102721:0]         ib_mlx5.c:889  UCX  DEBUG SL=0 (AR support - no) was selected on mlx5_2:1, SLs with AR support = { <none> }, SLs without AR support = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 }
+[1649166395.334135] [jupiter001:1102721:0]           mpool.c:100  UCX  DEBUG mpool mlx5_dm_desc: align 64, maxelems 1, elemsize 64
+[1649166395.334150] [jupiter001:1102721:0]           mpool.c:100  UCX  DEBUG mpool rc_mlx5_atomic_desc: align 64, maxelems 4294967295, elemsize 72
+[1649166395.336935] [jupiter001:1102721:0]           async.c:231  UCX  DEBUG added async handler 0x3068af0 [id=31 ref 1] uct_rc_mlx5_devx_iface_event_handler() to hash
+[1649166395.336945] [jupiter001:1102721:0]           async.c:509  UCX  DEBUG listening to async event fd 31 events 0x1 mode thread_spinlock
+[1649166395.336970] [jupiter001:1102721:0]      ucp_worker.c:1202 UCX  DEBUG created interface[12]=0x305a3d0 using rc_mlx5/mlx5_2:1 on worker 0x25b2510
+[1649166395.337172] [jupiter001:1102721:0]        ib_iface.c:866  UCX  DEBUG using pkey[0] 0xffff on mlx5_2:1/IB
+[1649166395.337827] [jupiter001:1102721:0]        ib_iface.c:1473 UCX  DEBUG created uct_ib_iface_t headroom_ofs 12 payload_ofs 92 hdr_ofs 90 data_sz 8256
+[1649166395.337832] [jupiter001:1102721:0]           mpool.c:100  UCX  DEBUG mpool rc_recv_desc: align 64, maxelems 4294967295, elemsize 8356
+[1649166395.337834] [jupiter001:1102721:0]           mpool.c:100  UCX  DEBUG mpool rc_send_desc: align 64, maxelems 4294967295, elemsize 8320
+[1649166395.337858] [jupiter001:1102721:0]           mpool.c:100  UCX  DEBUG mpool send-ops-mpool: align 64, maxelems 4294967295, elemsize 48
+[1649166395.338113] [jupiter001:1102721:0]           mpool.c:100  UCX  DEBUG mpool pending-ops: align 1, maxelems 4294967295, elemsize 112
+[1649166395.338228] [jupiter001:1102721:0]         ib_mlx5.c:889  UCX  DEBUG SL=0 (AR support - no) was selected on mlx5_2:1, SLs with AR support = { <none> }, SLs without AR support = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 }
+[1649166395.338264] [jupiter001:1102721:0]           mpool.c:100  UCX  DEBUG mpool rc_mlx5_atomic_desc: align 64, maxelems 4294967295, elemsize 72
+[1649166395.338272] [jupiter001:1102721:0]           async.c:231  UCX  DEBUG added async handler 0x340ddf0 [id=33 ref 1] uct_rc_mlx5_devx_iface_event_handler() to hash
+[1649166395.338280] [jupiter001:1102721:0]           async.c:509  UCX  DEBUG listening to async event fd 33 events 0x1 mode thread_spinlock
+[1649166395.338982] [jupiter001:1102721:0]         dc_mlx5.c:836  UCX  DEBUG creating dci pool 0 with 8 QPs
+[1649166395.344973] [jupiter001:1102721:0]         dc_mlx5.c:1387 UCX  DEBUG dc iface 0x303c060: using 'dcs_quota' policy with 8 dcis and 4608 cqes, dct 0x1421
+[1649166395.344977] [jupiter001:1102721:0]         uct_mem.c:106  UCX  TRACE allocating rc_recv_desc: host memory length 37770032 flags 0x3e0
+[1649166395.344978] [jupiter001:1102721:0]         uct_mem.c:110  UCX  TRACE   trying allocation method huge
+[1649166395.344996] [jupiter001:1102721:0]         uct_mem.c:283  UCX  TRACE   failed to allocate 37770032 bytes from hugetlb: Out of memory
+[1649166395.344997] [jupiter001:1102721:0]         uct_mem.c:110  UCX  TRACE   trying allocation method thp
+[1649166395.345020] [jupiter001:1102721:0]         uct_mem.c:304  UCX  TRACE   allocated 39845888 bytes at 0x14b96ae00000 using thp
+[1649166395.345030] [jupiter001:1102721:0]           mpool.c:237  UCX  DEBUG mpool rcache_mp: allocated chunk 0x14b97863c008 of 151544 bytes with 1052 elements
+[1649166395.352838] [jupiter001:1102721:0]           ib_md.c:546  UCX  TRACE ibv_reg_mr(0x26068b0, 0x14b96ae00000, 39845888) took 7.704 msec
+[1649166395.352846] [jupiter001:1102721:0]           ib_md.c:786  UCX  TRACE registered memory 0x14b96ae00000..0x14b96d400000 on mlx5_2 lkey 0x44d2d rkey 0x44d2d access 0xf flags 0x3e4
+[1649166395.352851] [jupiter001:1102721:0]          rcache.c:957  UCX  TRACE mlx5_2: created region 0x340dc50 [0x14b96ae00000..0x14b96d400000] gt rw ref 2 lkey 0x44d2d rkey 0x44d2d atomic_rkey 0xffffffff
+[1649166395.352855] [jupiter001:1102721:0]           mpool.c:237  UCX  DEBUG mpool rc_recv_desc: allocated chunk 0x14b96ae00018 of 39845864 bytes with 4752 elements
+[1649166395.353147] [jupiter001:1102721:0]         dc_mlx5.c:1403 UCX  DEBUG created dc iface 0x303c060
+[1649166395.353176] [jupiter001:1102721:0]      ucp_worker.c:1202 UCX  DEBUG created interface[13]=0x303c060 using dc_mlx5/mlx5_2:1 on worker 0x25b2510
+[1649166395.353431] [jupiter001:1102721:0]        ib_iface.c:866  UCX  DEBUG using pkey[0] 0xffff on mlx5_2:1/IB
+[1649166395.354241] [jupiter001:1102721:0]        ib_iface.c:1473 UCX  DEBUG created uct_ib_iface_t headroom_ofs 12 payload_ofs 92 hdr_ofs 44 data_sz 4096
+[1649166395.354772] [jupiter001:1102721:0]        ib_iface.c:1008 UCX  DEBUG iface=0x2beb050: created UD QP 0x142a on mlx5_2:1 TX wr:341 sge:6 inl:124 resp:0 RX wr:4096 sge:1 resp:0
+[1649166395.355295] [jupiter001:1102721:0]           mpool.c:100  UCX  DEBUG mpool ud_recv_skb: align 64, maxelems 4294967295, elemsize 4196
+[1649166395.355299] [jupiter001:1102721:0]         uct_mem.c:106  UCX  TRACE allocating ud_recv_skb: host memory length 540784 flags 0x3e0
+[1649166395.355300] [jupiter001:1102721:0]         uct_mem.c:110  UCX  TRACE   trying allocation method huge
+[1649166395.355302] [jupiter001:1102721:0]         uct_mem.c:283  UCX  TRACE   failed to allocate 540784 bytes from hugetlb: User-defined limit was reached
+[1649166395.355303] [jupiter001:1102721:0]         uct_mem.c:110  UCX  TRACE   trying allocation method thp
+[1649166395.355318] [jupiter001:1102721:0]         uct_mem.c:110  UCX  TRACE   trying allocation method md
+[1649166395.355325] [jupiter001:1102721:0]         uct_mem.c:110  UCX  TRACE   trying allocation method mmap
+[1649166395.355335] [jupiter001:1102721:0]         uct_mem.c:304  UCX  TRACE   allocated 544768 bytes at 0x14b96acd1000 using mmap
+[1649166395.355561] [jupiter001:1102721:0]           ib_md.c:546  UCX  TRACE ibv_reg_mr(0x26068b0, 0x14b96acd1000, 544768) took 0.214 msec
+[1649166395.355564] [jupiter001:1102721:0]           ib_md.c:786  UCX  TRACE registered memory 0x14b96acd1000..0x14b96ad56000 on mlx5_2 lkey 0x3efc9 rkey 0x3efc9 access 0xf flags 0x3e4
+[1649166395.355566] [jupiter001:1102721:0]          rcache.c:957  UCX  TRACE mlx5_2: created region 0x32b6010 [0x14b96acd1000..0x14b96ad56000] gt rw ref 2 lkey 0x3efc9 rkey 0x3efc9 atomic_rkey 0xffffffff
+[1649166395.355568] [jupiter001:1102721:0]           mpool.c:237  UCX  DEBUG mpool ud_recv_skb: allocated chunk 0x14b96acd1018 of 544744 bytes with 128 elements
+[1649166395.355572] [jupiter001:1102721:0]           mpool.c:100  UCX  DEBUG mpool ud_tx_skb: align 64, maxelems 4294967295, elemsize 4168
+[1649166395.355605] [jupiter001:1102721:0]        ud_iface.c:421  UCX  DEBUG iface 0x2beb050: adding gid fe80::b8ce:f603:67:fd68 to hash on device mlx5_2 port 1 index 0)
+[1649166395.355619] [jupiter001:1102721:0]        ud_iface.c:421  UCX  DEBUG iface 0x2beb050: adding gid fe80:: to hash on device mlx5_2 port 1 index 1)
+[1649166395.355630] [jupiter001:1102721:0]        ud_iface.c:421  UCX  DEBUG iface 0x2beb050: adding gid fe80:: to hash on device mlx5_2 port 1 index 2)
+[1649166395.355642] [jupiter001:1102721:0]        ud_iface.c:421  UCX  DEBUG iface 0x2beb050: adding gid fe80:: to hash on device mlx5_2 port 1 index 3)
+[1649166395.355653] [jupiter001:1102721:0]        ud_iface.c:421  UCX  DEBUG iface 0x2beb050: adding gid fe80:: to hash on device mlx5_2 port 1 index 4)
+[1649166395.355664] [jupiter001:1102721:0]        ud_iface.c:421  UCX  DEBUG iface 0x2beb050: adding gid fe80:: to hash on device mlx5_2 port 1 index 5)
+[1649166395.355699] [jupiter001:1102721:0]        ud_iface.c:421  UCX  DEBUG iface 0x2beb050: adding gid fe80:: to hash on device mlx5_2 port 1 index 6)
+[1649166395.355711] [jupiter001:1102721:0]        ud_iface.c:421  UCX  DEBUG iface 0x2beb050: adding gid fe80:: to hash on device mlx5_2 port 1 index 7)
+[1649166395.356039] [jupiter001:1102721:0]     timer_wheel.c:41   UCX  DEBUG high res timer created log=23 resolution=2995.931429 usec wanted: 2500.000000 usec
+[1649166395.356044] [jupiter001:1102721:0]           async.c:231  UCX  DEBUG added async handler 0x306a4b0 [id=34 ref 1] uct_ud_iface_async_handler() to hash
+[1649166395.356064] [jupiter001:1102721:0]           async.c:509  UCX  DEBUG listening to async event fd 34 events 0x5 mode thread_spinlock
+[1649166395.356087] [jupiter001:1102721:0]      ucp_worker.c:1202 UCX  DEBUG created interface[14]=0x2beb050 using ud_verbs/mlx5_2:1 on worker 0x25b2510
+[1649166395.356262] [jupiter001:1102721:0]        ib_iface.c:866  UCX  DEBUG using pkey[0] 0xffff on mlx5_2:1/IB
+[1649166395.357128] [jupiter001:1102721:0]        ib_iface.c:1473 UCX  DEBUG created uct_ib_iface_t headroom_ofs 12 payload_ofs 92 hdr_ofs 44 data_sz 4096
+[1649166395.357591] [jupiter001:1102721:0]        ib_iface.c:1008 UCX  DEBUG iface=0x29b1050: created UD QP 0x142b on mlx5_2:1 TX wr:341 sge:6 inl:124 resp:0 RX wr:4096 sge:1 resp:0
+[1649166395.357596] [jupiter001:1102721:0]         ib_mlx5.c:568  UCX  DEBUG tx wq 65536 bytes [bb=64, nwqe=1024] mmio_mode bf_post_mt
+[1649166395.357919] [jupiter001:1102721:0]           mpool.c:100  UCX  DEBUG mpool ud_recv_skb: align 64, maxelems 4294967295, elemsize 4196
+[1649166395.357922] [jupiter001:1102721:0]         uct_mem.c:106  UCX  TRACE allocating ud_recv_skb: host memory length 540784 flags 0x3e0
+[1649166395.357923] [jupiter001:1102721:0]         uct_mem.c:110  UCX  TRACE   trying allocation method huge
+[1649166395.357924] [jupiter001:1102721:0]         uct_mem.c:283  UCX  TRACE   failed to allocate 540784 bytes from hugetlb: User-defined limit was reached
+[1649166395.357925] [jupiter001:1102721:0]         uct_mem.c:110  UCX  TRACE   trying allocation method thp
+[1649166395.357936] [jupiter001:1102721:0]         uct_mem.c:110  UCX  TRACE   trying allocation method md
+[1649166395.357938] [jupiter001:1102721:0]         uct_mem.c:110  UCX  TRACE   trying allocation method mmap
+[1649166395.357944] [jupiter001:1102721:0]         uct_mem.c:304  UCX  TRACE   allocated 544768 bytes at 0x14b96ac4c000 using mmap
+[1649166395.358152] [jupiter001:1102721:0]           ib_md.c:546  UCX  TRACE ibv_reg_mr(0x26068b0, 0x14b96ac4c000, 544768) took 0.201 msec
+[1649166395.358155] [jupiter001:1102721:0]           ib_md.c:786  UCX  TRACE registered memory 0x14b96ac4c000..0x14b96acd1000 on mlx5_2 lkey 0x24625 rkey 0x24625 access 0xf flags 0x3e4
+[1649166395.358157] [jupiter001:1102721:0]          rcache.c:957  UCX  TRACE mlx5_2: created region 0x340de50 [0x14b96ac4c000..0x14b96acd1000] gt rw ref 2 lkey 0x24625 rkey 0x24625 atomic_rkey 0xffffffff
+[1649166395.358159] [jupiter001:1102721:0]           mpool.c:237  UCX  DEBUG mpool ud_recv_skb: allocated chunk 0x14b96ac4c018 of 544744 bytes with 128 elements
+[1649166395.358163] [jupiter001:1102721:0]           mpool.c:100  UCX  DEBUG mpool ud_tx_skb: align 64, maxelems 4294967295, elemsize 4168
+[1649166395.358181] [jupiter001:1102721:0]        ud_iface.c:421  UCX  DEBUG iface 0x29b1050: adding gid fe80::b8ce:f603:67:fd68 to hash on device mlx5_2 port 1 index 0)
+[1649166395.358205] [jupiter001:1102721:0]        ud_iface.c:421  UCX  DEBUG iface 0x29b1050: adding gid fe80:: to hash on device mlx5_2 port 1 index 1)
+[1649166395.358216] [jupiter001:1102721:0]        ud_iface.c:421  UCX  DEBUG iface 0x29b1050: adding gid fe80:: to hash on device mlx5_2 port 1 index 2)
+[1649166395.358226] [jupiter001:1102721:0]        ud_iface.c:421  UCX  DEBUG iface 0x29b1050: adding gid fe80:: to hash on device mlx5_2 port 1 index 3)
+[1649166395.358236] [jupiter001:1102721:0]        ud_iface.c:421  UCX  DEBUG iface 0x29b1050: adding gid fe80:: to hash on device mlx5_2 port 1 index 4)
+[1649166395.358264] [jupiter001:1102721:0]        ud_iface.c:421  UCX  DEBUG iface 0x29b1050: adding gid fe80:: to hash on device mlx5_2 port 1 index 5)
+[1649166395.358275] [jupiter001:1102721:0]        ud_iface.c:421  UCX  DEBUG iface 0x29b1050: adding gid fe80:: to hash on device mlx5_2 port 1 index 6)
+[1649166395.358286] [jupiter001:1102721:0]        ud_iface.c:421  UCX  DEBUG iface 0x29b1050: adding gid fe80:: to hash on device mlx5_2 port 1 index 7)
+[1649166395.358532] [jupiter001:1102721:0]         ib_mlx5.c:889  UCX  DEBUG SL=0 (AR support - no) was selected on mlx5_2:1, SLs with AR support = { <none> }, SLs without AR support = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 }
+[1649166395.358577] [jupiter001:1102721:0]     timer_wheel.c:41   UCX  DEBUG high res timer created log=23 resolution=2995.931429 usec wanted: 2500.000000 usec
+[1649166395.358580] [jupiter001:1102721:0]           async.c:231  UCX  DEBUG added async handler 0x306f630 [id=35 ref 1] uct_ud_iface_async_handler() to hash
+[1649166395.358589] [jupiter001:1102721:0]           async.c:509  UCX  DEBUG listening to async event fd 35 events 0x5 mode thread_spinlock
+[1649166395.358612] [jupiter001:1102721:0]      ucp_worker.c:1202 UCX  DEBUG created interface[15]=0x29b1050 using ud_mlx5/mlx5_2:1 on worker 0x25b2510
+[1649166395.358652] [jupiter001:1102721:0]           mpool.c:100  UCX  DEBUG mpool uct_scopy_iface_tx_mp: align 64, maxelems 4294967295, elemsize 736
+[1649166395.358675] [jupiter001:1102721:0]      ucp_worker.c:1202 UCX  DEBUG created interface[16]=0x2ba7050 using cma/memory on worker 0x25b2510
+[1649166395.358694] [jupiter001:1102721:0]           mpool.c:100  UCX  DEBUG mpool uct_scopy_iface_tx_mp: align 64, maxelems 4294967295, elemsize 736
+[1649166395.358700] [jupiter001:1102721:0]      ucp_worker.c:1202 UCX  DEBUG created interface[17]=0x26b4020 using knem/memory on worker 0x25b2510
+[1649166395.358731] [jupiter001:1102721:0]         uct_mem.c:106  UCX  TRACE allocating mm_recv_fifo: host memory length 8447 flags 0x3e0
+[1649166395.358732] [jupiter001:1102721:0]         uct_mem.c:110  UCX  TRACE   trying allocation method md
+[1649166395.358734] [jupiter001:1102721:0]         uct_mem.c:110  UCX  TRACE   trying allocation method mmap
+[1649166395.358740] [jupiter001:1102721:0]         uct_mem.c:304  UCX  TRACE   allocated 12288 bytes at 0x14b978639000 using mmap
+[1649166395.358771] [jupiter001:1102721:0]           mpool.c:100  UCX  DEBUG mpool mm_recv_desc: align 64, maxelems 4294967295, elemsize 8368
+[1649166395.358773] [jupiter001:1102721:0]         uct_mem.c:106  UCX  TRACE allocating mm_recv_desc: host memory length 4292720 flags 0x3e0
+[1649166395.358774] [jupiter001:1102721:0]         uct_mem.c:110  UCX  TRACE   trying allocation method md
+[1649166395.358775] [jupiter001:1102721:0]         uct_mem.c:110  UCX  TRACE   trying allocation method mmap
+[1649166395.358779] [jupiter001:1102721:0]         uct_mem.c:304  UCX  TRACE   allocated 4296704 bytes at 0x14b96a833000 using mmap
+[1649166395.358785] [jupiter001:1102721:0]           mpool.c:237  UCX  DEBUG mpool mm_recv_desc: allocated chunk 0x14b96a833018 of 4296680 bytes with 512 elements
+[1649166395.359651] [jupiter001:1102721:0]        mm_iface.c:674  UCX  DEBUG created mm iface 0x3413f00 FIFO id 0x14b978639000 va 0x14b978639000 size 12288 (128 x 64 elems)
+[1649166395.359660] [jupiter001:1102721:0]        mm_xpmem.c:116  UCX  DEBUG xpmem version: 155653
+[1649166395.359661] [jupiter001:1102721:0]      ucp_worker.c:1202 UCX  DEBUG created interface[18]=0x3413f00 using xpmem/memory on worker 0x25b2510
+[1649166395.359664] [jupiter001:1102721:0]      ucp_worker.c:1008 UCX  DEBUG selected scalable tl bitmap: 0x7ffff 0x0 (19 tls)
+[1649166395.365180] [jupiter001:1102721:0]           async.c:231  UCX  DEBUG added async handler 0x3068810 [id=15 ref 1] ucp_worker_iface_async_fd_event() to hash
+[1649166395.365191] [jupiter001:1102721:0]           async.c:509  UCX  DEBUG listening to async event fd 15 events 0x0 mode thread_spinlock
+[1649166395.365216] [jupiter001:1102721:0]      ucp_worker.c:697  UCX  TRACE deactivate iface 0x24ca490 force=1 acount=0 aifaces=0
+[1649166395.365231] [jupiter001:1102721:0]        mm_iface.c:430  UCX  TRACE iface 0x24ca490: armed head 0 read_index 0
+[1649166395.365232] [jupiter001:1102721:0]      ucp_worker.c:615  UCX  TRACE armed iface 0x24ca490
+[1649166395.365241] [jupiter001:1102721:0]           async.c:231  UCX  DEBUG added async handler 0x2fc3cb0 [id=17 ref 1] ucp_worker_iface_async_fd_event() to hash
+[1649166395.365246] [jupiter001:1102721:0]           async.c:509  UCX  DEBUG listening to async event fd 17 events 0x0 mode thread_spinlock
+[1649166395.365247] [jupiter001:1102721:0]      ucp_worker.c:697  UCX  TRACE deactivate iface 0x27f6990 force=1 acount=0 aifaces=0
+[1649166395.365251] [jupiter001:1102721:0]        mm_iface.c:430  UCX  TRACE iface 0x27f6990: armed head 0 read_index 0
+[1649166395.365252] [jupiter001:1102721:0]      ucp_worker.c:615  UCX  TRACE armed iface 0x27f6990
+[1649166395.365255] [jupiter001:1102721:0]      ucp_worker.c:555  UCX  TRACE activate iface 0x260a050 acount=0 aifaces=0
+[1649166395.365272] [jupiter001:1102721:0]           async.c:231  UCX  DEBUG added async handler 0x3068850 [id=18 ref 1] ucp_worker_iface_async_fd_event() to hash
+[1649166395.365276] [jupiter001:1102721:0]           async.c:509  UCX  DEBUG listening to async event fd 18 events 0x0 mode thread_spinlock
+[1649166395.365278] [jupiter001:1102721:0]      ucp_worker.c:697  UCX  TRACE deactivate iface 0x260a580 force=1 acount=0 aifaces=1
+[1649166395.365295] [jupiter001:1102721:0]            sock.c:90   UCX  DEBUG ioctl(req=35142, ifr_name=lo) failed: Operation not supported
+[1649166395.365308] [jupiter001:1102721:0]         tcp_net.c:61   UCX  DEBUG speed of lo is UNKNOWN, assuming 100 Mbps
+[1649166395.365410] [jupiter001:1102721:0]            sock.c:90   UCX  DEBUG ioctl(req=35142, ifr_name=lo) failed: Operation not supported
+[1649166395.365416] [jupiter001:1102721:0]         tcp_net.c:61   UCX  DEBUG speed of lo is UNKNOWN, assuming 100 Mbps
+[1649166395.365451] [jupiter001:1102721:0]            sock.c:90   UCX  DEBUG ioctl(req=35142, ifr_name=lo) failed: Operation not supported
+[1649166395.365455] [jupiter001:1102721:0]         tcp_net.c:61   UCX  DEBUG speed of lo is UNKNOWN, assuming 100 Mbps
+[1649166395.365487] [jupiter001:1102721:0]            sock.c:90   UCX  DEBUG ioctl(req=35142, ifr_name=lo) failed: Operation not supported
+[1649166395.365491] [jupiter001:1102721:0]         tcp_net.c:61   UCX  DEBUG speed of lo is UNKNOWN, assuming 100 Mbps
+[1649166395.365523] [jupiter001:1102721:0]            sock.c:90   UCX  DEBUG ioctl(req=35142, ifr_name=lo) failed: Operation not supported
+[1649166395.365527] [jupiter001:1102721:0]         tcp_net.c:61   UCX  DEBUG speed of lo is UNKNOWN, assuming 100 Mbps
+[1649166395.365571] [jupiter001:1102721:0]            sock.c:90   UCX  DEBUG ioctl(req=35142, ifr_name=lo) failed: Operation not supported
+[1649166395.365575] [jupiter001:1102721:0]         tcp_net.c:61   UCX  DEBUG speed of lo is UNKNOWN, assuming 100 Mbps
+[1649166395.365607] [jupiter001:1102721:0]            sock.c:90   UCX  DEBUG ioctl(req=35142, ifr_name=lo) failed: Operation not supported
+[1649166395.365611] [jupiter001:1102721:0]         tcp_net.c:61   UCX  DEBUG speed of lo is UNKNOWN, assuming 100 Mbps
+[1649166395.365663] [jupiter001:1102721:0]            sock.c:90   UCX  DEBUG ioctl(req=35142, ifr_name=lo) failed: Operation not supported
+[1649166395.365667] [jupiter001:1102721:0]         tcp_net.c:61   UCX  DEBUG speed of lo is UNKNOWN, assuming 100 Mbps
+[1649166395.365697] [jupiter001:1102721:0]            sock.c:90   UCX  DEBUG ioctl(req=35142, ifr_name=lo) failed: Operation not supported
+[1649166395.365713] [jupiter001:1102721:0]         tcp_net.c:61   UCX  DEBUG speed of lo is UNKNOWN, assuming 100 Mbps
+[1649166395.365744] [jupiter001:1102721:0]            sock.c:90   UCX  DEBUG ioctl(req=35142, ifr_name=lo) failed: Operation not supported
+[1649166395.365748] [jupiter001:1102721:0]         tcp_net.c:61   UCX  DEBUG speed of lo is UNKNOWN, assuming 100 Mbps
+[1649166395.365794] [jupiter001:1102721:0]            sock.c:90   UCX  DEBUG ioctl(req=35142, ifr_name=lo) failed: Operation not supported
+[1649166395.365798] [jupiter001:1102721:0]         tcp_net.c:61   UCX  DEBUG speed of lo is UNKNOWN, assuming 100 Mbps
+[1649166395.365827] [jupiter001:1102721:0]            sock.c:90   UCX  DEBUG ioctl(req=35142, ifr_name=lo) failed: Operation not supported
+[1649166395.365831] [jupiter001:1102721:0]         tcp_net.c:61   UCX  DEBUG speed of lo is UNKNOWN, assuming 100 Mbps
+[1649166395.365873] [jupiter001:1102721:0]            sock.c:90   UCX  DEBUG ioctl(req=35142, ifr_name=lo) failed: Operation not supported
+[1649166395.365877] [jupiter001:1102721:0]         tcp_net.c:61   UCX  DEBUG speed of lo is UNKNOWN, assuming 100 Mbps
+[1649166395.365908] [jupiter001:1102721:0]            sock.c:90   UCX  DEBUG ioctl(req=35142, ifr_name=lo) failed: Operation not supported
+[1649166395.365912] [jupiter001:1102721:0]         tcp_net.c:61   UCX  DEBUG speed of lo is UNKNOWN, assuming 100 Mbps
+[1649166395.365943] [jupiter001:1102721:0]            sock.c:90   UCX  DEBUG ioctl(req=35142, ifr_name=lo) failed: Operation not supported
+[1649166395.365947] [jupiter001:1102721:0]         tcp_net.c:61   UCX  DEBUG speed of lo is UNKNOWN, assuming 100 Mbps
+[1649166395.365978] [jupiter001:1102721:0]            sock.c:90   UCX  DEBUG ioctl(req=35142, ifr_name=lo) failed: Operation not supported
+[1649166395.365982] [jupiter001:1102721:0]         tcp_net.c:61   UCX  DEBUG speed of lo is UNKNOWN, assuming 100 Mbps
+[1649166395.366013] [jupiter001:1102721:0]            sock.c:90   UCX  DEBUG ioctl(req=35142, ifr_name=lo) failed: Operation not supported
+[1649166395.366017] [jupiter001:1102721:0]         tcp_net.c:61   UCX  DEBUG speed of lo is UNKNOWN, assuming 100 Mbps
+[1649166395.366046] [jupiter001:1102721:0]      ucp_worker.c:615  UCX  TRACE armed iface 0x260a580
+[1649166395.366051] [jupiter001:1102721:0]           async.c:231  UCX  DEBUG added async handler 0x332d6c0 [id=20 ref 1] ucp_worker_iface_async_fd_event() to hash
+[1649166395.366057] [jupiter001:1102721:0]           async.c:509  UCX  DEBUG listening to async event fd 20 events 0x0 mode thread_spinlock
+[1649166395.366059] [jupiter001:1102721:0]      ucp_worker.c:697  UCX  TRACE deactivate iface 0x286e010 force=1 acount=0 aifaces=1
+[1649166395.368036] [jupiter001:1102721:0]      ucp_worker.c:615  UCX  TRACE armed iface 0x286e010
+[1649166395.368041] [jupiter001:1102721:0]           async.c:231  UCX  DEBUG added async handler 0x3ad6da0 [id=22 ref 1] ucp_worker_iface_async_fd_event() to hash
+[1649166395.368048] [jupiter001:1102721:0]           async.c:509  UCX  DEBUG listening to async event fd 22 events 0x0 mode thread_spinlock
+[1649166395.368049] [jupiter001:1102721:0]      ucp_worker.c:697  UCX  TRACE deactivate iface 0x286e780 force=1 acount=0 aifaces=1
+[1649166395.368529] [jupiter001:1102721:0]      ucp_worker.c:615  UCX  TRACE armed iface 0x286e780
+[1649166395.368534] [jupiter001:1102721:0]           async.c:231  UCX  DEBUG added async handler 0x3ad8800 [id=24 ref 1] ucp_worker_iface_async_fd_event() to hash
+[1649166395.368540] [jupiter001:1102721:0]           async.c:509  UCX  DEBUG listening to async event fd 24 events 0x0 mode thread_spinlock
+[1649166395.368541] [jupiter001:1102721:0]      ucp_worker.c:697  UCX  TRACE deactivate iface 0x25a2260 force=1 acount=0 aifaces=1
+[1649166395.368587] [jupiter001:1102721:0]      ucp_worker.c:615  UCX  TRACE armed iface 0x25a2260
+[1649166395.368590] [jupiter001:1102721:0]           async.c:231  UCX  DEBUG added async handler 0x30686e0 [id=25 ref 1] ucp_worker_iface_async_fd_event() to hash
+[1649166395.368595] [jupiter001:1102721:0]           async.c:509  UCX  DEBUG listening to async event fd 25 events 0x0 mode thread_spinlock
+[1649166395.368597] [jupiter001:1102721:0]      ucp_worker.c:697  UCX  TRACE deactivate iface 0x27e8fc0 force=1 acount=0 aifaces=1
+[1649166395.368625] [jupiter001:1102721:0]      ucp_worker.c:615  UCX  TRACE armed iface 0x27e8fc0
+[1649166395.368631] [jupiter001:1102721:0]           async.c:231  UCX  DEBUG added async handler 0x3068720 [id=26 ref 1] ucp_worker_iface_async_fd_event() to hash
+[1649166395.368647] [jupiter001:1102721:0]           async.c:509  UCX  DEBUG listening to async event fd 26 events 0x0 mode thread_spinlock
+[1649166395.368649] [jupiter001:1102721:0]      ucp_worker.c:697  UCX  TRACE deactivate iface 0x2587010 force=1 acount=0 aifaces=1
+[1649166395.368666] [jupiter001:1102721:0]      ucp_worker.c:615  UCX  TRACE armed iface 0x2587010
+[1649166395.368668] [jupiter001:1102721:0]      ucp_worker.c:697  UCX  TRACE deactivate iface 0x259eaf0 force=1 acount=0 aifaces=1
+[1649166395.368690] [jupiter001:1102721:0]        ud_iface.c:986  UCX  TRACE iface 0x259eaf0: arm cq ok
+[1649166395.368691] [jupiter001:1102721:0]      ucp_worker.c:615  UCX  TRACE armed iface 0x259eaf0
+[1649166395.368692] [jupiter001:1102721:0]      ucp_worker.c:697  UCX  TRACE deactivate iface 0x2fd1d60 force=1 acount=0 aifaces=1
+[1649166395.368722] [jupiter001:1102721:0]        ud_iface.c:986  UCX  TRACE iface 0x2fd1d60: arm cq ok
+[1649166395.368723] [jupiter001:1102721:0]      ucp_worker.c:615  UCX  TRACE armed iface 0x2fd1d60
+[1649166395.368725] [jupiter001:1102721:0]           async.c:231  UCX  DEBUG added async handler 0x340df40 [id=29 ref 1] ucp_worker_iface_async_fd_event() to hash
+[1649166395.368730] [jupiter001:1102721:0]           async.c:509  UCX  DEBUG listening to async event fd 29 events 0x0 mode thread_spinlock
+[1649166395.368731] [jupiter001:1102721:0]      ucp_worker.c:697  UCX  TRACE deactivate iface 0x2c950e0 force=1 acount=0 aifaces=1
+[1649166395.368751] [jupiter001:1102721:0]      ucp_worker.c:615  UCX  TRACE armed iface 0x2c950e0
+[1649166395.368754] [jupiter001:1102721:0]           async.c:231  UCX  DEBUG added async handler 0x340df80 [id=30 ref 1] ucp_worker_iface_async_fd_event() to hash
+[1649166395.368771] [jupiter001:1102721:0]           async.c:509  UCX  DEBUG listening to async event fd 30 events 0x0 mode thread_spinlock
+[1649166395.368773] [jupiter001:1102721:0]      ucp_worker.c:697  UCX  TRACE deactivate iface 0x305a3d0 force=1 acount=0 aifaces=1
+[1649166395.368788] [jupiter001:1102721:0]      ucp_worker.c:615  UCX  TRACE armed iface 0x305a3d0
+[1649166395.368791] [jupiter001:1102721:0]           async.c:231  UCX  DEBUG added async handler 0x340e490 [id=32 ref 1] ucp_worker_iface_async_fd_event() to hash
+[1649166395.368796] [jupiter001:1102721:0]           async.c:509  UCX  DEBUG listening to async event fd 32 events 0x0 mode thread_spinlock
+[1649166395.368797] [jupiter001:1102721:0]      ucp_worker.c:697  UCX  TRACE deactivate iface 0x303c060 force=1 acount=0 aifaces=1
+[1649166395.368812] [jupiter001:1102721:0]      ucp_worker.c:615  UCX  TRACE armed iface 0x303c060
+[1649166395.368814] [jupiter001:1102721:0]      ucp_worker.c:697  UCX  TRACE deactivate iface 0x2beb050 force=1 acount=0 aifaces=1
+[1649166395.368829] [jupiter001:1102721:0]        ud_iface.c:986  UCX  TRACE iface 0x2beb050: arm cq ok
+[1649166395.368830] [jupiter001:1102721:0]      ucp_worker.c:615  UCX  TRACE armed iface 0x2beb050
+[1649166395.368831] [jupiter001:1102721:0]      ucp_worker.c:697  UCX  TRACE deactivate iface 0x29b1050 force=1 acount=0 aifaces=1
+[1649166395.368845] [jupiter001:1102721:0]        ud_iface.c:986  UCX  TRACE iface 0x29b1050: arm cq ok
+[1649166395.368846] [jupiter001:1102721:0]      ucp_worker.c:615  UCX  TRACE armed iface 0x29b1050
+[1649166395.368848] [jupiter001:1102721:0]           async.c:231  UCX  DEBUG added async handler 0x340e4d0 [id=36 ref 1] ucp_worker_iface_async_fd_event() to hash
+[1649166395.368853] [jupiter001:1102721:0]           async.c:509  UCX  DEBUG listening to async event fd 36 events 0x0 mode thread_spinlock
+[1649166395.368854] [jupiter001:1102721:0]      ucp_worker.c:697  UCX  TRACE deactivate iface 0x3413f00 force=1 acount=0 aifaces=1
+[1649166395.368857] [jupiter001:1102721:0]        mm_xpmem.c:116  UCX  DEBUG xpmem version: 155653
+[1649166395.368858] [jupiter001:1102721:0]        mm_xpmem.c:116  UCX  DEBUG xpmem version: 155653
+[1649166395.368862] [jupiter001:1102721:0]        mm_xpmem.c:116  UCX  DEBUG xpmem version: 155653
+[1649166395.368864] [jupiter001:1102721:0]        mm_xpmem.c:116  UCX  DEBUG xpmem version: 155653
+[1649166395.368865] [jupiter001:1102721:0]        mm_xpmem.c:116  UCX  DEBUG xpmem version: 155653
+[1649166395.368866] [jupiter001:1102721:0]        mm_xpmem.c:116  UCX  DEBUG xpmem version: 155653
+[1649166395.368868] [jupiter001:1102721:0]        mm_xpmem.c:116  UCX  DEBUG xpmem version: 155653
+[1649166395.368869] [jupiter001:1102721:0]        mm_xpmem.c:116  UCX  DEBUG xpmem version: 155653
+[1649166395.368870] [jupiter001:1102721:0]        mm_xpmem.c:116  UCX  DEBUG xpmem version: 155653
+[1649166395.368872] [jupiter001:1102721:0]        mm_xpmem.c:116  UCX  DEBUG xpmem version: 155653
+[1649166395.368873] [jupiter001:1102721:0]        mm_xpmem.c:116  UCX  DEBUG xpmem version: 155653
+[1649166395.368874] [jupiter001:1102721:0]        mm_xpmem.c:116  UCX  DEBUG xpmem version: 155653
+[1649166395.368876] [jupiter001:1102721:0]        mm_xpmem.c:116  UCX  DEBUG xpmem version: 155653
+[1649166395.368877] [jupiter001:1102721:0]        mm_xpmem.c:116  UCX  DEBUG xpmem version: 155653
+[1649166395.368891] [jupiter001:1102721:0]        mm_xpmem.c:116  UCX  DEBUG xpmem version: 155653
+[1649166395.368892] [jupiter001:1102721:0]        mm_xpmem.c:116  UCX  DEBUG xpmem version: 155653
+[1649166395.368893] [jupiter001:1102721:0]        mm_xpmem.c:116  UCX  DEBUG xpmem version: 155653
+[1649166395.368896] [jupiter001:1102721:0]        mm_iface.c:430  UCX  TRACE iface 0x3413f00: armed head 0 read_index 0
+[1649166395.368897] [jupiter001:1102721:0]      ucp_worker.c:615  UCX  TRACE armed iface 0x3413f00
+[1649166395.370055] [jupiter001:1102721:0]           async.c:231  UCX  DEBUG added async handler 0x3410590 [id=37 ref 1] uct_rdmacm_cm_event_handler() to hash
+[1649166395.370065] [jupiter001:1102721:0]           async.c:509  UCX  DEBUG listening to async event fd 37 events 0x1 mode thread_spinlock
+[1649166395.370073] [jupiter001:1102721:0]       rdmacm_cm.c:949  UCX  DEBUG created rdmacm_cm 0x2b33050 with event_channel 0x2ba7880 (fd=37)
+[1649166395.370096] [jupiter001:1102721:0]      tcp_sockcm.c:215  UCX  DEBUG created tcp_sockcm 0x2fcc060
+[1649166395.370105] [jupiter001:1102721:0]           mpool.c:100  UCX  DEBUG mpool ucp_requests: align 64, maxelems 4294967295, elemsize 288
+[1649166395.370106] [jupiter001:1102721:0]           mpool.c:100  UCX  DEBUG mpool ucp_rkeys: align 64, maxelems 4294967295, elemsize 112
+[1649166395.370108] [jupiter001:1102721:0]           mpool.c:100  UCX  DEBUG mpool ucp_reg_bufs: align 64, maxelems 4294967295, elemsize 8216
+[1649166395.370110] [jupiter001:1102721:0]           mpool.c:100  UCX  DEBUG mpool ucp_am_bufs: align 64, maxelems 4294967295, elemsize 153
+[1649166395.370112] [jupiter001:1102721:0]           mpool.c:100  UCX  DEBUG mpool ucp_am_bufs: align 64, maxelems 4294967295, elemsize 1113
+[1649166395.370113] [jupiter001:1102721:0]           mpool.c:100  UCX  DEBUG mpool ucp_am_bufs: align 64, maxelems 4294967295, elemsize 65625
+[1649166395.370114] [jupiter001:1102721:0]       mpool_set.c:121  UCX  DEBUG mpool_set:ucp_am_bufs, sizes map 0x80000440, largest size 65536, mpools num 3
+[1649166395.370137] [jupiter001:1102721:0]          parser.c:1916 UCX  INFO  UCX_* env variable: UCX_LOG_LEVEL=data
+[dpu_offload_service_daemon.c:l.333:init_context():jupiter001.hpcadvisorycouncil.com:pid=1102721] ucp worker successfully created: 0x25b2510
+[dpu_offload_service_daemon.c:l.422:client_init_context():jupiter001.hpcadvisorycouncil.com:pid=1102721] context successfully initialized (worker=0x25b2510)
+[1649166395.370177] [jupiter001:1102721:0]         address.c:1350 UCX  TRACE pack addr[0] : posix/memory sysdev 255 paths 1 eps 0 md_flags 0x1 tl_flags 0x11804000023b bw 12179.00+0.00/nMBs ovh 10ns lat_ovh 80ns dev_priority 0 a32 0xf/0x3f a64 0xf/0x3f
+[1649166395.370181] [jupiter001:1102721:0]         address.c:1350 UCX  TRACE pack addr[1] : sysv/memory sysdev 255 paths 1 eps 0 md_flags 0x1 tl_flags 0x11804000023b bw 12179.00+0.00/nMBs ovh 10ns lat_ovh 80ns dev_priority 0 a32 0xf/0x3f a64 0xf/0x3f
+[1649166395.370189] [jupiter001:1102721:0]         address.c:1350 UCX  TRACE pack addr[2] : self/memory0 sysdev 255 paths 1 eps 0 md_flags 0x2 tl_flags 0x11804000023b bw 6911.00+0.00/nMBs ovh 10ns lat_ovh 0ns dev_priority 0 a32 0xf/0x3f a64 0xf/0x3f
+[1649166395.370219] [jupiter001:1102721:0]         address.c:1350 UCX  TRACE pack addr[3] : tcp/lo sysdev 255 paths 1 eps 0 md_flags 0x2 tl_flags 0x53c00000004f bw 0.00+11.91/nMBs ovh 50000ns lat_ovh 10960ns dev_priority 1 a32 0x0/0x0 a64 0x0/0x0
+[1649166395.370224] [jupiter001:1102721:0]         address.c:1350 UCX  TRACE pack addr[4] : tcp/ib0_mlx5 sysdev 255 paths 1 eps 0 md_flags 0x2 tl_flags 0x53c00000004f bw 0.00+11142.51/nMBs ovh 50000ns lat_ovh 5206ns dev_priority 1 a32 0x0/0x0 a64 0x0/0x0
+[1649166395.370227] [jupiter001:1102721:0]         address.c:1350 UCX  TRACE pack addr[5] : tcp/eth0 sysdev 255 paths 1 eps 0 md_flags 0x2 tl_flags 0x53c00000004f bw 0.00+113.16/nMBs ovh 50000ns lat_ovh 5776ns dev_priority 0 a32 0x0/0x0 a64 0x0/0x0
+[1649166395.370234] [jupiter001:1102721:0]         address.c:1350 UCX  TRACE pack addr[6] : rc_verbs/mlx5_0:1 sysdev 255 paths 1 eps 0 md_flags 0x2 tl_flags 0x12c08000067f bw 0.00+11794.23/nMBs ovh 75ns lat_ovh 600ns dev_priority 30 a32 0x0/0x0 a64 0x1/0x21
+[1649166395.370238] [jupiter001:1102721:0]         address.c:1350 UCX  TRACE pack addr[7] : rc_mlx5/mlx5_0:1 sysdev 255 paths 1 eps 0 md_flags 0x2 tl_flags 0x12d48000067f bw 0.00+11794.23/nMBs ovh 40ns lat_ovh 600ns dev_priority 30 a32 0x0/0x0 a64 0x1/0x21
+[1649166395.370242] [jupiter001:1102721:0]         address.c:1350 UCX  TRACE pack addr[8] : dc_mlx5/mlx5_0:1 sysdev 255 paths 1 eps 0 md_flags 0x2 tl_flags 0x11d48000067f bw 0.00+11794.23/nMBs ovh 40ns lat_ovh 660ns dev_priority 30 a32 0x0/0x0 a64 0x1/0x21
+[1649166395.370246] [jupiter001:1102721:0]         address.c:1350 UCX  TRACE pack addr[9] : ud_verbs/mlx5_0:1 sysdev 255 paths 1 eps 0 md_flags 0x2 tl_flags 0x33c00000000f bw 0.00+11794.23/nMBs ovh 105ns lat_ovh 630ns dev_priority 30 a32 0x0/0x0 a64 0x0/0x0
+[1649166395.370249] [jupiter001:1102721:0]         address.c:1350 UCX  TRACE pack addr[10] : ud_mlx5/mlx5_0:1 sysdev 255 paths 1 eps 0 md_flags 0x2 tl_flags 0x33c00000000f bw 0.00+11794.23/nMBs ovh 80ns lat_ovh 630ns dev_priority 30 a32 0x0/0x0 a64 0x0/0x0
+[1649166395.370264] [jupiter001:1102721:0]         address.c:1350 UCX  TRACE pack addr[11] : rc_verbs/mlx5_2:1 sysdev 255 paths 1 eps 0 md_flags 0x2 tl_flags 0x12c08000067f bw 0.00+11794.23/nMBs ovh 75ns lat_ovh 600ns dev_priority 61 a32 0x0/0x0 a64 0x1/0x21
+[1649166395.370267] [jupiter001:1102721:0]         address.c:1350 UCX  TRACE pack addr[12] : rc_mlx5/mlx5_2:1 sysdev 255 paths 1 eps 0 md_flags 0x2 tl_flags 0x12d48000067f bw 0.00+11794.23/nMBs ovh 40ns lat_ovh 600ns dev_priority 61 a32 0xf/0x3f a64 0xf/0x3f
+[1649166395.370271] [jupiter001:1102721:0]         address.c:1350 UCX  TRACE pack addr[13] : dc_mlx5/mlx5_2:1 sysdev 255 paths 1 eps 0 md_flags 0x2 tl_flags 0x11d48000067f bw 0.00+11794.23/nMBs ovh 40ns lat_ovh 660ns dev_priority 61 a32 0xf/0x3f a64 0xf/0x3f
+[1649166395.370274] [jupiter001:1102721:0]         address.c:1350 UCX  TRACE pack addr[14] : ud_verbs/mlx5_2:1 sysdev 255 paths 1 eps 0 md_flags 0x2 tl_flags 0x33c00000000f bw 0.00+11794.23/nMBs ovh 105ns lat_ovh 630ns dev_priority 61 a32 0x0/0x0 a64 0x0/0x0
+[1649166395.370277] [jupiter001:1102721:0]         address.c:1350 UCX  TRACE pack addr[15] : ud_mlx5/mlx5_2:1 sysdev 255 paths 1 eps 0 md_flags 0x2 tl_flags 0x33c00000000f bw 0.00+11794.23/nMBs ovh 80ns lat_ovh 630ns dev_priority 61 a32 0x0/0x0 a64 0x0/0x0
+[1649166395.370281] [jupiter001:1102721:0]         address.c:1350 UCX  TRACE pack addr[16] : cma/memory sysdev 255 paths 1 eps 0 md_flags 0x2 tl_flags 0x1c000000448 bw 11145.00+0.00/nMBs ovh 2000ns lat_ovh 80ns dev_priority 0 a32 0x0/0x0 a64 0x0/0x0
+[1649166395.370284] [jupiter001:1102721:0]         address.c:1350 UCX  TRACE pack addr[17] : knem/memory sysdev 255 paths 1 eps 0 md_flags 0x2 tl_flagsAllocating mem chunk dynamic array for list 0x24e1150
+Growing list 0x24e1150 (adding 32 elts)...
+Getting mem chunk entry #0...
+Adding new elements to list...
+Reseting event...
+Event reset
+Reseting event...
+Event reset
+Reseting event...
+Event reset
+Reseting event...
+Event reset
+Reseting event...
+Event reset
+Reseting event...
+Event reset
+Reseting event...
+Event reset
+Reseting event...
+Event reset
+Reseting event...
+Event reset
+Reseting event...
+Event reset
+Reseting event...
+Event reset
+Reseting event...
+Event reset
+Reseting event...
+Event reset
+Reseting event...
+Event reset
+Reseting event...
+Event reset
+Reseting event...
+Event reset
+Reseting event...
+Event reset
+Reseting event...
+Event reset
+Reseting event...
+Event reset
+Reseting event...
+Event reset
+Reseting event...
+Event reset
+Reseting event...
+Event reset
+Reseting event...
+Event reset
+Reseting event...
+Event reset
+Reseting event...
+Event reset
+Reseting event...
+Event reset
+Reseting event...
+Event reset
+Reseting event...
+Event reset
+Reseting event...
+Event reset
+Reseting event...
+Event reset
+Reseting event...
+Event reset
+Reseting event...
+Event reset
+List successfully grown
+Allocating mem chunk dynamic array for list 0x3414870
+Growing list 0x3414870 (adding 5000 elts)...
+Getting mem chunk entry #0...
+Adding new elements to list...
+List successfully grown
+ 0x10000000448 bw 0.00+13862.00/nMBs ovh 2000ns lat_ovh 80ns dev_priority 0 a32 0x0/0x0 a64 0x0/0x0
+[1649166395.370299] [jupiter001:1102721:0]        mm_xpmem.c:230  UCX  DEBUG xpmem registered global segment id 0x20010d381
+[1649166395.370303] [jupiter001:1102721:0]         address.c:1350 UCX  TRACE pack addr[18] : xpmem/memory sysdev 255 paths 1 eps 0 md_flags 0x2 tl_flags 0x11004000023b bw 12179.00+0.00/nMBs ovh 10ns lat_ovh 80ns dev_priority 0 a32 0xf/0x3f a64 0xf/0x3f
+[dpu_offload_service_daemon.c:l.822:client_init():jupiter001.hpcadvisorycouncil.com:pid=1102721] client context successfully initialized
+[dpu_offload_event_channels.c:l.227:event_channels_init():jupiter001.hpcadvisorycouncil.com:pid=1102721] Registering AM eager callback for notifications (type=34, econtext=0x24c2aa0, worker=0x25b2510, ev_param=0x7ffd0dbb77f0)
+[dpu_offload_service_daemon.c:l.829:client_init():jupiter001.hpcadvisorycouncil.com:pid=1102721] event channels successfully initialized
+[dpu_offload_comm_channels.h:l.67:dpu_offload_set_am_recv_handlers():jupiter001.hpcadvisorycouncil.com:pid=1102721] AM recv handlers successfully registered
+[dpu_offload_service_daemon.c:l.834:client_init():jupiter001.hpcadvisorycouncil.com:pid=1102721] Active messages successfully initialized
+[dpu_offload_service_daemon.c:l.565:oob_connect():jupiter001.hpcadvisorycouncil.com:pid=1102721] local address length: 542
+[dpu_offload_service_daemon.c:l.242:oob_client_connect():jupiter001.hpcadvisorycouncil.com:pid=1102721] Connecting to 192.168.2.101:9999
+[dpu_offload_service_daemon.c:l.257:oob_client_connect():jupiter001.hpcadvisorycouncil.com:pid=1102721] Connecting to server...
+[dpu_offload_service_daemon.c:l.271:oob_client_connect():jupiter001.hpcadvisorycouncil.com:pid=1102721] Connection established, fd = 38, addr=192.168.2.1:51726
+[dpu_offload_service_daemon.c:l.571:oob_connect():jupiter001.hpcadvisorycouncil.com:pid=1102721] Addr len received (len: 8): 401
+[dpu_offload_service_daemon.c:l.576:oob_connect():jupiter001.hpcadvisorycouncil.com:pid=1102721] Received the address (size: 401)
+[dpu_offload_service_daemon.c:l.578:oob_connect():jupiter001.hpcadvisorycouncil.com:pid=1102721] Received the client ID (size: 8)
+[1649166395.371061] [jupiter001:1102721:0]         address.c:1464 UCX  TRACE unpack address version 0 flags 0x2
+[1649166395.371069] [jupiter001:1102721:0]         address.c:1628 UCX  TRACE unpack addr[0] : sysdev 255 paths 1 eps 0 tl_iface_flags 0x9b bw 12179.00/nMBs ovh 10ns lat_ovh 80ns dev_priority 0 a32 0x0/0x0 a64 0x0/0x0
+[1649166395.371072] [jupiter001:1102721:0]         address.c:1628 UCX  TRACE unpack addr[1] : sysdev 255 paths 1 eps 0 tl_iface_flags 0x9b bw 12179.00/nMBs ovh 10ns lat_ovh 80ns dev_priority 0 a32 0x0/0x0 a64 0x0/0x0
+[1649166395.371074] [jupiter001:1102721:0]         address.c:1628 UCX  TRACE unpack addr[2] : sysdev 255 paths 1 eps 0 tl_iface_flags 0x1b bw 6911.00/nMBs ovh 10ns lat_ovh 0ns dev_priority 0 a32 0x0/0x0 a64 0x0/0x0
+[1649166395.371077] [jupiter001:1102721:0]         address.c:1628 UCX  TRACE unpack addr[3] : sysdev 255 paths 1 eps 0 tl_iface_flags 0x8b bw 113.16/nMBs ovh 50000ns lat_ovh 5776ns dev_priority 0 a32 0x0/0x0 a64 0x0/0x0
+[1649166395.371080] [jupiter001:1102721:0]         address.c:1628 UCX  TRACE unpack addr[4] : sysdev 255 paths 1 eps 0 tl_iface_flags 0x8b bw 11.91/nMBs ovh 50000ns lat_ovh 10960ns dev_priority 1 a32 0x0/0x0 a64 0x0/0x0
+[1649166395.371082] [jupiter001:1102721:0]         address.c:1628 UCX  TRACE unpack addr[5] : sysdev 255 paths 1 eps 0 tl_iface_flags 0x9a bw 11794.23/nMBs ovh 75ns lat_ovh 600ns dev_priority 61 a32 0x0/0x0 a64 0x0/0x0
+[1649166395.371085] [jupiter001:1102721:0]         address.c:1628 UCX  TRACE unpack addr[6] : sysdev 255 paths 1 eps 0 tl_iface_flags 0x9a bw 11794.23/nMBs ovh 40ns lat_ovh 600ns dev_priority 61 a32 0x0/0x0 a64 0x0/0x0
+[1649166395.371087] [jupiter001:1102721:0]         address.c:1628 UCX  TRACE unpack addr[7] : sysdev 255 paths 1 eps 0 tl_iface_flags 0x9b bw 11794.23/nMBs ovh 40ns lat_ovh 660ns dev_priority 61 a32 0x0/0x0 a64 0x0/0x0
+[1649166395.371090] [jupiter001:1102721:0]         address.c:1628 UCX  TRACE unpack addr[8] : sysdev 255 paths 1 eps 0 tl_iface_flags 0x87 bw 11794.23/nMBs ovh 105ns lat_ovh 630ns dev_priority 61 a32 0x0/0x0 a64 0x0/0x0
+[1649166395.371096] [jupiter001:1102721:0]         address.c:1628 UCX  TRACE unpack addr[9] : sysdev 255 paths 1 eps 0 tl_iface_flags 0x87 bw 11794.23/nMBs ovh 80ns lat_ovh 630ns dev_priority 61 a32 0x0/0x0 a64 0x0/0x0
+[1649166395.371110] [jupiter001:1102721:0]         address.c:1628 UCX  TRACE unpack addr[10] : sysdev 255 paths 1 eps 0 tl_iface_flags 0x99 bw 11145.00/nMBs ovh 2000ns lat_ovh 80ns dev_priority 0 a32 0x0/0x0 a64 0x0/0x0
+[1649166395.371113] [jupiter001:1102721:0]         address.c:1628 UCX  TRACE unpack addr[11] : sysdev 255 paths 1 eps 0 tl_iface_flags 0x99 bw 13862.00/nMBs ovh 2000ns lat_ovh 80ns dev_priority 0 a32 0x0/0x0 a64 0x0/0x0
+[1649166395.371115] [jupiter001:1102721:0]         address.c:1628 UCX  TRACE unpack addr[12] : sysdev 255 paths 1 eps 0 tl_iface_flags 0x9b bw 12179.00/nMBs ovh 10ns lat_ovh 80ns dev_priority 0 a32 0x0/0x0 a64 0x0/0x0
+[1649166395.371126] [jupiter001:1102721:0]      conn_match.c:269  UCX  TRACE match_ctx 0x25b26a0: address 6673258717822627862 conn_sn 0 not found in unexpected
+[1649166395.371223] [jupiter001:1102721:0]          ucp_ep.c:229  UCX  DEBUG created ep 0x14b96a7d3000 to <no debug data> from api call
+[1649166395.371243] [jupiter001:1102721:0]          wireup.c:1313 UCX  TRACE ep 0x14b96a7d3000: initialize lanes
+[1649166395.371256] [jupiter001:1102721:0]          select.c:359  UCX  TRACE   addr[10] cma: no am sync callback
+[1649166395.371258] [jupiter001:1102721:0]          select.c:359  UCX  TRACE   addr[11] knem: no am sync callback
+[1649166395.371267] [jupiter001:1102721:0]          select.c:511  UCX  TRACE   posix/memory : unreachable 
+[1649166395.371271] [jupiter001:1102721:0]          select.c:511  UCX  TRACE   sysv/memory : unreachable 
+[1649166395.371273] [jupiter001:1102721:0]          select.c:511  UCX  TRACE   self/memory0 : unreachable 
+[1649166395.371274] [jupiter001:1102721:0]          select.c:511  UCX  TRACE   tcp/lo : unreachable 
+[1649166395.371277] [jupiter001:1102721:0]          select.c:496  UCX  TRACE   tcp/ib0_mlx5->addr[3] : active messages score 9.45 priority 1
+[1649166395.371280] [jupiter001:1102721:0]          select.c:496  UCX  TRACE   tcp/eth0->addr[3] : active messages score 9.45 priority 0
+[1649166395.371284] [jupiter001:1102721:0]          select.c:496  UCX  TRACE   rc_verbs/mlx5_0:1->addr[5] : active messages score 1331.56 priority 91
+[1649166395.371288] [jupiter001:1102721:0]          select.c:496  UCX  TRACE   rc_mlx5/mlx5_0:1->addr[6] : active messages score 1468.43 priority 91
+[1649166395.371290] [jupiter001:1102721:0]          select.c:511  UCX  TRACE   dc_mlx5/mlx5_0:1 : unreachable 
+[1649166395.371292] [jupiter001:1102721:0]          select.c:496  UCX  TRACE   ud_verbs/mlx5_0:1->addr[8] : active messages score 1190.48 priority 91
+[1649166395.371295] [jupiter001:1102721:0]          select.c:496  UCX  TRACE   ud_mlx5/mlx5_0:1->addr[9] : active messages score 1265.82 priority 91
+[1649166395.371297] [jupiter001:1102721:0]          select.c:496  UCX  TRACE   rc_verbs/mlx5_2:1->addr[5] : active messages score 1331.56 priority 122
+[1649166395.371299] [jupiter001:1102721:0]          select.c:496  UCX  TRACE   rc_mlx5/mlx5_2:1->addr[6] : active messages score 1468.43 priority 122
+[1649166395.371301] [jupiter001:1102721:0]          select.c:496  UCX  TRACE   dc_mlx5/mlx5_2:1->addr[7] : active messages score 1351.35 priority 122
+[1649166395.371304] [jupiter001:1102721:0]          select.c:496  UCX  TRACE   ud_verbs/mlx5_2:1->addr[8] : active messages score 1190.48 priority 122
+[1649166395.371306] [jupiter001:1102721:0]          select.c:496  UCX  TRACE   ud_mlx5/mlx5_2:1->addr[9] : active messages score 1265.82 priority 122
+[1649166395.371307] [jupiter001:1102721:0]          select.c:212  UCX  TRACE   cma/memory : not suitable for active messages, no am bcopy
+[1649166395.371310] [jupiter001:1102721:0]          select.c:212  UCX  TRACE   knem/memory : not suitable for active messages, no am bcopy
+[1649166395.371330] [jupiter001:1102721:0]          select.c:511  UCX  TRACE   xpmem/memory : unreachable 
+[1649166395.371334] [jupiter001:1102721:0]          select.c:540  UCX  TRACE   ep 0x14b96a7d3000: selected for active messages: rc_mlx5/mlx5_2:1 md[5] -> '<no debug data>' address[6],md[4],rsc[255] score 1468.43
+[1649166395.371339] [jupiter001:1102721:0]          select.c:212  UCX  TRACE   posix/memory : not suitable for obtain remote memory pointer, no memory registration
+[1649166395.371341] [jupiter001:1102721:0]          select.c:212  UCX  TRACE   sysv/memory : not suitable for obtain remote memory pointer, no memory registration
+[1649166395.371343] [jupiter001:1102721:0]          select.c:212  UCX  TRACE   self/memory0 : not suitable for obtain remote memory pointer, no obtain remote memory pointer
+[1649166395.371344] [jupiter001:1102721:0]          select.c:212  UCX  TRACE   tcp/lo : not suitable for obtain remote memory pointer, no obtain remote memory pointer
+[1649166395.371345] [jupiter001:1102721:0]          select.c:212  UCX  TRACE   tcp/ib0_mlx5 : not suitable for obtain remote memory pointer, no obtain remote memory pointer
+[1649166395.371347] [jupiter001:1102721:0]          select.c:212  UCX  TRACE   tcp/eth0 : not suitable for obtain remote memory pointer, no obtain remote memory pointer
+[1649166395.371348] [jupiter001:1102721:0]          select.c:212  UCX  TRACE   rc_verbs/mlx5_0:1 : not suitable for obtain remote memory pointer, no obtain remote memory pointer
+[1649166395.371350] [jupiter001:1102721:0]          select.c:212  UCX  TRACE   rc_mlx5/mlx5_0:1 : not suitable for obtain remote memory pointer, no obtain remote memory pointer
+[1649166395.371351] [jupiter001:1102721:0]          select.c:212  UCX  TRACE   dc_mlx5/mlx5_0:1 : not suitable for obtain remote memory pointer, no obtain remote memory pointer
+[1649166395.371353] [jupiter001:1102721:0]          select.c:212  UCX  TRACE   ud_verbs/mlx5_0:1 : not suitable for obtain remote memory pointer, no obtain remote memory pointer
+[1649166395.371354] [jupiter001:1102721:0]          select.c:212  UCX  TRACE   ud_mlx5/mlx5_0:1 : not suitable for obtain remote memory pointer, no obtain remote memory pointer
+[1649166395.371356] [jupiter001:1102721:0]          select.c:212  UCX  TRACE   rc_verbs/mlx5_2:1 : not suitable for obtain remote memory pointer, no obtain remote memory pointer
+[1649166395.371357] [jupiter001:1102721:0]          select.c:212  UCX  TRACE   rc_mlx5/mlx5_2:1 : not suitable for obtain remote memory pointer, no obtain remote memory pointer
+[1649166395.371359] [jupiter001:1102721:0]          select.c:212  UCX  TRACE   dc_mlx5/mlx5_2:1 : not suitable for obtain remote memory pointer, no obtain remote memory pointer
+[1649166395.371360] [jupiter001:1102721:0]          select.c:212  UCX  TRACE   ud_verbs/mlx5_2:1 : not suitable for obtain remote memory pointer, no obtain remote memory pointer
+[1649166395.371361] [jupiter001:1102721:0]          select.c:212  UCX  TRACE   ud_mlx5/mlx5_2:1 : not suitable for obtain remote memory pointer, no obtain remote memory pointer
+[1649166395.371363] [jupiter001:1102721:0]          select.c:212  UCX  TRACE   cma/memory : not suitable for obtain remote memory pointer, no obtain remote memory pointer
+[1649166395.371364] [jupiter001:1102721:0]          select.c:212  UCX  TRACE   knem/memory : not suitable for obtain remote memory pointer, no obtain remote memory pointer
+[1649166395.371367] [jupiter001:1102721:0]          select.c:511  UCX  TRACE   xpmem/memory : unreachable 
+[1649166395.371369] [jupiter001:1102721:0]          select.c:359  UCX  TRACE   addr[3] tcp: no get
+[1649166395.371370] [jupiter001:1102721:0]          select.c:359  UCX  TRACE   addr[4] tcp: no get
+[1649166395.371371] [jupiter001:1102721:0]          select.c:359  UCX  TRACE   addr[8] ud_verbs: no put
+[1649166395.371372] [jupiter001:1102721:0]          select.c:359  UCX  TRACE   addr[9] ud_mlx5: no put
+[1649166395.371373] [jupiter001:1102721:0]          select.c:212  UCX  TRACE   posix/memory : not suitable for high-bw remote memory access, no memory registration
+[1649166395.371384] [jupiter001:1102721:0]          select.c:212  UCX  TRACE   sysv/memory : not suitable for high-bw remote memory access, no memory registration
+[1649166395.371386] [jupiter001:1102721:0]          select.c:212  UCX  TRACE   self/memory0 : not suitable for high-bw remote memory access, no put zcopy
+[1649166395.371387] [jupiter001:1102721:0]          select.c:212  UCX  TRACE   tcp/lo : not suitable for high-bw remote memory access, no get zcopy
+[1649166395.371388] [jupiter001:1102721:0]          select.c:212  UCX  TRACE   tcp/ib0_mlx5 : not suitable for high-bw remote memory access, no get zcopy
+[1649166395.371390] [jupiter001:1102721:0]          select.c:212  UCX  TRACE   tcp/eth0 : not suitable for high-bw remote memory access, no get zcopy
+[1649166395.371393] [jupiter001:1102721:0]          select.c:496  UCX  TRACE   rc_verbs/mlx5_0:1->addr[5] : high-bw remote memory access score 45345.72 priority 91
+[1649166395.371395] [jupiter001:1102721:0]          select.c:496  UCX  TRACE   rc_mlx5/mlx5_0:1->addr[6] : high-bw remote memory access score 45417.80 priority 91
+[1649166395.371397] [jupiter001:1102721:0]          select.c:511  UCX  TRACE   dc_mlx5/mlx5_0:1 : unreachable 
+[1649166395.371399] [jupiter001:1102721:0]          select.c:212  UCX  TRACE   ud_verbs/mlx5_0:1 : not suitable for high-bw remote memory access, no put zcopy
+[1649166395.371400] [jupiter001:1102721:0]          select.c:212  UCX  TRACE   ud_mlx5/mlx5_0:1 : not suitable for high-bw remote memory access, no put zcopy
+[1649166395.371403] [jupiter001:1102721:0]          select.c:496  UCX  TRACE   rc_verbs/mlx5_2:1->addr[5] : high-bw remote memory access score 45345.72 priority 122
+[1649166395.371405] [jupiter001:1102721:0]          select.c:496  UCX  TRACE   rc_mlx5/mlx5_2:1->addr[6] : high-bw remote memory access score 45417.80 priority 122
+[1649166395.371407] [jupiter001:1102721:0]          select.c:496  UCX  TRACE   dc_mlx5/mlx5_2:1->addr[7] : high-bw remote memory access score 45296.42 priority 122
+[1649166395.371409] [jupiter001:1102721:0]          select.c:212  UCX  TRACE   ud_verbs/mlx5_2:1 : not suitable for high-bw remote memory access, no put zcopy
+[1649166395.371410] [jupiter001:1102721:0]          select.c:212  UCX  TRACE   ud_mlx5/mlx5_2:1 : not suitable for high-bw remote memory access, no put zcopy
+[1649166395.371413] [jupiter001:1102721:0]          select.c:511  UCX  TRACE   cma/memory : unreachable 
+[1649166395.371415] [jupiter001:1102721:0]          select.c:511  UCX  TRACE   knem/memory : unreachable 
+[1649166395.371417] [jupiter001:1102721:0]          select.c:212  UCX  TRACE   xpmem/memory : not suitable for high-bw remote memory access, no put zcopy
+[1649166395.371419] [jupiter001:1102721:0]          select.c:540  UCX  TRACE   ep 0x14b96a7d3000: selected for high-bw remote memory access: rc_mlx5/mlx5_2:1 md[5] -> '<no debug data>' address[6],md[4],rsc[255] score 45417.80
+[1649166395.371421] [jupiter001:1102721:0]          select.c:359  UCX  TRACE   addr[3] tcp: no get
+[1649166395.371422] [jupiter001:1102721:0]          select.c:359  UCX  TRACE   addr[4] tcp: no get
+[1649166395.371423] [jupiter001:1102721:0]          select.c:340  UCX  TRACE   addr[5]: not in use, because on device[5]
+[1649166395.371424] [jupiter001:1102721:0]          select.c:340  UCX  TRACE   addr[6]: not in use, because on device[5]
+[1649166395.371425] [jupiter001:1102721:0]          select.c:340  UCX  TRACE   addr[7]: not in use, because on device[5]
+[1649166395.371426] [jupiter001:1102721:0]          select.c:340  UCX  TRACE   addr[8]: not in use, because on device[5]
+[1649166395.371427] [jupiter001:1102721:0]          select.c:340  UCX  TRACE   addr[9]: not in use, because on device[5]
+[1649166395.371428] [jupiter001:1102721:0]          select.c:212  UCX  TRACE   posix/memory : not suitable for high-bw remote memory access, no memory registration
+[1649166395.371429] [jupiter001:1102721:0]          select.c:212  UCX  TRACE   sysv/memory : not suitable for high-bw remote memory access, no memory registration
+[1649166395.371432] [jupiter001:1102721:0]          select.c:212  UCX  TRACE   self/memory0 : not suitable for high-bw remote memory access, no put zcopy
+[1649166395.371434] [jupiter001:1102721:0]          select.c:212  UCX  TRACE   tcp/lo : not suitable for high-bw remote memory access, no get zcopy
+[1649166395.371435] [jupiter001:1102721:0]          select.c:212  UCX  TRACE   tcp/ib0_mlx5 : not suitable for high-bw remote memory access, no get zcopy
+[1649166395.371436] [jupiter001:1102721:0]          select.c:212  UCX  TRACE   tcp/eth0 : not suitable for high-bw remote memory access, no get zcopy
+[1649166395.371438] [jupiter001:1102721:0]          select.c:511  UCX  TRACE   rc_verbs/mlx5_0:1 : unreachable 
+[1649166395.371439] [jupiter001:1102721:0]          select.c:511  UCX  TRACE   rc_mlx5/mlx5_0:1 : unreachable 
+[1649166395.371441] [jupiter001:1102721:0]          select.c:511  UCX  TRACE   dc_mlx5/mlx5_0:1 : unreachable 
+[1649166395.371442] [jupiter001:1102721:0]          select.c:212  UCX  TRACE   ud_verbs/mlx5_0:1 : not suitable for high-bw remote memory access, no put zcopy
+[1649166395.371444] [jupiter001:1102721:0]          select.c:212  UCX  TRACE   ud_mlx5/mlx5_0:1 : not suitable for high-bw remote memory access, no put zcopy
+[1649166395.371445] [jupiter001:1102721:0]          select.c:454  UCX  TRACE   rc_verbs/mlx5_2:1 : disabled by device bitmap
+[1649166395.371447] [jupiter001:1102721:0]          select.c:454  UCX  TRACE   rc_mlx5/mlx5_2:1 : disabled by device bitmap
+[1649166395.371449] [jupiter001:1102721:0]          select.c:454  UCX  TRACE   dc_mlx5/mlx5_2:1 : disabled by device bitmap
+[1649166395.371450] [jupiter001:1102721:0]          select.c:212  UCX  TRACE   ud_verbs/mlx5_2:1 : not suitable for high-bw remote memory access, no put zcopy
+[1649166395.371452] [jupiter001:1102721:0]          select.c:212  UCX  TRACE   ud_mlx5/mlx5_2:1 : not suitable for high-bw remote memory access, no put zcopy
+[1649166395.371454] [jupiter001:1102721:0]          select.c:511  UCX  TRACE   cma/memory : unreachable 
+[1649166395.371455] [jupiter001:1102721:0]          select.c:511  UCX  TRACE   knem/memory : unreachable 
+[1649166395.371457] [jupiter001:1102721:0]          select.c:212  UCX  TRACE   xpmem/memory : not suitable for high-bw remote memory access, no put zcopy
+[1649166395.371458] [jupiter001:1102721:0]          select.c:359  UCX  TRACE   addr[0] posix: no tag_eager
+[1649166395.371460] [jupiter001:1102721:0]          select.c:359  UCX  TRACE   addr[1] sysv: no tag_eager
+[1649166395.371461] [jupiter001:1102721:0]          select.c:359  UCX  TRACE   addr[2] self: no tag_eager
+[1649166395.371462] [jupiter001:1102721:0]          select.c:359  UCX  TRACE   addr[3] tcp: no get
+[1649166395.371463] [jupiter001:1102721:0]          select.c:359  UCX  TRACE   addr[4] tcp: no get
+[1649166395.371464] [jupiter001:1102721:0]          select.c:359  UCX  TRACE   addr[5] rc_verbs: no tag_eager
+[1649166395.371465] [jupiter001:1102721:0]          select.c:359  UCX  TRACE   addr[6] rc_mlx5: no tag_eager
+[1649166395.371466] [jupiter001:1102721:0]          select.c:359  UCX  TRACE   addr[7] dc_mlx5: no tag_eager
+[1649166395.371467] [jupiter001:1102721:0]          select.c:359  UCX  TRACE   addr[8] ud_verbs: no get
+[1649166395.371468] [jupiter001:1102721:0]          select.c:359  UCX  TRACE   addr[9] ud_mlx5: no get
+[1649166395.371469] [jupiter001:1102721:0]          select.c:359  UCX  TRACE   addr[10] cma: no tag_eager
+[1649166395.371470] [jupiter001:1102721:0]          select.c:359  UCX  TRACE   addr[11] knem: no tag_eager
+[1649166395.371471] [jupiter001:1102721:0]          select.c:359  UCX  TRACE   addr[12] xpmem: no tag_eager
+[1649166395.371478] [jupiter001:1102721:0]          select.c:212  UCX  TRACE   rc_mlx5/mlx5_2:1 : not suitable for auxiliary, no connect to iface
+[1649166395.371513] [jupiter001:1102721:0]          ucp_ep.c:1909 UCX  TRACE   rndv threshold is 31231 (fast local compl: 262144)
+[1649166395.371516] [jupiter001:1102721:0]          ucp_ep.c:1855 UCX  TRACE   active message rendezvous threshold is 29119
+[1649166395.371521] [jupiter001:1102721:0]          ucp_ep.c:1866 UCX  TRACE   Active Message rndv threshold is 29119 (fast local compl: 262144)
+[1649166395.371528] [jupiter001:1102721:0]      ucp_worker.c:1867 UCX  INFO    ep_cfg[0]: tag(rc_mlx5/mlx5_2:1); am(rc_mlx5/mlx5_2:1); 
+[1649166395.371532] [jupiter001:1102721:0]          wireup.c:1076 UCX  DEBUG   ep 0x14b96a7d3000: am_lane 0 wireup_msg_lane 0 cm_lane <none> reachable_mds 0x18 ep_check_map 0x0
+[1649166395.371538] [jupiter001:1102721:0]          wireup.c:1086 UCX  DEBUG   ep 0x14b96a7d3000: lane[0]: 12:rc_mlx5/mlx5_2:1.0 md[5]      -> addr[6].md[4]/ib/sysdev[255] rma_bw#0 am am_bw#0 wireup
+[1649166395.371540] [jupiter001:1102721:0]          wireup.c:1009 UCX  TRACE   ep 0x14b96a7d3000: connect lane[0]
+[1649166395.371551] [jupiter001:1102721:0]       wireup_ep.c:465  UCX  TRACE   ep 0x14b96a7d3000: created wireup ep 0x31f19a0 to <no debug data> 
+[1649166395.371553] [jupiter001:1102721:0]          wireup.c:976  UCX  TRACE   ep 0x14b96a7d3000: assign uct_ep[0]=0x31f19a0 wireup
+[1649166395.371554] [jupiter001:1102721:0]          wireup.c:984  UCX  TRACE   ep 0x14b96a7d3000: connect uct_ep[0]=0x31f19a0 to remote addr 0x7ffd0dbb7670 wireup
+[1649166395.372348] [jupiter001:1102721:0]           rc_ep.c:161  UCX  DEBUG   created rc ep 0x24d4200
+[1649166395.372357] [jupiter001:1102721:0]       wireup_ep.c:549  UCX  DEBUG   ep 0x14b96a7d3000: wireup_ep 0x31f19a0 created next_ep 0x24d4200 to <no debug data> using rc_mlx5/mlx5_2:1
+[1649166395.372360] [jupiter001:1102721:0]          select.c:359  UCX  TRACE   addr[0] posix: no async callback
+[1649166395.372361] [jupiter001:1102721:0]          select.c:359  UCX  TRACE   addr[1] sysv: no async callback
+[1649166395.372362] [jupiter001:1102721:0]          select.c:359  UCX  TRACE   addr[2] self: no async callback
+[1649166395.372363] [jupiter001:1102721:0]          select.c:359  UCX  TRACE   addr[3] tcp: no async callback
+[1649166395.372364] [jupiter001:1102721:0]          select.c:359  UCX  TRACE   addr[4] tcp: no async callback
+[1649166395.372365] [jupiter001:1102721:0]          select.c:359  UCX  TRACE   addr[5] rc_verbs: no connect to iface
+[1649166395.372367] [jupiter001:1102721:0]          select.c:359  UCX  TRACE   addr[6] rc_mlx5: no connect to iface
+[1649166395.372368] [jupiter001:1102721:0]          select.c:359  UCX  TRACE   addr[7] dc_mlx5: no async callback
+[1649166395.372369] [jupiter001:1102721:0]          select.c:359  UCX  TRACE   addr[10] cma: no am sync callback
+[1649166395.372370] [jupiter001:1102721:0]          select.c:359  UCX  TRACE   addr[11] knem: no am sync callback
+[1649166395.372371] [jupiter001:1102721:0]          select.c:359  UCX  TRACE   addr[12] xpmem: no async callback
+[1649166395.372373] [jupiter001:1102721:0]          select.c:511  UCX  TRACE   posix/memory : unreachable 
+[1649166395.372375] [jupiter001:1102721:0]          select.c:511  UCX  TRACE   sysv/memory : unreachable 
+[1649166395.372376] [jupiter001:1102721:0]          select.c:511  UCX  TRACE   self/memory0 : unreachable 
+[1649166395.372378] [jupiter001:1102721:0]          select.c:511  UCX  TRACE   tcp/lo : unreachable 
+[1649166395.372379] [jupiter001:1102721:0]          select.c:511  UCX  TRACE   tcp/ib0_mlx5 : unreachable 
+[1649166395.372381] [jupiter001:1102721:0]          select.c:511  UCX  TRACE   tcp/eth0 : unreachable 
+[1649166395.372382] [jupiter001:1102721:0]          select.c:212  UCX  TRACE   rc_verbs/mlx5_0:1 : not suitable for auxiliary, no connect to iface
+[1649166395.372384] [jupiter001:1102721:0]          select.c:212  UCX  TRACE   rc_mlx5/mlx5_0:1 : not suitable for auxiliary, no connect to iface
+[1649166395.372385] [jupiter001:1102721:0]          select.c:511  UCX  TRACE   dc_mlx5/mlx5_0:1 : unreachable 
+[1649166395.372389] [jupiter001:1102721:0]          select.c:496  UCX  TRACE   ud_verbs/mlx5_0:1->addr[8] : auxiliary score 1190.48 priority 91
+[1649166395.372391] [jupiter001:1102721:0]          select.c:496  UCX  TRACE   ud_mlx5/mlx5_0:1->addr[9] : auxiliary score 1265.82 priority 91
+[1649166395.372393] [jupiter001:1102721:0]          select.c:212  UCX  TRACE   rc_verbs/mlx5_2:1 : not suitable for auxiliary, no connect to iface
+[1649166395.372399] [jupiter001:1102721:0]          select.c:212  UCX  TRACE   rc_mlx5/mlx5_2:1 : not suitable for auxiliary, no connect to iface
+[1649166395.372401] [jupiter001:1102721:0]          select.c:511  UCX  TRACE   dc_mlx5/mlx5_2:1 : unreachable 
+[1649166395.372416] [jupiter001:1102721:0]          select.c:496  UCX  TRACE   ud_verbs/mlx5_2:1->addr[8] : auxiliary score 1190.48 priority 122
+[1649166395.372419] [jupiter001:1102721:0]          select.c:496  UCX  TRACE   ud_mlx5/mlx5_2:1->addr[9] : auxiliary score 1265.82 priority 122
+[1649166395.372420] [jupiter001:1102721:0]          select.c:212  UCX  TRACE   cma/memory : not suitable for auxiliary, no am bcopy
+[1649166395.372422] [jupiter001:1102721:0]          select.c:212  UCX  TRACE   knem/memory : not suitable for auxiliary, no am bcopy
+[1649166395.372423] [jupiter001:1102721:0]          select.c:511  UCX  TRACE   xpmem/memory : unreachable 
+[1649166395.372426] [jupiter001:1102721:0]          select.c:540  UCX  TRACE   ep 0x14b96a7d3000: selected for auxiliary: ud_mlx5/mlx5_2:1 md[5] -> '<no debug data>' address[9],md[4],rsc[255] score 1265.82
+[1649166395.372441] [jupiter001:1102721:0]        ib_iface.c:752  UCX  DEBUG   iface 0x29b1050: ah_attr dlid=3 sl=0 port=1 src_path_bits=0
+[1649166395.372454] [jupiter001:1102721:0]        ib_iface.c:752  UCX  DEBUG   iface 0x29b1050: ah_attr dlid=3 sl=0 port=1 src_path_bits=0
+[1649166395.372466] [jupiter001:1102721:0]      conn_match.c:269  UCX  TRACE   match_ctx 0x29b16d0: address  [rqpn 0x25c1 rlid 3] conn_sn 0 not found in unexpected
+[1649166395.372480] [jupiter001:1102721:0]           ud_ep.c:378  UCX  DEBUG   created ep ep=0x31f1130 iface=0x29b1050 id=0
+[1649166395.372485] [jupiter001:1102721:0]           ud_ep.c:496  UCX  DEBUG   mlx5_2:1/IB lid 1 qpn 0x142b epid 0 ep 0x31f1130 connected to IFACE lid 3 fe80::pkey 0xffff  qpn 0x25c1
+[1649166395.372488] [jupiter001:1102721:0]        ib_iface.c:752  UCX  DEBUG   iface 0x29b1050: ah_attr dlid=3 sl=0 port=1 src_path_bits=0
+[1649166395.372492] [jupiter001:1102721:0]      conn_match.c:197  UCX  TRACE   match_ctx 0x29b16d0: conn_match 0x31f11f8 added as expected address  [rqpn 0x25c1 rlid 3] conn_sn 0
+[1649166395.372494] [jupiter001:1102721:0]        ib_iface.c:752  UCX  DEBUG   iface 0x29b1050: ah_attr dlid=3 sl=0 port=1 src_path_bits=0
+[1649166395.372500] [jupiter001:1102721:0]         uct_mem.c:106  UCX  TRACE   allocating ud_tx_skb: host memory length 4325488 flags 0x3e0
+[1649166395.372501] [jupiter001:1102721:0]         uct_mem.c:110  UCX  TRACE     trying allocation method huge
+[1649166395.372519] [jupiter001:1102721:0]         uct_mem.c:283  UCX  TRACE     failed to allocate 4325488 bytes from hugetlb: Out of memory
+[1649166395.372521] [jupiter001:1102721:0]         uct_mem.c:110  UCX  TRACE     trying allocation method thp
+[1649166395.372550] [jupiter001:1102721:0]         uct_mem.c:304  UCX  TRACE     allocated 6291456 bytes at 0x14b96a000000 using thp
+[1649166395.374041] [jupiter001:1102721:0]           ib_md.c:546  UCX  TRACE   ibv_reg_mr(0x26068b0, 0x14b96a000000, 6291456) took 1.483 msec
+[1649166395.374044] [jupiter001:1102721:0]           ib_md.c:786  UCX  TRACE   registered memory 0x14b96a000000..0x14b96a600000 on mlx5_2 lkey 0x46d4e rkey 0x46d4e access 0xf flags 0x3e4
+[1649166395.374046] [jupiter001:1102721:0]          rcache.c:957  UCX  TRACE   mlx5_2: created region 0x3410dc0 [0x14b96a000000..0x14b96a600000] gt rw ref 2 lkey 0x46d4e rkey 0x46d4e atomic_rkey 0xffffffff
+[1649166395.374048] [jupiter001:1102721:0]           mpool.c:237  UCX  DEBUG   mpool ud_tx_skb: allocated chunk 0x14b96a000018 of 6291432 bytes with 1489 elements
+[1649166395.374094] [jupiter001:1102721:0]         ud_mlx5.c:87   UCX  DATA    QP 0x142b [000] SEND --e [rqpn 0x25c1 rlid 3] [inl len 51] dst 16777215 psn 1 apsn 0 -- CREQ from jupiter001:1102721 qpn 0x142b lid 1 fe80::pkey 0xffff  epid 0 cid 0 path 0
+[1649166395.374100] [jupiter001:1102721:0]      ucp_worker.c:555  UCX  TRACE   activate iface 0x29b1050 acount=0 aifaces=1
+[1649166395.376285] [jupiter001:1102721:0]           async.c:231  UCX  DEBUG   added async handler 0x2863f10 [id=1000027 ref 1] uct_ud_iface_async_progress() to hash
+[1649166395.376327] [jupiter001:1102721:0]       wireup_ep.c:316  UCX  DEBUG   ep 0x14b96a7d3000: wireup_ep 0x31f19a0 created aux_ep 0x31f1130 to <no debug data> using ud_mlx5/mlx5_2:1
+[1649166395.376329] [jupiter001:1102721:0]      ucp_worker.c:555  UCX  TRACE   activate iface 0x305a3d0 acount=0 aifaces=2
+[1649166395.376346] [jupiter001:1102721:0]         uct_mem.c:106  UCX  TRACE   allocating rc_recv_desc: host memory length 37770032 flags 0x3e0
+[1649166395.376347] [jupiter001:1102721:0]         uct_mem.c:110  UCX  TRACE     trying allocation method huge
+[1649166395.376360] [jupiter001:1102721:0]         uct_mem.c:283  UCX  TRACE     failed to allocate 37770032 bytes from hugetlb: Out of memory
+[1649166395.376361] [jupiter001:1102721:0]         uct_mem.c:110  UCX  TRACE     trying allocation method thp
+[1649166395.376396] [jupiter001:1102721:0]         uct_mem.c:304  UCX  TRACE     allocated 39845888 bytes at 0x14b967800000 using thp
+[1649166395.385157] [jupiter001:1102721:0]           ib_md.c:546  UCX  TRACE   ibv_reg_mr(0x26068b0, 0x14b967800000, 39845888) took 8.739 msec
+[1649166395.385165] [jupiter001:1102721:0]           ib_md.c:786  UCX  TRACE   registered memory 0x14b967800000..0x14b969e00000 on mlx5_2 lkey 0x3f7da rkey 0x3f7da access 0xf flags 0x3e4
+[1649166395.385170] [jupiter001:1102721:0]          rcache.c:957  UCX  TRACE   mlx5_2: created region 0x3919900 [0x14b967800000..0x14b969e00000] gt rw ref 2 lkey 0x3f7da rkey 0x3f7da atomic_rkey 0xffffffff
+[1649166395.385174] [jupiter001:1102721:0]           mpool.c:237  UCX  DEBUG   mpool rc_recv_desc: allocated chunk 0x14b967800018 of 39845864 bytes with 4752 elements
+[1649166395.385511] [jupiter001:1102721:0]      ucp_worker.c:3080 UCX  TRACE   ep 0x14b96a7d3000 flags 0x0 cfg_index 0: not using keepalive, err_mode 0 ep_check_map 0x0
+[1649166395.385526] [jupiter001:1102721:0]      conn_match.c:197  UCX  TRACE match_ctx 0x25b26a0: conn_match 0x14b96a7f3020 added as expected address 6673258717822627862 conn_sn 0
+[1649166395.385531] [jupiter001:1102721:0]          wireup.c:1430 UCX  DEBUG ep 0x14b96a7d3000: send wireup request (flags=0x40)
+[1649166395.385535] [jupiter001:1102721:0]   ucp_request.inl:309  UCX  REQ   allocated request 0x2e45910 (wireup_msg_req)
+[1649166395.385553] [jupiter001:1102721:0]         address.c:1313 UCX  TRACE pack addr[0].ep_addr[0] : len 7 lane 0->0
+[1649166395.385559] [jupiter001:1102721:0]         address.c:1350 UCX  TRACE pack addr[0] : rc_mlx5/mlx5_2:1 sysdev 255 paths 1 eps 1 md_flags 0x2 tl_flags 0x12d48000067f bw 0.00+11794.23/nMBs ovh 40ns lat_ovh 600ns dev_priority 61 a32 0xf/0x3f a64 0xf/0x3f
+[1649166395.385563] [jupiter001:1102721:0]         address.c:1350 UCX  TRACE pack addr[1] : ud_mlx5/mlx5_2:1 sysdev 255 paths 1 eps 0 md_flags 0x2 tl_flags 0x33c00000000f bw 0.00+11794.23/nMBs ovh 80ns lat_ovh 630ns dev_priority 61 a32 0x0/0x0 a64 0x0/0x0
+[1649166395.385573] [jupiter001:1102721:0]   ucp_request.inl:309  UCX  REQ   allocated request 0x24d7ee0 (ucp_wireup_proxy_req)
+[1649166395.385578] [jupiter001:1102721:0]           ud_ep.c:1621 UCX  DATA  ud ep 0x31f1130: added pending req 0x24d7fc8 tx_psn 2 acked_psn 0 cwnd 2
+[1649166395.385581] [jupiter001:1102721:0]     ucp_request.c:304  UCX  DATA  ep 0x14b96a7d3000: added pending uct request 0x2e45910 to lane[0]=0x31f19a0
+[1649166395.385589] [jupiter001:1102721:0]        tag_send.c:249  UCX  REQ   send_nbx buffer 0x24c76c8 count 8 tag a800000000000 to <no debug data>
+[1649166395.385598] [jupiter001:1102721:0]           mpool.c:237  UCX  DEBUG mpool ucp_requests: allocated chunk 0x354a014 of 41044 bytes with 128 elements
+[1649166395.385605] [jupiter001:1102721:a]         ud_mlx5.c:505  UCX  DATA  RECV qp 0x142b [slid 3 sqp 0x25c1] [va 0x14b96accf028 len 48] dst 0 psn 1 apsn 1 r- CREP from jupiter-bf01:706161 src_ep_id 0
+[1649166395.385612] [jupiter00[dpu_offload_service_daemon.c:l.536] ERROR: ucx_wait() failed. unable to send UCX address message (Operation in progress)
+1:1102721:0]        tag_send.c:287  UCX  REQ   allocated request 0x3553f00
+[1649166395.385643] [jupiter001:1102721:0]        tag_send.c:84   UCX  REQ   select tag request(0x3553f00) progress algorithm datatype=0x8 buffer=0x24c76c8 length=8 mem_type:host max_short=2038 rndv_thresh=29119 zcopy_thresh=2153 zcopy_enabled=1
+[1649166395.385617] [jupiter001:1102721:a]           ud_ep.c:940  UCX  DATA  ACK_REQ - schedule ack, head_sn=0 sn=1
+[1649166395.385661] [jupiter001:1102721:a]         uct_mem.c:106  UCX  TRACE allocating ud_recv_skb: host memory length 19033456 flags 0x3e0
+[1649166395.385663] [jupiter001:1102721:a]         uct_mem.c:110  UCX  TRACE   trying allocation method huge
+[1649166395.385706] [jupiter001:1102721:a]         uct_mem.c:283  UCX  TRACE   failed to allocate 19033456 bytes from hugetlb: Out of memory
+[1649166395.385707] [jupiter001:1102721:a]         uct_mem.c:110  UCX  TRACE   trying allocation method thp
+[1649166395.386268] [jupiter001:1102721:a]         uct_mem.c:304  UCX  TRACE   allocated 20971520 bytes at 0x14b960200000 using thp
+[1649166395.390912] [jupiter001:1102721:a]           ib_md.c:546  UCX  TRACE ibv_reg_mr(0x26068b0, 0x14b960200000, 20971520) took 4.629 msec
+[1649166395.390916] [jupiter001:1102721:a]           ib_md.c:786  UCX  TRACE registered memory 0x14b960200000..0x14b961600000 on mlx5_2 lkey 0x3eed0 rkey 0x3eed0 access 0xf flags 0x3e4
+[1649166395.390919] [jupiter001:1102721:a]          rcache.c:957  UCX  TRACE mlx5_2: created region 0x14b960000b60 [0x14b960200000..0x14b961600000] gt rw ref 2 lkey 0x3eed0 rkey 0x3eed0 atomic_rkey 0xffffffff
+[1649166395.390922] [jupiter001:1102721:a]           mpool.c:237  UCX  DEBUG mpool ud_recv_skb: allocated chunk 0x14b960200018 of 20971496 bytes with 4964 elements
+[1649166395.391030] [jupiter001:1102721:a]         ud_mlx5.c:87   UCX  DATA  QP 0x142b [002] SEND --- [rqpn 0x25c1 rlid 3] [va 0x14b96a5fd7d0 len 95 lkey 0x46d4e] dst 0 psn 2 apsn 1 -- am 1 WIREUP REQ [<no debug data> uuid 0xc79db8341bcb22a5 src_ep_id 0x14b96a7d3000 dst_ep_id 0x0 conn_sn 0] rc_mlx5/mlx5_0:1/md[5]/lane[0] ud_mlx5/
+[1649166395.391036] [jupiter001:1102721:a]   ucp_request.inl:320  UCX  REQ   freed request 0x2e45910
+[1649166395.391037] [jupiter001:1102721:a]   ucp_request.inl:320  UCX  REQ   freed request 0x24d7ee0
+[1649166395.391050] [jupiter001:1102721:a]        ib_iface.c:1815 UCX  TRACE arm_cq: got 0 send and 1 recv events, returning BUSY
+[1649166395.391057] [jupiter001:1102721:0]     ucp_request.c:304  UCX  DATA  ep 0x14b96a7d3000: added pending uct request 0x3553f00 to lane[0]=0x31f19a0
+[1649166395.391063] [jupiter001:1102721:0]        tag_send.c:124  UCX  DATA  request 0x3553f00 send.cb set to 0x14b9783db5a0, user data: 0x25eb670
+[1649166395.391064] [jupiter001:1102721:0]        tag_send.c:125  UCX  REQ   returning send request 0x3553f00
+[dpu_offload_service_daemon.c:l.506:ucx_wait():jupiter001.hpcadvisorycouncil.com:pid=1102721] Waiting for request 0x3554018 to complete
+[1649166395.391073] [jupiter001:1102721:0]     ucp_request.c:185  UCX  REQ   free request 0x3553f00 (0x3554018) ---c--
+[dpu_offload_service_daemon.c:l.612:oob_connect():jupiter001.hpcadvisorycouncil.com:pid=1102721] Sent addr size to server: 542
+
+[1649166395.391085] [jupiter001:1102721:0]        tag_send.c:249  UCX  REQ   send_nbx buffer 0x2da91f0 count 542 tag a800000000000 to <no debug data>
+[1649166395.391087] [jupiter001:1102721:0]        tag_send.c:287  UCX  REQ   allocated request 0x3553dc0
+[1649166395.391101] [jupiter001:1102721:0]        tag_send.c:84   UCX  REQ   select tag request(0x3553dc0) progress algorithm datatype=0x8 buffer=0x2da91f0 length=542 mem_type:host max_short=2038 rndv_thresh=29119 zcopy_thresh=2153 zcopy_enabled=1
+[1649166395.391103] [jupiter001:1102721:0]     ucp_request.c:304  UCX  DATA  ep 0x14b96a7d3000: added pending uct request 0x3553dc0 to lane[0]=0x31f19a0
+[1649166395.391105] [jupiter001:1102721:0]        tag_send.c:124  UCX  DATA  request 0x3553dc0 send.cb set to 0x14b9783db5a0, user data: 0x25eb670
+[1649166395.391106] [jupiter001:1102721:0]        tag_send.c:125  UCX[dpu_offload_service_daemon.c:l.536] ERROR: ucx_wait() failed. unable to send UCX address message (Operation in progress)
+[dpu_offload_service_daemon.c:l.536] ERROR: ucx_wait() failed. unable to send (null) (Operation in progress)
+Registering callback for notifications of type 43
+Registering callback for notifications of custom type 5000
+Need to grow array: 5000 5000
+  REQ   returning send request 0x3553dc0
+[dpu_offload_service_daemon.c:l.506:ucx_wait():jupiter001.hpcadvisorycouncil.com:pid=1102721] Waiting for request 0x3553ed8 to complete
+[1649166395.391111] [jupiter001:1102721:0]     ucp_request.c:185  UCX  REQ   free request 0x3553dc0 (0x3553ed8) ---c--
+[dpu_offload_service_daemon.c:l.624:oob_connect():jupiter001.hpcadvisorycouncil.com:pid=1102721] Sending my group/rank info (-1/-1), len=16
+[1649166395.391119] [jupiter001:1102721:0]        tag_send.c:249  UCX  REQ   send_nbx buffer 0x24c2af8 count 16 tag a800000000000 to <no debug data>
+[1649166395.391120] [jupiter001:1102721:0]        tag_send.c:287  UCX  REQ   allocated request 0x3553c80
+[1649166395.391122] [jupiter001:1102721:0]        tag_send.c:84   UCX  REQ   select tag request(0x3553c80) progress algorithm datatype=0x8 buffer=0x24c2af8 length=16 mem_type:host max_short=2038 rndv_thresh=29119 zcopy_thresh=2153 zcopy_enabled=1
+[1649166395.391123] [jupiter001:1102721:0]     ucp_request.c:304  UCX  DATA  ep 0x14b96a7d3000: added pending uct request 0x3553c80 to lane[0]=0x31f19a0
+[1649166395.391125] [jupiter001:1102721:0]        tag_send.c:124  UCX  DATA  request 0x3553c80 send.cb set to 0x14b9783db5a0, user data: (nil)
+[1649166395.391126] [jupiter001:1102721:0]        tag_send.c:125  UCX  REQ   returning send request 0x3553c80
+[dpu_offload_service_daemon.c:l.506:ucx_wait():jupiter001.hpcadvisorycouncil.com:pid=1102721] Waiting for request 0x3553d98 to complete
+[1649166395.391128] [jupiter001:1102721:0]     ucp_request.c:185  UCX  REQ   free request 0x3553c80 (0x3553d98) ---c--
+[1649166395.391209] [jupiter001:1102721:0]        tag_send.c:249  UCX  REQ   send_nbx buffer 0x7ffd0dbb78e4 count 4 tag 2a to <no debug data>
+[1649166395.391210] [jupiter001:1102721:0]        tag_send.c:287  UCX  REQ   allocated request 0x3553b40
+[1649166395.391212] [jupiter001:1102721:0]        tag_send.c:84   UCX  REQ   select tag request(0x3553b40) progress algorithm datatype=0x8 buffer=0x7ffd0dbb78e4 length=4 mem_type:host max_short=2038 rndv_thresh=29119 zcopy_thresh=2153 zcopy_enabled=1
+[1649166395.391226] [jupiter001:1102721:0]     ucp_request.c:304  UCX  DATA  ep 0x14b96a7d3000: added pending uct request 0x3553b40 to lane[0]=0x31f19a0
+[1649166395.391228] [jupiter001:1102721:0]        tag_send.c:124  UCX  DATA  request 0x3553b40 send.cb set to 0x401889, user data: (nil)
+[1649166395.391229] [jupiter001:1102721:0]        tag_send.c:125  UCX  REQ   returning send request 0x3553b40
+[1649166395.391239] [jupiter001:1102721:0]      ucp_worker.c:598  UCX  TRACE iface 0x29b1050 already activated
+[1649166395.391254] [jupiter001:1102721:0]      ucp_worker.c:598  UCX  TRACE iface 0x29b1050 already activated
+[1649166395.406245] [jupiter001:1102721:0]         ud_mlx5.c:87   UCX  DATA  QP 0x142b [003] SEND --- [rqpn 0x25c1 rlid 3] [inl len 8] dst 0 psn 3 apsn 1 r-
+[1649166395.410858] [jupiter001:1102721:0]         ud_mlx5.c:505  UCX  DATA  RECV qp 0x142b [slid 3 sqp 0x25c1] [va 0x14b96accdfa8 len 72] dst 0 psn 2 apsn 2 -- am 1 WIREUP REP [<no debug data> uuid 0x5c9c2d728a18b016 src_ep_id 0x400035b8b000 dst_ep_id 0x14b96a7d3000 conn_sn 0] rc_mlx5/mlx5_0:1/md[4]/lane[0]
+[1649166395.410864] [jupiter001:1102721:0]         address.c:1464 UCX  TRACE unpack address version 0 flags 0x2
+[1649166395.410866] [jupiter001:1102721:0]         address.c:1606 UCX  TRACE unpack addr[0].ep_addr[0] : len 7 lane 0
+[1649166395.410872] [jupiter001:1102721:0]         address.c:1628 UCX  TRACE unpack addr[0] : sysdev 255 paths 1 eps 1 tl_iface_flags 0x9a bw 11794.23/nMBs ovh 40ns lat_ovh 600ns dev_priority 61 a32 0x0/0x0 a64 0x0/0x0
+[1649166395.410874] [jupiter001:1102721:0]          wireup.c:669  UCX  TRACE ep 0x14b96a7d3000: got wireup reply src_ep_id 0x400035b8b000 dst_ep_id 0x14b96a7d3000 sn 0
+[1649166395.410879] [jupiter001:1102721:0]      conn_match.c:310  UCX  TRACE match_ctx 0x25b26a0: remove expected conn_match 0x14b96a7f3020 address 6673258717822627862 conn_sn 0
+[1649166395.410882] [jupiter001:1102721:0]        ucp_ep.inl:222  UCX  TRACE ep 0x14b96a7d3000: set remote_id to 0x4ping msg from client successfully sent
+00035b8b000
+[1649166395.410889] [jupiter001:1102721:0]          wireup.c:387  UCX  TRACE ep 0x14b96a7d3000: connect local transports
+[1649166395.410906] [jupiter001:1102721:0]        ib_iface.c:752  UCX  DEBUG   iface 0x305a3d0: ah_attr dlid=3 sl=0 port=1 src_path_bits=0
+[1649166395.411232] [jupiter001:1102721:0]    rc_mlx5_devx.c:454  UCX  DEBUG   connected rc devx qp 0x2a4 on mlx5_2:1/IB to lid 3(+0) sl 0 remote_qp 0xf35 mtu 4096 timer 18x7 rnr 13x7 rd_atom 4
+[1649166395.411235] [jupiter001:1102721:0]          wireup.c:435  UCX  TRACE ep 0x14b96a7d3000: remote connected
+[1649166395.411238] [jupiter001:1102721:0]       wireup_ep.c:618  UCX  TRACE ep 0x14b96a7d3000: wireup ep 0x31f19a0 is ready
+[1649166395.411241] [jupiter001:1102721:0]       wireup_ep.c:81   UCX  TRACE ep 0x14b96a7d3000: switching wireup_ep 0x31f19a0 to ready state
+[1649166395.411247] [jupiter001:1102721:0]       wireup_ep.c:478  UCX  DEBUG ep 0x14b96a7d3000: destroy wireup ep 0x31f19a0
+[1649166395.411258] [jupiter001:1102721:0]      ucp_worker.c:3138 UCX  REQ   allocated request 0x3553a00
+[1649166395.411265] [jupiter001:1102721:0]      ucp_worker.c:3169 UCX  DATA  request 0x3553a00 send.cb set to 0x14b9781661e0, user data: 0x2ca6970
+[1649166395.411281] [jupiter001:1102721:0]      ucp_worker.c:2356 UCX  REQ   req 0x3553a00: discard_uct_ep flush completion status Success
+[1649166395.411294] [jupiter001:1102721:0]       rc_mlx5.inl:482  UCX  DATA  QP 0x2a4 [000] SEND --e [inl len 18] -- am 2 EGR_O tag a800000000000
+[1649166395.411300] [jupiter001:1102721:0]   ucp_request.inl:228  UCX  REQ   completing send request 0x3553f00 (0x3554018) -f---- Success
+[1649166395.411303] [jupiter001:1102721:0]   ucp_request.inl:215  UCX  REQ   put request 0x3553f00
+[1649166395.411306] [jupiter001:1102721:0]           mpool.c:237  UCX  DEBUG mpool mlx5_dm_desc: allocated chunk 0x3414770 of 152 bytes with 1 elements
+[1649166395.411310] [jupiter001:1102721:0]       rc_mlx5.inl:482  UCX  DATA  QP 0x2a4 [001] SEND s-e [va 0x7ffd0dbb7690 len 10 lkey 0x3e99] [va 0x2da91f0 len 542 lkey 0x3e99] -- am 2 EGR_O tag a800000000000
+[1649166395.411311] [jupiter001:1102721:0]   ucp_request.inl:228  UCX  REQ   completing send request 0x3553dc0 (0x3553ed8) -f---- Success
+[1649166395.411313] [jupiter001:1102721:0]   ucp_request.inl:215  UCX  REQ   put request 0x3553dc0
+[1649166395.411315] [jupiter001:1102721:0]       rc_mlx5.inl:482  UCX  DATA  QP 0x2a4 [002] SEND --e [inl len 26] -- am 2 EGR_O tag a800000000000
+[1649166395.411316] [jupiter001:1102721:0]   ucp_request.inl:228  UCX  REQ   completing send request 0x3553c80 (0x3553d98) -f---- Success
+[1649166395.411317] [jupiter001:1102721:0]   ucp_request.inl:215  UCX  REQ   put request 0x3553c80
+[1649166395.411325] [jupiter001:1102721:0]       rc_mlx5.inl:482  UCX  DATA  QP 0x2a4 [003] SEND --e [inl len 14] -- am 2 EGR_O tag 2a
+[1649166395.411326] [jupiter001:1102721:0]   ucp_request.inl:228  UCX  REQ   completing send request 0x3553b40 (0x3553c58) ---c-- Success
+[1649166395.411348] [jupiter001:1102721:0]          wireup.c:644  UCX  TRACE ep 0x14b96a7d3000: sending wireup ack
+[1649166395.411350] [jupiter001:1102721:0]   ucp_request.inl:309  UCX  REQ   allocated request 0x3ad8840 (wireup_msg_req)
+[1649166395.411356] [jupiter001:1102721:0]         uct_mem.c:106  UCX  TRACE allocating rc_send_desc: host memory length 8519792 flags 0x3e0
+[1649166395.411357] [jupiter001:1102721:0]         uct_mem.c:110  UCX  TRACE   trying allocation method huge
+[1649166395.411383] [jupiter001:1102721:0]         uct_mem.c:283  UCX  TRACE   failed to allocate 8519792 bytes from hugetlb: Out of memory
+[1649166395.411385] [jupiter001:1102721:0]         uct_mem.c:110  UCX  TRACE   trying allocation method thp
+[1649166395.411447] [jupiter001:1102721:0]         uct_mem.c:304  UCX  TRACE   allocated 10485760 bytes at 0x14b966c00000 using thp
+[1649166395.413769] [jupiter001:1102721:0]           ib_md.c:546  UCX  TRACE ibv_reg_mr(0x26068b0, 0x14b966c00000, 10485760) took 2.314 msec
+[1649166395.413772] [jupiter001:1102721:0]           ib_md.c:786  UCX  TRACE registered memorpong successfully received
+y 0x14b966c00000..0x14b967600000 on mlx5_2 lkey 0x3f9d9 rkey 0x3f9d9 access 0xf flags 0x3e4
+[1649166395.413778] [jupiter001:1102721:0]          rcache.c:957  UCX  TRACE mlx5_2: created region 0x391aec0 [0x14b966c00000..0x14b967600000] gt rw ref 2 lkey 0x3f9d9 rkey 0x3f9d9 atomic_rkey 0xffffffff
+[1649166395.413780] [jupiter001:1102721:0]           mpool.c:237  UCX  DEBUG mpool rc_send_desc: allocated chunk 0x14b966c00018 of 10485736 bytes with 1260 elements
+[1649166395.413815] [jupiter001:1102721:0]       rc_mlx5.inl:482  UCX  DATA  QP 0x2a4 [004] SEND --e [va 0x14b9675fd600 len 32 lkey 0x3f9d9] -- am 1 WIREUP ACK [<no debug data> uuid 0xc79db8341bcb22a5 src_ep_id 0x14b96a7d3000 dst_ep_id 0x400035b8b000 conn_sn 0]
+[1649166395.413817] [jupiter001:1102721:0]   ucp_request.inl:320  UCX  REQ   freed request 0x3ad8840
+[1649166395.413821] [jupiter001:1102721:0]     ucp_request.c:185  UCX  REQ   free request 0x3553b40 (0x3553c58) d--c--
+[1649166395.413822] [jupiter001:1102721:0]   ucp_request.inl:215  UCX  REQ   put request 0x3553b40
+[1649166395.413831] [jupiter001:1102721:0]        tag_recv.c:253  UCX  REQ   allocated request 0x3553b40
+[1649166395.413833] [jupiter001:1102721:0]        tag_recv.c:88   UCX  REQ   req 0x3553b40: recv_nbx buffer 0x7ffd0dbb78e0 dt 0x8 count 4 tag 2a/ffffffffffffffff
+[1649166395.413837] [jupiter001:1102721:0]        tag_recv.c:180  UCX  REQ   recv_nbx returning expected request 0x3553b40 (0x3553c58)
+[1649166395.413841] [jupiter001:1102721:0]      ucp_worker.c:2317 UCX  REQ   req 0x3553a00: destroy uct_ep=0x31f1130
+[1649166395.413843] [jupiter001:1102721:0]           ud_ep.c:1684 UCX  DEBUG ep 0x31f1130: disconnect
+[1649166395.413850] [jupiter001:1102721:0]      ucp_worker.c:697  UCX  TRACE deactivate iface 0x29b1050 force=0 acount=1 aifaces=3
+[1649166395.413854] [jupiter001:1102721:0]           async.c:156  UCX  DEBUG removed async handler 0x2863f10 [id=1000027 ref 1] uct_ud_iface_async_progress() from hash
+[1649166395.413855] [jupiter001:1102721:0]           async.c:562  UCX  DEBUG removing async handler 0x2863f10 [id=1000027 ref 1] uct_ud_iface_async_progress()
+[1649166395.413876] [jupiter001:1102721:0]           async.c:582  UCX  TRACE waiting for 0x2863f10 [id=1000027 ref 1] uct_ud_iface_async_progress() completion (called=0)
+[1649166395.413877] [jupiter001:1102721:0]           async.c:171  UCX  DEBUG release async handler 0x2863f10 [id=1000027 ref 0] uct_ud_iface_async_progress()
+[1649166395.413899] [jupiter001:1102721:0]   ucp_request.inl:215  UCX  REQ   put request 0x3553a00
+[1649166395.413904] [jupiter001:1102721:0]        ud_iface.c:986  UCX  TRACE iface 0x29b1050: arm cq ok
+[1649166395.413905] [jupiter001:1102721:0]      ucp_worker.c:615  UCX  TRACE armed iface 0x29b1050
+[1649166395.420365] [jupiter001:1102721:a]         ud_mlx5.c:505  UCX  DATA  RECV qp 0x142b [slid 3 sqp 0x25c1] [va 0x14b96acccf28 len 8] dst 0 psn 3 apsn 2 --
+[1649166395.420383] [jupiter001:1102721:a]        ib_iface.c:1815 UCX  TRACE arm_cq: got 0 send and 1 recv events, returning BUSY
+[1649166395.420387] [jupiter001:1102721:0]        ud_iface.c:986  UCX  TRACE iface 0x29b1050: arm cq ok
+[1649166395.420388] [jupiter001:1102721:0]      ucp_worker.c:615  UCX  TRACE armed iface 0x29b1050
+[1649166395.421119] [jupiter001:1102721:0]       rc_mlx5.inl:411  UCX  DATA  RECV qp 0x2a4 [va 0x3070040 len 14] -- am 2 EGR_O tag 2a
+[1649166395.421138] [jupiter001:1102721:0]     tag_match.inl:113  UCX  DATA  checking req 0x3553b40 tag 2a/ffffffffffffffff with tag 2a
+[1649166395.421139] [jupiter001:1102721:0]     tag_match.inl:115  UCX  REQ   matched received tag 2a to req 0x3553b40
+[1649166395.421140] [jupiter001:1102721:0]       eager_rcv.c:27   UCX  REQ   found req 0x3553b40
+[1649166395.421142] [jupiter001:1102721:0]   ucp_request.inl:637  UCX  REQ   req 0x3553b40: unpack recv_data req_len 4 data_len 4 offset 0 last: yes
+[1649166395.421144] [jupiter001:1102721:0]   ucp_request.inl:244  UCX  REQ   completing receive request 0x3553b40 (0x3553c58) ---cr- stag 0x2a len 4, Success
+[1649166395.421149] [jupiter001:1102721:0]     ucp_request.cSuccessfully received the expected response from the server
+STARTING TEST OF THE NOTIFICATION SYSTEM
+Sending 100000 notifications...
+Reseting event...
+Event reset
+Checking event...
+Event 0x3ad6de0 sub-events list initialized? 0
+Event checked
+event_channel_emit_with_payload() completed immediately
+Ev #0 = (nil)
+Reseting event...
+Event reset
+Checking event...
+Event 0x3ad6e70 sub-events list initialized? 99
+:185  UCX  REQ   free request 0x3553b40 (0x3553c58) d--cr-
+[1649166395.421152] [jupiter001:1102721:0]   ucp_request.inl:215  UCX  REQ   put request 0x3553b40
+[dpu_offload_event_channels.c:l.464:event_get():jupiter001.hpcadvisorycouncil.com:pid=1102721] Getting event...
+[dpu_offload_event_channels.c:l.489:event_get():jupiter001.hpcadvisorycouncil.com:pid=1102721] Got event 0x3ad6de0 from list 0x24e1150
+[dpu_offload_event_channels.c:l.388:event_channel_emit_with_payload():jupiter001.hpcadvisorycouncil.com:pid=1102721] Sending notification of type 43 (client_id=0)
+[1649166395.421709] [jupiter001:1102721:0]       rc_mlx5.inl:482  UCX  DATA  QP 0x2a4 [005] SEND --e [inl len 34] -- am 23 
+[dpu_offload_event_channels.c:l.360:send_event_msg():jupiter001.hpcadvisorycouncil.com:pid=1102721] Event 0x3ad6de0 0 successfully emitted
+[dpu_offload_event_channels.c:l.365:send_event_msg():jupiter001.hpcadvisorycouncil.com:pid=1102721] ucp_am_send_nbx() completed right away
+[dpu_offload_event_channels.c:l.527:event_return():jupiter001.hpcadvisorycouncil.com:pid=1102721] event 0x3ad6de0 successfully returned
+[dpu_offload_event_channels.c:l.464:event_get():jupiter001.hpcadvisorycouncil.com:pid=1102721] Getting event...
+[jupiter001:1102721:0:1102721] Caught signal 11 (Segmentation fault: Sent by the kernel at address (nil))
+==== backtrace (tid:1102721) ====
+ 0 0x0000000000012c20 .annobin_sigaction.c()  sigaction.c:0
+ 1 0x000000000000fb5d ucs_list_length()  /global/home/users/geoffroy/scratch/projects/dpu_offload/x86_64/install/ucx-1.12.0//include/ucs/datastruct/list.h:162
+ 2 0x0000000000014d81 event_get()  /global/home/users/geoffroy/scratch/projects/dpu_offload/x86_64/dpu_offload_service/src/dpu_offload_event_channels.c:475
+ 3 0x0000000000401fac run_client_test()  /global/home/users/geoffroy/scratch/projects/dpu_offload/x86_64/dpu_offload_service/tests/offload_service/client/client_common.h:150
+ 4 0x0000000000403181 main()  /global/home/users/geoffroy/scratch/projects/dpu_offload/x86_64/dpu_offload_service/tests/offload_service/client/client.c:12
+ 5 0x0000000000023493 __libc_start_main()  ???:0
+ 6 0x000000000040100e _start()  ???:0
+=================================

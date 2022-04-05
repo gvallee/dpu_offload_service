@@ -131,12 +131,12 @@ typedef struct dyn_list
             _chunk_ptr->size = _chunk_size;                                                                        \
             (__dyn_list)->num_mem_chunks++;                                                                        \
             fprintf(stderr, "Adding new elements to list...\n");                                                   \
+            __type *_e = (__type *)(_new_chunk_buf);                                                               \
             for (_i = 0; _i < (__dyn_list)->num_elts_alloc; _i++)                                                  \
             {                                                                                                      \
-                __type *_e = (__type *)(_new_chunk_buf);                                                           \
                 if ((__dyn_list)->element_init_cb != NULL)                                                         \
                 {                                                                                                  \
-                    (__dyn_list)->element_init_cb((void *)_e);                                                     \
+                    (__dyn_list)->element_init_cb((void *)&(_e[_i]));                                                     \
                 }                                                                                                  \
                 ucs_list_add_tail(&((__dyn_list)->list), &(_e[_i].__elt));                                         \
                 _ptr = &(_e[_i]);                                                                                  \

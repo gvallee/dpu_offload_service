@@ -805,7 +805,6 @@ typedef struct dpu_offload_event
 #define CHECK_EVENT(__ev)                                                                         \
     do                                                                                            \
     {                                                                                             \
-        fprintf(stderr, "Checking event...\n");                                                   \
         assert((__ev)->payload_size == 0);                                                        \
         assert((__ev)->ctx.complete == 0);                                                        \
         assert((__ev)->ctx.hdr.type == 0);                                                        \
@@ -815,11 +814,8 @@ typedef struct dpu_offload_event
         assert((__ev)->was_pending == false);                                                     \
         if ((__ev)->sub_events_initialized)                                                       \
         {                                                                                         \
-            if (!ucs_list_is_empty(&((__ev)->sub_events)))                                        \
-                fprintf(stderr, "Num sub events: %ld\n", ucs_list_length(&((__ev)->sub_events))); \
             assert(ucs_list_is_empty(&((__ev)->sub_events)));                                     \
         }                                                                                         \
-        fprintf(stderr, "Event checked\n");                                                       \
     } while (0)
 
 typedef struct dpu_offload_event_info
