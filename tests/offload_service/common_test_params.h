@@ -9,7 +9,7 @@
 
 #include <unistd.h>
 
-#define NUM_TEST_EVTS (1000)
+#define NUM_TEST_EVTS (100)
 #define PINGPONG_NOTIF_ID (5000)
 
 #define GET_DEST_EP(_econtext) ({                 \
@@ -93,7 +93,7 @@
             }                                                                                                             \
             if (_rc == EVENT_INPROGRESS)                                                                                  \
                 ucs_list_add_tail(&(_econtext->ongoing_events), &(evts[i]->item));                                        \
-            fprintf(stderr, "Ev #%ld = %p\n", i, evts[i]);                                                                \
+            fprintf(stderr, "Ev #%ld = %p (EMIT_MANY_EVTS_AND_USE_ONGOING_LIST)\n", i, evts[i]);                                                                \
         }                                                                                                                 \
                                                                                                                           \
         while (!ucs_list_is_empty(&(_econtext->ongoing_events)) != 0)                                                     \
@@ -156,7 +156,7 @@
                 fprintf(stderr, "event_channel_emit_with_payload() completed immediately\n");                          \
             else                                                                                                       \
                 fprintf(stderr, "event_channel_emit_with_payload() is in progress\n");                                 \
-            fprintf(stderr, "Ev #%ld = %p\n", i, evts[i]);                                                             \
+            fprintf(stderr, "Ev #%ld = %p (EMIT_MANY_EVS_WITH_EXPLICIT_MGT)\n", i, evts[i]);                                                             \
         }                                                                                                              \
                                                                                                                        \
         /* All the events have been emitted, now waiting for them to complete */                                       \

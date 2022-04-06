@@ -107,9 +107,9 @@ static inline dpu_offload_status_t oob_server_ucx_client_connection_step1(execut
                               UCP_OP_ATTR_FIELD_DATATYPE |
                               UCP_OP_ATTR_FIELD_USER_DATA;
     recv_param.datatype = ucp_dt_make_contig(1);
-    recv_param.user_data = &(client_info->bootstrapping.recv_addr_size_ctx);
+    recv_param.user_data = &(client_info->bootstrapping.addr_size_ctx);
     recv_param.cb.recv = oob_recv_addr_handler_2;
-    assert(client_info->bootstrapping.recv_addr_size_ctx.complete == false);
+    assert(client_info->bootstrapping.addr_size_ctx.complete == false);
     client_info->bootstrapping.addr_size_request = ucp_tag_recv_nbx(GET_WORKER(econtext),
                                                                     &(client_info->peer_addr_len),
                                                                     sizeof(size_t),
@@ -119,12 +119,12 @@ static inline dpu_offload_status_t oob_server_ucx_client_connection_step1(execut
     if (client_info->bootstrapping.addr_size_request == NULL)
     {
         DBG("We received the address size right away, callback not invoked, dealing directly with it");
-        client_info->bootstrapping.recv_addr_size_ctx.complete = true;
+        client_info->bootstrapping.addr_size_ctx.complete = true;
     }
     else
     {
         DBG("Reception of the address size still in progress");
-        assert(client_info->bootstrapping.recv_addr_size_ctx.complete == false);
+        assert(client_info->bootstrapping.addr_size_ctx.complete == false);
     }
     ECONTEXT_UNLOCK(econtext);
     return DO_SUCCESS;
@@ -154,7 +154,7 @@ static inline dpu_offload_status_t oob_server_ucx_client_connection_step2(execut
                               UCP_OP_ATTR_FIELD_DATATYPE |
                               UCP_OP_ATTR_FIELD_USER_DATA;
     recv_param.datatype = ucp_dt_make_contig(1);
-    recv_param.user_data = &(client_info->bootstrapping.recv_addr_ctx);
+    recv_param.user_data = &(client_info->bootstrapping.addr_ctx);
     recv_param.cb.recv = oob_recv_addr_handler_2;
     MAKE_RECV_TAG(ucp_tag, ucp_tag_mask, econtext->server->conn_data.oob.tag, 0, 0, 0, 0);
     client_info->bootstrapping.addr_request = ucp_tag_recv_nbx(GET_WORKER(econtext),
@@ -167,7 +167,7 @@ static inline dpu_offload_status_t oob_server_ucx_client_connection_step2(execut
     if (client_info->bootstrapping.addr_request == NULL)
     {
         DBG("We received the address right away, callback not invoked, dealing directly with it");
-        client_info->bootstrapping.recv_addr_ctx.complete = true;
+        client_info->bootstrapping.addr_ctx.complete = true;
     }
     ECONTEXT_UNLOCK(econtext);
     return DO_SUCCESS;
@@ -205,7 +205,7 @@ static inline dpu_offload_status_t oob_server_ucx_client_connection_step3(execut
                               UCP_OP_ATTR_FIELD_DATATYPE |
                               UCP_OP_ATTR_FIELD_USER_DATA;
     recv_param.datatype = ucp_dt_make_contig(1);
-    recv_param.user_data = &(client_info->bootstrapping.recv_rank_ctx);
+    recv_param.user_data = &(client_info->bootstrapping.rank_ctx);
     recv_param.cb.recv = oob_recv_addr_handler_2;
     MAKE_RECV_TAG(ucp_tag, ucp_tag_mask, econtext->server->conn_data.oob.tag, 0, 0, 0, 0);
     client_info->bootstrapping.rank_request = ucp_tag_recv_nbx(GET_WORKER(econtext),
@@ -218,7 +218,7 @@ static inline dpu_offload_status_t oob_server_ucx_client_connection_step3(execut
     if (client_info->bootstrapping.rank_request == NULL)
     {
         DBG("We received the rank info right away, callback not invoked, dealing directly with it");
-        client_info->bootstrapping.recv_rank_ctx.complete = true;
+        client_info->bootstrapping.rank_ctx.complete = true;
     }
     ECONTEXT_UNLOCK(econtext);
     return DO_SUCCESS;
@@ -498,6 +498,7 @@ dpu_offload_status_t client_init_context(execution_context_t *econtext, init_par
     CHECK_ERR_RETURN((econtext->client == NULL), DO_ERROR, "Unable to allocate client handle\n");
     econtext->client->econtext = (struct execution_context *)econtext;
     econtext->client->connected_cb = NULL;
+    econtext->client->bootstrapping.phase = BOOTSTRAP_NOT_INITIATED;
     ret = pthread_mutex_init(&(econtext->client->mutex), NULL);
     CHECK_ERR_RETURN((ret), DO_ERROR, "pthread_mutex_init() failed: %s", strerror(errno));
 
@@ -607,6 +608,106 @@ static void oob_send_cb(void *request, ucs_status_t status, void *ctx)
     DBG("send handler called for \"%s\" with status %d (%s)", str, status, ucs_status_string(status));
 }
 
+static dpu_offload_status_t client_ucx_boostrap_step3(execution_context_t *econtext)
+{
+    ECONTEXT_LOCK(econtext);
+    DBG("Sent addr to server");
+    // We send our "rank", i.e., unique application ID
+    DBG("Sending my group/rank info (%" PRId64 "/%" PRId64 "), len=%ld", econtext->rank.group_id, econtext->rank.group_rank, sizeof(econtext->rank));
+    struct ucx_context *rank_request = NULL;
+    ucp_request_param_t send_param;
+    send_param.op_attr_mask = UCP_OP_ATTR_FIELD_CALLBACK |
+                              UCP_OP_ATTR_FIELD_DATATYPE |
+                              UCP_OP_ATTR_FIELD_USER_DATA;
+    send_param.cb.send = oob_send_cb;
+    send_param.datatype = ucp_dt_make_contig(1);
+    send_param.user_data = NULL;
+    ucp_tag_t ucp_tag = MAKE_SEND_TAG(econtext->client->conn_data.oob.tag, 0, 0, 0, 0);
+    econtext->client->bootstrapping.rank_request = ucp_tag_send_nbx(econtext->client->server_ep,
+                                                                    &(econtext->rank),
+                                                                    sizeof(rank_info_t),
+                                                                    ucp_tag,
+                                                                    &send_param);
+    if (econtext->client->bootstrapping.rank_request == NULL)
+    {
+        DBG("Send for rank info completed right away");
+        econtext->client->bootstrapping.rank_ctx.complete = true;
+        econtext->client->bootstrapping.phase = UCX_CONNECT_DONE;
+    }
+    ECONTEXT_UNLOCK(econtext);
+    return DO_SUCCESS;
+}
+
+static dpu_offload_state_t client_ucx_bootstrap_step2(execution_context_t *econtext)
+{
+    ECONTEXT_LOCK(econtext);
+    DBG("Sent addr size to server: %ld\n", econtext->client->conn_data.oob.local_addr_len);
+    /* 2. Send the address itself */
+    ucp_request_param_t send_param;
+    send_param.op_attr_mask = UCP_OP_ATTR_FIELD_CALLBACK |
+                              UCP_OP_ATTR_FIELD_DATATYPE |
+                              UCP_OP_ATTR_FIELD_USER_DATA;
+    send_param.cb.send = oob_send_cb;
+    send_param.datatype = ucp_dt_make_contig(1);
+    send_param.user_data = (void *)econtext->client->conn_data.oob.addr_msg_str;
+    ucp_tag_t ucp_tag = MAKE_SEND_TAG(econtext->client->conn_data.oob.tag, 0, 0, 0, 0);
+    econtext->client->bootstrapping.addr_request = ucp_tag_send_nbx(econtext->client->server_ep,
+                                                                    econtext->client->conn_data.oob.local_addr,
+                                                                    econtext->client->conn_data.oob.local_addr_len,
+                                                                    ucp_tag,
+                                                                    &send_param);
+    if (econtext->client->bootstrapping.addr_request == NULL)
+    {
+        DBG("Send for address completed right away");
+        econtext->client->bootstrapping.addr_ctx.complete = true;
+    }
+    ECONTEXT_UNLOCK(econtext);
+    return DO_SUCCESS;
+}
+
+static dpu_offload_status_t client_ucx_bootstrap_step1(execution_context_t *econtext)
+{
+    /* Establish the UCX level connection */
+    ECONTEXT_LOCK(econtext);
+    ucp_ep_params_t ep_params;
+    ep_params.field_mask = UCP_EP_PARAM_FIELD_REMOTE_ADDRESS |
+                           UCP_EP_PARAM_FIELD_ERR_HANDLING_MODE |
+                           UCP_EP_PARAM_FIELD_ERR_HANDLER |
+                           UCP_EP_PARAM_FIELD_USER_DATA;
+    ep_params.address = econtext->client->conn_data.oob.peer_addr;
+    ep_params.err_mode = err_handling_opt.ucp_err_mode;
+    ep_params.err_handler.cb = err_cb;
+    ep_params.err_handler.arg = NULL;
+    ep_params.user_data = &(econtext->client->server_ep_status);
+
+    ucs_status_t status = ucp_ep_create(GET_WORKER(econtext), &ep_params, &econtext->client->server_ep);
+    CHECK_ERR_GOTO((status != UCS_OK), error_out, "ucp_ep_create() failed");
+
+    struct ucx_context *addr_size_request = NULL;
+    struct ucx_context *addr_request = NULL;
+    ucp_request_param_t send_param;
+    send_param.op_attr_mask = UCP_OP_ATTR_FIELD_CALLBACK |
+                              UCP_OP_ATTR_FIELD_DATATYPE |
+                              UCP_OP_ATTR_FIELD_USER_DATA;
+    send_param.cb.send = oob_send_cb;
+    send_param.datatype = ucp_dt_make_contig(1);
+    send_param.user_data = (void *)econtext->client->conn_data.oob.addr_msg_str;
+
+    /* 1. Send the address size */
+    ucp_tag_t ucp_tag = MAKE_SEND_TAG(econtext->client->conn_data.oob.tag, 0, 0, 0, 0);
+    econtext->client->bootstrapping.addr_size_request = ucp_tag_send_nbx(econtext->client->server_ep, &(econtext->client->conn_data.oob.local_addr_len), sizeof(size_t), ucp_tag, &send_param);
+    if (econtext->client->bootstrapping.addr_size_request == NULL)
+    {
+        DBG("Send for my address length completed right away");
+        econtext->client->bootstrapping.addr_size_ctx.complete = 1;
+    }
+    ECONTEXT_UNLOCK(econtext);
+    return DO_SUCCESS;
+error_out:
+    ECONTEXT_UNLOCK(econtext);
+    return DO_ERROR;
+}
+
 static dpu_offload_status_t oob_connect(execution_context_t *econtext)
 {
     CHECK_ERR_RETURN((econtext == NULL), DO_ERROR, "undefined client handle");
@@ -629,60 +730,9 @@ static dpu_offload_status_t oob_connect(execution_context_t *econtext)
     DBG("Received the server ID (size: %ld)", size_recvd);
     size_recvd = recv(client->conn_data.oob.sock, &(client->id), sizeof(client->id), MSG_WAITALL);
     DBG("Received the client ID (size: %ld)", size_recvd);
-
-    /* Establish the UCX level connection */
-    ucp_ep_params_t ep_params;
-    ep_params.field_mask = UCP_EP_PARAM_FIELD_REMOTE_ADDRESS |
-                           UCP_EP_PARAM_FIELD_ERR_HANDLING_MODE |
-                           UCP_EP_PARAM_FIELD_ERR_HANDLER |
-                           UCP_EP_PARAM_FIELD_USER_DATA;
-    ep_params.address = client->conn_data.oob.peer_addr;
-    ep_params.err_mode = err_handling_opt.ucp_err_mode;
-    ep_params.err_handler.cb = err_cb;
-    ep_params.err_handler.arg = NULL;
-    ep_params.user_data = &(client->server_ep_status);
-
-    ucs_status_t status = ucp_ep_create(GET_WORKER(econtext), &ep_params, &client->server_ep);
-    CHECK_ERR_GOTO((status != UCS_OK), error_out, "ucp_ep_create() failed");
-
-    struct ucx_context *addr_size_request = NULL;
-    struct ucx_context *addr_request = NULL;
-    ucp_request_param_t send_param;
-    send_param.op_attr_mask = UCP_OP_ATTR_FIELD_CALLBACK |
-                              UCP_OP_ATTR_FIELD_DATATYPE |
-                              UCP_OP_ATTR_FIELD_USER_DATA;
-    send_param.cb.send = oob_send_cb;
-    send_param.datatype = ucp_dt_make_contig(1);
-    send_param.user_data = (void *)client->conn_data.oob.addr_msg_str;
-
-    /* 1. Send the address size */
-    DBG("Tag: %d\n", client->conn_data.oob.tag);
-    ucp_tag_t ucp_tag = MAKE_SEND_TAG(client->conn_data.oob.tag, 0, 0, 0, 0);
-    addr_size_request = ucp_tag_send_nbx(client->server_ep, &(client->conn_data.oob.local_addr_len), sizeof(size_t), ucp_tag, &send_param);
+    econtext->client->bootstrapping.phase = OOB_CONNECT_DONE;
     ECONTEXT_UNLOCK(econtext);
-    // Because this is part of the bootstrapping, we wait for the sends to complete
-    ucx_wait(GET_WORKER(econtext), addr_size_request, "send",
-             client->conn_data.oob.addr_msg_str);
-    DBG("Sent addr size to server: %ld\n", client->conn_data.oob.local_addr_len);
-    ECONTEXT_UNLOCK(econtext);
-
-    /* 2. Send the address itself */
-    addr_request = ucp_tag_send_nbx(client->server_ep, client->conn_data.oob.local_addr, client->conn_data.oob.local_addr_len, ucp_tag, &send_param);
-    ECONTEXT_UNLOCK(econtext);
-    // Because this is part of the bootstrapping, we wait for the sends to complete
-    ucx_wait(GET_WORKER(econtext), addr_request, "send",
-             client->conn_data.oob.addr_msg_str);
-    DBG("Sent addr to server");
-
-    // We send our "rank", i.e., unique application ID
-    ECONTEXT_LOCK(econtext);
-    DBG("Sending my group/rank info (%" PRId64 "/%" PRId64 "), len=%ld", econtext->rank.group_id, econtext->rank.group_rank, sizeof(econtext->rank));
-    struct ucx_context *rank_request = NULL;
-    send_param.user_data = NULL;
-    rank_request = ucp_tag_send_nbx(client->server_ep, &(econtext->rank), sizeof(rank_info_t), ucp_tag, &send_param);
-    ECONTEXT_UNLOCK(econtext);
-    ucx_wait(GET_WORKER(econtext), rank_request, "send", NULL);
-
+    DBG("%s() done", __func__);
     return DO_SUCCESS;
 
 error_out:
@@ -768,21 +818,21 @@ static void progress_event_recv(execution_context_t *econtext)
     if (econtext->type == CONTEXT_SERVER)
     {
         // SERVER
-        size_t n_client= 0;
+        size_t n_client = 0;
         size_t idx = 0;
-        //DBG("%ld connected clients, checking their status to receive notifications", econtext->server->connected_clients.num_connected_clients);
+        // DBG("%ld connected clients, checking their status to receive notifications", econtext->server->connected_clients.num_connected_clients);
         while (n_client < econtext->server->connected_clients.num_connected_clients)
         {
             peer_info_t *client_info;
             DYN_ARRAY_GET_ELT(&(econtext->server->connected_clients.clients), idx, peer_info_t, client_info);
-            if (client_info == NULL || client_info->bootstrap_phase != BOOTSTAP_DONE)
+            if (client_info == NULL || client_info->bootstrapping.phase != BOOTSTAP_DONE)
             {
                 DBG("Client #%ld not fully bootstrapped", idx);
                 idx++;
                 continue;
             }
 
-            //DBG("Checking client #%ld", idx);
+            // DBG("Checking client #%ld", idx);
             ucp_worker_h worker = GET_WORKER(econtext);
             if (client_info->notif_recv.initialized == false)
             {
@@ -867,38 +917,59 @@ static void execution_context_progress(execution_context_t *ctx)
             }
 
             // DBG("Progressing connection of client #%ld\n", i);
-            if (client_info->bootstrap_phase == OOB_CONNECT_DONE)
+            if (client_info->bootstrapping.phase == OOB_CONNECT_DONE)
             {
                 dpu_offload_status_t rc;
                 i++;
-                if (client_info->bootstrapping.recv_addr_size_ctx.complete == false && client_info->bootstrapping.addr_size_request == NULL)
+                if (client_info->bootstrapping.addr_size_ctx.complete == false && client_info->bootstrapping.addr_size_request == NULL)
                 {
                     DBG("UCX level bootstrap - step 1 - Getting address size");
                     rc = oob_server_ucx_client_connection_step1(ctx, client_info);
                     CHECK_ERR_GOTO((rc), error_out, "oob_server_ucx_client_connection_step1() failed");
                 }
 
-                if (client_info->bootstrapping.recv_addr_size_ctx.complete == true && client_info->bootstrapping.recv_addr_ctx.complete == false && client_info->bootstrapping.addr_request == NULL)
+                if (client_info->bootstrapping.addr_size_ctx.complete == true && client_info->bootstrapping.addr_size_request != NULL)
+                {
+                    // The send did not complete right away but now is, some clean up to do
+                    ucp_request_free(client_info->bootstrapping.addr_size_request);
+                    client_info->bootstrapping.addr_size_request = NULL;
+                }
+
+                if (client_info->bootstrapping.addr_size_ctx.complete == true && client_info->bootstrapping.addr_ctx.complete == false && client_info->bootstrapping.addr_request == NULL)
                 {
                     DBG("UCX level bootstrap - step 2 - Getting address");
                     rc = oob_server_ucx_client_connection_step2(ctx, client_info);
                     CHECK_ERR_GOTO((rc), error_out, "oob_server_ucx_client_connection_step2() failed");
                 }
 
-                if (client_info->bootstrapping.recv_addr_ctx.complete == true && client_info->bootstrapping.recv_rank_ctx.complete == false && client_info->bootstrapping.rank_request == NULL)
+                if (client_info->bootstrapping.addr_ctx.complete == true && client_info->bootstrapping.addr_request != NULL)
+                {
+                    // The send did not complete right away but now is, some clean up to do
+                    ucp_request_free(client_info->bootstrapping.addr_request);
+                    client_info->bootstrapping.addr_request = NULL;
+                }
+
+                if (client_info->bootstrapping.addr_ctx.complete == true && client_info->bootstrapping.rank_ctx.complete == false && client_info->bootstrapping.rank_request == NULL)
                 {
                     DBG("UCX level bootstrap - step 3 - Getting rank info");
                     rc = oob_server_ucx_client_connection_step3(ctx, client_info);
                     CHECK_ERR_GOTO((rc), error_out, "oob_server_ucx_client_connection_step3() failed");
                 }
 
-                if (client_info->bootstrapping.recv_rank_ctx.complete == true)
+                if (client_info->bootstrapping.rank_ctx.complete == true)
                 {
+                    if (client_info->bootstrapping.rank_request != NULL)
+                    {
+                        // The send did not complete right away but now is, some clean up to do
+                        ucp_request_free(client_info->bootstrapping.rank_request);
+                        client_info->bootstrapping.rank_request = NULL;
+                    }
+
                     // If we got the rank info but still in the OOB_CONNECT_DONE phase,
                     // it means we received all the data but did not update the local cache
                     // and fully complete the local initialization for the client.
                     ECONTEXT_LOCK(ctx);
-                    client_info->bootstrap_phase = UCX_CONNECT_DONE;
+                    client_info->bootstrapping.phase = UCX_CONNECT_DONE;
                     DBG("group/rank received: (%" PRId64 "/%" PRId64 ")", client_info->rank_data.group_id, client_info->rank_data.group_rank);
                     if (client_info->rank_data.group_id != INVALID_GROUP && client_info->rank_data.group_rank != INVALID_RANK)
                     {
@@ -953,7 +1024,7 @@ static void execution_context_progress(execution_context_t *ctx)
                         }
                     }
 
-                    client_info->bootstrap_phase = BOOTSTAP_DONE;
+                    client_info->bootstrapping.phase = BOOTSTAP_DONE;
                     ctx->server->connected_clients.num_ongoing_connections--;
                     ctx->server->connected_clients.num_connected_clients++;
                     DBG("****** Bootstrapping of client #%ld now completed, %ld are now connected",
@@ -976,6 +1047,75 @@ static void execution_context_progress(execution_context_t *ctx)
             idx++;
         }
     }
+    else
+    {
+        // CLIENT
+        if (ctx->client->bootstrapping.phase == OOB_CONNECT_DONE)
+        {
+            dpu_offload_status_t rc;
+            // Need now to progress UCX bootstrapping
+            if (ctx->client->bootstrapping.addr_size_ctx.complete == false && ctx->client->bootstrapping.addr_size_request == NULL)
+            {
+                DBG("UCX level bootstrap - step 1");
+                rc = client_ucx_bootstrap_step1(ctx);
+                CHECK_ERR_GOTO((rc), error_out, "client_ucx_bootstrap_step1() failed");
+            }
+
+            if (ctx->client->bootstrapping.addr_size_ctx.complete == true && ctx->client->bootstrapping.addr_size_request != NULL)
+            {
+                // The send did not complete right away but now is, some clean up to do
+                ucp_request_free(ctx->client->bootstrapping.addr_size_request);
+                ctx->client->bootstrapping.addr_size_request = NULL;
+            }
+
+            if (ctx->client->bootstrapping.addr_size_ctx.complete == true && ctx->client->bootstrapping.addr_ctx.complete == false && ctx->client->bootstrapping.addr_request == NULL)
+            {
+                DBG("UCX level boostrap - step 2");
+                rc = client_ucx_bootstrap_step2(ctx);
+                CHECK_ERR_GOTO((rc), error_out, "client_ucx_boostrap_step2() failed");
+            }
+
+            if (ctx->client->bootstrapping.addr_ctx.complete == true && ctx->client->bootstrapping.addr_request != NULL)
+            {
+                // The send did not complete right away but now is, some clean up to do
+                ucp_request_free(ctx->client->bootstrapping.addr_request);
+                ctx->client->bootstrapping.addr_request = NULL;
+            }
+
+            if (ctx->client->bootstrapping.addr_ctx.complete == true && ctx->client->bootstrapping.rank_ctx.complete == false && ctx->client->bootstrapping.rank_request == NULL)
+            {
+                DBG("UCX level boostrap - step 3");
+                rc = client_ucx_boostrap_step3(ctx);
+                CHECK_ERR_GOTO((rc), error_out, "client_ucx_boostrap_step3() failed");
+            }
+
+            if (ctx->client->bootstrapping.rank_ctx.complete == true && ctx->client->bootstrapping.rank_request != NULL)
+            {
+                // The send did not complete right away but now is, some clean up to do
+                ucp_request_free(ctx->client->bootstrapping.rank_request);
+                ctx->client->bootstrapping.rank_request = NULL;
+                ctx->client->bootstrapping.phase = UCX_CONNECT_DONE;
+            }
+
+            if (ctx->client->bootstrapping.addr_size_ctx.complete == true &&
+                ctx->client->bootstrapping.addr_ctx.complete == true &&
+                ctx->client->bootstrapping.rank_ctx.complete == true &&
+                ctx->client->bootstrapping.addr_size_request == NULL &&
+                ctx->client->bootstrapping.addr_request == NULL &&
+                ctx->client->bootstrapping.rank_request == NULL)
+            {
+                ctx->client->bootstrapping.phase = BOOTSTAP_DONE;
+                if (ctx->client->connected_cb != NULL)
+                {
+                    DBG("Successfully connected, invoking connected callback");
+                    connected_peer_data_t cb_data;
+                    cb_data.peer_addr = ctx->client->conn_params.addr_str;
+                    cb_data.econtext = ctx;
+                    ctx->client->connected_cb(&cb_data);
+                }
+            }
+        }
+    }
 
     // Progress reception of events
     progress_event_recv(ctx);
@@ -985,10 +1125,10 @@ static void execution_context_progress(execution_context_t *ctx)
     dpu_offload_event_t *ev, *next_ev;
     ucs_list_for_each_safe(ev, next_ev, (&(ctx->ongoing_events)), item)
     {
-        if (ev->ctx.complete)
+        if (event_completed(ev))
         {
             ucs_list_del(&(ev->item));
-            DBG("event %p completed and removed from ongoing events list", ev);
+            //DBG("event %p completed and removed from ongoing events list", ev);
             if (ev->req)
             {
                 ucp_request_free(ev->req);
@@ -1117,15 +1257,6 @@ execution_context_t *client_init(offloading_engine_t *offload_engine, init_param
     {
         ret = oob_connect(ctx);
         CHECK_ERR_GOTO((ret), error_out, "oob_connect() failed");
-
-        if (ctx->client->connected_cb != NULL)
-        {
-            DBG("Successfully connected, invoking connected callback");
-            connected_peer_data_t cb_data;
-            cb_data.peer_addr = ctx->client->conn_params.addr_str;
-            cb_data.econtext = ctx;
-            ctx->client->connected_cb(&cb_data);
-        }
     }
     }
 
@@ -1134,6 +1265,7 @@ execution_context_t *client_init(offloading_engine_t *offload_engine, init_param
     ECONTEXT_UNLOCK(ctx);
     CHECK_ERR_GOTO((rc), error_out, "register_default_notfications() failed");
 
+    DBG("%s() done", __func__);
     return ctx;
 error_out:
     if (offload_engine->client != NULL)
@@ -1193,7 +1325,7 @@ void client_fini(execution_context_t **exec_ctx)
     dpu_offload_client_t *client = context->client;
     void *request = ucp_am_send_nbx(client->server_ep, AM_TERM_MSG_ID, NULL, 0ul, term_msg,
                                     msg_length, &params);
-    request_finalize(GET_WORKER(*exec_ctx), request, &ctx);
+    // request_finalize(GET_WORKER(*exec_ctx), request, &ctx);
     DBG("Termination message successfully sent");
 
     ep_close(GET_WORKER(*exec_ctx), client->server_ep);
@@ -1354,7 +1486,7 @@ static dpu_offload_status_t oob_server_listen(execution_context_t *econtext)
     peer_info_t *client_info;
     DYN_ARRAY_GET_ELT(&(econtext->server->connected_clients.clients), client_id, peer_info_t, client_info);
     assert(client_info);
-    client_info->bootstrap_phase = OOB_CONNECT_DONE;
+    client_info->bootstrapping.phase = OOB_CONNECT_DONE;
     econtext->server->connected_clients.num_ongoing_connections++;
     ECONTEXT_UNLOCK(econtext);
     return DO_SUCCESS;
@@ -1460,10 +1592,10 @@ dpu_offload_status_t server_init_context(execution_context_t *econtext, init_par
     {
         peer_info_t *peer_info;
         DYN_ARRAY_GET_ELT(&(econtext->server->connected_clients.clients), i, peer_info_t, peer_info);
-        peer_info->bootstrap_phase = BOOTSTRAP_NOT_INITIATED;
-        peer_info->bootstrapping.recv_addr_ctx.complete = false;
-        peer_info->bootstrapping.recv_addr_size_ctx.complete = false;
-        peer_info->bootstrapping.recv_rank_ctx.complete = false;
+        peer_info->bootstrapping.phase = BOOTSTRAP_NOT_INITIATED;
+        peer_info->bootstrapping.addr_ctx.complete = false;
+        peer_info->bootstrapping.addr_size_ctx.complete = false;
+        peer_info->bootstrapping.rank_ctx.complete = false;
         peer_info->notif_recv.ctx.complete = true; // to make we can post the initial recv
         assert(peer_info);
         DYN_ARRAY_ALLOC(&(peer_info->cache_entries), MAX_CACHE_ENTRIES_PER_PROC, peer_cache_entry_t *);

@@ -376,7 +376,6 @@ int tag_send_event_msg(dpu_offload_event_t **event)
     ucp_tag_t hdr_ucp_tag = MAKE_SEND_TAG(AM_EVENT_MSG_HDR_ID, myid, 0, 0, 0);
     struct ucx_context *hdr_request = NULL;
     (*event)->hdr_request = ucp_tag_send_nbx((*event)->dest_ep, &((*event)->ctx.hdr), sizeof(am_header_t), hdr_ucp_tag, &send_param);
-    ucx_wait(GET_WORKER((*event)->event_system->econtext), hdr_request, "send", NULL);
 
     /* 2. Send the payload */
     if ((*event)->ctx.hdr.payload_size > 0)
@@ -384,14 +383,17 @@ int tag_send_event_msg(dpu_offload_event_t **event)
         ucp_tag_t payload_ucp_tag = MAKE_SEND_TAG(AM_EVENT_MSG_ID, myid, 0, 0, 0);
         struct ucx_context *payload_request = NULL;
         (*event)->payload_request = ucp_tag_send_nbx((*event)->dest_ep, (*event)->payload, (*event)->ctx.hdr.payload_size, payload_ucp_tag, &send_param);
-        ucx_wait(GET_WORKER((*event)->event_system->econtext), payload_request, "send", NULL);
     }
 
-    (*event)->ctx.complete = 1;
-    (*event)->was_pending = false;
-    dpu_offload_status_t rc = event_return(event);
-    CHECK_ERR_RETURN((rc), DO_ERROR, "event_return() failed");
-    return EVENT_DONE;
+    if ((*event)->hdr_request == NULL && (*event)->payload_request == NULL)
+    {
+        (*event)->ctx.complete = 1;
+        (*event)->was_pending = false;
+        dpu_offload_status_t rc = event_return(event);
+        CHECK_ERR_RETURN((rc), DO_ERROR, "event_return() failed");
+        return EVENT_DONE;
+    }
+    return EVENT_INPROGRESS;
 }
 #endif // USE_AM_IMPLEM
 
@@ -557,7 +559,8 @@ dpu_offload_status_t event_return(dpu_offload_event_t **ev)
 /**
  * @brief event_completed is a helper function to check whether an event is completed
  * The function is aware of sub-events. If all the sub-events are completed and the
- * request of the event is NULL, the event is reported as completed.
+ * request of the event is NULL, the event is reported as completed. The caller is
+ * responsible for returning the event when reported as completed.
  *
  * @param ev Event to check for completion.
  * @return true when the event is completed
@@ -583,15 +586,23 @@ bool event_completed(dpu_offload_event_t *ev)
                 CHECK_ERR_RETURN((rc), DO_ERROR, "event_return() failed");
             }
         }
-    }
 
-    // If there is no more sub-events and the request of the event is complete, it is all done
-    if (ev->sub_events_initialized && ucs_list_is_empty(&(ev->sub_events)) && ev->req == NULL)
+        if (ucs_list_is_empty(&(ev->sub_events)) && ev->req == NULL)
+        {
+            ev->ctx.complete = true;
+            return true;
+        }
+    }
+    else
     {
-        ev->ctx.complete = true;
-        return true;
+#if !USE_AM_IMPLEM
+        if (ev->hdr_request == NULL && ev->payload_request == NULL)
+        {
+            DBG("Event %p is completed", ev);
+            ev->ctx.complete = 1;
+        }
+#endif
     }
-
     return false;
 }
 

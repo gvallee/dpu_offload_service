@@ -380,19 +380,20 @@ typedef struct notif_reception
 } notif_reception_t;
 #endif
 
+typedef struct boostrapping
+{
+    int phase;
+    struct ucx_context *addr_size_request;
+    am_req_t addr_size_ctx;
+    struct ucx_context *addr_request;
+    am_req_t addr_ctx;
+    struct ucx_context *rank_request;
+    am_req_t rank_ctx;
+} bootstrapping_t;
+
 typedef struct peer_info
 {
-    int bootstrap_phase;
-
-    struct
-    {
-        struct ucx_context *addr_size_request;
-        am_req_t recv_addr_size_ctx;
-        struct ucx_context *addr_request;
-        am_req_t recv_addr_ctx;
-        struct ucx_context *rank_request;
-        am_req_t recv_rank_ctx;
-    } bootstrapping;
+    bootstrapping_t bootstrapping;
 
 #if !USE_AM_IMPLEM
     notif_reception_t notif_recv;
@@ -661,6 +662,8 @@ typedef struct dpu_offload_server_t
 
 typedef struct dpu_offload_client_t
 {
+    bootstrapping_t bootstrapping;
+
     uint64_t id; // Identifier assigned by server
 
     uint64_t server_id; // Unique identifier of the server
