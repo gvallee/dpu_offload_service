@@ -740,11 +740,56 @@ error_out:
     return DO_ERROR;
 }
 
+dpu_offload_status_t finalize_connection_to_remote_dpu(offloading_engine_t *offload_engine, remote_dpu_info_t *remote_dpu_info, execution_context_t *client)
+{
+    DBG("Connection successfully established");
+    ENGINE_LOCK(offload_engine);
+    remote_dpu_info_t **list_dpus = (remote_dpu_info_t **)offload_engine->dpus.base;
+    list_dpus[remote_dpu_info->idx]->ep = client->client->server_ep;
+    list_dpus[remote_dpu_info->idx]->econtext = client;
+    list_dpus[remote_dpu_info->idx]->peer_addr = client->client->conn_data.oob.peer_addr;
+    list_dpus[remote_dpu_info->idx]->ucp_worker = GET_WORKER(client);
+    assert(list_dpus[remote_dpu_info->idx]->peer_addr);
+    DBG("-> DPU #%ld: addr=%s, port=%d, ep=%p, econtext=%p",
+        remote_dpu_info->idx,
+        list_dpus[remote_dpu_info->idx]->init_params.conn_params->addr_str,
+        list_dpus[remote_dpu_info->idx]->init_params.conn_params->port,
+        list_dpus[remote_dpu_info->idx]->ep,
+        list_dpus[remote_dpu_info->idx]->econtext);
+
+    if (offload_engine->default_econtext == NULL)
+        offload_engine->default_econtext = client;
+    offload_engine->num_connected_dpus++;
+    ENGINE_UNLOCK(offload_engine);
+    return DO_SUCCESS;
+}
+
 dpu_offload_status_t offload_engine_progress(offloading_engine_t *engine)
 {
     ENGINE_LOCK(engine);
     if (engine->on_dpu)
     {
+        // Progress connections between DPUs when necessary
+        size_t c;
+        for (c = 0; c < engine->num_inter_dpus_clients; c++)
+        {
+            execution_context_t *c_econtext = engine->inter_dpus_clients[c].client_econtext;
+            int initial_state = c_econtext->client->bootstrapping.phase;
+            if (c_econtext != NULL)
+            {
+                c_econtext->progress(c_econtext);
+            }
+            int new_state = c_econtext->client->bootstrapping.phase;
+            if (initial_state != BOOTSTAP_DONE && new_state == BOOTSTAP_DONE)
+            {
+                remote_dpu_info_t *remote_dpu_info = NULL;
+                DBG("DPU client #%ld just finished its connection to a server, updating data", c);
+                dpu_offload_status_t rc = finalize_connection_to_remote_dpu(engine, engine->inter_dpus_clients[c].remote_dpu_info, engine->inter_dpus_clients[c].client_econtext);
+                CHECK_ERR_RETURN((rc), DO_ERROR, "finalize_connection_to_remote_dpu() failed");
+            }
+        }
+
+        // Progress all the execution context in the engine
         size_t i;
         remote_dpu_info_t **list_dpus = LIST_DPUS_FROM_ENGINE(engine);
         for (i = 0; i < engine->num_dpus; i++)
@@ -757,6 +802,20 @@ dpu_offload_status_t offload_engine_progress(offloading_engine_t *engine)
                 continue;
 
             econtext->progress(econtext);
+        }
+    }
+    else
+    {
+        if (engine->client != NULL)
+        {
+            engine->client->progress(engine->client);
+        }
+        size_t s;
+        for (s = 0; s < engine->num_servers; s++)
+        {
+            execution_context_t *s_econtext = engine->servers[s];
+            if (s_econtext != NULL)
+                s_econtext->progress(s_econtext);
         }
     }
     ENGINE_UNLOCK(engine);
@@ -788,7 +847,7 @@ dpu_offload_status_t offload_engine_init(offloading_engine_t **engine)
     d->servers = MALLOC(d->num_max_servers * sizeof(dpu_offload_server_t));
     d->num_inter_dpus_clients = 0;
     d->num_max_inter_dpus_clients = DEFAULT_MAX_NUM_SERVERS;
-    d->inter_dpus_clients = MALLOC(d->num_max_inter_dpus_clients * sizeof(execution_context_t));
+    d->inter_dpus_clients = MALLOC(d->num_max_inter_dpus_clients * sizeof(remote_dpu_connect_tracker_t));
     CHECK_ERR_RETURN((d->servers == NULL), DO_ERROR, "unable to allocate resources");
     DYN_LIST_ALLOC(d->free_op_descs, 8, op_desc_t, item);
     DYN_LIST_ALLOC(d->free_peer_cache_entries, DEFAULT_NUM_PEERS, peer_cache_entry_t, item);
@@ -1291,7 +1350,7 @@ void offload_engine_fini(offloading_engine_t **offload_engine)
     }
     for (i = 0; i < (*offload_engine)->num_inter_dpus_clients; i++)
     {
-        client_fini(&((*offload_engine)->inter_dpus_clients[i]));
+        client_fini(&((*offload_engine)->inter_dpus_clients[i].client_econtext));
     }
     free((*offload_engine)->servers);
     free(*offload_engine);

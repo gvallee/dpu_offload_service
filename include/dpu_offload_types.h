@@ -993,6 +993,14 @@ typedef struct group_cache
         _ptr;                                                                              \
     })
 
+struct remote_dpu_info; // Forward declaration
+
+typedef struct remote_dpu_connect_tracker
+{
+    struct remote_dpu_info *remote_dpu_info;
+    execution_context_t *client_econtext;
+} remote_dpu_connect_tracker_t;
+
 // Forward declaration
 struct offloading_config;
 
@@ -1033,7 +1041,7 @@ typedef struct offloading_engine
     /* moment in the servers list. */
     size_t num_inter_dpus_clients;
     size_t num_max_inter_dpus_clients;
-    execution_context_t **inter_dpus_clients;
+    remote_dpu_connect_tracker_t *inter_dpus_clients;
 
     /* Vector of registered operation, ready for execution */
     size_t num_registered_ops;

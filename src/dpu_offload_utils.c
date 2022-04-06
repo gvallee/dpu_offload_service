@@ -176,7 +176,7 @@ dpu_offload_status_t exchange_cache(execution_context_t *econtext, offloading_co
 
     for (i = 0; i < cfg->info_connecting_to.num_connect_to; i++)
     {        
-        dpu_offload_client_t *client = offload_engine->inter_dpus_clients[offload_engine->num_inter_dpus_clients]->client;
+        dpu_offload_client_t *client = offload_engine->inter_dpus_clients[offload_engine->num_inter_dpus_clients].client_econtext->client;
         ucp_ep_h dest_ep = client->server_ep;
         rc = send_cache(econtext, &(econtext->engine->procs_cache), dest_ep, meta_evt);
         CHECK_ERR_RETURN((rc), DO_ERROR, "send_cache() failed");
