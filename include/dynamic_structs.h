@@ -68,18 +68,17 @@ typedef struct dyn_array
         (_dyn_array)->num_elts = _new_num_elts;                                                         \
     } while (0)
 
-#define DYN_ARRAY_GET_ELT(_dyn_array, _idx, _type, _elt)                                    \
-    do                                                                                      \
-    {                                                                                       \
-        assert(_dyn_array);                                                                 \
-        assert((_dyn_array)->num_elts);                                                     \
-        if ((_dyn_array)->num_elts <= _idx)                                                 \
-        {                                                                                   \
-            fprintf(stderr, "Need to grow array: %ld %ld\n", (_dyn_array)->num_elts, _idx); \
-            DYN_ARRAY_GROW(_dyn_array, _type, _idx);                                        \
-        }                                                                                   \
-        _type *__ptr = (_type *)((_dyn_array)->base);                                       \
-        _elt = (_type *)&(__ptr[_idx]);                                                     \
+#define DYN_ARRAY_GET_ELT(_dyn_array, _idx, _type, _elt) \
+    do                                                   \
+    {                                                    \
+        assert(_dyn_array);                              \
+        assert((_dyn_array)->num_elts);                  \
+        if ((_dyn_array)->num_elts <= _idx)              \
+        {                                                \
+            DYN_ARRAY_GROW(_dyn_array, _type, _idx);     \
+        }                                                \
+        _type *__ptr = (_type *)((_dyn_array)->base);    \
+        _elt = (_type *)&(__ptr[_idx]);                  \
     } while (0)
 
 #define DYN_ARRAY_SET_ELT(_dyn_array, _idx, _type, _elt) \
