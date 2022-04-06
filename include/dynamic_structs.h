@@ -115,7 +115,6 @@ typedef struct dyn_list
     do                                                                                                             \
     {                                                                                                              \
         assert(__dyn_list);                                                                                        \
-        fprintf(stderr, "Growing list %p (adding %ld elts)...\n", (__dyn_list), (__dyn_list)->num_elts_alloc);     \
         size_t _initial_list_size = ucs_list_length(&((__dyn_list)->list));                                        \
         size_t _chunk_size = (__dyn_list)->num_elts_alloc * sizeof(__type);                                        \
         void *_new_chunk_buf = malloc(_chunk_size);                                                                \
@@ -124,13 +123,11 @@ typedef struct dyn_list
             size_t _i;                                                                                             \
             void *_ptr;                                                                                            \
             mem_chunk_t *_chunk_ptr;                                                                               \
-            fprintf(stderr, "Getting mem chunk entry #%ld...\n", (__dyn_list)->num_mem_chunks);                    \
             DYN_ARRAY_GET_ELT(&((__dyn_list)->mem_chunks), (__dyn_list)->num_mem_chunks, mem_chunk_t, _chunk_ptr); \
             assert(_chunk_ptr);                                                                                    \
             _chunk_ptr->ptr = _new_chunk_buf;                                                                      \
             _chunk_ptr->size = _chunk_size;                                                                        \
             (__dyn_list)->num_mem_chunks++;                                                                        \
-            fprintf(stderr, "Adding new elements to list...\n");                                                   \
             __type *_e = (__type *)(_new_chunk_buf);                                                               \
             for (_i = 0; _i < (__dyn_list)->num_elts_alloc; _i++)                                                  \
             {                                                                                                      \
@@ -144,7 +141,6 @@ typedef struct dyn_list
             assert(ucs_list_length(&((__dyn_list)->list)) == (_initial_list_size + (__dyn_list)->num_elts_alloc)); \
             assert((((ptrdiff_t)_ptr + sizeof(__type)) - ((ptrdiff_t)_new_chunk_buf + _chunk_size)) == 0);         \
             (__dyn_list)->num_elts += (__dyn_list)->num_elts_alloc;                                                \
-            fprintf(stderr, "List successfully grown\n");                                                          \
         }                                                                                                          \
         else                                                                                                       \
         {                                                                                                          \

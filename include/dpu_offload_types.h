@@ -51,41 +51,41 @@ typedef enum
     int _ret = DO_SUCCESS;                                                                                         \
     memset(&_worker_params, 0, sizeof(_worker_params));                                                            \
     _worker_params.field_mask = UCP_WORKER_PARAM_FIELD_THREAD_MODE;                                                \
-    _worker_params.thread_mode = UCS_THREAD_MODE_MULTI;                                                            \
+    _worker_params.thread_mode = UCS_THREAD_MODE_SINGLE;                                                           \
     _status = ucp_worker_create(_ucp_context, &_worker_params, _ucp_worker);                                       \
     CHECK_ERR_RETURN((_status != UCS_OK), DO_ERROR, "ucp_worker_create() failed: %s", ucs_status_string(_status)); \
     _ret;                                                                                                          \
 })
 
-#define ECONTEXT_ID(_exec_ctx) ({          \
-    uint64_t _my_id;                       \
-    if (_exec_ctx->type == CONTEXT_CLIENT) \
-    {                                      \
-        _my_id = _exec_ctx->client->id;    \
-    }                                      \
-    else                                   \
-    {                                      \
-        _my_id = _exec_ctx->server->id;    \
-    }                                      \
-    _my_id;                                \
+#define ECONTEXT_ID(_exec_ctx) ({            \
+    uint64_t _my_id;                         \
+    if ((_exec_ctx)->type == CONTEXT_CLIENT) \
+    {                                        \
+        _my_id = (_exec_ctx)->client->id;    \
+    }                                        \
+    else                                     \
+    {                                        \
+        _my_id = (_exec_ctx)->server->id;    \
+    }                                        \
+    _my_id;                                  \
 })
 
-#define GET_SERVER_EP(_exec_ctx) ({         \
-    ucp_ep_h _ep;                           \
-    if (_exec_ctx->type == CONTEXT_CLIENT)  \
-    {                                       \
-        _ep = _exec_ctx->client->server_ep; \
-    }                                       \
-    else                                    \
-    {                                       \
-        _ep = NULL;                         \
-    }                                       \
-    _ep;                                    \
+#define GET_SERVER_EP(_exec_ctx) ({           \
+    ucp_ep_h _ep;                             \
+    if ((_exec_ctx)->type == CONTEXT_CLIENT)  \
+    {                                         \
+        _ep = (_exec_ctx)->client->server_ep; \
+    }                                         \
+    else                                      \
+    {                                         \
+        _ep = NULL;                           \
+    }                                         \
+    _ep;                                      \
 })
 
 #define GET_CLIENT_EP(_exec_ctx, _client_id) ({                              \
     ucp_ep_h _ep;                                                            \
-    if (_exec_ctx->type == CONTEXT_SERVER)                                   \
+    if ((_exec_ctx)->type == CONTEXT_SERVER)                                 \
     {                                                                        \
         peer_info_t *_pi;                                                    \
         DYN_ARRAY_GET_ELT(&((_exec_ctx)->server->connected_clients.clients), \
@@ -312,29 +312,6 @@ typedef struct peer_cache_entry
     ucs_list_link_t events;
 } peer_cache_entry_t;
 
-typedef struct peer_info
-{
-    // Length of the peer's address
-    size_t peer_addr_len;
-
-    // Peer's address. Used to create endpoint when using OOB
-    void *peer_addr;
-
-    // UCX endpoint to communicate with the peer
-    ucp_ep_h ep;
-
-    // Peer's endpoint status
-    ucs_status_t ep_status;
-
-    // Dynamic array of group/proc entries, one per group. A rank can belong to multiple groups but have a single endpoint.
-    // Type: peer_cache_entry_t *
-    dyn_array_t cache_entries;
-} peer_info_t;
-
-/**********************************************/
-/* PUBLIC STRUCTURES RELATED TO NOTIFICATIONS */
-/**********************************************/
-
 /**
  * @brief am_header_t is the structure used to represent the header sent with UCX active messages
  */
@@ -348,7 +325,12 @@ typedef struct am_header
     // Type associated to the payload, e.g., notification type.
     // Used to identify the callback to invoke upon reception of a notification.
     uint64_t type;
-} am_header_t;
+
+    // Size of the payload. Not always used, e.g., when using UCX AM, this is a piece
+    // of data that is directly provided; however, when using tag send/recv, this is
+    // used to know the size to expect when we post the receive for the payload.
+    uint64_t payload_size;
+} am_header_t; // todo: rename, nothing to do with AM
 
 /**
  * @brief am_req_t is the structure used to track completion of a notification.
@@ -363,10 +345,81 @@ typedef struct am_req
     // is a notification requiring the exchange of a RDV message under
     // the cover.
     int complete;
-} am_req_t;
+} am_req_t; // todo: rename, nothing to do with AM
 
+#if !USE_AM_IMPLEM
 // Forward declaration
 struct execution_context;
+
+typedef struct payload_notif_req
+{
+    bool complete;
+    ucp_request_param_t recv_params;
+    void *buffer;
+    struct ucx_context *req;
+} payload_notif_req_t;
+
+typedef struct hdr_notif_req
+{
+    bool complete;
+    am_header_t *hdr;
+    struct ucx_context *req;
+    uint64_t recv_peer_id;
+    struct execution_context *econtext;
+    payload_notif_req_t payload_ctx;
+} hdr_notif_req_t;
+
+typedef struct notif_reception
+{
+    bool initialized;
+    hdr_notif_req_t ctx;
+    ucp_request_param_t hdr_recv_params;
+    ucp_tag_t hdr_ucp_tag;
+    ucp_tag_t hdr_ucp_tag_mask;
+    struct ucx_context *req;
+} notif_reception_t;
+#endif
+
+typedef struct peer_info
+{
+    int bootstrap_phase;
+
+    struct
+    {
+        struct ucx_context *addr_size_request;
+        am_req_t recv_addr_size_ctx;
+        struct ucx_context *addr_request;
+        am_req_t recv_addr_ctx;
+        struct ucx_context *rank_request;
+        am_req_t recv_rank_ctx;
+    } bootstrapping;
+
+#if !USE_AM_IMPLEM
+    notif_reception_t notif_recv;
+#endif
+
+    // Length of the peer's address
+    size_t peer_addr_len;
+
+    // Peer's address. Used to create endpoint when using OOB
+    void *peer_addr;
+
+    // UCX endpoint to communicate with the peer
+    ucp_ep_h ep;
+
+    // Peer's endpoint status
+    ucs_status_t ep_status;
+
+    rank_info_t rank_data;
+
+    // Dynamic array of group/proc entries, one per group. A rank can belong to multiple groups but have a single endpoint.
+    // Type: peer_cache_entry_t *
+    dyn_array_t cache_entries;
+} peer_info_t;
+
+/**********************************************/
+/* PUBLIC STRUCTURES RELATED TO NOTIFICATIONS */
+/**********************************************/
 
 /**
  * @brief dpu_offload_ev_sys_t is the structure representing the event system used to implement notifications.
@@ -405,12 +458,17 @@ typedef struct dpu_offload_ev_sys
 
     // Execution context the event system is associated with.
     struct execution_context *econtext;
+
+#if !USE_AM_IMPLEM
+    notif_reception_t notif_recv;
+#endif
 } dpu_offload_ev_sys_t;
 
 typedef struct connected_clients
 {
     size_t num_max_connected_clients;
     size_t num_connected_clients;
+    size_t num_ongoing_connections;
     // Dynamic array of structures to track connected clients (type: peer_info_t)
     dyn_array_t clients;
 } connected_clients_t;
@@ -492,72 +550,72 @@ typedef struct init_params
         (_params)->connected_cb = NULL; \
     } while (0)
 
-#define SYS_EVENT_LOCK(_sys_evt)                                              \
-    do                                                                        \
-    {                                                                         \
-        pthread_mutex_lock(&((_sys_evt)->mutex));                             \
+#define SYS_EVENT_LOCK(_sys_evt)                  \
+    do                                            \
+    {                                             \
+        pthread_mutex_lock(&((_sys_evt)->mutex)); \
     } while (0)
 
-#define SYS_EVENT_UNLOCK(_sys_evt)                                              \
-    do                                                                          \
-    {                                                                           \
-        pthread_mutex_unlock(&((_sys_evt)->mutex));                             \
+#define SYS_EVENT_UNLOCK(_sys_evt)                  \
+    do                                              \
+    {                                               \
+        pthread_mutex_unlock(&((_sys_evt)->mutex)); \
     } while (0)
 
-#define ENGINE_LOCK(_engine)                                                  \
-    do                                                                        \
-    {                                                                         \
-        pthread_mutex_lock(&((_engine)->mutex));                              \
+#define ENGINE_LOCK(_engine)                     \
+    do                                           \
+    {                                            \
+        pthread_mutex_lock(&((_engine)->mutex)); \
     } while (0)
 
-#define ENGINE_UNLOCK(_engine)                                                  \
-    do                                                                          \
-    {                                                                           \
-        pthread_mutex_unlock(&((_engine)->mutex));                              \
+#define ENGINE_UNLOCK(_engine)                     \
+    do                                             \
+    {                                              \
+        pthread_mutex_unlock(&((_engine)->mutex)); \
     } while (0)
 
-#define CLIENT_LOCK(_client)                                                  \
-    do                                                                        \
-    {                                                                         \
-        pthread_mutex_lock(&((_client)->mutex));                              \
+#define CLIENT_LOCK(_client)                     \
+    do                                           \
+    {                                            \
+        pthread_mutex_lock(&((_client)->mutex)); \
     } while (0)
 
-#define CLIENT_UNLOCK(_client)                                                  \
-    do                                                                          \
-    {                                                                           \
-        pthread_mutex_unlock(&((_client)->mutex));                              \
+#define CLIENT_UNLOCK(_client)                     \
+    do                                             \
+    {                                              \
+        pthread_mutex_unlock(&((_client)->mutex)); \
     } while (0)
 
-#define SERVER_LOCK(_server)                                                  \
-    do                                                                        \
-    {                                                                         \
-        pthread_mutex_lock(&((_server)->mutex));                              \
+#define SERVER_LOCK(_server)                     \
+    do                                           \
+    {                                            \
+        pthread_mutex_lock(&((_server)->mutex)); \
     } while (0)
 
-#define SERVER_UNLOCK(_server)                                                  \
-    do                                                                          \
-    {                                                                           \
-        pthread_mutex_unlock(&((_server)->mutex));                              \
+#define SERVER_UNLOCK(_server)                     \
+    do                                             \
+    {                                              \
+        pthread_mutex_unlock(&((_server)->mutex)); \
     } while (0)
 
-#define ECONTEXT_LOCK(_econtext)                                                            \
-    do                                                                                      \
-    {                                                                                       \
-        pthread_mutex_lock(&((_econtext)->mutex));                                          \
-        if ((_econtext)->type == CONTEXT_CLIENT)                                            \
-            CLIENT_LOCK((_econtext)->client);                                               \
-        else                                                                                \
-            SERVER_LOCK((_econtext)->server);                                               \
+#define ECONTEXT_LOCK(_econtext)                   \
+    do                                             \
+    {                                              \
+        pthread_mutex_lock(&((_econtext)->mutex)); \
+        if ((_econtext)->type == CONTEXT_CLIENT)   \
+            CLIENT_LOCK((_econtext)->client);      \
+        else                                       \
+            SERVER_LOCK((_econtext)->server);      \
     } while (0)
 
-#define ECONTEXT_UNLOCK(_econtext)                                                            \
-    do                                                                                        \
-    {                                                                                         \
-        pthread_mutex_unlock(&((_econtext)->mutex));                                          \
-        if ((_econtext)->type == CONTEXT_CLIENT)                                              \
-            CLIENT_UNLOCK((_econtext)->client);                                               \
-        else                                                                                  \
-            SERVER_UNLOCK((_econtext)->server);                                               \
+#define ECONTEXT_UNLOCK(_econtext)                   \
+    do                                               \
+    {                                                \
+        pthread_mutex_unlock(&((_econtext)->mutex)); \
+        if ((_econtext)->type == CONTEXT_CLIENT)     \
+            CLIENT_UNLOCK((_econtext)->client);      \
+        else                                         \
+            SERVER_UNLOCK((_econtext)->server);      \
     } while (0)
 
 typedef struct dpu_offload_server_t
@@ -605,6 +663,8 @@ typedef struct dpu_offload_client_t
 {
     uint64_t id; // Identifier assigned by server
 
+    uint64_t server_id; // Unique identifier of the server
+
     // Execution context the server is associated to
     struct execution_context *econtext;
 
@@ -645,6 +705,14 @@ typedef void (*execution_context_progress_fn)(struct execution_context *);
 struct offloading_engine; // forward declaration
 
 #define ECONTEXT_ON_DPU(_ctx) ((_ctx)->engine->on_dpu)
+
+typedef enum
+{
+    BOOTSTRAP_NOT_INITIATED = 0,
+    OOB_CONNECT_DONE,
+    UCX_CONNECT_DONE,
+    BOOTSTAP_DONE,
+} bootstrap_phase_t;
 
 /**
  * @brief execution_context_t is the structure holding all the information related to DPU offloading, both on the hosts and DPUs.
@@ -734,6 +802,11 @@ typedef struct dpu_offload_event
     // item is used to be able to add/remove the event to lists, e.g., the list for ongoing events and the pool of free event objects.
     ucs_list_link_t item;
 
+#if !USE_AM_IMPLEM
+    struct ucx_context *hdr_request;
+    struct ucx_context *payload_request;
+#endif
+
     // sub_events is the list of sub-events composing this event.
     // The event that has sub-events is not considered completed unless all sub-events are completed.
     // event_completed() can be used to easily check for completion.
@@ -763,11 +836,8 @@ typedef struct dpu_offload_event
     // the event to allocate/get the buffer and associate it to the event.
     bool manage_payload_buf;
 
-    // payload buffer when the library manages it.
+    // payload buffer when the library manages it. Its size is stored in the header object.
     void *payload;
-
-    // payload size when the library manages the payload buffer.
-    size_t payload_size;
 
     // Destination endpoint for remote events
     ucp_ep_h dest_ep;
@@ -789,33 +859,35 @@ typedef struct dpu_offload_event
     {                                           \
         fprintf(stderr, "Reseting event...\n"); \
         (__ev)->context = NULL;                 \
-        (__ev)->payload_size = 0;               \
         (__ev)->payload = NULL;                 \
         (__ev)->event_system = NULL;            \
         (__ev)->req = NULL;                     \
         (__ev)->ctx.complete = 0;               \
         (__ev)->ctx.hdr.type = 0;               \
         (__ev)->ctx.hdr.id = 0;                 \
+        (__ev)->ctx.hdr.payload_size = 0;       \
         (__ev)->manage_payload_buf = false;     \
         (__ev)->dest_ep = NULL;                 \
         (__ev)->was_pending = false;            \
         fprintf(stderr, "Event reset\n");       \
     } while (0)
 
-#define CHECK_EVENT(__ev)                                                                         \
-    do                                                                                            \
-    {                                                                                             \
-        assert((__ev)->payload_size == 0);                                                        \
-        assert((__ev)->ctx.complete == 0);                                                        \
-        assert((__ev)->ctx.hdr.type == 0);                                                        \
-        assert((__ev)->ctx.hdr.id == 0);                                                          \
-        assert((__ev)->manage_payload_buf == false);                                              \
-        assert((__ev)->dest_ep == NULL);                                                          \
-        assert((__ev)->was_pending == false);                                                     \
-        if ((__ev)->sub_events_initialized)                                                       \
-        {                                                                                         \
-            assert(ucs_list_is_empty(&((__ev)->sub_events)));                                     \
-        }                                                                                         \
+#define CHECK_EVENT(__ev)                                                                                       \
+    do                                                                                                          \
+    {                                                                                                           \
+        fprintf(stderr, "Checking event...\n");                                                                 \
+        assert((__ev)->ctx.complete == 0);                                                                      \
+        assert((__ev)->ctx.hdr.payload_size == 0);                                                              \
+        assert((__ev)->ctx.hdr.type == 0);                                                                      \
+        assert((__ev)->ctx.hdr.id == 0);                                                                        \
+        assert((__ev)->manage_payload_buf == false);                                                            \
+        assert((__ev)->dest_ep == NULL);                                                                        \
+        assert((__ev)->was_pending == false);                                                                   \
+        fprintf(stderr, "Event %p: sub-events list initialized? %d\n", (__ev), (__ev)->sub_events_initialized); \
+        if ((__ev)->sub_events_initialized)                                                                     \
+        {                                                                                                       \
+            assert(ucs_list_is_empty(&((__ev)->sub_events)));                                                   \
+        }                                                                                                       \
     } while (0)
 
 typedef struct dpu_offload_event_info
@@ -1251,12 +1323,13 @@ typedef enum
 {
     AM_TERM_MSG_ID = 33, // 33 to make it easier to see corruptions (dbg)
     AM_EVENT_MSG_ID,
-    AM_OP_START_MSG_ID, // 35
+    AM_EVENT_MSG_HDR_ID, // 35
+    AM_OP_START_MSG_ID,
     AM_OP_COMPLETION_MSG_ID,
     AM_XGVMI_ADD_MSG_ID,
     AM_XGVMI_DEL_MSG_ID,
-    AM_PEER_CACHE_REQ_MSG_ID,
-    AM_PEER_CACHE_ENTRIES_MSG_ID, // 40
+    AM_PEER_CACHE_REQ_MSG_ID, // 40
+    AM_PEER_CACHE_ENTRIES_MSG_ID,
     AM_PEER_CACHE_ENTRIES_REQUEST_MSG_ID,
     AM_ADD_GP_RANK_MSG_ID,
     AM_TEST_MSG_ID

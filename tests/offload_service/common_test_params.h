@@ -9,7 +9,7 @@
 
 #include <unistd.h>
 
-#define NUM_TEST_EVTS (100000)
+#define NUM_TEST_EVTS (1000)
 #define PINGPONG_NOTIF_ID (5000)
 
 #define GET_DEST_EP(_econtext) ({                 \
@@ -164,7 +164,7 @@
         {                                                                                                              \
             while (evts[i] != NULL && !evts[i]->ctx.complete)                                                          \
             {                                                                                                          \
-                fprintf(stderr, "Waiting for event #%ld (%p) to complete\n", i, evts[i]);                              \
+                /*fprintf(stderr, "%s l.%d Waiting for event #%ld (%p) to complete\n", __FILE__, __LINE__, i, evts[i]);*/  \
                 _econtext->progress(_econtext);                                                                        \
             }                                                                                                          \
             fprintf(stderr, "Evt #%ld completed\n", i);                                                                \

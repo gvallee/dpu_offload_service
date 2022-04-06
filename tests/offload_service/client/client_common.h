@@ -89,6 +89,8 @@ static inline int run_client_test(ucp_worker_h worker, ucp_context_h ucp_context
         return EXIT_FAILURE;
     }
 
+    fprintf(stderr, "Client initialization all done\n");
+
     // REGISTER SOME EVENTS FOR TESTING
     REGISTER_NOTIF_CALLBACKS(client);
 

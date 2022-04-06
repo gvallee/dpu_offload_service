@@ -624,7 +624,7 @@ dpu_offload_status_t find_dpu_config_from_platform_configfile(char *filepath, of
     len = ftell(file);
     fseek(file, 0, SEEK_SET); /* same as rewind(f); */
 
-    char *content = malloc(len + 1);
+    char *content = MALLOC(len + 1);
     fread(content, len, 1, file);
     fclose(file);
     content[len] = '\0';

@@ -49,6 +49,8 @@ int main(int argc, char **argv)
         return EXIT_FAILURE;
     }
 
+    fprintf(stderr, "Server initialization all done\n");
+
     // REGISTER SOME EVENTS FOR TESTING
     REGISTER_NOTIF_CALLBACKS(server);
 

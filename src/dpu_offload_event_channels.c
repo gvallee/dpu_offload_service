@@ -16,70 +16,17 @@
 #include "dpu_offload_mem_mgt.h"
 #include "dpu_offload_event_channels.h"
 #include "dpu_offload_debug.h"
+#include "dpu_offload_comms.h"
 
 #define DEFAULT_NUM_EVTS (32)
 #define DEFAULT_NUM_NOTIFICATION_CALLBACKS (5000)
 #define DEFAULT_MAX_PENDING_EMITS (10)
 
-static int handle_am_msg(execution_context_t *econtext, am_header_t *hdr, size_t header_length, void *data, size_t length)
-{
-    SYS_EVENT_LOCK(econtext->event_channels);
-    notification_callback_entry_t *list_callbacks = (notification_callback_entry_t *)econtext->event_channels->notification_callbacks.base;
-    DBG("Notification of type %" PRIu64 " received, dispatching...", hdr->type);
-    if (list_callbacks[hdr->type].set == false)
-    {
-        pending_notification_t *pending_notif;
-        DBG("callback not available for %" PRIu64, hdr->type);
-        DYN_LIST_GET(econtext->event_channels->free_pending_notifications, pending_notification_t, item, pending_notif);
-        CHECK_ERR_RETURN((pending_notif == NULL), UCS_ERR_NO_MESSAGE, "unable to get pending notification object");
-        RESET_PENDING_NOTIF(pending_notif);
-        pending_notif->type = hdr->type;
-        pending_notif->src_id = hdr->id;
-        pending_notif->data_size = length;
-        pending_notif->header_size = header_length;
-        pending_notif->econtext = econtext;
-        if (pending_notif->data_size > 0)
-        {
-            pending_notif->data = malloc(pending_notif->data_size);
-            CHECK_ERR_RETURN((pending_notif->data == NULL), DO_ERROR, "unable to allocate pending notification's data");
-            memcpy(pending_notif->data, data, pending_notif->data_size);
-        }
-        else
-        {
-            pending_notif->data = NULL;
-        }
-        if (pending_notif->header_size > 0)
-        {
-            pending_notif->header = malloc(pending_notif->header_size);
-            CHECK_ERR_RETURN((pending_notif->header == NULL), DO_ERROR, "unable to allocate pending notification's header");
-            memcpy(pending_notif->header, hdr, pending_notif->header_size);
-        }
-        else
-        {
-            pending_notif->header = NULL;
-        }
-        ucs_list_add_tail(&(econtext->event_channels->pending_notifications), &(pending_notif->item));
-        SYS_EVENT_UNLOCK(econtext->event_channels);
-        return UCS_OK;
-    }
-
-    notification_cb cb = list_callbacks[hdr->type].cb;
-    CHECK_ERR_GOTO((cb == NULL), error_out, "Callback is undefined");
-    struct dpu_offload_ev_sys *ev_sys = EV_SYS(econtext);
-    // Callbacks are responsible for handling any necessary locking
-    // and can call any event API so we unlock before invoking it.
-    SYS_EVENT_UNLOCK(econtext->event_channels);
-    cb(ev_sys, econtext, hdr, header_length, data, length);
-    return UCS_OK;
-error_out:
-    SYS_EVENT_UNLOCK(econtext->event_channels);
-    return UCS_ERR_NO_MESSAGE;
-}
-
+#if USE_AM_IMPLEM
 static void am_rdv_recv_cb(void *request, ucs_status_t status, size_t length, void *user_data)
 {
     pending_am_rdv_recv_t *recv_info = (pending_am_rdv_recv_t *)user_data;
-    int rc = handle_am_msg(recv_info->econtext, recv_info->hdr, recv_info->hdr_len, recv_info->user_data, recv_info->payload_size);
+    int rc = handle_notif_msg(recv_info->econtext, recv_info->hdr, recv_info->hdr_len, recv_info->user_data, recv_info->payload_size);
     ucp_request_free(request);
     ECONTEXT_LOCK(recv_info->econtext);
     ucs_list_del(&(recv_info->item));
@@ -101,7 +48,7 @@ static ucs_status_t am_notification_recv_rdv_msg(execution_context_t *econtext, 
     // be received in advance but we do our best to avoid mallocs
     if (pending_recv->buff_size == 0)
     {
-        pending_recv->user_data = malloc(payload_size);
+        pending_recv->user_data = MALLOC(payload_size);
         pending_recv->buff_size = payload_size;
     }
     if (pending_recv->buff_size < payload_size)
@@ -144,7 +91,7 @@ static ucs_status_t am_notification_recv_rdv_msg(execution_context_t *econtext, 
         DBG("ucp_am_recv_data_nbx() completed right away");
         assert(NULL == status);
         pending_recv->req = NULL;
-        handle_am_msg(econtext, hdr, hdr_len, pending_recv->user_data, payload_size);
+        handle_notif_msg(econtext, hdr, hdr_len, pending_recv->user_data, payload_size);
         ucp_request_free(am_rndv_recv_request_params.request);
     }
     return UCS_OK;
@@ -169,8 +116,9 @@ static ucs_status_t am_notification_msg_cb(void *arg, const void *header, size_t
     }
 
     DBG("Notification of type %" PRIu64 " received via eager message, dispatching...", hdr->type);
-    return handle_am_msg(econtext, hdr, header_length, data, length);
+    return handle_notif_msg(econtext, hdr, header_length, data, length);
 }
+#endif // USE_AM_IMPLEM
 
 void init_event(void *ev_ptr)
 {
@@ -182,7 +130,7 @@ void init_event(void *ev_ptr)
 
 dpu_offload_status_t ev_channels_init(dpu_offload_ev_sys_t **ev_channels)
 {
-    dpu_offload_ev_sys_t *event_channels = malloc(sizeof(dpu_offload_ev_sys_t));
+    dpu_offload_ev_sys_t *event_channels = MALLOC(sizeof(dpu_offload_ev_sys_t));
     CHECK_ERR_RETURN((event_channels == NULL), DO_ERROR, "Resource allocation failed");
     size_t num_evts = DEFAULT_NUM_EVTS;
     size_t num_free_pending_notifications = DEFAULT_NUM_NOTIFICATION_CALLBACKS;
@@ -199,6 +147,9 @@ dpu_offload_status_t ev_channels_init(dpu_offload_ev_sys_t **ev_channels)
     CHECK_ERR_RETURN((event_channels->notification_callbacks.base == NULL), DO_ERROR, "Resource allocation failed");
     int ret = pthread_mutex_init(&(event_channels->mutex), NULL);
     CHECK_ERR_RETURN((ret), DO_ERROR, "pthread_mutex_init() failed: %s", strerror(errno));
+#if !USE_AM_IMPLEM
+    event_channels->notif_recv.initialized = false;
+#endif
     *ev_channels = event_channels;
     return DO_SUCCESS;
 }
@@ -210,6 +161,8 @@ dpu_offload_status_t event_channels_init(execution_context_t *econtext)
 
     dpu_offload_status_t rc = ev_channels_init(&(econtext->event_channels));
     CHECK_ERR_RETURN((rc), DO_ERROR, "ev_channels_init() failed");
+
+#if USE_AM_IMPLEM
     // Register the UCX AM handler
     ucp_am_handler_param_t am_param;
     am_param.field_mask = UCP_AM_HANDLER_PARAM_FIELD_ID |
@@ -228,16 +181,25 @@ dpu_offload_status_t event_channels_init(execution_context_t *econtext)
     ucs_status_t status = ucp_worker_set_am_recv_handler(GET_WORKER(econtext),
                                                          &am_param);
     CHECK_ERR_RETURN((status != UCS_OK), DO_ERROR, "unable to set AM eager recv handler");
+#else
+    // Create a separate thread to receive notifications
+    /*
+    pthread_t event_tid;
+    int ret = pthread_create(&event_tid, NULL, &recv_event_thread, econtext);
+    CHECK_ERR_RETURN((ret), DO_ERROR, "unable to start connection thread");
+    */
+#endif
+
     return DO_SUCCESS;
 }
 
 /**
  * @brief Note: the function assumes the event system is locked before it is invoked
- * 
- * @param ev_sys 
- * @param type 
- * @param cb 
- * @return dpu_offload_status_t 
+ *
+ * @param ev_sys
+ * @param type
+ * @param cb
+ * @return dpu_offload_status_t
  */
 dpu_offload_status_t event_channel_register(dpu_offload_ev_sys_t *ev_sys, uint64_t type, notification_cb cb)
 {
@@ -339,9 +301,22 @@ static void notification_emit_cb(void *user_data, const char *type_str)
     DBG("evt %p now completed, %ld events left on the ongoing list", ev, ucs_list_length(&(econtext->ongoing_events)));
 }
 
+static void notif_hdr_send_cb(void *request, ucs_status_t status, void *user_data)
+{
+    am_req_t *ctx; // todo: rename am_req_t to notif_req_t
+    if (user_data == NULL)
+    {
+        ERR_MSG("user data is undefined, unable to send event header");
+        return;
+    }
+    ctx = (am_req_t *)user_data;
+    ctx->complete = 1;
+}
+
 uint64_t num_ev_sent = 0;
 
-int send_event_msg(dpu_offload_event_t **event)
+#if USE_AM_IMPLEM
+int am_send_event_msg(dpu_offload_event_t **event)
 {
     ucp_request_param_t params;
     params.op_attr_mask = UCP_OP_ATTR_FIELD_CALLBACK |
@@ -379,6 +354,46 @@ int send_event_msg(dpu_offload_event_t **event)
 
     return EVENT_INPROGRESS;
 }
+#else
+// FIXME: do not block here, blocking only for initial debugging
+int tag_send_event_msg(dpu_offload_event_t **event)
+{
+    struct ucx_context *addr_request = NULL;
+    ucp_request_param_t send_param;
+    send_param.op_attr_mask = UCP_OP_ATTR_FIELD_CALLBACK |
+                              UCP_OP_ATTR_FIELD_DATATYPE |
+                              UCP_OP_ATTR_FIELD_USER_DATA;
+    send_param.cb.send = notif_hdr_send_cb;
+    send_param.datatype = ucp_dt_make_contig(1);
+    send_param.user_data = (void *)(*event);
+
+    assert((*event)->event_system);
+    assert((*event)->event_system->econtext);
+    execution_context_t *econtext = (*event)->event_system->econtext;
+    uint64_t myid = ECONTEXT_ID(econtext);
+
+    /* 1. Send the hdr */
+    ucp_tag_t hdr_ucp_tag = MAKE_SEND_TAG(AM_EVENT_MSG_HDR_ID, myid, 0, 0, 0);
+    struct ucx_context *hdr_request = NULL;
+    (*event)->hdr_request = ucp_tag_send_nbx((*event)->dest_ep, &((*event)->ctx.hdr), sizeof(am_header_t), hdr_ucp_tag, &send_param);
+    ucx_wait(GET_WORKER((*event)->event_system->econtext), hdr_request, "send", NULL);
+
+    /* 2. Send the payload */
+    if ((*event)->ctx.hdr.payload_size > 0)
+    {
+        ucp_tag_t payload_ucp_tag = MAKE_SEND_TAG(AM_EVENT_MSG_ID, myid, 0, 0, 0);
+        struct ucx_context *payload_request = NULL;
+        (*event)->payload_request = ucp_tag_send_nbx((*event)->dest_ep, (*event)->payload, (*event)->ctx.hdr.payload_size, payload_ucp_tag, &send_param);
+        ucx_wait(GET_WORKER((*event)->event_system->econtext), payload_request, "send", NULL);
+    }
+
+    (*event)->ctx.complete = 1;
+    (*event)->was_pending = false;
+    dpu_offload_status_t rc = event_return(event);
+    CHECK_ERR_RETURN((rc), DO_ERROR, "event_return() failed");
+    return EVENT_DONE;
+}
+#endif // USE_AM_IMPLEM
 
 int event_channel_emit_with_payload(dpu_offload_event_t **event, uint64_t my_id, uint64_t type, ucp_ep_h dest_ep, void *ctx, void *payload, size_t payload_size)
 {
@@ -389,9 +404,9 @@ int event_channel_emit_with_payload(dpu_offload_event_t **event, uint64_t my_id,
     ev->ctx.complete = 0;
     ev->ctx.hdr.type = type;
     ev->ctx.hdr.id = my_id;
+    ev->ctx.hdr.payload_size = payload_size;
     ev->user_context = ctx;
     ev->payload = payload;
-    ev->payload_size = payload_size;
     ev->dest_ep = dest_ep;
 
     if (ev->event_system->num_pending_sends >= ev->event_system->max_pending_emits)
@@ -405,7 +420,11 @@ int event_channel_emit_with_payload(dpu_offload_event_t **event, uint64_t my_id,
         return EVENT_INPROGRESS;
     }
 
-    return send_event_msg(event);
+#if USE_AM_IMPLEM
+    return am_send_event_msg(event);
+#else
+    return tag_send_event_msg(event);
+#endif // USE_AM_IMPLEM
 }
 
 int event_channel_emit(dpu_offload_event_t **event, uint64_t my_id, uint64_t type, ucp_ep_h dest_ep, void *ctx)
@@ -428,7 +447,11 @@ int event_channel_emit(dpu_offload_event_t **event, uint64_t my_id, uint64_t typ
         return EVENT_INPROGRESS;
     }
     SYS_EVENT_UNLOCK(ev->event_system);
-    return send_event_msg(event);
+#if USE_AM_IMPLEM
+    return am_send_event_msg(event);
+#else
+    return tag_send_event_msg(event);
+#endif // USE_AM_IMPLEM
 }
 
 dpu_offload_status_t event_channels_fini(dpu_offload_ev_sys_t **ev_sys)
@@ -439,6 +462,7 @@ dpu_offload_status_t event_channels_fini(dpu_offload_ev_sys_t **ev_sys)
         WARN_MSG("[WARN] %ld events objects have not been returned", (*ev_sys)->num_used_evs);
     }
 
+#if USE_AM_IMPLEM
     // Deregister the UCX AM handler
     ucp_am_handler_param_t am_param;
     am_param.field_mask = UCP_AM_HANDLER_PARAM_FIELD_ID |
@@ -447,9 +471,10 @@ dpu_offload_status_t event_channels_fini(dpu_offload_ev_sys_t **ev_sys)
     // For all exchange, we receive the header first and from there post a receive for the either eager or RDV message.
     am_param.cb = NULL;
     /* FIXME: not working, create a crash, no idea why */
-    //ucs_status_t status = ucp_worker_set_am_recv_handler(GET_WORKER((*ev_sys)->econtext),
-    //                                                     &am_param);
-    //CHECK_ERR_RETURN((status != UCS_OK), DO_ERROR, "unable to reset UCX AM recv handler");
+    // ucs_status_t status = ucp_worker_set_am_recv_handler(GET_WORKER((*ev_sys)->econtext),
+    //                                                      &am_param);
+    // CHECK_ERR_RETURN((status != UCS_OK), DO_ERROR, "unable to reset UCX AM recv handler");
+#endif // USE_AM_IMPLEM
 
     DYN_LIST_FREE((*ev_sys)->free_evs, dpu_offload_event_t, item);
     DYN_LIST_FREE((*ev_sys)->free_pending_notifications, pending_notification_t, item);
@@ -480,8 +505,8 @@ dpu_offload_status_t event_get(dpu_offload_ev_sys_t *ev_sys, dpu_offload_event_i
 
         // If we get here, it means that we need to manage a payload buffer for that event
         _ev->manage_payload_buf = true;
-        _ev->payload_size = info->payload_size;
-        _ev->payload = malloc(info->payload_size); // No advanced memory management at the moment, just malloc
+        _ev->ctx.hdr.payload_size = info->payload_size;
+        _ev->payload = MALLOC(info->payload_size); // No advanced memory management at the moment, just malloc
         assert(_ev->payload);
     }
 
@@ -517,7 +542,7 @@ dpu_offload_status_t event_return(dpu_offload_event_t **ev)
     {
         free((*ev)->payload);
         (*ev)->payload = NULL;
-        (*ev)->payload_size = 0;
+        (*ev)->ctx.hdr.payload_size = 0;
     }
 
     SYS_EVENT_LOCK((*ev)->event_system);
@@ -751,7 +776,6 @@ static dpu_offload_status_t peer_cache_entries_recv_cb(struct dpu_offload_ev_sys
                 {
                     dpu_offload_event_t *e = ucs_list_extract_head(&(cache_entry->events), dpu_offload_event_t, item);
                     e->ctx.complete = 1;
-                    fprintf(stderr, "Event %p associated to cache entry is now completed\n", e);
                 }
             }
         }

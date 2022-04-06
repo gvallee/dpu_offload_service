@@ -13,6 +13,9 @@
 #ifndef DPU_OFFLOAD_EVENT_CHANNELS_H_
 #define DPU_OFFLOAD_EVENT_CHANNELS_H_
 
+// Set to 1 to use the AM implementaton; 0 to use tag send/recv implementation
+#define USE_AM_IMPLEM (0)
+
 dpu_offload_status_t event_channels_init(execution_context_t *);
 dpu_offload_status_t ev_channels_init(dpu_offload_ev_sys_t **ev_channels);
 dpu_offload_status_t event_channels_fini(dpu_offload_ev_sys_t **);
