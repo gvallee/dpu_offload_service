@@ -154,7 +154,7 @@ static inline dpu_offload_status_t oob_server_ucx_client_connection_step2(execut
                               UCP_OP_ATTR_FIELD_DATATYPE |
                               UCP_OP_ATTR_FIELD_USER_DATA;
     recv_param.datatype = ucp_dt_make_contig(1);
-    recv_param.user_data = &(client_info->bootstrapping.recv_addr_size_ctx);
+    recv_param.user_data = &(client_info->bootstrapping.recv_addr_ctx);
     recv_param.cb.recv = oob_recv_addr_handler_2;
     MAKE_RECV_TAG(ucp_tag, ucp_tag_mask, econtext->server->conn_data.oob.tag, 0, 0, 0, 0);
     client_info->bootstrapping.addr_request = ucp_tag_recv_nbx(GET_WORKER(econtext),
@@ -163,6 +163,7 @@ static inline dpu_offload_status_t oob_server_ucx_client_connection_step2(execut
                                                                ucp_tag,
                                                                ucp_tag_mask,
                                                                &recv_param);
+    DBG("Recv for client's address successfully posted");
     if (client_info->bootstrapping.addr_request == NULL)
     {
         DBG("We received the address right away, callback not invoked, dealing directly with it");
@@ -872,21 +873,21 @@ static void execution_context_progress(execution_context_t *ctx)
                 i++;
                 if (client_info->bootstrapping.recv_addr_size_ctx.complete == false && client_info->bootstrapping.addr_size_request == NULL)
                 {
-                    DBG("UCX level bootstrap - step 1");
+                    DBG("UCX level bootstrap - step 1 - Getting address size");
                     rc = oob_server_ucx_client_connection_step1(ctx, client_info);
                     CHECK_ERR_GOTO((rc), error_out, "oob_server_ucx_client_connection_step1() failed");
                 }
 
                 if (client_info->bootstrapping.recv_addr_size_ctx.complete == true && client_info->bootstrapping.recv_addr_ctx.complete == false && client_info->bootstrapping.addr_request == NULL)
                 {
-                    DBG("UCX level bootstrap - step 2");
+                    DBG("UCX level bootstrap - step 2 - Getting address");
                     rc = oob_server_ucx_client_connection_step2(ctx, client_info);
                     CHECK_ERR_GOTO((rc), error_out, "oob_server_ucx_client_connection_step2() failed");
                 }
 
                 if (client_info->bootstrapping.recv_addr_ctx.complete == true && client_info->bootstrapping.recv_rank_ctx.complete == false && client_info->bootstrapping.rank_request == NULL)
                 {
-                    DBG("UCX level bootstrap - step 3");
+                    DBG("UCX level bootstrap - step 3 - Getting rank info");
                     rc = oob_server_ucx_client_connection_step3(ctx, client_info);
                     CHECK_ERR_GOTO((rc), error_out, "oob_server_ucx_client_connection_step3() failed");
                 }

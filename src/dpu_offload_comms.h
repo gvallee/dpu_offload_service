@@ -161,13 +161,13 @@ error_out:
 static void notif_payload_recv_handler(void *request, ucs_status_t status, const ucp_tag_recv_info_t *tag_info, void *user_data)
 {
     hdr_notif_req_t *ctx = (hdr_notif_req_t *)user_data;
-    DBG("Notification payload received, ctx=%p econtext=%p type=%ld\n", ctx, ctx->econtext, ctx->hdr->type);
+    DBG("Notification payload received, ctx=%p econtext=%p type=%ld\n", ctx, ctx->econtext, ctx->hdr.type);
     ctx->payload_ctx.complete = 1;
     assert(ctx->econtext);
 
     // Invoke the associated callback
-    handle_notif_msg(ctx->econtext, ctx->hdr, sizeof(am_header_t), ctx->payload_ctx.buffer, ctx->hdr->payload_size);
-    if (ctx->hdr->payload_size)
+    handle_notif_msg(ctx->econtext, &(ctx->hdr), sizeof(am_header_t), ctx->payload_ctx.buffer, ctx->hdr.payload_size);
+    if (ctx->hdr.payload_size)
     {
         free(ctx->payload_ctx.buffer);
         ctx->payload_ctx.buffer = NULL;
@@ -187,36 +187,35 @@ static void notif_payload_recv_handler(void *request, ucs_status_t status, const
 static void post_recv_for_notif_payload(hdr_notif_req_t *ctx, execution_context_t *econtext, uint64_t peer_id)
 {
     assert(ctx);
-    assert(ctx->hdr);
     assert(econtext);
     ECONTEXT_LOCK(econtext);
     DBG("Notification header received, payload size = %ld, type = %ld, econtext = %p-%p, ctx = %p",
-        ctx->hdr->payload_size,
-        ctx->hdr->type,
+        ctx->hdr.payload_size,
+        ctx->hdr.type,
         ctx->econtext,
         econtext,
         ctx);
     assert(econtext == ctx->econtext);
 
-    if (ctx->hdr->payload_size > 0 && ctx->payload_ctx.req != NULL)
+    if (ctx->hdr.payload_size > 0 && ctx->payload_ctx.req != NULL)
     {
         WARN_MSG("We got a new header but still waiting for a previous notification payload");
         return;
     }
 
-    if (ctx->hdr->payload_size > 0 && ctx->payload_ctx.req == NULL)
+    if (ctx->hdr.payload_size > 0 && ctx->payload_ctx.req == NULL)
     {
-        DBG("Posting recv for notif payload of size %ld for peer %ld", ctx->hdr->payload_size, peer_id);
+        DBG("Posting recv for notif payload of size %ld for peer %ld", ctx->hdr.payload_size, peer_id);
         ucp_worker_h worker;
 
         ucp_tag_t payload_ucp_tag, payload_ucp_tag_mask;
         ucp_request_param_t payload_recv_param;
-        ctx->payload_ctx.buffer = MALLOC(ctx->hdr->payload_size);
+        ctx->payload_ctx.buffer = MALLOC(ctx->hdr.payload_size);
         assert(ctx->payload_ctx.buffer);
         worker = GET_WORKER(econtext);
         assert(worker);
         // Post the receive for the payload
-        ctx->payload_ctx.complete = 0;
+        ctx->payload_ctx.complete = false;
         ctx->payload_ctx.recv_params.op_attr_mask = UCP_OP_ATTR_FIELD_CALLBACK |
                                                     UCP_OP_ATTR_FIELD_DATATYPE |
                                                     UCP_OP_ATTR_FIELD_USER_DATA;
@@ -226,7 +225,7 @@ static void post_recv_for_notif_payload(hdr_notif_req_t *ctx, execution_context_
         MAKE_RECV_TAG(payload_ucp_tag, payload_ucp_tag_mask, AM_EVENT_MSG_ID, peer_id, 0, 0, 0);
         ctx->payload_ctx.req = ucp_tag_recv_nbx(worker,
                                                 ctx->payload_ctx.buffer,
-                                                ctx->hdr->payload_size,
+                                                ctx->hdr.payload_size,
                                                 payload_ucp_tag,
                                                 payload_ucp_tag_mask,
                                                 &(ctx->payload_ctx.recv_params));
@@ -235,8 +234,8 @@ static void post_recv_for_notif_payload(hdr_notif_req_t *ctx, execution_context_
             // Recv completed immediately, the callback is not invoked
             DBG("Recv of the payload completed right away");
             ctx->payload_ctx.complete = 1;
-            handle_notif_msg(ctx->econtext, ctx->hdr, sizeof(am_header_t), ctx->payload_ctx.buffer, ctx->hdr->payload_size);
-            if (ctx->hdr->payload_size)
+            handle_notif_msg(ctx->econtext, &(ctx->hdr), sizeof(am_header_t), ctx->payload_ctx.buffer, ctx->hdr.payload_size);
+            if (ctx->hdr.payload_size)
             {
                 free(ctx->payload_ctx.buffer);
                 ctx->payload_ctx.buffer = NULL;
@@ -255,7 +254,7 @@ static void post_recv_for_notif_payload(hdr_notif_req_t *ctx, execution_context_
     }
     else
     {
-        handle_notif_msg(econtext, ctx->hdr, sizeof(am_header_t), NULL, 0);
+        handle_notif_msg(econtext, &(ctx->hdr), sizeof(am_header_t), NULL, 0);
         if (ctx->req != NULL)
         {
             ucp_request_free(ctx->req);
@@ -275,17 +274,15 @@ static void post_new_notif_recv(ucp_worker_h worker, hdr_notif_req_t *ctx, execu
     // Post a new receive only if we are not already in the middle of receiving a notification
     if (ctx->complete == true && ctx->payload_ctx.complete == true)
     {
-        am_header_t hdr;
         // Post the receive for the header
         ctx->complete = false;
         ctx->econtext = (struct execution_context *)econtext;
-        ctx->hdr = &hdr;
         DBG("-------------> Posting recv for notif header");
-        ctx->req = ucp_tag_recv_nbx(worker, &hdr, sizeof(am_header_t), hdr_ucp_tag, hdr_ucp_tag_mask, hdr_recv_param);
+        ctx->req = ucp_tag_recv_nbx(worker, &(ctx->hdr), sizeof(am_header_t), hdr_ucp_tag, hdr_ucp_tag_mask, hdr_recv_param);
         if (ctx->req == NULL)
         {
             // Receive completed immediately, callback is not called
-            DBG("Recv of notification header completed right away");
+            DBG("Recv of notification header completed right away, notif type: %ld", ctx->hdr.type);
             ctx->complete = true;
             ECONTEXT_UNLOCK(econtext);
             post_recv_for_notif_payload(ctx, (execution_context_t *)ctx->econtext, ctx->recv_peer_id);
@@ -296,7 +293,7 @@ static void post_new_notif_recv(ucp_worker_h worker, hdr_notif_req_t *ctx, execu
 static void notif_hdr_recv_handler(void *request, ucs_status_t status, const ucp_tag_recv_info_t *tag_info, void *user_data)
 {
     hdr_notif_req_t *ctx = (hdr_notif_req_t *)user_data;
-    DBG("Notification header received from peer #%ld, type: %ld\n", ctx->recv_peer_id, ctx->hdr->type);
+    DBG("Notification header received from peer #%ld, type: %ld\n", ctx->recv_peer_id, ctx->hdr.type);
     ctx->complete = true;
     post_recv_for_notif_payload(ctx, (execution_context_t *)ctx->econtext, ctx->recv_peer_id);
 }

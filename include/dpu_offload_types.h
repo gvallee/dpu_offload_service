@@ -362,7 +362,7 @@ typedef struct payload_notif_req
 typedef struct hdr_notif_req
 {
     bool complete;
-    am_header_t *hdr;
+    am_header_t hdr;
     struct ucx_context *req;
     uint64_t recv_peer_id;
     struct execution_context *econtext;
