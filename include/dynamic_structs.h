@@ -78,8 +78,8 @@ typedef struct dyn_array
             fprintf(stderr, "Need to grow array: %ld %ld\n", (_dyn_array)->num_elts, _idx); \
             DYN_ARRAY_GROW(_dyn_array, _type, _idx);                                        \
         }                                                                                   \
-        _type *_ptr = (_type *)((_dyn_array)->base);                                        \
-        _elt = (_type *)&(_ptr[_idx]);                                                      \
+        _type *__ptr = (_type *)((_dyn_array)->base);                                       \
+        _elt = (_type *)&(__ptr[_idx]);                                                     \
     } while (0)
 
 #define DYN_ARRAY_SET_ELT(_dyn_array, _idx, _type, _elt) \
@@ -133,7 +133,7 @@ typedef struct dyn_list
             {                                                                                                      \
                 if ((__dyn_list)->element_init_cb != NULL)                                                         \
                 {                                                                                                  \
-                    (__dyn_list)->element_init_cb((void *)&(_e[_i]));                                                     \
+                    (__dyn_list)->element_init_cb((void *)&(_e[_i]));                                              \
                 }                                                                                                  \
                 ucs_list_add_tail(&((__dyn_list)->list), &(_e[_i].__elt));                                         \
                 _ptr = &(_e[_i]);                                                                                  \
