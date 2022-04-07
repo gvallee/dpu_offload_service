@@ -844,7 +844,6 @@ dpu_offload_status_t offload_engine_progress(offloading_engine_t *engine)
     }
     else
     {
-        DBG("Not on DPU");
         if (engine->client != NULL)
         {
             engine->client->progress(engine->client);
