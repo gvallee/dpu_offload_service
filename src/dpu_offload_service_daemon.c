@@ -490,6 +490,7 @@ static void send_cb(void *request, ucs_status_t status, void *user_data)
             /*   not available at the time and set during the creation of the execution contexts.               */ \
             if ((_econtext)->engine->ucp_context == NULL)                                                          \
                 (_econtext)->engine->ucp_context = (_init_params)->ucp_context;                                    \
+            assert(GET_WORKER(_econtext) == NULL);                                                                 \
             SET_WORKER(_econtext, (_init_params)->worker);                                                         \
         }                                                                                                          \
     } while (0)
@@ -614,7 +615,7 @@ static void oob_send_cb(void *request, ucs_status_t status, void *ctx)
 }
 
 static void ucx_client_boostrap_send_cb(void *request, ucs_status_t status, void *user_data)
-{  
+{
     am_req_t *ctx = (am_req_t *)user_data;
     ctx->complete = 1;
 }
@@ -790,7 +791,15 @@ static void progress_servers(offloading_engine_t *engine)
 
 dpu_offload_status_t offload_engine_progress(offloading_engine_t *engine)
 {
+    // Progress the default UCX worker to eventually complete some communications
     ENGINE_LOCK(engine);
+    if (engine->default_econtext != NULL)
+    {
+        ECONTEXT_LOCK(engine->default_econtext);
+        ucp_worker_h worker = GET_WORKER(engine->default_econtext);
+        ECONTEXT_UNLOCK(engine->default_econtext);
+        ucp_worker_progress(engine->default_econtext);
+    }
     bool on_dpu = engine->on_dpu;
     ENGINE_UNLOCK(engine);
     if (on_dpu)
