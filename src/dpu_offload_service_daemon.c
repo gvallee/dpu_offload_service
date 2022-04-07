@@ -791,26 +791,39 @@ static void progress_servers(offloading_engine_t *engine)
 dpu_offload_status_t offload_engine_progress(offloading_engine_t *engine)
 {
     ENGINE_LOCK(engine);
-    if (engine->on_dpu)
+    bool on_dpu = engine->on_dpu;
+    ENGINE_UNLOCK(engine);
+    if (on_dpu)
     {
         // Progress connections between DPUs when necessary
-        size_t c, s;
-        for (c = 0; c < engine->num_inter_dpus_clients; c++)
+        size_t c, s, num_inter_dpus_clients;
+        ENGINE_LOCK(engine);
+        num_inter_dpus_clients = engine->num_inter_dpus_clients;
+        ENGINE_UNLOCK(engine);
+        for (c = 0; c < num_inter_dpus_clients; c++)
         {
+            ENGINE_LOCK(engine);
             execution_context_t *c_econtext = engine->inter_dpus_clients[c].client_econtext;
+            ENGINE_UNLOCK(engine);
+            ECONTEXT_LOCK(c_econtext);
             int initial_state = c_econtext->client->bootstrapping.phase;
             if (c_econtext != NULL)
             {
+                ECONTEXT_UNLOCK(c_econtext);
                 c_econtext->progress(c_econtext);
+                ECONTEXT_LOCK(c_econtext);
             }
             int new_state = c_econtext->client->bootstrapping.phase;
             if (initial_state != BOOTSTAP_DONE && new_state == BOOTSTAP_DONE)
             {
                 remote_dpu_info_t *remote_dpu_info = NULL;
                 DBG("DPU client #%ld just finished its connection to a server, updating data", c);
+                ECONTEXT_UNLOCK(c_econtext);
                 dpu_offload_status_t rc = finalize_connection_to_remote_dpu(engine, engine->inter_dpus_clients[c].remote_dpu_info, engine->inter_dpus_clients[c].client_econtext);
                 CHECK_ERR_RETURN((rc), DO_ERROR, "finalize_connection_to_remote_dpu() failed");
+                ECONTEXT_UNLOCK(c_econtext);
             }
+            ECONTEXT_UNLOCK(c_econtext);
         }
         progress_servers(engine);
 
@@ -838,7 +851,6 @@ dpu_offload_status_t offload_engine_progress(offloading_engine_t *engine)
         }
         progress_servers(engine);
     }
-    ENGINE_UNLOCK(engine);
     return DO_SUCCESS;
 }
 
