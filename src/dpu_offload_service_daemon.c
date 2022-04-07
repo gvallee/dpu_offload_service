@@ -116,6 +116,11 @@ static inline dpu_offload_status_t oob_server_ucx_client_connection_step1(execut
                                                                     ucp_tag,
                                                                     ucp_tag_mask,
                                                                     &recv_param);
+    if (UCS_PTR_IS_ERR(client_info->bootstrapping.addr_size_request))
+    {
+        ERR_MSG("ucp_tag_recv_nbx() failed: %s", UCS_PTR_STATUS(client_info->bootstrapping.addr_size_request));
+        goto error_out;
+    }
     if (client_info->bootstrapping.addr_size_request == NULL)
     {
         DBG("We received the address size right away, callback not invoked, dealing directly with it");
@@ -164,6 +169,11 @@ static inline dpu_offload_status_t oob_server_ucx_client_connection_step2(execut
                                                                ucp_tag,
                                                                ucp_tag_mask,
                                                                &recv_param);
+    if (UCS_PTR_IS_ERR(client_info->bootstrapping.addr_request))
+    {
+        ERR_MSG("ucp_tag_recv_nbx() failed: %s", UCS_PTR_STATUS(client_info->bootstrapping.addr_request));
+        goto error_out;
+    }
     DBG("Recv for client's address successfully posted");
     if (client_info->bootstrapping.addr_request == NULL)
     {
@@ -216,6 +226,11 @@ static inline dpu_offload_status_t oob_server_ucx_client_connection_step3(execut
                                                                ucp_tag,
                                                                ucp_tag_mask,
                                                                &recv_param);
+    if (UCS_PTR_IS_ERR(client_info->bootstrapping.rank_request))
+    {
+        ERR_MSG("ucp_tag_recv_nbx() failed: %s", UCS_PTR_STATUS(client_info->bootstrapping.rank_request));
+        goto error_out;
+    }
     DBG("Receiving rank info (len=%ld, req=%p)", sizeof(rank_info_t), client_info->bootstrapping.rank_request);
     if (client_info->bootstrapping.rank_request == NULL)
     {
@@ -643,6 +658,11 @@ static dpu_offload_status_t client_ucx_boostrap_step3(execution_context_t *econt
                                                                     sizeof(rank_info_t),
                                                                     ucp_tag,
                                                                     &send_param);
+    if (UCS_PTR_IS_ERR(econtext->client->bootstrapping.rank_request))
+    {
+        ERR_MSG("ucp_tag_send_nbx() failed: %s", UCS_PTR_STATUS(econtext->client->bootstrapping.rank_request));
+        goto error_out;
+    }
     if (econtext->client->bootstrapping.rank_request == NULL)
     {
         DBG("Send for rank info completed right away");
@@ -672,6 +692,11 @@ static dpu_offload_state_t client_ucx_bootstrap_step2(execution_context_t *econt
                                                                     econtext->client->conn_data.oob.local_addr_len,
                                                                     ucp_tag,
                                                                     &send_param);
+    if (UCS_PTR_IS_ERR(econtext->client->bootstrapping.addr_request))
+    {
+        ERR_MSG("ucp_tag_send_nbx() failed: %s", UCS_PTR_STATUS(econtext->client->bootstrapping.addr_request));
+        goto error_out;
+    }
     if (econtext->client->bootstrapping.addr_request == NULL)
     {
         DBG("Send for address completed right away");
@@ -713,6 +738,11 @@ static dpu_offload_status_t client_ucx_bootstrap_step1(execution_context_t *econ
     ucp_tag_t ucp_tag = MAKE_SEND_TAG(econtext->client->conn_data.oob.tag, 0, 0, 0, 0);
     DBG("Tag: %d\n", econtext->server->conn_data.oob.tag);
     econtext->client->bootstrapping.addr_size_request = ucp_tag_send_nbx(econtext->client->server_ep, &(econtext->client->conn_data.oob.local_addr_len), sizeof(size_t), ucp_tag, &send_param);
+    if (UCS_PTR_IS_ERR(econtext->client->bootstrapping.addr_size_request))
+    {
+        ERR_MSG("ucp_tag_recv_nbx() failed: %s", UCS_PTR_STATUS(econtext->client->bootstrapping.addr_size_request));
+        goto error_out;
+    }
     if (econtext->client->bootstrapping.addr_size_request == NULL)
     {
         DBG("Send for my address length completed right away");
