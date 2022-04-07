@@ -278,7 +278,7 @@ dpu_offload_status_t set_sock_addr(char *addr, uint16_t port, struct sockaddr_st
 }
 
 /**
- * @brief Note: the function assumes the econtext is locked before it is invoked
+ * @brief Note: the function assumes the econtext is NOT locked before it is invoked
  *
  * @param econtext
  * @param client_addr
@@ -291,6 +291,7 @@ static dpu_offload_status_t oob_server_accept(execution_context_t *econtext, cha
     int optval = 1;
     int rc;
 
+    ECONTEXT_LOCK(econtext);
     uint16_t server_port = econtext->server->conn_params.port;
 
     if (econtext->server->conn_data.oob.listenfd == -1)
@@ -314,15 +315,19 @@ static dpu_offload_status_t oob_server_accept(execution_context_t *econtext, cha
         DBG("Accepting connection on port %" PRIu16 "...", server_port);
         struct sockaddr_in addr;
         int addr_len = sizeof(client_addr);
+        ECONTEXT_UNLOCK(econtext);
         accept_sock = accept(econtext->server->conn_data.oob.listenfd, (struct sockaddr *)&addr, &addr_len);
+        ECONTEXT_LOCK(econtext);
         econtext->server->conn_data.oob.sock = accept_sock;
         struct in_addr ipAddr = addr.sin_addr;
         inet_ntop(AF_INET, &ipAddr, client_addr, INET_ADDRSTRLEN);
         DBG("Connection accepted from %s on fd=%d", client_addr, econtext->server->conn_data.oob.sock);
     }
+    ECONTEXT_UNLOCK(econtext);
     return DO_SUCCESS;
 
 error_out:
+    ECONTEXT_UNLOCK(econtext);
     return DO_ERROR;
 }
 
@@ -771,7 +776,9 @@ static void progress_servers(offloading_engine_t *engine)
     {
         execution_context_t *s_econtext = engine->servers[s];
         if (s_econtext != NULL)
+        {
             s_econtext->progress(s_econtext);
+        }
     }
 }
 
@@ -788,6 +795,7 @@ dpu_offload_status_t offload_engine_progress(offloading_engine_t *engine)
             int initial_state = c_econtext->client->bootstrapping.phase;
             if (c_econtext != NULL)
             {
+                DBG("Progressing my client #%ld", c);
                 c_econtext->progress(c_econtext);
             }
             int new_state = c_econtext->client->bootstrapping.phase;
@@ -978,6 +986,7 @@ static void execution_context_progress(execution_context_t *ctx)
             if (client_info == NULL)
             {
                 idx++;
+                i++;
                 continue;
             }
 
@@ -985,7 +994,6 @@ static void execution_context_progress(execution_context_t *ctx)
             if (client_info->bootstrapping.phase == OOB_CONNECT_DONE)
             {
                 dpu_offload_status_t rc;
-                i++;
                 if (client_info->bootstrapping.addr_size_ctx.complete == false && client_info->bootstrapping.addr_size_request == NULL)
                 {
                     DBG("UCX level bootstrap - step 1 - Getting address size");
@@ -1110,6 +1118,7 @@ static void execution_context_progress(execution_context_t *ctx)
                 }
             }
             idx++;
+            i++;
         }
     }
     else
@@ -1532,10 +1541,10 @@ static inline uint64_t generate_unique_client_id(execution_context_t *econtext)
 static dpu_offload_status_t oob_server_listen(execution_context_t *econtext)
 {
     /* OOB connection establishment */
-    ECONTEXT_LOCK(econtext);
     char client_addr[INET_ADDRSTRLEN];
     dpu_offload_status_t rc = oob_server_accept(econtext, client_addr);
     CHECK_ERR_RETURN((rc), DO_ERROR, "oob_server_accept() failed");
+    ECONTEXT_LOCK(econtext);
     DBG("Sending my worker's data...\n");
     ssize_t size_sent = send(econtext->server->conn_data.oob.sock, &(econtext->server->conn_data.oob.local_addr_len), sizeof(econtext->server->conn_data.oob.local_addr_len), 0);
     DBG("Addr length send (len: %ld)", size_sent);
