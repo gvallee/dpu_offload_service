@@ -736,7 +736,7 @@ static dpu_offload_status_t client_ucx_bootstrap_step1(execution_context_t *econ
 
     /* 1. Send the address size */
     ucp_tag_t ucp_tag = MAKE_SEND_TAG(econtext->client->conn_data.oob.tag, 0, 0, 0, 0);
-    DBG("Tag: %d\n", econtext->server->conn_data.oob.tag);
+    DBG("Tag: %d\n", econtext->client->conn_data.oob.tag);
     econtext->client->bootstrapping.addr_size_request = ucp_tag_send_nbx(econtext->client->server_ep, &(econtext->client->conn_data.oob.local_addr_len), sizeof(size_t), ucp_tag, &send_param);
     if (UCS_PTR_IS_ERR(econtext->client->bootstrapping.addr_size_request))
     {
