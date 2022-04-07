@@ -661,7 +661,7 @@ static dpu_offload_status_t client_ucx_boostrap_step3(execution_context_t *econt
     if (UCS_PTR_IS_ERR(econtext->client->bootstrapping.rank_request))
     {
         ERR_MSG("ucp_tag_send_nbx() failed: %s", UCS_PTR_STATUS(econtext->client->bootstrapping.rank_request));
-        goto error_out;
+        return DO_ERROR;
     }
     if (econtext->client->bootstrapping.rank_request == NULL)
     {
@@ -695,7 +695,7 @@ static dpu_offload_state_t client_ucx_bootstrap_step2(execution_context_t *econt
     if (UCS_PTR_IS_ERR(econtext->client->bootstrapping.addr_request))
     {
         ERR_MSG("ucp_tag_send_nbx() failed: %s", UCS_PTR_STATUS(econtext->client->bootstrapping.addr_request));
-        goto error_out;
+        return DO_ERROR;
     }
     if (econtext->client->bootstrapping.addr_request == NULL)
     {
