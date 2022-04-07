@@ -803,7 +803,7 @@ dpu_offload_status_t offload_engine_progress(offloading_engine_t *engine)
         ECONTEXT_LOCK(engine->default_econtext);
         ucp_worker_h worker = GET_WORKER(engine->default_econtext);
         ECONTEXT_UNLOCK(engine->default_econtext);
-        ucp_worker_progress(engine->default_econtext);
+        ucp_worker_progress(worker);
     }
     bool on_dpu = engine->on_dpu;
     ENGINE_UNLOCK(engine);
