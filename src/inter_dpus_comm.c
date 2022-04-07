@@ -195,6 +195,7 @@ dpu_offload_status_t connect_to_remote_dpu(remote_dpu_info_t *remote_dpu_info)
     ENGINE_LOCK(offload_engine);
     offload_engine->inter_dpus_clients[offload_engine->num_inter_dpus_clients].client_econtext = client;
     offload_engine->inter_dpus_clients[offload_engine->num_inter_dpus_clients].remote_dpu_info = remote_dpu_info;
+    offload_engine->num_inter_dpus_clients++;
     ENGINE_UNLOCK(offload_engine);
     return DO_SUCCESS;
 }
