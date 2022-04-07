@@ -177,20 +177,11 @@ void connected_to_server_dpu(void *data)
     }
 }
 
-static void *connect_thread(void *arg)
+dpu_offload_status_t connect_to_remote_dpu(remote_dpu_info_t *remote_dpu_info)
 {
-    remote_dpu_info_t *remote_dpu_info = (remote_dpu_info_t *)arg;
-    if (remote_dpu_info == NULL)
-    {
-        ERR_MSG("Remote DPU info is NULL");
-        pthread_exit(NULL);
-    }
+    CHECK_ERR_RETURN((remote_dpu_info == NULL), DO_ERROR, "Remote DPU info is NULL");
     offloading_engine_t *offload_engine = remote_dpu_info->offload_engine;
-    if (offload_engine == NULL)
-    {
-        ERR_MSG("undefined offload_engine");
-        pthread_exit(NULL);
-    }
+    CHECK_ERR_RETURN((offload_engine == NULL), DO_ERROR, "undefined offload_engine");
 
     DBG("connecting to DPU server %s at %s:%d",
         remote_dpu_info->hostname,
@@ -200,31 +191,13 @@ static void *connect_thread(void *arg)
     remote_dpu_info->init_params.proc_info = &invalid_group_rank;
     remote_dpu_info->init_params.connected_cb = connected_to_server_dpu;
     execution_context_t *client = client_init(offload_engine, &(remote_dpu_info->init_params));
-    if (client == NULL)
-    {
-        ERR_MSG("Unable to connect to %s\n", remote_dpu_info->init_params.conn_params->addr_str);
-        pthread_exit(NULL);
-    }
-    DBG("Connection successfully established");
+    CHECK_ERR_RETURN ((client == NULL), DO_ERROR, "Unable to connect to %s\n", remote_dpu_info->init_params.conn_params->addr_str);
     ENGINE_LOCK(offload_engine);
-    offload_engine->inter_dpus_clients[offload_engine->num_inter_dpus_clients] = client;
-    remote_dpu_info_t **list_dpus = (remote_dpu_info_t **)offload_engine->dpus.base;
-    list_dpus[remote_dpu_info->idx]->ep = client->client->server_ep;
-    list_dpus[remote_dpu_info->idx]->econtext = client;
-    list_dpus[remote_dpu_info->idx]->peer_addr = client->client->conn_data.oob.peer_addr;
-    list_dpus[remote_dpu_info->idx]->ucp_worker = GET_WORKER(client);
-    assert(list_dpus[remote_dpu_info->idx]->peer_addr);
-    DBG("-> DPU #%ld: addr=%s, port=%d, ep=%p, econtext=%p",
-        remote_dpu_info->idx,
-        list_dpus[remote_dpu_info->idx]->init_params.conn_params->addr_str,
-        list_dpus[remote_dpu_info->idx]->init_params.conn_params->port,
-        list_dpus[remote_dpu_info->idx]->ep,
-        list_dpus[remote_dpu_info->idx]->econtext);
-
-    if (offload_engine->default_econtext == NULL)
-        offload_engine->default_econtext = client;
-    offload_engine->num_connected_dpus++;
+    offload_engine->inter_dpus_clients[offload_engine->num_inter_dpus_clients].client_econtext = client;
+    offload_engine->inter_dpus_clients[offload_engine->num_inter_dpus_clients].remote_dpu_info = remote_dpu_info;
+    offload_engine->num_inter_dpus_clients++;
     ENGINE_UNLOCK(offload_engine);
+    return DO_SUCCESS;
 }
 
 static dpu_offload_status_t
@@ -234,7 +207,10 @@ connect_to_dpus(offloading_engine_t *offload_engine, dpu_inter_connect_info_t *i
     remote_dpu_info_t *conn_info, *conn_info_next;
     ucs_list_for_each_safe(conn_info, conn_info_next, &(info_connect_to->connect_to), item)
     {
-        int rc = pthread_create(&conn_info->connection_tid, NULL, &connect_thread, conn_info);
+        // Initiate the connection to the remote DPU. This is a non-blocking operation,
+        // meaning there is no guarantee the connection will be fully established when
+        // the function returns
+        dpu_offload_status_t rc = connect_to_remote_dpu(conn_info);
         CHECK_ERR_RETURN((rc), DO_ERROR, "unable to start connection thread");
     }
     return DO_SUCCESS;

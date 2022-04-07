@@ -23,7 +23,8 @@ libdpuoffloaddaemon_la_SOURCES = dpu_offload_service_daemon.c \
                                 dpu_off_mem_mgt.h \
                                 dpu_offload_xgvmi.c \
                                 inter_dpus_comm.c \
-                                dpu_offload_utils.c
+                                dpu_offload_utils.c \
+                                dpu_offload_comms.h
 libdpuoffloaddaemon_la_LDFLAGS = -version-info 0:0:0 
 libdpuoffloaddaemon_la_CFLAGS = -I@top_srcdir@/include
 

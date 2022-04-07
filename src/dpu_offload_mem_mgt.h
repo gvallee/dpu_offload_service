@@ -19,6 +19,22 @@
 #define DEFAULT_NUM_GROUPS (64)
 #define DEFAULT_NUM_RANKS_IN_GROUP (2048)
 
+#if NDEBUG
+#define MALLOC(_size) ({          \
+    void *_ptr = malloc((_size)); \
+    _ptr;                         \
+})
+#else
+#define MALLOC(_size) ({          \
+    void *_ptr = malloc((_size)); \
+    if (_ptr != NULL)             \
+    {                             \
+        memset(_ptr, 0, _size);   \
+    }                             \
+    _ptr;                         \
+})
+#endif // NDEBUG
+
 /* GROUPS_CACHE_INIT initializes the cache that holds information about all the groups */
 #define GROUPS_CACHE_INIT(_cache)                                              \
     do                                                                         \

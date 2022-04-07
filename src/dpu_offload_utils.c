@@ -166,14 +166,17 @@ dpu_offload_status_t exchange_cache(execution_context_t *econtext, offloading_co
     {
         void *req;
         dpu_offload_server_t *server = offload_engine->servers[i]->server;
-        ucp_ep_h dest_ep = server->connected_clients.clients[0].ep;
+        peer_info_t *client_info;
+        DYN_ARRAY_GET_ELT(&(server->connected_clients.clients), 0UL, peer_info_t, client_info);
+        assert(client_info);
+        ucp_ep_h dest_ep = client_info->ep;
         rc = send_cache(econtext, &(offload_engine->procs_cache), dest_ep, meta_evt);
         CHECK_ERR_RETURN((rc), DO_ERROR, "send_cache() failed");
     }
 
     for (i = 0; i < cfg->info_connecting_to.num_connect_to; i++)
-    {
-        dpu_offload_client_t *client = offload_engine->inter_dpus_clients[offload_engine->num_inter_dpus_clients]->client;
+    {        
+        dpu_offload_client_t *client = offload_engine->inter_dpus_clients[offload_engine->num_inter_dpus_clients].client_econtext->client;
         ucp_ep_h dest_ep = client->server_ep;
         rc = send_cache(econtext, &(econtext->engine->procs_cache), dest_ep, meta_evt);
         CHECK_ERR_RETURN((rc), DO_ERROR, "send_cache() failed");
@@ -621,7 +624,7 @@ dpu_offload_status_t find_dpu_config_from_platform_configfile(char *filepath, of
     len = ftell(file);
     fseek(file, 0, SEEK_SET); /* same as rewind(f); */
 
-    char *content = malloc(len + 1);
+    char *content = MALLOC(len + 1);
     fread(content, len, 1, file);
     fclose(file);
     content[len] = '\0';

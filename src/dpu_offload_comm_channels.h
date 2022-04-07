@@ -69,4 +69,26 @@ static dpu_offload_status_t dpu_offload_set_am_recv_handlers(execution_context_t
     return DO_SUCCESS;
 }
 
+static dpu_offload_status_t dpu_offload_reset_am_recv_handlers(execution_context_t *ctx)
+{
+    CHECK_ERR_RETURN((ctx == NULL), DO_ERROR, "undefined context");
+    ucp_worker_h worker = GET_WORKER(ctx);
+    CHECK_ERR_RETURN((worker == NULL), DO_ERROR, "undefined worker");
+
+    ucp_am_handler_param_t term_param;
+    term_param.field_mask = UCP_AM_HANDLER_PARAM_FIELD_ID |
+                            UCP_AM_HANDLER_PARAM_FIELD_CB;
+    term_param.id = AM_TERM_MSG_ID;
+    term_param.cb = NULL;
+    ucs_status_t status = ucp_worker_set_am_recv_handler(worker, &term_param);
+    if (status != UCS_OK)
+    {
+        return DO_ERROR;
+    }
+
+    DBG("AM recv handlers successfully reset");
+
+    return DO_SUCCESS;
+}
+
 #endif // _DPU_OFFLOAD_COMM_CHANNELS_H

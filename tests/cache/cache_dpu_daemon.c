@@ -28,17 +28,17 @@ extern bool is_in_cache(cache_t *cache, int64_t gp_id, int64_t rank_id);
 
 #define TEST_COMPLETED_NOTIF_ID (5000)
 
-#define GET_DEST_EP(_econtext) ({               \
-    ucp_ep_h _dest_ep;                          \
-    if (_econtext->type == CONTEXT_SERVER)      \
-    {                                           \
-        _dest_ep = GET_CLIENT_EP(_econtext, 0); \
-    }                                           \
-    else                                        \
-    {                                           \
-        _dest_ep = GET_SERVER_EP(_econtext);    \
-    }                                           \
-    _dest_ep;                                   \
+#define GET_DEST_EP(_econtext) ({                 \
+    ucp_ep_h _dest_ep;                            \
+    if (_econtext->type == CONTEXT_SERVER)        \
+    {                                             \
+        _dest_ep = GET_CLIENT_EP(_econtext, 0UL); \
+    }                                             \
+    else                                          \
+    {                                             \
+        _dest_ep = GET_SERVER_EP(_econtext);      \
+    }                                             \
+    _dest_ep;                                     \
 })
 
 static int send_term_message(execution_context_t *econtext)

@@ -9,20 +9,20 @@
 
 #include <unistd.h>
 
-#define NUM_TEST_EVTS (100000)
+#define NUM_TEST_EVTS (100)
 #define PINGPONG_NOTIF_ID (5000)
 
-#define GET_DEST_EP(_econtext) ({               \
-    ucp_ep_h _dest_ep;                          \
-    if (_econtext->type == CONTEXT_SERVER)      \
-    {                                           \
-        _dest_ep = GET_CLIENT_EP(_econtext, 0); \
-    }                                           \
-    else                                        \
-    {                                           \
-        _dest_ep = GET_SERVER_EP(_econtext);    \
-    }                                           \
-    _dest_ep;                                   \
+#define GET_DEST_EP(_econtext) ({                 \
+    ucp_ep_h _dest_ep;                            \
+    if (_econtext->type == CONTEXT_SERVER)        \
+    {                                             \
+        _dest_ep = GET_CLIENT_EP(_econtext, 0UL); \
+    }                                             \
+    else                                          \
+    {                                             \
+        _dest_ep = GET_SERVER_EP(_econtext);      \
+    }                                             \
+    _dest_ep;                                     \
 })
 
 #define REGISTER_NOTIF_CALLBACKS(_econtext)                                                                                  \
@@ -93,7 +93,7 @@
             }                                                                                                             \
             if (_rc == EVENT_INPROGRESS)                                                                                  \
                 ucs_list_add_tail(&(_econtext->ongoing_events), &(evts[i]->item));                                        \
-            fprintf(stderr, "Ev #%ld = %p\n", i, evts[i]);                                                                \
+            fprintf(stderr, "Ev #%ld = %p (EMIT_MANY_EVTS_AND_USE_ONGOING_LIST)\n", i, evts[i]);                                                                \
         }                                                                                                                 \
                                                                                                                           \
         while (!ucs_list_is_empty(&(_econtext->ongoing_events)) != 0)                                                     \
@@ -156,7 +156,7 @@
                 fprintf(stderr, "event_channel_emit_with_payload() completed immediately\n");                          \
             else                                                                                                       \
                 fprintf(stderr, "event_channel_emit_with_payload() is in progress\n");                                 \
-            fprintf(stderr, "Ev #%ld = %p\n", i, evts[i]);                                                             \
+            fprintf(stderr, "Ev #%ld = %p (EMIT_MANY_EVS_WITH_EXPLICIT_MGT)\n", i, evts[i]);                                                             \
         }                                                                                                              \
                                                                                                                        \
         /* All the events have been emitted, now waiting for them to complete */                                       \
@@ -164,7 +164,7 @@
         {                                                                                                              \
             while (evts[i] != NULL && !evts[i]->ctx.complete)                                                          \
             {                                                                                                          \
-                fprintf(stderr, "Waiting for event #%ld (%p) to complete\n", i, evts[i]);                              \
+                /*fprintf(stderr, "%s l.%d Waiting for event #%ld (%p) to complete\n", __FILE__, __LINE__, i, evts[i]);*/  \
                 _econtext->progress(_econtext);                                                                        \
             }                                                                                                          \
             fprintf(stderr, "Evt #%ld completed\n", i);                                                                \
