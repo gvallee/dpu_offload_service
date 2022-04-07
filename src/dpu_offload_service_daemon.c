@@ -118,7 +118,7 @@ static inline dpu_offload_status_t oob_server_ucx_client_connection_step1(execut
                                                                     &recv_param);
     if (UCS_PTR_IS_ERR(client_info->bootstrapping.addr_size_request))
     {
-        ERR_MSG("ucp_tag_recv_nbx() failed: %s", UCS_PTR_STATUS(client_info->bootstrapping.addr_size_request));
+        ERR_MSG("ucp_tag_recv_nbx() failed");
         goto error_out;
     }
     if (client_info->bootstrapping.addr_size_request == NULL)
@@ -171,7 +171,7 @@ static inline dpu_offload_status_t oob_server_ucx_client_connection_step2(execut
                                                                &recv_param);
     if (UCS_PTR_IS_ERR(client_info->bootstrapping.addr_request))
     {
-        ERR_MSG("ucp_tag_recv_nbx() failed: %s", UCS_PTR_STATUS(client_info->bootstrapping.addr_request));
+        ERR_MSG("ucp_tag_recv_nbx() failed");
         goto error_out;
     }
     DBG("Recv for client's address successfully posted");
@@ -228,7 +228,7 @@ static inline dpu_offload_status_t oob_server_ucx_client_connection_step3(execut
                                                                &recv_param);
     if (UCS_PTR_IS_ERR(client_info->bootstrapping.rank_request))
     {
-        ERR_MSG("ucp_tag_recv_nbx() failed: %s", UCS_PTR_STATUS(client_info->bootstrapping.rank_request));
+        ERR_MSG("ucp_tag_recv_nbx() failed");
         goto error_out;
     }
     DBG("Receiving rank info (len=%ld, req=%p)", sizeof(rank_info_t), client_info->bootstrapping.rank_request);
@@ -660,7 +660,7 @@ static dpu_offload_status_t client_ucx_boostrap_step3(execution_context_t *econt
                                                                     &send_param);
     if (UCS_PTR_IS_ERR(econtext->client->bootstrapping.rank_request))
     {
-        ERR_MSG("ucp_tag_send_nbx() failed: %s", UCS_PTR_STATUS(econtext->client->bootstrapping.rank_request));
+        ERR_MSG("ucp_tag_send_nbx() failed");
         return DO_ERROR;
     }
     if (econtext->client->bootstrapping.rank_request == NULL)
@@ -694,7 +694,7 @@ static dpu_offload_state_t client_ucx_bootstrap_step2(execution_context_t *econt
                                                                     &send_param);
     if (UCS_PTR_IS_ERR(econtext->client->bootstrapping.addr_request))
     {
-        ERR_MSG("ucp_tag_send_nbx() failed: %s", UCS_PTR_STATUS(econtext->client->bootstrapping.addr_request));
+        ERR_MSG("ucp_tag_send_nbx() failed");
         return DO_ERROR;
     }
     if (econtext->client->bootstrapping.addr_request == NULL)
@@ -740,7 +740,7 @@ static dpu_offload_status_t client_ucx_bootstrap_step1(execution_context_t *econ
     econtext->client->bootstrapping.addr_size_request = ucp_tag_send_nbx(econtext->client->server_ep, &(econtext->client->conn_data.oob.local_addr_len), sizeof(size_t), ucp_tag, &send_param);
     if (UCS_PTR_IS_ERR(econtext->client->bootstrapping.addr_size_request))
     {
-        ERR_MSG("ucp_tag_recv_nbx() failed: %s", UCS_PTR_STATUS(econtext->client->bootstrapping.addr_size_request));
+        ERR_MSG("ucp_tag_recv_nbx() failed");
         goto error_out;
     }
     if (econtext->client->bootstrapping.addr_size_request == NULL)
