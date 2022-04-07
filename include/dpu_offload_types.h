@@ -857,40 +857,36 @@ typedef struct dpu_offload_event
  * only once and reuse as events are reused. However, it is initialized when the
  * dynamic list is initialized
  */
-#define RESET_EVENT(__ev)                       \
-    do                                          \
-    {                                           \
-        fprintf(stderr, "Reseting event...\n"); \
-        (__ev)->context = NULL;                 \
-        (__ev)->payload = NULL;                 \
-        (__ev)->event_system = NULL;            \
-        (__ev)->req = NULL;                     \
-        (__ev)->ctx.complete = 0;               \
-        (__ev)->ctx.hdr.type = 0;               \
-        (__ev)->ctx.hdr.id = 0;                 \
-        (__ev)->ctx.hdr.payload_size = 0;       \
-        (__ev)->manage_payload_buf = false;     \
-        (__ev)->dest_ep = NULL;                 \
-        (__ev)->was_pending = false;            \
-        fprintf(stderr, "Event reset\n");       \
+#define RESET_EVENT(__ev)                   \
+    do                                      \
+    {                                       \
+        (__ev)->context = NULL;             \
+        (__ev)->payload = NULL;             \
+        (__ev)->event_system = NULL;        \
+        (__ev)->req = NULL;                 \
+        (__ev)->ctx.complete = 0;           \
+        (__ev)->ctx.hdr.type = 0;           \
+        (__ev)->ctx.hdr.id = 0;             \
+        (__ev)->ctx.hdr.payload_size = 0;   \
+        (__ev)->manage_payload_buf = false; \
+        (__ev)->dest_ep = NULL;             \
+        (__ev)->was_pending = false;        \
     } while (0)
 
-#define CHECK_EVENT(__ev)                                                                                       \
-    do                                                                                                          \
-    {                                                                                                           \
-        fprintf(stderr, "Checking event...\n");                                                                 \
-        assert((__ev)->ctx.complete == 0);                                                                      \
-        assert((__ev)->ctx.hdr.payload_size == 0);                                                              \
-        assert((__ev)->ctx.hdr.type == 0);                                                                      \
-        assert((__ev)->ctx.hdr.id == 0);                                                                        \
-        assert((__ev)->manage_payload_buf == false);                                                            \
-        assert((__ev)->dest_ep == NULL);                                                                        \
-        assert((__ev)->was_pending == false);                                                                   \
-        fprintf(stderr, "Event %p: sub-events list initialized? %d\n", (__ev), (__ev)->sub_events_initialized); \
-        if ((__ev)->sub_events_initialized)                                                                     \
-        {                                                                                                       \
-            assert(ucs_list_is_empty(&((__ev)->sub_events)));                                                   \
-        }                                                                                                       \
+#define CHECK_EVENT(__ev)                                     \
+    do                                                        \
+    {                                                         \
+        assert((__ev)->ctx.complete == 0);                    \
+        assert((__ev)->ctx.hdr.payload_size == 0);            \
+        assert((__ev)->ctx.hdr.type == 0);                    \
+        assert((__ev)->ctx.hdr.id == 0);                      \
+        assert((__ev)->manage_payload_buf == false);          \
+        assert((__ev)->dest_ep == NULL);                      \
+        assert((__ev)->was_pending == false);                 \
+        if ((__ev)->sub_events_initialized)                   \
+        {                                                     \
+            assert(ucs_list_is_empty(&((__ev)->sub_events))); \
+        }                                                     \
     } while (0)
 
 typedef struct dpu_offload_event_info
