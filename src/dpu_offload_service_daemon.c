@@ -613,6 +613,12 @@ static void oob_send_cb(void *request, ucs_status_t status, void *ctx)
     DBG("send handler called for \"%s\" with status %d (%s)", str, status, ucs_status_string(status));
 }
 
+static void ucx_client_boostrap_send_cb(void *request, ucs_status_t status, void *user_data)
+{  
+    am_req_t *ctx = (am_req_t *)user_data;
+    ctx->complete = 1;
+}
+
 static dpu_offload_status_t client_ucx_boostrap_step3(execution_context_t *econtext)
 {
     ECONTEXT_LOCK(econtext);
@@ -624,9 +630,9 @@ static dpu_offload_status_t client_ucx_boostrap_step3(execution_context_t *econt
     send_param.op_attr_mask = UCP_OP_ATTR_FIELD_CALLBACK |
                               UCP_OP_ATTR_FIELD_DATATYPE |
                               UCP_OP_ATTR_FIELD_USER_DATA;
-    send_param.cb.send = oob_send_cb;
+    send_param.cb.send = ucx_client_boostrap_send_cb;
     send_param.datatype = ucp_dt_make_contig(1);
-    send_param.user_data = NULL;
+    send_param.user_data = &(econtext->client->bootstrapping.rank_ctx);
     ucp_tag_t ucp_tag = MAKE_SEND_TAG(econtext->client->conn_data.oob.tag, 0, 0, 0, 0);
     econtext->client->bootstrapping.rank_request = ucp_tag_send_nbx(econtext->client->server_ep,
                                                                     &(econtext->rank),
@@ -652,9 +658,9 @@ static dpu_offload_state_t client_ucx_bootstrap_step2(execution_context_t *econt
     send_param.op_attr_mask = UCP_OP_ATTR_FIELD_CALLBACK |
                               UCP_OP_ATTR_FIELD_DATATYPE |
                               UCP_OP_ATTR_FIELD_USER_DATA;
-    send_param.cb.send = oob_send_cb;
+    send_param.cb.send = ucx_client_boostrap_send_cb;
     send_param.datatype = ucp_dt_make_contig(1);
-    send_param.user_data = (void *)econtext->client->conn_data.oob.addr_msg_str;
+    send_param.user_data = &(econtext->client->bootstrapping.addr_ctx);
     ucp_tag_t ucp_tag = MAKE_SEND_TAG(econtext->client->conn_data.oob.tag, 0, 0, 0, 0);
     econtext->client->bootstrapping.addr_request = ucp_tag_send_nbx(econtext->client->server_ep,
                                                                     econtext->client->conn_data.oob.local_addr,
@@ -694,9 +700,9 @@ static dpu_offload_status_t client_ucx_bootstrap_step1(execution_context_t *econ
     send_param.op_attr_mask = UCP_OP_ATTR_FIELD_CALLBACK |
                               UCP_OP_ATTR_FIELD_DATATYPE |
                               UCP_OP_ATTR_FIELD_USER_DATA;
-    send_param.cb.send = oob_send_cb;
+    send_param.cb.send = ucx_client_boostrap_send_cb;
     send_param.datatype = ucp_dt_make_contig(1);
-    send_param.user_data = (void *)econtext->client->conn_data.oob.addr_msg_str;
+    send_param.user_data = &(econtext->client->bootstrapping.addr_size_ctx);
 
     /* 1. Send the address size */
     ucp_tag_t ucp_tag = MAKE_SEND_TAG(econtext->client->conn_data.oob.tag, 0, 0, 0, 0);
@@ -795,7 +801,6 @@ dpu_offload_status_t offload_engine_progress(offloading_engine_t *engine)
             int initial_state = c_econtext->client->bootstrapping.phase;
             if (c_econtext != NULL)
             {
-                DBG("Progressing my client #%ld", c);
                 c_econtext->progress(c_econtext);
             }
             int new_state = c_econtext->client->bootstrapping.phase;
