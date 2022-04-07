@@ -375,6 +375,7 @@ int tag_send_event_msg(dpu_offload_event_t **event)
     /* 1. Send the hdr */
     ucp_tag_t hdr_ucp_tag = MAKE_SEND_TAG(AM_EVENT_MSG_HDR_ID, myid, 0, 0, 0);
     struct ucx_context *hdr_request = NULL;
+    assert((*event)->dest_ep);
     (*event)->hdr_request = ucp_tag_send_nbx((*event)->dest_ep, &((*event)->ctx.hdr), sizeof(am_header_t), hdr_ucp_tag, &send_param);
 
     /* 2. Send the payload */
@@ -400,25 +401,24 @@ int tag_send_event_msg(dpu_offload_event_t **event)
 int event_channel_emit_with_payload(dpu_offload_event_t **event, uint64_t my_id, uint64_t type, ucp_ep_h dest_ep, void *ctx, void *payload, size_t payload_size)
 {
     assert(event);
-    dpu_offload_event_t *ev = *event;
-    assert(ev);
+    assert(dest_ep);
+    assert((*event));
     DBG("Sending notification of type %" PRIu64 " (client_id=%" PRIu64 ")", type, my_id);
-    ev->ctx.complete = 0;
-    ev->ctx.hdr.type = type;
-    ev->ctx.hdr.id = my_id;
-    ev->ctx.hdr.payload_size = payload_size;
-    ev->user_context = ctx;
-    ev->payload = payload;
-    ev->dest_ep = dest_ep;
+    (*event)->ctx.complete = 0;
+    (*event)->ctx.hdr.type = type;
+    (*event)->ctx.hdr.id = my_id;
+    (*event)->ctx.hdr.payload_size = payload_size;
+    (*event)->user_context = ctx;
+    (*event)->payload = payload;
+    (*event)->dest_ep = dest_ep;
 
-    if (ev->event_system->num_pending_sends >= ev->event_system->max_pending_emits)
+    if ((*event)->event_system->num_pending_sends >= (*event)->event_system->max_pending_emits)
     {
         DBG("Queuing event for later emission");
-        assert(0);
-        assert(ev->manage_payload_buf == false);
-        SYS_EVENT_LOCK(ev->event_system);
-        ucs_list_add_tail(&(ev->event_system->pending_emits), &(ev->item));
-        SYS_EVENT_UNLOCK(ev->event_system);
+        assert((*event)->manage_payload_buf == false);
+        SYS_EVENT_LOCK((*event)->event_system);
+        ucs_list_add_tail(&((*event)->event_system->pending_emits), &((*event)->item));
+        SYS_EVENT_UNLOCK((*event)->event_system);
         return EVENT_INPROGRESS;
     }
 
