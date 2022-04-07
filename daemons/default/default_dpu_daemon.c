@@ -77,7 +77,7 @@ int main(int argc, char **argv)
 
     while(!service_server->server->done)
     {
-        ucp_worker_progress(GET_WORKER(service_server));
+        lib_progress(service_server);
     }
 
     free(server_params.addr_str);

@@ -764,13 +764,24 @@ dpu_offload_status_t finalize_connection_to_remote_dpu(offloading_engine_t *offl
     return DO_SUCCESS;
 }
 
+static void progress_servers(offloading_engine_t *engine)
+{
+    size_t s;
+    for (s = 0; s < engine->num_servers; s++)
+    {
+        execution_context_t *s_econtext = engine->servers[s];
+        if (s_econtext != NULL)
+            s_econtext->progress(s_econtext);
+    }
+}
+
 dpu_offload_status_t offload_engine_progress(offloading_engine_t *engine)
 {
     ENGINE_LOCK(engine);
     if (engine->on_dpu)
     {
         // Progress connections between DPUs when necessary
-        size_t c;
+        size_t c, s;
         for (c = 0; c < engine->num_inter_dpus_clients; c++)
         {
             execution_context_t *c_econtext = engine->inter_dpus_clients[c].client_econtext;
@@ -788,6 +799,7 @@ dpu_offload_status_t offload_engine_progress(offloading_engine_t *engine)
                 CHECK_ERR_RETURN((rc), DO_ERROR, "finalize_connection_to_remote_dpu() failed");
             }
         }
+        progress_servers(engine);
 
         // Progress all the execution context in the engine
         size_t i;
@@ -810,13 +822,7 @@ dpu_offload_status_t offload_engine_progress(offloading_engine_t *engine)
         {
             engine->client->progress(engine->client);
         }
-        size_t s;
-        for (s = 0; s < engine->num_servers; s++)
-        {
-            execution_context_t *s_econtext = engine->servers[s];
-            if (s_econtext != NULL)
-                s_econtext->progress(s_econtext);
-        }
+        progress_servers(engine);
     }
     ENGINE_UNLOCK(engine);
     return DO_SUCCESS;
@@ -1187,7 +1193,7 @@ static void execution_context_progress(execution_context_t *ctx)
         if (event_completed(ev))
         {
             ucs_list_del(&(ev->item));
-            //DBG("event %p completed and removed from ongoing events list", ev);
+            // DBG("event %p completed and removed from ongoing events list", ev);
             if (ev->req)
             {
                 ucp_request_free(ev->req);

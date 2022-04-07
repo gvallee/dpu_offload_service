@@ -74,7 +74,7 @@ int main(int argc, char **argv)
     fprintf(stderr, "%s: progressing...\n", argv[0]);
     while (!EXECUTION_CONTEXT_DONE(service_server))
     {
-        service_server->progress(service_server);
+        lib_progress(service_server);
     }
 
     fprintf(stderr, "%s: server done, finalizing...\n", argv[0]);
