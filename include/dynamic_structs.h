@@ -153,7 +153,6 @@ typedef struct dyn_list
         (_dyn_list) = malloc(sizeof(dyn_list_t));                                             \
         if ((_dyn_list) != NULL)                                                              \
         {                                                                                     \
-            fprintf(stderr, "Allocating mem chunk dynamic array for list %p\n", (_dyn_list)); \
             DYN_ARRAY_ALLOC(&((_dyn_list)->mem_chunks), DEFAULT_MEM_CHUNKS, mem_chunk_t);     \
             (_dyn_list)->num_mem_chunks = 0;                                                  \
             (_dyn_list)->num_elts = 0;                                                        \
@@ -175,7 +174,6 @@ typedef struct dyn_list
         (_dyn_list) = malloc(sizeof(dyn_list_t));                                             \
         if ((_dyn_list) != NULL)                                                              \
         {                                                                                     \
-            fprintf(stderr, "Allocating mem chunk dynamic array for list %p\n", (_dyn_list)); \
             DYN_ARRAY_ALLOC(&((_dyn_list)->mem_chunks), DEFAULT_MEM_CHUNKS, mem_chunk_t);     \
             (_dyn_list)->num_mem_chunks = 0;                                                  \
             (_dyn_list)->num_elts = 0;                                                        \
