@@ -826,6 +826,7 @@ dpu_offload_status_t offload_engine_progress(offloading_engine_t *engine)
     }
     else
     {
+        DBG("Not on DPU");
         if (engine->client != NULL)
         {
             engine->client->progress(engine->client);
@@ -1634,6 +1635,7 @@ static dpu_offload_status_t start_server(execution_context_t *econtext)
     int rc = pthread_create(&econtext->server->connect_tid, NULL, &connect_thread, econtext);
     CHECK_ERR_RETURN((rc), DO_ERROR, "unable to start connection thread");
 
+#if 0
     // Wait for at least one client to connect
     DBG("Waiting for at least one client to connect...");
     bool client_connected = false;
@@ -1644,6 +1646,7 @@ static dpu_offload_status_t start_server(execution_context_t *econtext)
             client_connected++;
     }
     DBG("At least one client is now connected");
+#endif
 
     return DO_SUCCESS;
 }
