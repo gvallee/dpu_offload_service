@@ -714,7 +714,7 @@ typedef enum
     BOOTSTRAP_NOT_INITIATED = 0,
     OOB_CONNECT_DONE,
     UCX_CONNECT_DONE,
-    BOOTSTAP_DONE,
+    BOOTSTRAP_DONE,
 } bootstrap_phase_t;
 
 /**

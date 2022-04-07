@@ -377,6 +377,7 @@ int tag_send_event_msg(dpu_offload_event_t **event)
     struct ucx_context *hdr_request = NULL;
     assert((*event)->dest_ep);
     (*event)->hdr_request = ucp_tag_send_nbx((*event)->dest_ep, &((*event)->ctx.hdr), sizeof(am_header_t), hdr_ucp_tag, &send_param);
+    DBG("event send posted (hdr)");
 
     /* 2. Send the payload */
     if ((*event)->ctx.hdr.payload_size > 0)
@@ -384,10 +385,12 @@ int tag_send_event_msg(dpu_offload_event_t **event)
         ucp_tag_t payload_ucp_tag = MAKE_SEND_TAG(AM_EVENT_MSG_ID, myid, 0, 0, 0);
         struct ucx_context *payload_request = NULL;
         (*event)->payload_request = ucp_tag_send_nbx((*event)->dest_ep, (*event)->payload, (*event)->ctx.hdr.payload_size, payload_ucp_tag, &send_param);
+        DBG("event send posted (payload)");
     }
 
     if ((*event)->hdr_request == NULL && (*event)->payload_request == NULL)
     {
+        DBG("event send immediately completed");
         (*event)->ctx.complete = 1;
         (*event)->was_pending = false;
         dpu_offload_status_t rc = event_return(event);
@@ -403,7 +406,7 @@ int event_channel_emit_with_payload(dpu_offload_event_t **event, uint64_t my_id,
     assert(event);
     assert(dest_ep);
     assert((*event));
-    DBG("Sending notification of type %" PRIu64 " (client_id=%" PRIu64 ")", type, my_id);
+    DBG("Sending notification of type %" PRIu64 " (my_id=%" PRIu64 ")", type, my_id);
     (*event)->ctx.complete = 0;
     (*event)->ctx.hdr.type = type;
     (*event)->ctx.hdr.id = my_id;

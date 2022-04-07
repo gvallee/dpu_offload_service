@@ -814,7 +814,7 @@ dpu_offload_status_t offload_engine_progress(offloading_engine_t *engine)
                 ECONTEXT_LOCK(c_econtext);
             }
             int new_state = c_econtext->client->bootstrapping.phase;
-            if (initial_state != BOOTSTAP_DONE && new_state == BOOTSTAP_DONE)
+            if (initial_state != BOOTSTRAP_DONE && new_state == BOOTSTRAP_DONE)
             {
                 remote_dpu_info_t *remote_dpu_info = NULL;
                 DBG("DPU client #%ld just finished its connection to a server, updating data", c);
@@ -915,7 +915,7 @@ static void progress_event_recv(execution_context_t *econtext)
         {
             peer_info_t *client_info;
             DYN_ARRAY_GET_ELT(&(econtext->server->connected_clients.clients), idx, peer_info_t, client_info);
-            if (client_info == NULL || client_info->bootstrapping.phase != BOOTSTAP_DONE)
+            if (client_info == NULL || client_info->bootstrapping.phase != BOOTSTRAP_DONE)
             {
                 DBG("Client #%ld not fully bootstrapped", idx);
                 idx++;
@@ -1114,7 +1114,7 @@ static void execution_context_progress(execution_context_t *ctx)
                         }
                     }
 
-                    client_info->bootstrapping.phase = BOOTSTAP_DONE;
+                    client_info->bootstrapping.phase = BOOTSTRAP_DONE;
                     ctx->server->connected_clients.num_ongoing_connections--;
                     ctx->server->connected_clients.num_connected_clients++;
                     DBG("****** Bootstrapping of client #%ld now completed, %ld are now connected",
@@ -1195,7 +1195,7 @@ static void execution_context_progress(execution_context_t *ctx)
                 ctx->client->bootstrapping.addr_request == NULL &&
                 ctx->client->bootstrapping.rank_request == NULL)
             {
-                ctx->client->bootstrapping.phase = BOOTSTAP_DONE;
+                ctx->client->bootstrapping.phase = BOOTSTRAP_DONE;
                 if (ctx->client->connected_cb != NULL)
                 {
                     DBG("Successfully connected, invoking connected callback");

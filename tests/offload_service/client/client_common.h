@@ -92,7 +92,7 @@ static inline int run_client_test(ucp_worker_h worker, ucp_context_h ucp_context
     do
     {
         client->progress(client);
-    } while (client->client->bootstrapping.phase != BOOTSTAP_DONE);
+    } while (client->client->bootstrapping.phase != BOOTSTRAP_DONE);
     
 
     fprintf(stderr, "Client initialization all done\n");
