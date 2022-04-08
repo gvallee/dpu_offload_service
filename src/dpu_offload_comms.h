@@ -104,14 +104,14 @@ static int handle_notif_msg(execution_context_t *econtext, am_header_t *hdr, siz
     DBG("econtext = %p", econtext);
     assert(econtext->event_channels);
     SYS_EVENT_LOCK(econtext->event_channels);
-    notification_callback_entry_t *list_callbacks = (notification_callback_entry_t *)econtext->event_channels->notification_callbacks.base;
-    assert(list_callbacks);
-    DBG("Notification of type %" PRIu64 " received, dispatching...", hdr->type);
     assert(hdr->type < econtext->event_channels->notification_callbacks.num_elts);
-    if (list_callbacks[hdr->type].set == false)
+    notification_callback_entry_t *entry;
+    DYN_ARRAY_GET_ELT(&(econtext->event_channels->notification_callbacks), hdr->type, notification_callback_entry_t, entry);
+    DBG("Notification of type %" PRIu64 " received, dispatching...", hdr->type);
+    if (entry->set == false)
     {
         pending_notification_t *pending_notif;
-        DBG("callback not available for %" PRIu64, hdr->type);
+        DBG("callback not available for %" PRIu64 " on event system %p", hdr->type);
         DYN_LIST_GET(econtext->event_channels->free_pending_notifications, pending_notification_t, item, pending_notif);
         CHECK_ERR_RETURN((pending_notif == NULL), UCS_ERR_NO_MESSAGE, "unable to get pending notification object");
         RESET_PENDING_NOTIF(pending_notif);
@@ -145,7 +145,7 @@ static int handle_notif_msg(execution_context_t *econtext, am_header_t *hdr, siz
         return UCS_OK;
     }
 
-    notification_cb cb = list_callbacks[hdr->type].cb;
+    notification_cb cb = entry->cb;
     CHECK_ERR_GOTO((cb == NULL), error_out, "Callback is undefined");
     struct dpu_offload_ev_sys *ev_sys = EV_SYS(econtext);
     // Callbacks are responsible for handling any necessary locking

@@ -1367,7 +1367,7 @@ execution_context_t *client_init(offloading_engine_t *offload_engine, init_param
     rc = client_init_context(ctx, init_params);
     CHECK_ERR_GOTO((rc), error_out, "init_client_context() failed");
     CHECK_ERR_GOTO((ctx->client == NULL), error_out, "client handle is undefined");
-    DBG("client context successfully initialized");
+    DBG("client context successfully initialized (econtext=%p)", ctx);
 
     rc = event_channels_init(ctx);
     CHECK_ERR_GOTO((rc), error_out, "event_channel_init() failed");

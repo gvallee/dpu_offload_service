@@ -205,7 +205,6 @@ dpu_offload_status_t event_channel_register(dpu_offload_ev_sys_t *ev_sys, uint64
 {
     CHECK_ERR_RETURN((cb == NULL), DO_ERROR, "Undefined callback");
     CHECK_ERR_RETURN((ev_sys == NULL), DO_ERROR, "undefined event system");
-    notification_callback_entry_t *list_callbacks = (notification_callback_entry_t *)ev_sys->notification_callbacks.base;
     notification_callback_entry_t *entry;
     DYN_ARRAY_GET_ELT(&(ev_sys->notification_callbacks), type, notification_callback_entry_t, entry);
     CHECK_ERR_RETURN((entry == NULL), DO_ERROR, "unable to get callback %ld", type);
@@ -214,6 +213,7 @@ dpu_offload_status_t event_channel_register(dpu_offload_ev_sys_t *ev_sys, uint64
     entry->cb = cb;
     entry->set = true;
     entry->ev_sys = (struct dpu_offload_ev_sys *)ev_sys;
+    DBG("Callback for notification of type %"PRIu64" is now registered on event system %p", type, ev_sys);
 
     /* check for any pending notification that would match */
     pending_notification_t *pending_notif, *next_pending_notif;
