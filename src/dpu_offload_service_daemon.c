@@ -1849,7 +1849,7 @@ execution_context_t *server_init(offloading_engine_t *offloading_engine, init_pa
     rc = server_init_context(execution_context, init_params);
     CHECK_ERR_GOTO((rc), error_out, "server_init_context() failed");
     CHECK_ERR_GOTO((execution_context->server == NULL), error_out, "undefined server handle");
-    DBG("server handle %p successfully created (worker=%p, econtext=%p, scope_id=%p)",
+    DBG("server handle %p successfully created (worker=%p, econtext=%p, scope_id=%u)",
         execution_context->server,
         GET_WORKER(execution_context),
         execution_context,

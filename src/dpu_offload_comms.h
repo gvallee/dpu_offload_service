@@ -223,7 +223,7 @@ static void post_recv_for_notif_payload(hdr_notif_req_t *ctx, execution_context_
         ctx->payload_ctx.recv_params.user_data = ctx;
         ctx->payload_ctx.recv_params.cb.recv = notif_payload_recv_handler;
         MAKE_RECV_TAG(payload_ucp_tag, payload_ucp_tag_mask, AM_EVENT_MSG_ID, peer_id, 0, econtext->scope_id, 0);
-        DBG("Tag: %ld; scope_id: %d", AM_EVENT_MSG_ID, econtext->scope_id);
+        DBG("Tag: %d; scope_id: %u", AM_EVENT_MSG_ID, econtext->scope_id);
         ctx->payload_ctx.req = ucp_tag_recv_nbx(worker,
                                                 ctx->payload_ctx.buffer,
                                                 ctx->hdr.payload_size,
