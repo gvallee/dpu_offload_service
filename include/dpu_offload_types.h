@@ -514,8 +514,18 @@ typedef struct conn_params
  */
 typedef void (*connect_completed_cb)(void *);
 
+typedef enum {
+    SCOPE_HOST_DPU = 0,
+    SCOPE_INTER_DPU,
+} execution_scope_t;
+
 typedef struct init_params
 {
+    // Identifier to know the context, i.e., between DPUs or host-DPU.
+    // This is for instance used to differentiate communications between DPUs
+    // and DPU-host when using the tag send/recv implementation of notifications.
+    execution_scope_t scope_id;
+
     // Parameters specific to the initial connection
     conn_params_t *conn_params;
 
@@ -729,6 +739,11 @@ typedef struct execution_context
 
     // type specifies if the execution context is a server or a client during the bootstrapping process
     int type;
+
+    // Identifier to know the context, i.e., between DPUs or host-DPU.
+    // This is for instance used to differentiate communications between DPUs
+    // and DPU-host when using the tag send/recv implementation of notifications.
+    execution_scope_t scope_id;
 
     // engine is the associated offloading engine
     struct offloading_engine *engine;
