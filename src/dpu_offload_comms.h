@@ -97,6 +97,18 @@
         DBG("Reception of notification for peer %ld is now all set", peer_id);                         \
     } while (0)
 
+/**
+ * @brief Note: the function assumes that:
+ * - the execution context is locked before the function is invoked
+ * - the event system is not locked beffore the function is invoked
+ * 
+ * @param econtext Execution context associated to the event
+ * @param hdr Header of the notification that was received
+ * @param header_length Length of the header
+ * @param data Notification's payload. Can be NULL
+ * @param length Length of the payload; must be zero when data is NULL.
+ * @return int 
+ */
 static int handle_notif_msg(execution_context_t *econtext, am_header_t *hdr, size_t header_length, void *data, size_t length)
 {
     assert(econtext);
@@ -151,7 +163,11 @@ static int handle_notif_msg(execution_context_t *econtext, am_header_t *hdr, siz
     // Callbacks are responsible for handling any necessary locking
     // and can call any event API so we unlock before invoking it.
     SYS_EVENT_UNLOCK(econtext->event_channels);
+    // We unlock the execution context before invoking the callback to limit
+    // the constraints on what can be done in the callback.
+    ECONTEXT_UNLOCK(econtext);
     cb(ev_sys, econtext, hdr, header_length, data, length);
+    ECONTEXT_LOCK(econtext);
     return UCS_OK;
 error_out:
     SYS_EVENT_UNLOCK(econtext->event_channels);
@@ -161,9 +177,11 @@ error_out:
 static void notif_payload_recv_handler(void *request, ucs_status_t status, const ucp_tag_recv_info_t *tag_info, void *user_data)
 {
     hdr_notif_req_t *ctx = (hdr_notif_req_t *)user_data;
+    assert(ctx);
+    assert(ctx->econtext);
+    ECONTEXT_LOCK(ctx->econtext);
     DBG("Notification payload received, ctx=%p econtext=%p type=%ld\n", ctx, ctx->econtext, ctx->hdr.type);
     ctx->payload_ctx.complete = 1;
-    assert(ctx->econtext);
 
     // Invoke the associated callback
     handle_notif_msg(ctx->econtext, &(ctx->hdr), sizeof(am_header_t), ctx->payload_ctx.buffer, ctx->hdr.payload_size);
@@ -182,6 +200,7 @@ static void notif_payload_recv_handler(void *request, ucs_status_t status, const
         ucp_request_free(ctx->payload_ctx.req);
         ctx->payload_ctx.req = NULL;
     }
+    ECONTEXT_UNLOCK(ctx->econtext);
 }
 
 static void post_recv_for_notif_payload(hdr_notif_req_t *ctx, execution_context_t *econtext, uint64_t peer_id)
