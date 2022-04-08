@@ -550,15 +550,16 @@ typedef struct init_params
     connect_completed_cb connected_cb;
 } init_params_t;
 
-#define RESET_INIT_PARAMS(_params)      \
-    do                                  \
-    {                                   \
-        (_params)->conn_params = NULL;  \
-        (_params)->proc_info = NULL;    \
-        (_params)->worker = NULL;       \
-        (_params)->ucp_context = NULL;  \
-        (_params)->id_set = false;      \
-        (_params)->connected_cb = NULL; \
+#define RESET_INIT_PARAMS(_params)            \
+    do                                        \
+    {                                         \
+        (_params)->conn_params = NULL;        \
+        (_params)->proc_info = NULL;          \
+        (_params)->worker = NULL;             \
+        (_params)->ucp_context = NULL;        \
+        (_params)->id_set = false;            \
+        (_params)->connected_cb = NULL;       \
+        (_params)->scope_id = SCOPE_HOST_DPU; \
     } while (0)
 
 #define SYS_EVENT_LOCK(_sys_evt)                  \

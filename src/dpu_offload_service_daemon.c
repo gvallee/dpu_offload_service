@@ -100,7 +100,7 @@ static inline dpu_offload_status_t oob_server_ucx_client_connection_step1(execut
     /* 1. Receive the address size */
     size_t client_addr_size = 0;
     ucp_tag_t ucp_tag, ucp_tag_mask;
-    DBG("Tag: %d\n", econtext->server->conn_data.oob.tag);
+    DBG("Posting recv - Tag: %d, scope_id: %d, econtext: %p\n", econtext->server->conn_data.oob.tag, econtext->scope_id, econtext);
     MAKE_RECV_TAG(ucp_tag, ucp_tag_mask, econtext->server->conn_data.oob.tag, 0, 0, econtext->scope_id, 0);
     ucp_request_param_t recv_param;
     recv_param.op_attr_mask = UCP_OP_ATTR_FIELD_CALLBACK |
@@ -161,7 +161,7 @@ static inline dpu_offload_status_t oob_server_ucx_client_connection_step2(execut
     recv_param.datatype = ucp_dt_make_contig(1);
     recv_param.user_data = &(client_info->bootstrapping.addr_ctx);
     recv_param.cb.recv = oob_recv_addr_handler_2;
-    DBG("Tag: %d\n", econtext->server->conn_data.oob.tag);
+    DBG("Tag: %d; scope_id: %d\n", econtext->server->conn_data.oob.tag, econtext->scope_id);
     MAKE_RECV_TAG(ucp_tag, ucp_tag_mask, econtext->server->conn_data.oob.tag, 0, 0, econtext->scope_id, 0);
     client_info->bootstrapping.addr_request = ucp_tag_recv_nbx(GET_WORKER(econtext),
                                                                client_info->peer_addr,
@@ -218,7 +218,7 @@ static inline dpu_offload_status_t oob_server_ucx_client_connection_step3(execut
     recv_param.datatype = ucp_dt_make_contig(1);
     recv_param.user_data = &(client_info->bootstrapping.rank_ctx);
     recv_param.cb.recv = oob_recv_addr_handler_2;
-    DBG("Tag: %d\n", econtext->server->conn_data.oob.tag);
+    DBG("Tag: %d; scope_id: %d\n", econtext->server->conn_data.oob.tag, econtext->scope_id);
     MAKE_RECV_TAG(ucp_tag, ucp_tag_mask, econtext->server->conn_data.oob.tag, 0, 0, econtext->scope_id, 0);
     client_info->bootstrapping.rank_request = ucp_tag_recv_nbx(GET_WORKER(econtext),
                                                                &(client_info->rank_data),
@@ -651,7 +651,7 @@ static dpu_offload_status_t client_ucx_boostrap_step3(execution_context_t *econt
     send_param.cb.send = ucx_client_boostrap_send_cb;
     send_param.datatype = ucp_dt_make_contig(1);
     send_param.user_data = &(econtext->client->bootstrapping.rank_ctx);
-    DBG("Tag: %d\n", econtext->server->conn_data.oob.tag);
+    DBG("Tag: %d; scope_id: %d", econtext->client->conn_data.oob.tag, econtext->scope_id);
     ucp_tag_t ucp_tag = MAKE_SEND_TAG(econtext->client->conn_data.oob.tag, 0, 0, econtext->scope_id, 0);
     econtext->client->bootstrapping.rank_request = ucp_tag_send_nbx(econtext->client->server_ep,
                                                                     &(econtext->rank),
@@ -685,7 +685,7 @@ static dpu_offload_state_t client_ucx_bootstrap_step2(execution_context_t *econt
     send_param.cb.send = ucx_client_boostrap_send_cb;
     send_param.datatype = ucp_dt_make_contig(1);
     send_param.user_data = &(econtext->client->bootstrapping.addr_ctx);
-    DBG("Tag: %d\n", econtext->server->conn_data.oob.tag);
+    DBG("Tag: %d; scope_id: %d\n", econtext->client->conn_data.oob.tag, econtext->scope_id);
     ucp_tag_t ucp_tag = MAKE_SEND_TAG(econtext->client->conn_data.oob.tag, 0, 0, econtext->scope_id, 0);
     econtext->client->bootstrapping.addr_request = ucp_tag_send_nbx(econtext->client->server_ep,
                                                                     econtext->client->conn_data.oob.local_addr,
@@ -736,7 +736,7 @@ static dpu_offload_status_t client_ucx_bootstrap_step1(execution_context_t *econ
 
     /* 1. Send the address size */
     ucp_tag_t ucp_tag = MAKE_SEND_TAG(econtext->client->conn_data.oob.tag, 0, 0, econtext->scope_id, 0);
-    DBG("Tag: %d\n", econtext->client->conn_data.oob.tag);
+    DBG("Tag: %d; scope_id: %d\n", econtext->client->conn_data.oob.tag, econtext->scope_id);
     econtext->client->bootstrapping.addr_size_request = ucp_tag_send_nbx(econtext->client->server_ep, &(econtext->client->conn_data.oob.local_addr_len), sizeof(size_t), ucp_tag, &send_param);
     if (UCS_PTR_IS_ERR(econtext->client->bootstrapping.addr_size_request))
     {
@@ -1843,19 +1843,27 @@ execution_context_t *server_init(offloading_engine_t *offloading_engine, init_pa
     DBG("initializing execution context...");
     dpu_offload_status_t rc = execution_context_init(offloading_engine, CONTEXT_SERVER, &execution_context);
     CHECK_ERR_GOTO((rc), error_out, "execution_context_init() failed");
+    DBG("execution context created (econtext: %p, scope_id: %d)", execution_context, execution_context->scope_id);
 
-    DBG("initializing server context...");
+    DBG("initializing server context for econtext %p (scope_id=%d)...", execution_context, execution_context->scope_id);
     rc = server_init_context(execution_context, init_params);
     CHECK_ERR_GOTO((rc), error_out, "server_init_context() failed");
     CHECK_ERR_GOTO((execution_context->server == NULL), error_out, "undefined server handle");
-    DBG("server handle %p successfully created (worker=%p)", execution_context->server, GET_WORKER(execution_context));
+    DBG("server handle %p successfully created (worker=%p, econtext=%p, scope_id=%p)",
+        execution_context->server,
+        GET_WORKER(execution_context),
+        execution_context,
+        execution_context->scope_id);
     offloading_engine->servers[offloading_engine->num_servers] = execution_context;
     offloading_engine->num_servers++;
 
     rc = event_channels_init(execution_context);
     CHECK_ERR_GOTO((rc), error_out, "event_channel_init() failed");
     CHECK_ERR_GOTO((execution_context->event_channels == NULL), error_out, "event channel handle is undefined");
-    DBG("event channel %p successfully initialized", execution_context->event_channels);
+    DBG("event channel %p successfully initialized (econtext: %p, scope_id: %d)",
+        execution_context->event_channels,
+        execution_context,
+        execution_context->scope_id);
     execution_context->server->event_channels = execution_context->event_channels;
     execution_context->server->event_channels->econtext = (struct execution_context *)execution_context;
 
@@ -1869,7 +1877,11 @@ execution_context_t *server_init(offloading_engine_t *offloading_engine, init_pa
 
 #if !NDEBUG
     if (init_params != NULL && init_params->conn_params != NULL)
-        DBG("Server created on %s:%d\n", init_params->conn_params->addr_str, init_params->conn_params->port);
+        DBG("Server created on %s:%d (econtext: %p, scope_id=%d)",
+            init_params->conn_params->addr_str,
+            init_params->conn_params->port,
+            execution_context,
+            execution_context->scope_id);
 #endif
 
     ECONTEXT_LOCK(execution_context);
