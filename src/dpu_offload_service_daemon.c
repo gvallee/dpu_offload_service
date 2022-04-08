@@ -100,7 +100,7 @@ static inline dpu_offload_status_t oob_server_ucx_client_connection_step1(execut
     /* 1. Receive the address size */
     size_t client_addr_size = 0;
     ucp_tag_t ucp_tag, ucp_tag_mask;
-    DBG("Tag: %d\n", econtext->server->conn_data.oob.tag);
+    DBG("Tag: %d, scope_id: %d\n", econtext->server->conn_data.oob.tag, econtext->scope_id);
     MAKE_RECV_TAG(ucp_tag, ucp_tag_mask, econtext->server->conn_data.oob.tag, 0, 0, econtext->scope_id, 0);
     ucp_request_param_t recv_param;
     recv_param.op_attr_mask = UCP_OP_ATTR_FIELD_CALLBACK |
@@ -161,7 +161,7 @@ static inline dpu_offload_status_t oob_server_ucx_client_connection_step2(execut
     recv_param.datatype = ucp_dt_make_contig(1);
     recv_param.user_data = &(client_info->bootstrapping.addr_ctx);
     recv_param.cb.recv = oob_recv_addr_handler_2;
-    DBG("Tag: %d\n", econtext->server->conn_data.oob.tag);
+    DBG("Tag: %d; scope_id: %d\n", econtext->server->conn_data.oob.tag, econtext->scope_id);
     MAKE_RECV_TAG(ucp_tag, ucp_tag_mask, econtext->server->conn_data.oob.tag, 0, 0, econtext->scope_id, 0);
     client_info->bootstrapping.addr_request = ucp_tag_recv_nbx(GET_WORKER(econtext),
                                                                client_info->peer_addr,
@@ -218,7 +218,7 @@ static inline dpu_offload_status_t oob_server_ucx_client_connection_step3(execut
     recv_param.datatype = ucp_dt_make_contig(1);
     recv_param.user_data = &(client_info->bootstrapping.rank_ctx);
     recv_param.cb.recv = oob_recv_addr_handler_2;
-    DBG("Tag: %d\n", econtext->server->conn_data.oob.tag);
+    DBG("Tag: %d; scope_id: %d\n", econtext->server->conn_data.oob.tag, econtext->scope_id);
     MAKE_RECV_TAG(ucp_tag, ucp_tag_mask, econtext->server->conn_data.oob.tag, 0, 0, econtext->scope_id, 0);
     client_info->bootstrapping.rank_request = ucp_tag_recv_nbx(GET_WORKER(econtext),
                                                                &(client_info->rank_data),
@@ -651,7 +651,7 @@ static dpu_offload_status_t client_ucx_boostrap_step3(execution_context_t *econt
     send_param.cb.send = ucx_client_boostrap_send_cb;
     send_param.datatype = ucp_dt_make_contig(1);
     send_param.user_data = &(econtext->client->bootstrapping.rank_ctx);
-    DBG("Tag: %d\n", econtext->server->conn_data.oob.tag);
+    DBG("Tag: %d; scope_id: %d", econtext->client->conn_data.oob.tag, econtext->scope_id);
     ucp_tag_t ucp_tag = MAKE_SEND_TAG(econtext->client->conn_data.oob.tag, 0, 0, econtext->scope_id, 0);
     econtext->client->bootstrapping.rank_request = ucp_tag_send_nbx(econtext->client->server_ep,
                                                                     &(econtext->rank),
@@ -685,7 +685,7 @@ static dpu_offload_state_t client_ucx_bootstrap_step2(execution_context_t *econt
     send_param.cb.send = ucx_client_boostrap_send_cb;
     send_param.datatype = ucp_dt_make_contig(1);
     send_param.user_data = &(econtext->client->bootstrapping.addr_ctx);
-    DBG("Tag: %d\n", econtext->server->conn_data.oob.tag);
+    DBG("Tag: %d; scope_id: %d\n", econtext->client->conn_data.oob.tag, econtext->scope_id);
     ucp_tag_t ucp_tag = MAKE_SEND_TAG(econtext->client->conn_data.oob.tag, 0, 0, econtext->scope_id, 0);
     econtext->client->bootstrapping.addr_request = ucp_tag_send_nbx(econtext->client->server_ep,
                                                                     econtext->client->conn_data.oob.local_addr,
@@ -736,7 +736,7 @@ static dpu_offload_status_t client_ucx_bootstrap_step1(execution_context_t *econ
 
     /* 1. Send the address size */
     ucp_tag_t ucp_tag = MAKE_SEND_TAG(econtext->client->conn_data.oob.tag, 0, 0, econtext->scope_id, 0);
-    DBG("Tag: %d\n", econtext->client->conn_data.oob.tag);
+    DBG("Tag: %d; scope_id: %d\n", econtext->client->conn_data.oob.tag, econtext->scope_id);
     econtext->client->bootstrapping.addr_size_request = ucp_tag_send_nbx(econtext->client->server_ep, &(econtext->client->conn_data.oob.local_addr_len), sizeof(size_t), ucp_tag, &send_param);
     if (UCS_PTR_IS_ERR(econtext->client->bootstrapping.addr_size_request))
     {
