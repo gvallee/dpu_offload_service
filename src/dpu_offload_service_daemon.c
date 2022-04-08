@@ -100,7 +100,7 @@ static inline dpu_offload_status_t oob_server_ucx_client_connection_step1(execut
     /* 1. Receive the address size */
     size_t client_addr_size = 0;
     ucp_tag_t ucp_tag, ucp_tag_mask;
-    DBG("Tag: %d, scope_id: %d\n", econtext->server->conn_data.oob.tag, econtext->scope_id);
+    DBG("Posting recv - Tag: %d, scope_id: %d, econtext: %p\n", econtext->server->conn_data.oob.tag, econtext->scope_id, econtext);
     MAKE_RECV_TAG(ucp_tag, ucp_tag_mask, econtext->server->conn_data.oob.tag, 0, 0, econtext->scope_id, 0);
     ucp_request_param_t recv_param;
     recv_param.op_attr_mask = UCP_OP_ATTR_FIELD_CALLBACK |
@@ -1843,19 +1843,27 @@ execution_context_t *server_init(offloading_engine_t *offloading_engine, init_pa
     DBG("initializing execution context...");
     dpu_offload_status_t rc = execution_context_init(offloading_engine, CONTEXT_SERVER, &execution_context);
     CHECK_ERR_GOTO((rc), error_out, "execution_context_init() failed");
+    DBG("execution context created (econtext: %p, scope_id: %d)", execution_context, execution_context->scope_id);
 
-    DBG("initializing server context...");
+    DBG("initializing server context for econtext %p (scope_id=%d)...", execution_context, execution_context->scope_id);
     rc = server_init_context(execution_context, init_params);
     CHECK_ERR_GOTO((rc), error_out, "server_init_context() failed");
     CHECK_ERR_GOTO((execution_context->server == NULL), error_out, "undefined server handle");
-    DBG("server handle %p successfully created (worker=%p)", execution_context->server, GET_WORKER(execution_context));
+    DBG("server handle %p successfully created (worker=%p, econtext=%p, scope_id=%p)",
+        execution_context->server,
+        GET_WORKER(execution_context),
+        execution_context,
+        execution_context->scope_id);
     offloading_engine->servers[offloading_engine->num_servers] = execution_context;
     offloading_engine->num_servers++;
 
     rc = event_channels_init(execution_context);
     CHECK_ERR_GOTO((rc), error_out, "event_channel_init() failed");
     CHECK_ERR_GOTO((execution_context->event_channels == NULL), error_out, "event channel handle is undefined");
-    DBG("event channel %p successfully initialized", execution_context->event_channels);
+    DBG("event channel %p successfully initialized (econtext: %p, scope_id: %d)",
+        execution_context->event_channels,
+        execution_context,
+        execution_context->scope_id);
     execution_context->server->event_channels = execution_context->event_channels;
     execution_context->server->event_channels->econtext = (struct execution_context *)execution_context;
 
@@ -1869,7 +1877,11 @@ execution_context_t *server_init(offloading_engine_t *offloading_engine, init_pa
 
 #if !NDEBUG
     if (init_params != NULL && init_params->conn_params != NULL)
-        DBG("Server created on %s:%d\n", init_params->conn_params->addr_str, init_params->conn_params->port);
+        DBG("Server created on %s:%d (econtext: %p, scope_id=%d)",
+            init_params->conn_params->addr_str,
+            init_params->conn_params->port,
+            execution_context,
+            execution_context->scope_id);
 #endif
 
     ECONTEXT_LOCK(execution_context);
