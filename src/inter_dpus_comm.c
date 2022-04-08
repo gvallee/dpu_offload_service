@@ -190,6 +190,7 @@ dpu_offload_status_t connect_to_remote_dpu(remote_dpu_info_t *remote_dpu_info)
     // Inter-DPU connection, no group/rank
     remote_dpu_info->init_params.proc_info = &invalid_group_rank;
     remote_dpu_info->init_params.connected_cb = connected_to_server_dpu;
+    remote_dpu_info->init_params.scope_id = SCOPE_INTER_DPU;
     execution_context_t *client = client_init(offload_engine, &(remote_dpu_info->init_params));
     CHECK_ERR_RETURN ((client == NULL), DO_ERROR, "Unable to connect to %s\n", remote_dpu_info->init_params.conn_params->addr_str);
     ENGINE_LOCK(offload_engine);
@@ -270,6 +271,7 @@ dpu_offload_status_t inter_dpus_connect_mgr(offloading_engine_t *engine, offload
             &(cfg->local_dpu.interdpu_init_params),
             &(cfg->local_dpu.interdpu_init_params.conn_params));
         cfg->local_dpu.interdpu_init_params.connected_cb = client_dpu_connected;
+        cfg->local_dpu.interdpu_init_params.scope_id = SCOPE_INTER_DPU;
         execution_context_t *server = server_init(cfg->offloading_engine, &(cfg->local_dpu.interdpu_init_params));
         CHECK_ERR_RETURN((server == NULL), DO_ERROR, "server_init() failed");
         CHECK_ERR_RETURN((cfg->offloading_engine->num_servers + 1 >= cfg->offloading_engine->num_max_servers),

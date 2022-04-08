@@ -76,25 +76,25 @@
     } while (0)
 
 // PREP_NOTIF_RECV assumes the execution context is locked before being invoked
-#define PREP_NOTIF_RECV(ctx, hdr_recv_param, hdr_ucp_tag, hdr_ucp_tag_mask, worker, peer_id) \
-    do                                                                                       \
-    {                                                                                        \
-        /* Always have a recv posted so we are ready to get a header from the other side. */ \
-        /* Remember we are using one thread per bootstrap client/server. */                  \
-        /* Just to make sure the initial receive will post, we mark the two receives for */  \
-        /* any notifications as completed */                                                 \
-        ctx.complete = true;                                                                 \
-        ctx.payload_ctx.complete = true;                                                     \
-        ctx.recv_peer_id = peer_id;                                                          \
-        hdr_recv_param.op_attr_mask = UCP_OP_ATTR_FIELD_CALLBACK |                           \
-                                      UCP_OP_ATTR_FIELD_DATATYPE |                           \
-                                      UCP_OP_ATTR_FIELD_USER_DATA;                           \
-        hdr_recv_param.datatype = ucp_dt_make_contig(1);                                     \
-        hdr_recv_param.user_data = &ctx;                                                     \
-        hdr_recv_param.cb.recv = notif_hdr_recv_handler;                                     \
-        MAKE_RECV_TAG(hdr_ucp_tag, hdr_ucp_tag_mask, AM_EVENT_MSG_HDR_ID, peer_id, 0, 0, 0); \
-        worker = GET_WORKER(econtext);                                                       \
-        DBG("Reception of notification for peer %ld is now all set", peer_id);               \
+#define PREP_NOTIF_RECV(ctx, hdr_recv_param, hdr_ucp_tag, hdr_ucp_tag_mask, worker, peer_id, scope_id) \
+    do                                                                                                 \
+    {                                                                                                  \
+        /* Always have a recv posted so we are ready to get a header from the other side. */           \
+        /* Remember we are using one thread per bootstrap client/server. */                            \
+        /* Just to make sure the initial receive will post, we mark the two receives for */            \
+        /* any notifications as completed */                                                           \
+        ctx.complete = true;                                                                           \
+        ctx.payload_ctx.complete = true;                                                               \
+        ctx.recv_peer_id = peer_id;                                                                    \
+        hdr_recv_param.op_attr_mask = UCP_OP_ATTR_FIELD_CALLBACK |                                     \
+                                      UCP_OP_ATTR_FIELD_DATATYPE |                                     \
+                                      UCP_OP_ATTR_FIELD_USER_DATA;                                     \
+        hdr_recv_param.datatype = ucp_dt_make_contig(1);                                               \
+        hdr_recv_param.user_data = &ctx;                                                               \
+        hdr_recv_param.cb.recv = notif_hdr_recv_handler;                                               \
+        MAKE_RECV_TAG(hdr_ucp_tag, hdr_ucp_tag_mask, AM_EVENT_MSG_HDR_ID, peer_id, 0, scope_id, 0);    \
+        worker = GET_WORKER(econtext);                                                                 \
+        DBG("Reception of notification for peer %ld is now all set", peer_id);                         \
     } while (0)
 
 static int handle_notif_msg(execution_context_t *econtext, am_header_t *hdr, size_t header_length, void *data, size_t length)
@@ -111,7 +111,7 @@ static int handle_notif_msg(execution_context_t *econtext, am_header_t *hdr, siz
     if (entry->set == false)
     {
         pending_notification_t *pending_notif;
-        DBG("callback not available for %" PRIu64 " on event system %p", hdr->type);
+        DBG("callback not available for %" PRIu64 " on event system %p", hdr->type, econtext->event_channels);
         DYN_LIST_GET(econtext->event_channels->free_pending_notifications, pending_notification_t, item, pending_notif);
         CHECK_ERR_RETURN((pending_notif == NULL), UCS_ERR_NO_MESSAGE, "unable to get pending notification object");
         RESET_PENDING_NOTIF(pending_notif);
@@ -222,7 +222,7 @@ static void post_recv_for_notif_payload(hdr_notif_req_t *ctx, execution_context_
         ctx->payload_ctx.recv_params.datatype = ucp_dt_make_contig(1);
         ctx->payload_ctx.recv_params.user_data = ctx;
         ctx->payload_ctx.recv_params.cb.recv = notif_payload_recv_handler;
-        MAKE_RECV_TAG(payload_ucp_tag, payload_ucp_tag_mask, AM_EVENT_MSG_ID, peer_id, 0, 0, 0);
+        MAKE_RECV_TAG(payload_ucp_tag, payload_ucp_tag_mask, AM_EVENT_MSG_ID, peer_id, 0, econtext->scope_id, 0);
         ctx->payload_ctx.req = ucp_tag_recv_nbx(worker,
                                                 ctx->payload_ctx.buffer,
                                                 ctx->hdr.payload_size,

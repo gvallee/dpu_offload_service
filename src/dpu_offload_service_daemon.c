@@ -101,7 +101,7 @@ static inline dpu_offload_status_t oob_server_ucx_client_connection_step1(execut
     size_t client_addr_size = 0;
     ucp_tag_t ucp_tag, ucp_tag_mask;
     DBG("Tag: %d\n", econtext->server->conn_data.oob.tag);
-    MAKE_RECV_TAG(ucp_tag, ucp_tag_mask, econtext->server->conn_data.oob.tag, 0, 0, 0, 0);
+    MAKE_RECV_TAG(ucp_tag, ucp_tag_mask, econtext->server->conn_data.oob.tag, 0, 0, econtext->scope_id, 0);
     ucp_request_param_t recv_param;
     recv_param.op_attr_mask = UCP_OP_ATTR_FIELD_CALLBACK |
                               UCP_OP_ATTR_FIELD_DATATYPE |
@@ -162,7 +162,7 @@ static inline dpu_offload_status_t oob_server_ucx_client_connection_step2(execut
     recv_param.user_data = &(client_info->bootstrapping.addr_ctx);
     recv_param.cb.recv = oob_recv_addr_handler_2;
     DBG("Tag: %d\n", econtext->server->conn_data.oob.tag);
-    MAKE_RECV_TAG(ucp_tag, ucp_tag_mask, econtext->server->conn_data.oob.tag, 0, 0, 0, 0);
+    MAKE_RECV_TAG(ucp_tag, ucp_tag_mask, econtext->server->conn_data.oob.tag, 0, 0, econtext->scope_id, 0);
     client_info->bootstrapping.addr_request = ucp_tag_recv_nbx(GET_WORKER(econtext),
                                                                client_info->peer_addr,
                                                                client_info->peer_addr_len,
@@ -219,7 +219,7 @@ static inline dpu_offload_status_t oob_server_ucx_client_connection_step3(execut
     recv_param.user_data = &(client_info->bootstrapping.rank_ctx);
     recv_param.cb.recv = oob_recv_addr_handler_2;
     DBG("Tag: %d\n", econtext->server->conn_data.oob.tag);
-    MAKE_RECV_TAG(ucp_tag, ucp_tag_mask, econtext->server->conn_data.oob.tag, 0, 0, 0, 0);
+    MAKE_RECV_TAG(ucp_tag, ucp_tag_mask, econtext->server->conn_data.oob.tag, 0, 0, econtext->scope_id, 0);
     client_info->bootstrapping.rank_request = ucp_tag_recv_nbx(GET_WORKER(econtext),
                                                                &(client_info->rank_data),
                                                                sizeof(rank_info_t),
@@ -652,7 +652,7 @@ static dpu_offload_status_t client_ucx_boostrap_step3(execution_context_t *econt
     send_param.datatype = ucp_dt_make_contig(1);
     send_param.user_data = &(econtext->client->bootstrapping.rank_ctx);
     DBG("Tag: %d\n", econtext->server->conn_data.oob.tag);
-    ucp_tag_t ucp_tag = MAKE_SEND_TAG(econtext->client->conn_data.oob.tag, 0, 0, 0, 0);
+    ucp_tag_t ucp_tag = MAKE_SEND_TAG(econtext->client->conn_data.oob.tag, 0, 0, econtext->scope_id, 0);
     econtext->client->bootstrapping.rank_request = ucp_tag_send_nbx(econtext->client->server_ep,
                                                                     &(econtext->rank),
                                                                     sizeof(rank_info_t),
@@ -686,7 +686,7 @@ static dpu_offload_state_t client_ucx_bootstrap_step2(execution_context_t *econt
     send_param.datatype = ucp_dt_make_contig(1);
     send_param.user_data = &(econtext->client->bootstrapping.addr_ctx);
     DBG("Tag: %d\n", econtext->server->conn_data.oob.tag);
-    ucp_tag_t ucp_tag = MAKE_SEND_TAG(econtext->client->conn_data.oob.tag, 0, 0, 0, 0);
+    ucp_tag_t ucp_tag = MAKE_SEND_TAG(econtext->client->conn_data.oob.tag, 0, 0, econtext->scope_id, 0);
     econtext->client->bootstrapping.addr_request = ucp_tag_send_nbx(econtext->client->server_ep,
                                                                     econtext->client->conn_data.oob.local_addr,
                                                                     econtext->client->conn_data.oob.local_addr_len,
@@ -735,7 +735,7 @@ static dpu_offload_status_t client_ucx_bootstrap_step1(execution_context_t *econ
     send_param.user_data = &(econtext->client->bootstrapping.addr_size_ctx);
 
     /* 1. Send the address size */
-    ucp_tag_t ucp_tag = MAKE_SEND_TAG(econtext->client->conn_data.oob.tag, 0, 0, 0, 0);
+    ucp_tag_t ucp_tag = MAKE_SEND_TAG(econtext->client->conn_data.oob.tag, 0, 0, econtext->scope_id, 0);
     DBG("Tag: %d\n", econtext->client->conn_data.oob.tag);
     econtext->client->bootstrapping.addr_size_request = ucp_tag_send_nbx(econtext->client->server_ep, &(econtext->client->conn_data.oob.local_addr_len), sizeof(size_t), ucp_tag, &send_param);
     if (UCS_PTR_IS_ERR(econtext->client->bootstrapping.addr_size_request))
@@ -978,7 +978,8 @@ static void progress_event_recv(execution_context_t *econtext)
                                 client_info->notif_recv.hdr_ucp_tag,
                                 client_info->notif_recv.hdr_ucp_tag_mask,
                                 worker,
-                                idx);
+                                idx,
+                                econtext->scope_id);
                 client_info->notif_recv.initialized = true;
             }
             /*
@@ -1009,7 +1010,8 @@ static void progress_event_recv(execution_context_t *econtext)
                             econtext->event_channels->notif_recv.hdr_ucp_tag,
                             econtext->event_channels->notif_recv.hdr_ucp_tag_mask,
                             worker,
-                            econtext->client->id);
+                            econtext->client->id,
+                            econtext->scope_id);
             econtext->event_channels->notif_recv.initialized = true;
         }
 
@@ -1303,6 +1305,8 @@ static dpu_offload_status_t execution_context_init(offloading_engine_t *offload_
     ctx->type = type;
     ctx->engine = offload_engine;
     ctx->progress = execution_context_progress;
+    // scope_id is overwritten when the inter-DPU connection manager sets inter-DPU connections
+    ctx->scope_id = SCOPE_HOST_DPU;
     ucs_list_head_init(&(ctx->ongoing_events));
     DYN_LIST_ALLOC(ctx->free_pending_rdv_recv, 32, pending_am_rdv_recv_t, item);
     ucs_list_head_init(&(ctx->pending_rdv_recvs));
@@ -1351,10 +1355,14 @@ execution_context_t *client_init(offloading_engine_t *offload_engine, init_param
     execution_context_t *ctx;
     int rc = execution_context_init(offload_engine, CONTEXT_CLIENT, &ctx);
     CHECK_ERR_GOTO((rc != 0 || ctx == NULL), error_out, "execution_context_init() failed");
-    if (init_params != NULL && init_params->proc_info != NULL)
+    if (init_params != NULL)
     {
-        ctx->rank.group_id = init_params->proc_info->group_id;
-        ctx->rank.group_rank = init_params->proc_info->group_rank;
+        ctx->scope_id = init_params->scope_id;
+        if (init_params->proc_info != NULL)
+        {
+            ctx->rank.group_id = init_params->proc_info->group_id;
+            ctx->rank.group_rank = init_params->proc_info->group_rank;
+        }
     }
     else
     {
@@ -1751,6 +1759,7 @@ dpu_offload_status_t server_init_context(execution_context_t *econtext, init_par
         econtext->server->conn_params.addr_str = init_params->conn_params->addr_str;
         econtext->server->conn_params.port = init_params->conn_params->port;
         econtext->server->conn_params.port_str = NULL;
+        econtext->scope_id = init_params->scope_id;
         if (init_params->id_set)
             econtext->server->id = init_params->id;
     }
