@@ -16,15 +16,27 @@ int main(int argc, char **argv)
     dpu_offload_status_t rc = offload_engine_init(&offload_engine);
     if (rc || offload_engine == NULL)
     {
-        fprintf(stderr, "offload_engine_init() failed\n");
+        fprintf(stderr, "ERROR: offload_engine_init() failed\n");
         goto error_out;
     }
 
     execution_context_t *server = server_init(offload_engine, NULL);
     if (server == NULL)
     {
-        fprintf(stderr, "server handle is undefined\n");
+        fprintf(stderr, "ERROR: server handle is undefined\n");
         goto error_out;
+    }
+    ADD_SERVER_TO_ENGINE(server, offload_engine);
+
+    ECONTEXT_LOCK(server);
+    int connected_clients = server->server->connected_clients.num_connected_clients;
+    ECONTEXT_UNLOCK(server);
+    while (connected_clients == 0)
+    {
+        lib_progress(server);
+        ECONTEXT_LOCK(server);
+        connected_clients = server->server->connected_clients.num_connected_clients;
+        ECONTEXT_UNLOCK(server);
     }
 
     POPULATE_CACHE(offload_engine);
@@ -35,7 +47,7 @@ int main(int argc, char **argv)
     ucp_ep_h remote_ep = peer_info->ep;
     if (remote_ep == NULL)
     {
-        fprintf(stderr, "undefined destination endpoint\n");
+        fprintf(stderr, "ERROR: undefined destination endpoint\n");
         goto error_out;
     }
 
@@ -44,18 +56,18 @@ int main(int argc, char **argv)
     rc = event_get(server->event_channels, NULL, &ev);
     if (rc != DO_SUCCESS)
     {
-        fprintf(stderr, "event_get() failed\n");
+        fprintf(stderr, "ERROR: event_get() failed\n");
         goto error_out;
     }
     if (ev == NULL)
     {
-        fprintf(stderr, "undefined event\n");
+        fprintf(stderr, "ERROR: undefined event\n");
         goto error_out;
     }
     rc = send_cache(server, &(offload_engine->procs_cache), remote_ep, ev);
     if (rc != DO_SUCCESS)
     {
-        fprintf(stderr, "send_cache() failed\n");
+        fprintf(stderr, "ERROR: send_cache() failed\n");
         goto error_out;
     }
 

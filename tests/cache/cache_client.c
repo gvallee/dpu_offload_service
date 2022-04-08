@@ -27,6 +27,20 @@ int main(int argc, char **argv)
         fprintf(stderr, "client handle is undefined\n");
         return EXIT_FAILURE;
     }
+    ADD_CLIENT_TO_ENGINE(client, offload_engine);
+
+    fprintf(stderr, "Locking client...\n");
+    ECONTEXT_LOCK(client);
+    fprintf(stderr, "Client locked\n");
+    int bootstrapping_status = client->client->bootstrapping.phase;
+    ECONTEXT_UNLOCK(client);
+    while (bootstrapping_status != BOOTSTRAP_DONE)
+    {
+        lib_progress(client);
+        ECONTEXT_LOCK(client);
+        bootstrapping_status = client->client->bootstrapping.phase;
+        ECONTEXT_UNLOCK(client);
+    }
 
     ucp_ep_h remote_ep = client->client->server_ep;
     if (remote_ep == NULL)

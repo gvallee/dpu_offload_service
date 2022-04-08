@@ -514,7 +514,8 @@ typedef struct conn_params
  */
 typedef void (*connect_completed_cb)(void *);
 
-typedef enum {
+typedef enum
+{
     SCOPE_HOST_DPU = 0,
     SCOPE_INTER_DPU,
 } execution_scope_t;
@@ -628,6 +629,19 @@ typedef struct init_params
             CLIENT_UNLOCK((_econtext)->client);      \
         else                                         \
             SERVER_UNLOCK((_econtext)->server);      \
+    } while (0)
+
+#define ADD_CLIENT_TO_ENGINE(_client, _engine) \
+    do                                         \
+    {                                          \
+        (_engine)->client = _client;           \
+    } while (0)
+
+#define ADD_SERVER_TO_ENGINE(_server, _engine)                \
+    do                                                        \
+    {                                                         \
+        (_engine)->servers[(_engine)->num_servers] = _server; \
+        (_engine)->num_servers++;                             \
     } while (0)
 
 typedef struct dpu_offload_server_t
