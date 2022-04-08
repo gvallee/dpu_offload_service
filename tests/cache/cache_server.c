@@ -74,7 +74,7 @@ int main(int argc, char **argv)
     fprintf(stderr, "Waiting for client to terminate...\n");
     while (!EXECUTION_CONTEXT_DONE(server))
     {
-        server->progress(server);
+        lib_progress(server);
     }
 
     event_return(&ev);

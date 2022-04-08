@@ -29,9 +29,7 @@ int main(int argc, char **argv)
     }
     ADD_CLIENT_TO_ENGINE(client, offload_engine);
 
-    fprintf(stderr, "Locking client...\n");
     ECONTEXT_LOCK(client);
-    fprintf(stderr, "Client locked\n");
     int bootstrapping_status = client->client->bootstrapping.phase;
     ECONTEXT_UNLOCK(client);
     while (bootstrapping_status != BOOTSTRAP_DONE)
@@ -77,7 +75,7 @@ int main(int argc, char **argv)
     bool test_done = false;
     while (!test_done)
     {
-        client->progress(client);
+        lib_progress(client);
         cache_t *cache = &(offload_engine->procs_cache);
         group_cache_t *gp_caches = (group_cache_t *)cache->data.base;
         if (gp_caches[42].initialized)
