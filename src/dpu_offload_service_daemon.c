@@ -972,7 +972,10 @@ static void progress_event_recv(execution_context_t *econtext)
             {
                 // Note: tag and tag mask are calculated by the macro to match the client
                 // i.e., only messages from that client will be received.
-                DBG("Preparing reception of notification from client #%ld", idx);
+                DBG("Preparing reception of notification from client #%ld (econtext: %p, scope_id: %d)",
+                    idx,
+                    econtext,
+                    econtext->scope_id);
                 PREP_NOTIF_RECV(client_info->notif_recv.ctx,
                                 client_info->notif_recv.hdr_recv_params,
                                 client_info->notif_recv.hdr_ucp_tag,
@@ -1010,7 +1013,7 @@ static void progress_event_recv(execution_context_t *econtext)
                             econtext->event_channels->notif_recv.hdr_ucp_tag,
                             econtext->event_channels->notif_recv.hdr_ucp_tag_mask,
                             worker,
-                            econtext->client->id,
+                            econtext->client->server_id,
                             econtext->scope_id);
             econtext->event_channels->notif_recv.initialized = true;
         }

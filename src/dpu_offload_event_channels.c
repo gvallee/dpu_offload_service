@@ -373,24 +373,24 @@ int tag_send_event_msg(dpu_offload_event_t **event)
     uint64_t myid = ECONTEXT_ID(econtext);
 
     /* 1. Send the hdr */
-    ucp_tag_t hdr_ucp_tag = MAKE_SEND_TAG(AM_EVENT_MSG_HDR_ID, myid, 0, 0, 0);
+    ucp_tag_t hdr_ucp_tag = MAKE_SEND_TAG(AM_EVENT_MSG_HDR_ID, myid, 0, (*event)->scope_id, 0);
     struct ucx_context *hdr_request = NULL;
     assert((*event)->dest_ep);
     (*event)->hdr_request = ucp_tag_send_nbx((*event)->dest_ep, &((*event)->ctx.hdr), sizeof(am_header_t), hdr_ucp_tag, &send_param);
-    DBG("event send posted (hdr)");
+    DBG("event %p send posted (hdr) - scope_id: %d, id: %"PRIu64, (*event), (*event)->scope_id, myid);
 
     /* 2. Send the payload */
     if ((*event)->ctx.hdr.payload_size > 0)
     {
-        ucp_tag_t payload_ucp_tag = MAKE_SEND_TAG(AM_EVENT_MSG_ID, myid, 0, 0, 0);
+        ucp_tag_t payload_ucp_tag = MAKE_SEND_TAG(AM_EVENT_MSG_ID, myid, 0, (*event)->scope_id, 0);
         struct ucx_context *payload_request = NULL;
         (*event)->payload_request = ucp_tag_send_nbx((*event)->dest_ep, (*event)->payload, (*event)->ctx.hdr.payload_size, payload_ucp_tag, &send_param);
-        DBG("event send posted (payload)");
+        DBG("event %p send posted (payload) - scope_id: %d", (*event), (*event)->scope_id);
     }
 
     if ((*event)->hdr_request == NULL && (*event)->payload_request == NULL)
     {
-        DBG("event send immediately completed");
+        DBG("event %p send immediately completed", (*event));
         (*event)->ctx.complete = 1;
         (*event)->was_pending = false;
         dpu_offload_status_t rc = event_return(event);
@@ -504,6 +504,7 @@ dpu_offload_status_t event_get(dpu_offload_ev_sys_t *ev_sys, dpu_offload_event_i
         RESET_EVENT(_ev);
         CHECK_EVENT(_ev);
         _ev->event_system = ev_sys;
+        _ev->scope_id = _ev->event_system->econtext->scope_id;
 
         if (info == NULL || info->payload_size == 0)
             goto out;
@@ -521,40 +522,50 @@ out:
     return DO_SUCCESS;
 }
 
+static dpu_offload_status_t do_event_return(dpu_offload_event_t *ev)
+{
+    assert(ev);
+    if (ev->req)
+    {
+        WARN_MSG("returning event %p but it is still in progress", (*ev));
+        return EVENT_INPROGRESS;
+    }
+
+    assert(ev->event_system);
+    if (ev->was_pending)
+    {
+        SYS_EVENT_LOCK(ev->event_system);
+        ev->event_system->num_pending_sends--;
+        SYS_EVENT_UNLOCK(ev->event_system);
+    }
+
+    // If the event has a payload buffer that the library is managing, free that buffer
+    if (ev->manage_payload_buf && ev->payload != NULL)
+    {
+        free(ev->payload);
+        ev->payload = NULL;
+        ev->ctx.hdr.payload_size = 0;
+    }
+
+    SYS_EVENT_LOCK(ev->event_system);
+    ev->event_system->num_used_evs--;
+    DYN_LIST_RETURN((ev->event_system->free_evs), ev, item);
+    SYS_EVENT_UNLOCK(ev->event_system);
+    DBG("event %p successfully returned", ev); 
+    return EVENT_DONE;
+}
+
 dpu_offload_status_t event_return(dpu_offload_event_t **ev)
 {
     assert(ev);
     assert(*ev);
     if (ev == NULL || (*ev) == NULL)
         return DO_SUCCESS;
-
-    if ((*ev)->req)
+    int ret = do_event_return(*ev);
+    if (ret == EVENT_INPROGRESS)
     {
-        WARN_MSG("returning an event that is still in progress");
-        return EVENT_INPROGRESS;
+        return DO_ERROR;
     }
-
-    assert((*ev)->event_system);
-    if ((*ev)->was_pending)
-    {
-        SYS_EVENT_LOCK((*ev)->event_system);
-        (*ev)->event_system->num_pending_sends--;
-        SYS_EVENT_UNLOCK((*ev)->event_system);
-    }
-
-    // If the event has a payload buffer that the library is managing, free that buffer
-    if ((*ev)->manage_payload_buf && (*ev)->payload != NULL)
-    {
-        free((*ev)->payload);
-        (*ev)->payload = NULL;
-        (*ev)->ctx.hdr.payload_size = 0;
-    }
-
-    SYS_EVENT_LOCK((*ev)->event_system);
-    (*ev)->event_system->num_used_evs--;
-    DYN_LIST_RETURN(((*ev)->event_system->free_evs), (*ev), item);
-    SYS_EVENT_UNLOCK((*ev)->event_system);
-    DBG("event %p successfully returned", *ev);
     *ev = NULL; // so it cannot be used any longer
     return DO_SUCCESS;
 }
@@ -585,13 +596,15 @@ bool event_completed(dpu_offload_event_t *ev)
             if (subevt->ctx.complete)
             {
                 ucs_list_del(&(subevt->item));
-                dpu_offload_status_t rc = event_return(&subevt);
+                DBG("returning sub event %p of main event %p", subevt, ev);
+                dpu_offload_status_t rc = do_event_return(subevt);
                 CHECK_ERR_RETURN((rc), DO_ERROR, "event_return() failed");
             }
         }
 
         if (ucs_list_is_empty(&(ev->sub_events)) && ev->req == NULL)
         {
+            DBG("All sub-events completed");
             ev->ctx.complete = true;
             return true;
         }
@@ -602,7 +615,7 @@ bool event_completed(dpu_offload_event_t *ev)
         if (ev->hdr_request == NULL && ev->payload_request == NULL)
         {
             DBG("Event %p is completed", ev);
-            ev->ctx.complete = 1;
+            ev->ctx.complete = true;
         }
 #endif
     }
@@ -719,7 +732,7 @@ static dpu_offload_status_t peer_cache_entries_request_recv_cb(struct dpu_offloa
         assert(econtext->type == CONTEXT_SERVER);
         dest = peer_info->ep;
         gp_caches = (group_cache_t *)econtext->engine->procs_cache.data.base;
-        DBG("Sending group cache to DPU #%" PRIu64, hdr->id);
+        DBG("Sending group cache to DPU #%" PRIu64 ": event=%p", hdr->id, send_cache_ev);
         rc = send_group_cache(econtext, dest, rank_info->group_id, send_cache_ev);
         CHECK_ERR_RETURN((rc), DO_ERROR, "send_group_cache() failed");
 
