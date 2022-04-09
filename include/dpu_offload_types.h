@@ -344,7 +344,7 @@ typedef struct am_req
     // An example of a notification that does not complete right away
     // is a notification requiring the exchange of a RDV message under
     // the cover.
-    int complete;
+    int complete; // fixme: segfault if changed to bool
 } am_req_t; // todo: rename, nothing to do with AM
 
 #if !USE_AM_IMPLEM

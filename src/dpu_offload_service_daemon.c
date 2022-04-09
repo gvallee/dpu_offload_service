@@ -1013,7 +1013,7 @@ static void progress_event_recv(execution_context_t *econtext)
                             econtext->event_channels->notif_recv.hdr_ucp_tag,
                             econtext->event_channels->notif_recv.hdr_ucp_tag_mask,
                             worker,
-                            econtext->client->id,
+                            econtext->client->server_id,
                             econtext->scope_id);
             econtext->event_channels->notif_recv.initialized = true;
         }

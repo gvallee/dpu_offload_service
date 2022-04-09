@@ -222,11 +222,11 @@ int main(int argc, char **argv)
             fprintf(stderr, "first get_dpu_id_by_host_rank() failed\n");
             goto error_out;
         }
-        fprintf(stderr, "get_dpu_id_by_group_rank() succeeded, ev=%p\n", ev);
+        fprintf(stderr, "l.%d - get_dpu_id_by_group_rank() succeeded, ev=%p\n", ev, __LINE__);
 
         if (ev != NULL)
         {
-            fprintf(stderr, "Waiting for look up to complete (ev=%p)\n", ev);
+            fprintf(stderr, "l.%d - Waiting for look up to complete (ev=%p)\n", ev, __LINE__);
             while (!event_completed(ev))
                 lib_progress(econtext);
 

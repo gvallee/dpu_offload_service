@@ -377,7 +377,7 @@ int tag_send_event_msg(dpu_offload_event_t **event)
     struct ucx_context *hdr_request = NULL;
     assert((*event)->dest_ep);
     (*event)->hdr_request = ucp_tag_send_nbx((*event)->dest_ep, &((*event)->ctx.hdr), sizeof(am_header_t), hdr_ucp_tag, &send_param);
-    DBG("event send posted (hdr)");
+    DBG("event %p send posted (hdr) - scope_id: %d, id: %"PRIu64, (*event), (*event)->scope_id, myid);
 
     /* 2. Send the payload */
     if ((*event)->ctx.hdr.payload_size > 0)
@@ -385,12 +385,12 @@ int tag_send_event_msg(dpu_offload_event_t **event)
         ucp_tag_t payload_ucp_tag = MAKE_SEND_TAG(AM_EVENT_MSG_ID, myid, 0, (*event)->scope_id, 0);
         struct ucx_context *payload_request = NULL;
         (*event)->payload_request = ucp_tag_send_nbx((*event)->dest_ep, (*event)->payload, (*event)->ctx.hdr.payload_size, payload_ucp_tag, &send_param);
-        DBG("event send posted (payload)");
+        DBG("event %p send posted (payload) - scope_id: %d", (*event), (*event)->scope_id);
     }
 
     if ((*event)->hdr_request == NULL && (*event)->payload_request == NULL)
     {
-        DBG("event send immediately completed");
+        DBG("event %p send immediately completed", (*event));
         (*event)->ctx.complete = 1;
         (*event)->was_pending = false;
         dpu_offload_status_t rc = event_return(event);
@@ -604,6 +604,7 @@ bool event_completed(dpu_offload_event_t *ev)
 
         if (ucs_list_is_empty(&(ev->sub_events)) && ev->req == NULL)
         {
+            DBG("All sub-events completed");
             ev->ctx.complete = true;
             return true;
         }
@@ -614,7 +615,7 @@ bool event_completed(dpu_offload_event_t *ev)
         if (ev->hdr_request == NULL && ev->payload_request == NULL)
         {
             DBG("Event %p is completed", ev);
-            ev->ctx.complete = 1;
+            ev->ctx.complete = true;
         }
 #endif
     }

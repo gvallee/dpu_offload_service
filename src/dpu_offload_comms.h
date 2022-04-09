@@ -76,38 +76,41 @@
     } while (0)
 
 // PREP_NOTIF_RECV assumes the execution context is locked before being invoked
-#define PREP_NOTIF_RECV(ctx, hdr_recv_param, hdr_ucp_tag, hdr_ucp_tag_mask, worker, peer_id, scope_id) \
-    do                                                                                                 \
-    {                                                                                                  \
-        /* Always have a recv posted so we are ready to get a header from the other side. */           \
-        /* Remember we are using one thread per bootstrap client/server. */                            \
-        /* Just to make sure the initial receive will post, we mark the two receives for */            \
-        /* any notifications as completed */                                                           \
-        ctx.complete = true;                                                                           \
-        ctx.payload_ctx.complete = true;                                                               \
-        ctx.recv_peer_id = peer_id;                                                                    \
-        hdr_recv_param.op_attr_mask = UCP_OP_ATTR_FIELD_CALLBACK |                                     \
-                                      UCP_OP_ATTR_FIELD_DATATYPE |                                     \
-                                      UCP_OP_ATTR_FIELD_USER_DATA;                                     \
-        hdr_recv_param.datatype = ucp_dt_make_contig(1);                                               \
-        hdr_recv_param.user_data = &ctx;                                                               \
-        hdr_recv_param.cb.recv = notif_hdr_recv_handler;                                               \
-        MAKE_RECV_TAG(hdr_ucp_tag, hdr_ucp_tag_mask, AM_EVENT_MSG_HDR_ID, peer_id, 0, scope_id, 0);    \
-        worker = GET_WORKER(econtext);                                                                 \
-        DBG("Reception of notification for peer %ld is now all set", peer_id);                         \
+#define PREP_NOTIF_RECV(ctx, hdr_recv_param, hdr_ucp_tag, hdr_ucp_tag_mask, worker, peer_id, scope_id)  \
+    do                                                                                                  \
+    {                                                                                                   \
+        /* Always have a recv posted so we are ready to get a header from the other side. */            \
+        /* Remember we are using one thread per bootstrap client/server. */                             \
+        /* Just to make sure the initial receive will post, we mark the two receives for */             \
+        /* any notifications as completed */                                                            \
+        ctx.complete = true;                                                                            \
+        ctx.payload_ctx.complete = true;                                                                \
+        ctx.recv_peer_id = peer_id;                                                                     \
+        hdr_recv_param.op_attr_mask = UCP_OP_ATTR_FIELD_CALLBACK |                                      \
+                                      UCP_OP_ATTR_FIELD_DATATYPE |                                      \
+                                      UCP_OP_ATTR_FIELD_USER_DATA;                                      \
+        hdr_recv_param.datatype = ucp_dt_make_contig(1);                                                \
+        hdr_recv_param.user_data = &ctx;                                                                \
+        hdr_recv_param.cb.recv = notif_hdr_recv_handler;                                                \
+        MAKE_RECV_TAG(hdr_ucp_tag, hdr_ucp_tag_mask, AM_EVENT_MSG_HDR_ID, peer_id, 0, scope_id, 0);     \
+        worker = GET_WORKER(econtext);                                                                  \
+        DBG(" -> Reception of notification for peer %ld on econtext %p and scope_id %d is now all set", \
+            peer_id,                                                                                    \
+            econtext,                                                                                   \
+            scope_id);                                                                                  \
     } while (0)
 
 /**
  * @brief Note: the function assumes that:
  * - the execution context is locked before the function is invoked
  * - the event system is not locked beffore the function is invoked
- * 
+ *
  * @param econtext Execution context associated to the event
  * @param hdr Header of the notification that was received
  * @param header_length Length of the header
  * @param data Notification's payload. Can be NULL
  * @param length Length of the payload; must be zero when data is NULL.
- * @return int 
+ * @return int
  */
 static int handle_notif_msg(execution_context_t *econtext, am_header_t *hdr, size_t header_length, void *data, size_t length)
 {

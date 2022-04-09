@@ -105,6 +105,13 @@ dpu_offload_status_t send_cache_entry(execution_context_t *econtext, ucp_ep_h ep
     // in which case the event is put on the list of sub-events and an event can only be on a single list at a time.
     // In other words, the caller is in charge of dealing with the event.
 
+#if !NDEBUG
+    if (rc == EVENT_DONE)
+        DBG("event completed right away, cahce entry sent");
+    if (rc == EVENT_INPROGRESS)
+        DBG("cache entry send posted");
+#endif
+
     *ev = send_cache_entry_ev;
     return DO_SUCCESS;
 }
