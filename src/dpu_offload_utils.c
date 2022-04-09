@@ -64,7 +64,11 @@ dpu_offload_status_t send_cache_entry_request(execution_context_t *econtext, ucp
     rc = event_get(econtext->event_channels, NULL, &cache_entry_request_ev);
     CHECK_ERR_RETURN((rc), DO_ERROR, "event_get() failed");
 
-    DBG("Sending cache entry request for rank:%ld/gp:%ld", requested_peer->group_rank, requested_peer->group_id);
+    DBG("Sending cache entry request for rank:%ld/gp:%ld (econtext: %p, scope_id: %d)",
+        requested_peer->group_rank,
+        requested_peer->group_id,
+        econtext,
+        econtext->scope_id);
     rc = event_channel_emit_with_payload(&cache_entry_request_ev,
                                          ECONTEXT_ID(econtext),
                                          AM_PEER_CACHE_ENTRIES_REQUEST_MSG_ID,
@@ -97,10 +101,9 @@ dpu_offload_status_t send_cache_entry(execution_context_t *econtext, ucp_ep_h ep
                                          cache_entry,
                                          sizeof(peer_cache_entry_t));
     CHECK_ERR_RETURN((rc != EVENT_DONE && rc != EVENT_INPROGRESS), DO_ERROR, "event_channel_emit_with_payload() failed");
-
-    // Put the event on the ongoing events list used while progressing the execution context.
-    // When event complete, we can safely return them.
-    ucs_list_add_tail(&(econtext->ongoing_events), &(send_cache_entry_ev->item));
+    // Never ever put the event on the ongoing list since it is also used to exchange the entire cache,
+    // in which case the event is put on the list of sub-events and an event can only be on a single list at a time.
+    // In other words, the caller is in charge of dealing with the event.
 
     *ev = send_cache_entry_ev;
     return DO_SUCCESS;
@@ -118,7 +121,7 @@ dpu_offload_status_t send_group_cache(execution_context_t *econtext, ucp_ep_h de
         peer_cache_entry_t *cache_entry = GET_GROUP_RANK_CACHE_ENTRY(&(econtext->engine->procs_cache), gp_id, i);
         if (cache_entry->set)
         {
-            DBG("Sending cache entry for rank:%ld/gp:%ld", cache_entry->peer.proc_info.group_rank, cache_entry->peer.proc_info.group_id);
+            DBG("Sending cache entry for rank:%ld/gp:%ld (event: %p)", cache_entry->peer.proc_info.group_rank, cache_entry->peer.proc_info.group_id, metaev);
             dpu_offload_event_t *e;
             dpu_offload_status_t rc = send_cache_entry(econtext, dest, cache_entry, &e);
             CHECK_ERR_RETURN((rc), DO_ERROR, "send_cache_entry() failed");
@@ -130,7 +133,12 @@ dpu_offload_status_t send_group_cache(execution_context_t *econtext, ucp_ep_h de
                     ucs_list_head_init(&(metaev->sub_events));
                     metaev->sub_events_initialized = true;
                 }
+                DBG("Adding sub-event %p to main event %p", e, metaev);
                 ucs_list_add_tail(&(metaev->sub_events), &(e->item));
+            }
+            else
+            {
+                DBG("Sending cache completed right away");
             }
         }
     }
@@ -235,9 +243,12 @@ dpu_offload_status_t get_dpu_id_by_group_rank(offloading_engine_t *engine, int64
         {
             if (list_dpus[i] != NULL && list_dpus[i]->ep != NULL && list_dpus[i]->init_params.conn_params != NULL)
             {
-                DBG("Sending cache entry request to DPU #%ld", i);
                 execution_context_t *econtext = ECONTEXT_FOR_DPU_COMMUNICATION(engine, i);
                 CHECK_ERR_RETURN((econtext == NULL), DO_ERROR, "unable to get execution context to communicate with DPU #0");
+                DBG("Sending cache entry request to DPU #%ld (econtext: %p, scope_id: %d)",
+                    i,
+                    econtext,
+                    econtext->scope_id);
 
                 if (metaev == NULL)
                 {
@@ -250,6 +261,7 @@ dpu_offload_status_t get_dpu_id_by_group_rank(offloading_engine_t *engine, int64
                 dpu_offload_event_t *subev;
                 rc = send_cache_entry_request(econtext, dpu_ep, &rank_data, &subev);
                 CHECK_ERR_RETURN((rc), DO_ERROR, "send_cache_entry_request() failed");
+                DBG("Sub-event for sending cache to DPU %ld: %p", i, subev);
                 if (subev != NULL)
                 {
                     // If the event did not complete right away, we add it as a sub-event to the meta-event so we can track everything

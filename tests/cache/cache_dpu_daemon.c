@@ -203,6 +203,7 @@ int main(int argc, char **argv)
             ENGINE_LOCK(offload_engine);
             dpu1_config = list_dpus[1];
             ENGINE_UNLOCK(offload_engine);
+            offload_engine_progress(offload_engine);
         } while (dpu1_config == NULL || dpu1_config->econtext == NULL);
         fprintf(stderr, "Now connected to DPU #1 (econtext=%p)\n", dpu1_config->econtext);
 
@@ -227,9 +228,9 @@ int main(int argc, char **argv)
         {
             fprintf(stderr, "Waiting for look up to complete (ev=%p)\n", ev);
             while (!event_completed(ev))
-                econtext->progress(econtext);
+                lib_progress(econtext);
 
-            fprintf(stderr, "Look up completed\n");
+            fprintf(stderr, "Look up completed, returning event\n");
             rc = event_return(&ev);
             if (rc != DO_SUCCESS)
             {

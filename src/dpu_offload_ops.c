@@ -74,6 +74,7 @@ dpu_offload_status_t op_desc_submit(execution_context_t *econtext, op_desc_t *de
     return DO_SUCCESS;
 
 error_out:
+    fprintf(stderr, "%s l.%d returning event\n", __FILE__, __LINE__);
     event_return(&start_ev);
     return DO_ERROR;
 }

@@ -838,6 +838,7 @@ typedef struct dpu_offload_event
 #if !USE_AM_IMPLEM
     struct ucx_context *hdr_request;
     struct ucx_context *payload_request;
+    int scope_id;
 #endif
 
     // sub_events is the list of sub-events composing this event.
@@ -901,6 +902,7 @@ typedef struct dpu_offload_event
         (__ev)->manage_payload_buf = false; \
         (__ev)->dest_ep = NULL;             \
         (__ev)->was_pending = false;        \
+        (__ev)->scope_id = SCOPE_HOST_DPU;  \
     } while (0)
 
 #define CHECK_EVENT(__ev)                                     \

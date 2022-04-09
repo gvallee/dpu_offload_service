@@ -297,7 +297,7 @@ static void post_new_notif_recv(ucp_worker_h worker, hdr_notif_req_t *ctx, execu
         // Post the receive for the header
         ctx->complete = false;
         ctx->econtext = (struct execution_context *)econtext;
-        DBG("-------------> Posting recv for notif header");
+        DBG("-------------> Posting recv for notif header (econtext: %p, scope_id: %d)", econtext, econtext->scope_id);
         ctx->req = ucp_tag_recv_nbx(worker, &(ctx->hdr), sizeof(am_header_t), hdr_ucp_tag, hdr_ucp_tag_mask, hdr_recv_param);
         if (ctx->req == NULL)
         {
