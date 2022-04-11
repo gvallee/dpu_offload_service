@@ -23,6 +23,14 @@
 #define DEFAULT_MAX_PENDING_EMITS (10)
 
 #if USE_AM_IMPLEM
+/**
+ * @brief Note that the function assumes the execution context is not locked before it is invoked.
+ * 
+ * @param request 
+ * @param status 
+ * @param length 
+ * @param user_data 
+ */
 static void am_rdv_recv_cb(void *request, ucs_status_t status, size_t length, void *user_data)
 {
     pending_am_rdv_recv_t *recv_info = (pending_am_rdv_recv_t *)user_data;

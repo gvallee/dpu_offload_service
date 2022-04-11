@@ -102,7 +102,7 @@
 
 /**
  * @brief Note: the function assumes that:
- * - the execution context is locked before the function is invoked
+ * - the execution context is not locked before the function is invoked
  * - the event system is not locked beffore the function is invoked
  *
  * @param econtext Execution context associated to the event
@@ -116,13 +116,12 @@ static int handle_notif_msg(execution_context_t *econtext, am_header_t *hdr, siz
 {
     assert(econtext);
     assert(hdr);
-    DBG("econtext = %p", econtext);
     assert(econtext->event_channels);
     SYS_EVENT_LOCK(econtext->event_channels);
     assert(hdr->type < econtext->event_channels->notification_callbacks.num_elts);
     notification_callback_entry_t *entry;
     DYN_ARRAY_GET_ELT(&(econtext->event_channels->notification_callbacks), hdr->type, notification_callback_entry_t, entry);
-    DBG("Notification of type %" PRIu64 " received, dispatching...", hdr->type);
+    DBG("Notification of type %" PRIu64 " received (econtext: %p), dispatching...", hdr->type, econtext);
     if (entry->set == false)
     {
         pending_notification_t *pending_notif;
@@ -168,21 +167,26 @@ static int handle_notif_msg(execution_context_t *econtext, am_header_t *hdr, siz
     SYS_EVENT_UNLOCK(econtext->event_channels);
     // We unlock the execution context before invoking the callback to limit
     // the constraints on what can be done in the callback.
-    ECONTEXT_UNLOCK(econtext);
     cb(ev_sys, econtext, hdr, header_length, data, length);
-    ECONTEXT_LOCK(econtext);
     return UCS_OK;
 error_out:
     SYS_EVENT_UNLOCK(econtext->event_channels);
     return UCS_ERR_NO_MESSAGE;
 }
 
+/**
+ * @brief Note that the function assumes the execution context is not locked before it is invoked.
+ * 
+ * @param request 
+ * @param status 
+ * @param tag_info 
+ * @param user_data 
+ */
 static void notif_payload_recv_handler(void *request, ucs_status_t status, const ucp_tag_recv_info_t *tag_info, void *user_data)
 {
     hdr_notif_req_t *ctx = (hdr_notif_req_t *)user_data;
     assert(ctx);
     assert(ctx->econtext);
-    ECONTEXT_LOCK(ctx->econtext);
     DBG("Notification payload received, ctx=%p econtext=%p type=%ld\n", ctx, ctx->econtext, ctx->hdr.type);
     ctx->payload_ctx.complete = 1;
 
@@ -203,14 +207,19 @@ static void notif_payload_recv_handler(void *request, ucs_status_t status, const
         ucp_request_free(ctx->payload_ctx.req);
         ctx->payload_ctx.req = NULL;
     }
-    ECONTEXT_UNLOCK(ctx->econtext);
 }
 
+/**
+ * @brief Note that the function assumes the execution context is not locked before it is invoked.
+ * 
+ * @param ctx 
+ * @param econtext 
+ * @param peer_id 
+ */
 static void post_recv_for_notif_payload(hdr_notif_req_t *ctx, execution_context_t *econtext, uint64_t peer_id)
 {
     assert(ctx);
     assert(econtext);
-    ECONTEXT_LOCK(econtext);
     DBG("Notification header received, payload size = %ld, type = %ld, econtext = %p-%p, ctx = %p",
         ctx->hdr.payload_size,
         ctx->hdr.type,
@@ -289,9 +298,18 @@ static void post_recv_for_notif_payload(hdr_notif_req_t *ctx, execution_context_
             ctx->payload_ctx.req = NULL;
         }
     }
-    ECONTEXT_UNLOCK(econtext);
 }
 
+/**
+ * @brief Note that the function assumes that the execution context is not locked before it is invoked.
+ * 
+ * @param worker 
+ * @param ctx 
+ * @param econtext 
+ * @param hdr_ucp_tag 
+ * @param hdr_ucp_tag_mask 
+ * @param hdr_recv_param 
+ */
 static void post_new_notif_recv(ucp_worker_h worker, hdr_notif_req_t *ctx, execution_context_t *econtext, ucp_tag_t hdr_ucp_tag, ucp_tag_t hdr_ucp_tag_mask, ucp_request_param_t *hdr_recv_param)
 {
     // Post a new receive only if we are not already in the middle of receiving a notification
@@ -307,12 +325,19 @@ static void post_new_notif_recv(ucp_worker_h worker, hdr_notif_req_t *ctx, execu
             // Receive completed immediately, callback is not called
             DBG("Recv of notification header completed right away, notif type: %ld", ctx->hdr.type);
             ctx->complete = true;
-            ECONTEXT_UNLOCK(econtext);
             post_recv_for_notif_payload(ctx, (execution_context_t *)ctx->econtext, ctx->recv_peer_id);
         }
     }
 }
 
+/**
+ * @brief Note that the function assumes that the execution context is not locked before it is invoked.
+ * 
+ * @param request 
+ * @param status 
+ * @param tag_info 
+ * @param user_data 
+ */
 static void notif_hdr_recv_handler(void *request, ucs_status_t status, const ucp_tag_recv_info_t *tag_info, void *user_data)
 {
     hdr_notif_req_t *ctx = (hdr_notif_req_t *)user_data;
