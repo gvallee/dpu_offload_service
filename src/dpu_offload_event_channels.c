@@ -527,7 +527,7 @@ static dpu_offload_status_t do_event_return(dpu_offload_event_t *ev)
     assert(ev);
     if (ev->req)
     {
-        WARN_MSG("returning event %p but it is still in progress", (*ev));
+        WARN_MSG("returning event %p but it is still in progress", ev);
         return EVENT_INPROGRESS;
     }
 
