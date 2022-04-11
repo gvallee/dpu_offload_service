@@ -68,6 +68,19 @@ int main(int argc, char **argv)
     }
     fprintf(stderr, "server for application processes to connect has been successfully created\n");
 
+    // Wait for the default econtext to be set so we can make sure that we have minimum connectivity
+    // for all the features we provide
+    ENGINE_LOCK(offload_engine);
+    execution_context_t *ctx = offload_engine->default_econtext;
+    ENGINE_UNLOCK(offload_engine);
+    while (ctx == NULL)
+    {
+        offload_engine_progress(offload_engine);
+        ENGINE_LOCK(offload_engine);
+        ctx = offload_engine->default_econtext;
+        ENGINE_UNLOCK(offload_engine);
+    }
+
     /*
      * PROGRESS UNTIL ALL PROCESSES ON THE HOST SEND A TERMINATION MESSAGE
      */
