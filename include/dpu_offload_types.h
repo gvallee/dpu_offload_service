@@ -35,7 +35,9 @@ typedef enum
     memset(&ucp_params, 0, sizeof(ucp_params));                            \
     status = ucp_config_read(NULL, NULL, &config);                         \
     ucp_params.field_mask = UCP_PARAM_FIELD_FEATURES;                      \
-    ucp_params.features = UCP_FEATURE_TAG | UCP_FEATURE_AM;                \
+    ucp_params.features = UCP_FEATURE_TAG |                                \
+                          UCP_FEATURE_AM |                                 \
+                          UCP_FEATURE_RMA;                                 \
     status = ucp_init(&ucp_params, config, &(ucp_context));                \
     CHECK_ERR_RETURN((status != UCS_OK), DO_ERROR,                         \
                      "ucp_init() failed: %s",                              \
