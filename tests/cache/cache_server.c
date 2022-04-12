@@ -29,13 +29,13 @@ int main(int argc, char **argv)
     ADD_SERVER_TO_ENGINE(server, offload_engine);
 
     ECONTEXT_LOCK(server);
-    int connected_clients = server->server->connected_clients.num_connected_clients;
+    int connected_clients = server->server->connected_clients.num_total_connected_clients;
     ECONTEXT_UNLOCK(server);
     while (connected_clients == 0)
     {
         lib_progress(server);
         ECONTEXT_LOCK(server);
-        connected_clients = server->server->connected_clients.num_connected_clients;
+        connected_clients = server->server->connected_clients.num_total_connected_clients;
         ECONTEXT_UNLOCK(server);
     }
 

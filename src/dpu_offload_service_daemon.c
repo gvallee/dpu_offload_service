@@ -307,13 +307,15 @@ static dpu_offload_status_t oob_server_accept(execution_context_t *econtext, cha
     struct sockaddr_in servaddr;
     int optval = 1;
     int rc;
+    int accept_sock;
+    struct sockaddr_in addr;
+    int addr_len = sizeof(client_addr);
 
     ECONTEXT_LOCK(econtext);
     uint16_t server_port = econtext->server->conn_params.port;
 
     if (econtext->server->conn_data.oob.listenfd == -1)
     {
-        int accept_sock;
         econtext->server->conn_data.oob.listenfd = socket(AF_INET, SOCK_STREAM, 0);
 
         memset(&servaddr, 0, sizeof(servaddr));
@@ -329,17 +331,19 @@ static dpu_offload_status_t oob_server_accept(execution_context_t *econtext, cha
         CHECK_ERR_GOTO((rc), error_out, "listen() failed: %s", strerror(errno));
 
         // fixme: debug when multi-connections are required
-        DBG("Accepting connection on port %" PRIu16 "...", server_port);
-        struct sockaddr_in addr;
-        int addr_len = sizeof(client_addr);
-        ECONTEXT_UNLOCK(econtext);
-        accept_sock = accept(econtext->server->conn_data.oob.listenfd, (struct sockaddr *)&addr, &addr_len);
-        ECONTEXT_LOCK(econtext);
-        econtext->server->conn_data.oob.sock = accept_sock;
-        struct in_addr ipAddr = addr.sin_addr;
-        inet_ntop(AF_INET, &ipAddr, client_addr, INET_ADDRSTRLEN);
-        DBG("Connection accepted from %s on fd=%d", client_addr, econtext->server->conn_data.oob.sock);
+        DBG("Listening for connections on port %" PRIu16 "...", server_port);
     }
+    else
+    {
+        DBG("Already listening on socket %d", econtext->server->conn_data.oob.listenfd);
+    }
+    ECONTEXT_UNLOCK(econtext);
+    accept_sock = accept(econtext->server->conn_data.oob.listenfd, (struct sockaddr *)&addr, &addr_len);
+    ECONTEXT_LOCK(econtext);
+    econtext->server->conn_data.oob.sock = accept_sock;
+    struct in_addr ipAddr = addr.sin_addr;
+    inet_ntop(AF_INET, &ipAddr, client_addr, INET_ADDRSTRLEN);
+    DBG("Connection accepted from %s on fd=%d", client_addr, econtext->server->conn_data.oob.sock);
     ECONTEXT_UNLOCK(econtext);
     return DO_SUCCESS;
 
@@ -954,14 +958,17 @@ static void progress_event_recv(execution_context_t *econtext)
         // SERVER
         size_t n_client = 0;
         size_t idx = 0;
-        // DBG("%ld connected clients, checking their status to receive notifications", econtext->server->connected_clients.num_connected_clients);
         while (n_client < econtext->server->connected_clients.num_connected_clients)
         {
             peer_info_t *client_info;
             DYN_ARRAY_GET_ELT(&(econtext->server->connected_clients.clients), idx, peer_info_t, client_info);
             if (client_info == NULL || client_info->bootstrapping.phase != BOOTSTRAP_DONE)
             {
-                DBG("Client #%ld not fully bootstrapped", idx);
+                /*
+                DBG("Client #%ld not fully bootstrapped (num_connected_clients: %ld)",
+                    idx,
+                    econtext->server->connected_clients.num_connected_clients);
+                */
                 idx++;
                 continue;
             }
@@ -1166,6 +1173,7 @@ static void execution_context_progress(execution_context_t *ctx)
                     client_info->bootstrapping.phase = BOOTSTRAP_DONE;
                     ctx->server->connected_clients.num_ongoing_connections--;
                     ctx->server->connected_clients.num_connected_clients++;
+                    ctx->server->connected_clients.num_total_connected_clients++;
                     DBG("****** Bootstrapping of client #%ld now completed, %ld are now connected",
                         idx,
                         ctx->server->connected_clients.num_connected_clients);
@@ -1601,7 +1609,7 @@ static void oob_recv_rank_handler(void *request, ucs_status_t status,
 static inline uint64_t generate_unique_client_id(execution_context_t *econtext)
 {
     // For now we only use the slot that the client will have in the list of connected clients
-    return (uint64_t)(econtext->server->connected_clients.num_connected_clients + econtext->server->connected_clients.num_ongoing_connections);
+    return (uint64_t)(econtext->server->connected_clients.num_total_connected_clients + econtext->server->connected_clients.num_ongoing_connections);
 }
 
 /**
@@ -1626,7 +1634,7 @@ static dpu_offload_status_t oob_server_listen(execution_context_t *econtext)
     DBG("Server ID sent (len: %ld)", size_sent);
     uint64_t client_id = generate_unique_client_id(econtext);
     size_sent = send(econtext->server->conn_data.oob.sock, &client_id, sizeof(uint64_t), 0);
-    DBG("Client ID sent (len: %ld)", size_sent);
+    DBG("Client ID sent (len: %ld, value: %"PRIu64")", size_sent, client_id);
 
     /* All done, the rest is done when progressing the execution contexts */
     peer_info_t *client_info;
@@ -1634,6 +1642,7 @@ static dpu_offload_status_t oob_server_listen(execution_context_t *econtext)
     assert(client_info);
     client_info->bootstrapping.phase = OOB_CONNECT_DONE;
     econtext->server->connected_clients.num_ongoing_connections++;
+    DBG("Number of ongoing connections: %ld\n", econtext->server->connected_clients.num_ongoing_connections);
     ECONTEXT_UNLOCK(econtext);
     return DO_SUCCESS;
 error_out:
@@ -1685,8 +1694,6 @@ static void *connect_thread(void *arg)
                 ERR_MSG("oob_server_listen() failed");
                 pthread_exit(NULL);
             }
-
-            pthread_exit(NULL); // fixme: properly support multiple connections
         }
         }
 
@@ -1734,6 +1741,7 @@ dpu_offload_status_t server_init_context(execution_context_t *econtext, init_par
     econtext->server->mode = OOB; // By default, we connect with the OOB mode
     DYN_ARRAY_ALLOC(&(econtext->server->connected_clients.clients), DEFAULT_MAX_NUM_CLIENTS, peer_info_t);
     econtext->server->connected_clients.num_connected_clients = 0;
+    econtext->server->connected_clients.num_total_connected_clients = 0;
     econtext->server->connected_clients.num_ongoing_connections = 0;
     econtext->server->connected_cb = NULL;
     for (i = 0; i < DEFAULT_MAX_NUM_CLIENTS; i++)

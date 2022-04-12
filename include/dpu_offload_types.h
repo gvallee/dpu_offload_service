@@ -469,9 +469,15 @@ typedef struct dpu_offload_ev_sys
 
 typedef struct connected_clients
 {
-    size_t num_max_connected_clients;
+    // Number of clients that connected over time
+    size_t num_total_connected_clients;
+
+    // Number of clients currently fully connected (bootstrapping completed)
     size_t num_connected_clients;
+
+    // Number of clients in the process of connecting
     size_t num_ongoing_connections;
+    
     // Dynamic array of structures to track connected clients (type: peer_info_t)
     dyn_array_t clients;
 } connected_clients_t;
