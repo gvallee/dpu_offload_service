@@ -990,14 +990,14 @@ static void progress_event_recv(execution_context_t *econtext)
                 DBG("Reception of notification already all set");
             */
             // The function will handle whether a new receive is required to be posted or not
-            ECONTEXT_LOCK(econtext);
+            ECONTEXT_UNLOCK(econtext);
             post_new_notif_recv(worker,
                                 &(client_info->notif_recv.ctx),
                                 econtext,
                                 client_info->notif_recv.hdr_ucp_tag,
                                 client_info->notif_recv.hdr_ucp_tag_mask,
                                 &(client_info->notif_recv.hdr_recv_params));
-            ECONTEXT_UNLOCK(econtext);
+            ECONTEXT_LOCK(econtext);
             idx++;
             n_client++;
         }
@@ -1021,14 +1021,14 @@ static void progress_event_recv(execution_context_t *econtext)
         }
 
         // The function will handle whether a new receive is required to be posted or not
-        ECONTEXT_LOCK(econtext);
+        ECONTEXT_UNLOCK(econtext);
         post_new_notif_recv(worker,
                             &(econtext->event_channels->notif_recv.ctx),
                             econtext,
                             econtext->event_channels->notif_recv.hdr_ucp_tag,
                             econtext->event_channels->notif_recv.hdr_ucp_tag_mask,
                             &(econtext->event_channels->notif_recv.hdr_recv_params));
-        ECONTEXT_UNLOCK(econtext);
+        ECONTEXT_LOCK(econtext);
     }
     ECONTEXT_UNLOCK(econtext);
 #endif
