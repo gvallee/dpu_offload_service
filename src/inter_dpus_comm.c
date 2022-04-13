@@ -78,8 +78,7 @@ dpu_offload_parse_list_dpus(offloading_engine_t *engine, offloading_config_t *co
 
     while (token != NULL)
     {
-        dpu_config_data_t *dpu_config;
-        DYN_ARRAY_GET_ELT(&(config_data->dpus_config), config_data->num_dpus, dpu_config_data_t, dpu_config);
+        dpu_config_data_t *dpu_config = DYN_ARRAY_GET_ELT(&(config_data->dpus_config), config_data->num_dpus, dpu_config_data_t);
         assert(dpu_config);
         dpu_config->version_1.hostname = strdup(token); // todo: correctly free
         config_data->num_dpus++;

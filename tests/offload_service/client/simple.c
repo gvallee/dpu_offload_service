@@ -6,13 +6,15 @@
 
 /*
  * Simple is a basic client that connects to a server (including DPU daemon),
- * sleeps for 5 seconds and terminates. It is for example used to test the
+ * sleeps for SLEEP_TIME seconds and terminates. It is for example used to test the
  * connection of multiple clients to a single DPU daemon.
  */
 
 #include <unistd.h>
 
 #include "dpu_offload_service_daemon.h"
+
+#define SLEEP_TIME (10)
 
 int main(int argc, char **argv)
 {
@@ -51,7 +53,7 @@ int main(int argc, char **argv)
     fprintf(stderr, "* Now connected to the server\n");
 
     // We are now connected to the server
-    sleep(5);
+    sleep(SLEEP_TIME);
 
     // All done, terminating
     client_fini(&client);

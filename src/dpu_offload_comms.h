@@ -119,8 +119,7 @@ static int handle_notif_msg(execution_context_t *econtext, am_header_t *hdr, siz
     assert(econtext->event_channels);
     SYS_EVENT_LOCK(econtext->event_channels);
     assert(hdr->type < econtext->event_channels->notification_callbacks.num_elts);
-    notification_callback_entry_t *entry;
-    DYN_ARRAY_GET_ELT(&(econtext->event_channels->notification_callbacks), hdr->type, notification_callback_entry_t, entry);
+    notification_callback_entry_t *entry = DYN_ARRAY_GET_ELT(&(econtext->event_channels->notification_callbacks), hdr->type, notification_callback_entry_t);
     DBG("Notification of type %" PRIu64 " received (econtext: %p), dispatching...", hdr->type, econtext);
     if (entry->set == false)
     {

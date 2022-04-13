@@ -85,23 +85,21 @@ typedef enum
     _ep;                                      \
 })
 
-#define GET_CLIENT_EP(_exec_ctx, _client_id) ({                              \
-    ucp_ep_h _ep;                                                            \
-    if ((_exec_ctx)->type == CONTEXT_SERVER)                                 \
-    {                                                                        \
-        peer_info_t *_pi;                                                    \
-        DYN_ARRAY_GET_ELT(&((_exec_ctx)->server->connected_clients.clients), \
-                          _client_id,                                        \
-                          peer_info_t,                                       \
-                          _pi);                                              \
-        assert(_pi);                                                         \
-        _ep = _pi->ep;                                                       \
-    }                                                                        \
-    else                                                                     \
-    {                                                                        \
-        _ep = NULL;                                                          \
-    }                                                                        \
-    _ep;                                                                     \
+#define GET_CLIENT_EP(_exec_ctx, _client_id) ({                                                 \
+    ucp_ep_h _ep;                                                                               \
+    if ((_exec_ctx)->type == CONTEXT_SERVER)                                                    \
+    {                                                                                           \
+        peer_info_t *_pi = DYN_ARRAY_GET_ELT(&((_exec_ctx)->server->connected_clients.clients), \
+                                             _client_id,                                        \
+                                             peer_info_t);                                      \
+        assert(_pi);                                                                            \
+        _ep = _pi->ep;                                                                          \
+    }                                                                                           \
+    else                                                                                        \
+    {                                                                                           \
+        _ep = NULL;                                                                             \
+    }                                                                                           \
+    _ep;                                                                                        \
 })
 
 #define GET_WORKER(_exec_ctx) ({                       \
@@ -347,7 +345,7 @@ typedef struct am_req
     // is a notification requiring the exchange of a RDV message under
     // the cover.
     int complete; // fixme: segfault if changed to bool
-} am_req_t; // todo: rename, nothing to do with AM
+} am_req_t;       // todo: rename, nothing to do with AM
 
 #if !USE_AM_IMPLEM
 // Forward declaration
@@ -396,6 +394,8 @@ typedef struct boostrapping
 typedef struct peer_info
 {
     bootstrapping_t bootstrapping;
+
+    uint64_t id;
 
 #if !USE_AM_IMPLEM
     notif_reception_t notif_recv;
@@ -477,7 +477,7 @@ typedef struct connected_clients
 
     // Number of clients in the process of connecting
     size_t num_ongoing_connections;
-    
+
     // Dynamic array of structures to track connected clients (type: peer_info_t)
     dyn_array_t clients;
 } connected_clients_t;

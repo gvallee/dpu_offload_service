@@ -56,7 +56,6 @@ int main(int argc, char **argv)
     while (!server->server->done)
     {
         lib_progress(server);
-        //fprintf(stderr, "Done? %d\n", server->server->done);
     }
 
     server_fini(&server);

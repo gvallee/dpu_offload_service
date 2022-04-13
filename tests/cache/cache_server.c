@@ -41,8 +41,7 @@ int main(int argc, char **argv)
 
     POPULATE_CACHE(offload_engine);
 
-    peer_info_t *peer_info;
-    DYN_ARRAY_GET_ELT(&(server->server->connected_clients.clients), 0UL, peer_info_t, peer_info);
+    peer_info_t *peer_info = DYN_ARRAY_GET_ELT(&(server->server->connected_clients.clients), 0UL, peer_info_t);
     assert(peer_info);
     ucp_ep_h remote_ep = peer_info->ep;
     if (remote_ep == NULL)
