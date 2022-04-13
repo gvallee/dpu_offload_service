@@ -30,6 +30,9 @@
 
 int main(int argc, char **argv)
 {
+    offloading_engine_t *offload_engine = NULL;
+    execution_context_t *client = NULL;
+
     /* Get the rank for the arguments */
     if (argc != 2)
     {
@@ -49,7 +52,6 @@ int main(int argc, char **argv)
     }
 
     /* Initialize everything we need for the test */
-    offloading_engine_t *offload_engine;
     rc = offload_engine_init(&offload_engine);
     if (rc || offload_engine == NULL)
     {
@@ -68,7 +70,7 @@ int main(int argc, char **argv)
     init_params_t init_params;
     RESET_INIT_PARAMS(&init_params);
     init_params.proc_info = &my_rank_info;
-    execution_context_t *client = client_init(offload_engine, &init_params);
+    client = client_init(offload_engine, &init_params);
     if (client == NULL)
     {
         fprintf(stderr, "client handle is undefined\n");
@@ -126,8 +128,10 @@ int main(int argc, char **argv)
     return EXIT_SUCCESS;
 
 error_out:
-    client_fini(&client);
-    offload_engine_fini(&offload_engine);
+    if (client != NULL)
+        client_fini(&client);
+    if (offload_engine != NULL)
+        offload_engine_fini(&offload_engine);
     fprintf(stderr, "%s: test failed\n", argv[0]);
     return EXIT_FAILURE;
 }

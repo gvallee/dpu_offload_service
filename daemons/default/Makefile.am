@@ -9,8 +9,12 @@
 # $HEADER$
 #
 
-bin_PROGRAMS = default_dpu_daemon
+bin_PROGRAMS = default_dpu_daemon_client default_dpu_daemon_server
 
-default_dpu_daemon_SOURCES = default_dpu_daemon.c
+# Flags for all the tests
 AM_LDFLAGS = -ldpuoffloaddaemon
 AM_CFLAGS = -I@top_srcdir@/include -L@top_srcdir@/src/.libs
+
+default_dpu_daemon_client_SOURCES = default_dpu_daemon_client.c
+
+default_dpu_daemon_server_SOURCES = default_dpu_daemon_server.c

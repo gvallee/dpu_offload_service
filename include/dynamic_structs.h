@@ -68,18 +68,18 @@ typedef struct dyn_array
         (_dyn_array)->num_elts = _new_num_elts;                                                         \
     } while (0)
 
-#define DYN_ARRAY_GET_ELT(_dyn_array, _idx, _type, _elt) \
-    do                                                   \
-    {                                                    \
-        assert(_dyn_array);                              \
-        assert((_dyn_array)->num_elts);                  \
-        if ((_dyn_array)->num_elts <= _idx)              \
-        {                                                \
-            DYN_ARRAY_GROW(_dyn_array, _type, _idx);     \
-        }                                                \
-        _type *__ptr = (_type *)((_dyn_array)->base);    \
-        _elt = (_type *)&(__ptr[_idx]);                  \
-    } while (0)
+#define DYN_ARRAY_GET_ELT(_dyn_array, _idx, _type) ({ \
+    assert(_dyn_array);                               \
+    assert((_dyn_array)->num_elts);                   \
+    _type *_elt = NULL;                               \
+    if ((_dyn_array)->num_elts <= _idx)               \
+    {                                                 \
+        DYN_ARRAY_GROW(_dyn_array, _type, _idx);      \
+    }                                                 \
+    _type *__ptr = (_type *)((_dyn_array)->base);     \
+    _elt = (_type *)&(__ptr[_idx]);                   \
+    _elt;                                             \
+})
 
 #define DYN_ARRAY_SET_ELT(_dyn_array, _idx, _type, _elt) \
     do                                                   \
@@ -110,107 +110,105 @@ typedef struct dyn_list
     dyn_array_t mem_chunks;
 } dyn_list_t;
 
-#define GROW_DYN_LIST(__dyn_list, __type, __elt)                                                                   \
-    do                                                                                                             \
-    {                                                                                                              \
-        assert(__dyn_list);                                                                                        \
-        size_t _initial_list_size = ucs_list_length(&((__dyn_list)->list));                                        \
-        size_t _chunk_size = (__dyn_list)->num_elts_alloc * sizeof(__type);                                        \
-        void *_new_chunk_buf = malloc(_chunk_size);                                                                \
-        if (_new_chunk_buf != NULL)                                                                                \
-        {                                                                                                          \
-            size_t _i;                                                                                             \
-            void *_ptr;                                                                                            \
-            mem_chunk_t *_chunk_ptr;                                                                               \
-            DYN_ARRAY_GET_ELT(&((__dyn_list)->mem_chunks), (__dyn_list)->num_mem_chunks, mem_chunk_t, _chunk_ptr); \
-            assert(_chunk_ptr);                                                                                    \
-            _chunk_ptr->ptr = _new_chunk_buf;                                                                      \
-            _chunk_ptr->size = _chunk_size;                                                                        \
-            (__dyn_list)->num_mem_chunks++;                                                                        \
-            __type *_e = (__type *)(_new_chunk_buf);                                                               \
-            for (_i = 0; _i < (__dyn_list)->num_elts_alloc; _i++)                                                  \
-            {                                                                                                      \
-                if ((__dyn_list)->element_init_cb != NULL)                                                         \
-                {                                                                                                  \
-                    (__dyn_list)->element_init_cb((void *)&(_e[_i]));                                              \
-                }                                                                                                  \
-                ucs_list_add_tail(&((__dyn_list)->list), &(_e[_i].__elt));                                         \
-                _ptr = &(_e[_i]);                                                                                  \
-            }                                                                                                      \
-            assert(ucs_list_length(&((__dyn_list)->list)) == (_initial_list_size + (__dyn_list)->num_elts_alloc)); \
-            assert((((ptrdiff_t)_ptr + sizeof(__type)) - ((ptrdiff_t)_new_chunk_buf + _chunk_size)) == 0);         \
-            (__dyn_list)->num_elts += (__dyn_list)->num_elts_alloc;                                                \
-        }                                                                                                          \
-        else                                                                                                       \
-        {                                                                                                          \
-            fprintf(stderr, "[ERROR] unable to grow dynamic list, unable to allocate buffer\n");                   \
-        }                                                                                                          \
+#define GROW_DYN_LIST(__dyn_list, __type, __elt)                                                                                 \
+    do                                                                                                                           \
+    {                                                                                                                            \
+        assert(__dyn_list);                                                                                                      \
+        size_t _initial_list_size = ucs_list_length(&((__dyn_list)->list));                                                      \
+        size_t _chunk_size = (__dyn_list)->num_elts_alloc * sizeof(__type);                                                      \
+        void *_new_chunk_buf = malloc(_chunk_size);                                                                              \
+        if (_new_chunk_buf != NULL)                                                                                              \
+        {                                                                                                                        \
+            size_t _i;                                                                                                           \
+            void *_ptr;                                                                                                          \
+            mem_chunk_t *_chunk_ptr = DYN_ARRAY_GET_ELT(&((__dyn_list)->mem_chunks), (__dyn_list)->num_mem_chunks, mem_chunk_t); \
+            assert(_chunk_ptr);                                                                                                  \
+            _chunk_ptr->ptr = _new_chunk_buf;                                                                                    \
+            _chunk_ptr->size = _chunk_size;                                                                                      \
+            (__dyn_list)->num_mem_chunks++;                                                                                      \
+            __type *_e = (__type *)(_new_chunk_buf);                                                                             \
+            for (_i = 0; _i < (__dyn_list)->num_elts_alloc; _i++)                                                                \
+            {                                                                                                                    \
+                if ((__dyn_list)->element_init_cb != NULL)                                                                       \
+                {                                                                                                                \
+                    (__dyn_list)->element_init_cb((void *)&(_e[_i]));                                                            \
+                }                                                                                                                \
+                ucs_list_add_tail(&((__dyn_list)->list), &(_e[_i].__elt));                                                       \
+                _ptr = &(_e[_i]);                                                                                                \
+            }                                                                                                                    \
+            assert(ucs_list_length(&((__dyn_list)->list)) == (_initial_list_size + (__dyn_list)->num_elts_alloc));               \
+            assert((((ptrdiff_t)_ptr + sizeof(__type)) - ((ptrdiff_t)_new_chunk_buf + _chunk_size)) == 0);                       \
+            (__dyn_list)->num_elts += (__dyn_list)->num_elts_alloc;                                                              \
+        }                                                                                                                        \
+        else                                                                                                                     \
+        {                                                                                                                        \
+            fprintf(stderr, "[ERROR] unable to grow dynamic list, unable to allocate buffer\n");                                 \
+        }                                                                                                                        \
     } while (0)
 
-#define DYN_LIST_ALLOC(_dyn_list, _num_elts_alloc, _type, _elt)                               \
-    do                                                                                        \
-    {                                                                                         \
-        (_dyn_list) = malloc(sizeof(dyn_list_t));                                             \
-        if ((_dyn_list) != NULL)                                                              \
-        {                                                                                     \
-            DYN_ARRAY_ALLOC(&((_dyn_list)->mem_chunks), DEFAULT_MEM_CHUNKS, mem_chunk_t);     \
-            (_dyn_list)->num_mem_chunks = 0;                                                  \
-            (_dyn_list)->num_elts = 0;                                                        \
-            (_dyn_list)->num_elts_alloc = _num_elts_alloc;                                    \
-            (_dyn_list)->element_init_cb = NULL;                                              \
-            ucs_list_head_init(&((_dyn_list)->list));                                         \
-            GROW_DYN_LIST((_dyn_list), _type, _elt);                                          \
-        }                                                                                     \
-        else                                                                                  \
-        {                                                                                     \
-            fprintf(stderr, "[ERROR] unable to allocate dynamic list\n");                     \
-            (_dyn_list) = NULL;                                                               \
-        }                                                                                     \
+#define DYN_LIST_ALLOC(_dyn_list, _num_elts_alloc, _type, _elt)                           \
+    do                                                                                    \
+    {                                                                                     \
+        (_dyn_list) = malloc(sizeof(dyn_list_t));                                         \
+        if ((_dyn_list) != NULL)                                                          \
+        {                                                                                 \
+            DYN_ARRAY_ALLOC(&((_dyn_list)->mem_chunks), DEFAULT_MEM_CHUNKS, mem_chunk_t); \
+            (_dyn_list)->num_mem_chunks = 0;                                              \
+            (_dyn_list)->num_elts = 0;                                                    \
+            (_dyn_list)->num_elts_alloc = _num_elts_alloc;                                \
+            (_dyn_list)->element_init_cb = NULL;                                          \
+            ucs_list_head_init(&((_dyn_list)->list));                                     \
+            GROW_DYN_LIST((_dyn_list), _type, _elt);                                      \
+        }                                                                                 \
+        else                                                                              \
+        {                                                                                 \
+            fprintf(stderr, "[ERROR] unable to allocate dynamic list\n");                 \
+            (_dyn_list) = NULL;                                                           \
+        }                                                                                 \
     } while (0)
 
-#define DYN_LIST_ALLOC_WITH_INIT_CALLBACK(_dyn_list, _num_elts_alloc, _type, _elt, _cb)       \
-    do                                                                                        \
-    {                                                                                         \
-        (_dyn_list) = malloc(sizeof(dyn_list_t));                                             \
-        if ((_dyn_list) != NULL)                                                              \
-        {                                                                                     \
-            DYN_ARRAY_ALLOC(&((_dyn_list)->mem_chunks), DEFAULT_MEM_CHUNKS, mem_chunk_t);     \
-            (_dyn_list)->num_mem_chunks = 0;                                                  \
-            (_dyn_list)->num_elts = 0;                                                        \
-            (_dyn_list)->num_elts_alloc = _num_elts_alloc;                                    \
-            (_dyn_list)->element_init_cb = _cb;                                               \
-            ucs_list_head_init(&((_dyn_list)->list));                                         \
-            GROW_DYN_LIST((_dyn_list), _type, _elt);                                          \
-        }                                                                                     \
-        else                                                                                  \
-        {                                                                                     \
-            fprintf(stderr, "[ERROR] unable to allocate dynamic list\n");                     \
-            (_dyn_list) = NULL;                                                               \
-        }                                                                                     \
+#define DYN_LIST_ALLOC_WITH_INIT_CALLBACK(_dyn_list, _num_elts_alloc, _type, _elt, _cb)   \
+    do                                                                                    \
+    {                                                                                     \
+        (_dyn_list) = malloc(sizeof(dyn_list_t));                                         \
+        if ((_dyn_list) != NULL)                                                          \
+        {                                                                                 \
+            DYN_ARRAY_ALLOC(&((_dyn_list)->mem_chunks), DEFAULT_MEM_CHUNKS, mem_chunk_t); \
+            (_dyn_list)->num_mem_chunks = 0;                                              \
+            (_dyn_list)->num_elts = 0;                                                    \
+            (_dyn_list)->num_elts_alloc = _num_elts_alloc;                                \
+            (_dyn_list)->element_init_cb = _cb;                                           \
+            ucs_list_head_init(&((_dyn_list)->list));                                     \
+            GROW_DYN_LIST((_dyn_list), _type, _elt);                                      \
+        }                                                                                 \
+        else                                                                              \
+        {                                                                                 \
+            fprintf(stderr, "[ERROR] unable to allocate dynamic list\n");                 \
+            (_dyn_list) = NULL;                                                           \
+        }                                                                                 \
     } while (0)
 
-#define DYN_LIST_FREE(_dyn_list, _type, _elt)                                               \
-    do                                                                                      \
-    {                                                                                       \
-        /* Release the list */                                                              \
-        while (!ucs_list_is_empty(&((_dyn_list)->list)))                                    \
-        {                                                                                   \
-            _type *_item = ucs_list_extract_head(&((_dyn_list)->list), _type, _elt);        \
-            assert(_item);                                                                  \
-            ucs_list_del(&(_item->_elt));                                                   \
-        }                                                                                   \
-        /* Free the underlying memory chunks */                                             \
-        size_t _i;                                                                          \
-        for (_i = 0; _i < (_dyn_list)->num_mem_chunks; _i++)                                \
-        {                                                                                   \
-            mem_chunk_t *_mem_chunk_ptr;                                                    \
-            DYN_ARRAY_GET_ELT(&((_dyn_list)->mem_chunks), _i, mem_chunk_t, _mem_chunk_ptr); \
-            assert(_mem_chunk_ptr);                                                         \
-            free(_mem_chunk_ptr->ptr);                                                      \
-            _mem_chunk_ptr->ptr = NULL;                                                     \
-        }                                                                                   \
-        DYN_ARRAY_FREE(&((_dyn_list)->mem_chunks));                                         \
-        _dyn_list = NULL;                                                                   \
+#define DYN_LIST_FREE(_dyn_list, _type, _elt)                                                             \
+    do                                                                                                    \
+    {                                                                                                     \
+        /* Release the list */                                                                            \
+        while (!ucs_list_is_empty(&((_dyn_list)->list)))                                                  \
+        {                                                                                                 \
+            _type *_item = ucs_list_extract_head(&((_dyn_list)->list), _type, _elt);                      \
+            assert(_item);                                                                                \
+            ucs_list_del(&(_item->_elt));                                                                 \
+        }                                                                                                 \
+        /* Free the underlying memory chunks */                                                           \
+        size_t _i;                                                                                        \
+        for (_i = 0; _i < (_dyn_list)->num_mem_chunks; _i++)                                              \
+        {                                                                                                 \
+            mem_chunk_t *_mem_chunk_ptr = DYN_ARRAY_GET_ELT(&((_dyn_list)->mem_chunks), _i, mem_chunk_t); \
+            assert(_mem_chunk_ptr);                                                                       \
+            free(_mem_chunk_ptr->ptr);                                                                    \
+            _mem_chunk_ptr->ptr = NULL;                                                                   \
+        }                                                                                                 \
+        DYN_ARRAY_FREE(&((_dyn_list)->mem_chunks));                                                       \
+        _dyn_list = NULL;                                                                                 \
     } while (0)
 
 #define DYN_LIST_GET(_dyn_list, _type, _elt, _item)                       \

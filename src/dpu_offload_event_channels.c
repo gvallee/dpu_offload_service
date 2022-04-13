@@ -213,8 +213,7 @@ dpu_offload_status_t event_channel_register(dpu_offload_ev_sys_t *ev_sys, uint64
 {
     CHECK_ERR_RETURN((cb == NULL), DO_ERROR, "Undefined callback");
     CHECK_ERR_RETURN((ev_sys == NULL), DO_ERROR, "undefined event system");
-    notification_callback_entry_t *entry;
-    DYN_ARRAY_GET_ELT(&(ev_sys->notification_callbacks), type, notification_callback_entry_t, entry);
+    notification_callback_entry_t *entry = DYN_ARRAY_GET_ELT(&(ev_sys->notification_callbacks), type, notification_callback_entry_t);
     CHECK_ERR_RETURN((entry == NULL), DO_ERROR, "unable to get callback %ld", type);
     CHECK_ERR_RETURN((entry->set == true), DO_ERROR, "type %" PRIu64 " is already set", type);
 
@@ -258,9 +257,8 @@ dpu_offload_status_t engine_register_default_notification_handler(offloading_eng
     CHECK_ERR_RETURN((engine == NULL), DO_ERROR, "Undefine engine");
 
     notification_callback_entry_t *list_callbacks = (notification_callback_entry_t *)engine->default_notifications->notification_callbacks.base;
-    notification_callback_entry_t *entry;
     ENGINE_LOCK(engine);
-    DYN_ARRAY_GET_ELT(&(engine->default_notifications->notification_callbacks), type, notification_callback_entry_t, entry);
+    notification_callback_entry_t *entry = DYN_ARRAY_GET_ELT(&(engine->default_notifications->notification_callbacks), type, notification_callback_entry_t);
     ENGINE_UNLOCK(engine);
     CHECK_ERR_RETURN((entry == NULL), DO_ERROR, "unable to get callback %ld", type);
     CHECK_ERR_RETURN((entry->set == true), DO_ERROR, "type %" PRIu64 " is already set", type);
@@ -733,8 +731,7 @@ static dpu_offload_status_t peer_cache_entries_request_recv_cb(struct dpu_offloa
         ucp_ep_h dest;
         group_cache_t *gp_caches;
         dpu_offload_event_t *send_cache_ev;
-        peer_info_t *peer_info;
-        DYN_ARRAY_GET_ELT(&(econtext->server->connected_clients.clients), hdr->id, peer_info_t, peer_info);
+        peer_info_t *peer_info = DYN_ARRAY_GET_ELT(&(econtext->server->connected_clients.clients), hdr->id, peer_info_t);
         assert(peer_info);
         event_get(econtext->event_channels, NULL, &send_cache_ev);
         assert(econtext->type == CONTEXT_SERVER);

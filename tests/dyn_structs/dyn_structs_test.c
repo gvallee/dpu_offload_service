@@ -27,8 +27,7 @@ int main(int argc, char **argv)
         fprintf(stderr, "Number of mem chunks is %ld instead of expected 1\n", list_1->num_mem_chunks);
         goto error_out;
     }
-    mem_chunk_t *mem_chunk_ptr;
-    DYN_ARRAY_GET_ELT(&(list_1->mem_chunks), 0UL, mem_chunk_t, mem_chunk_ptr);
+    mem_chunk_t *mem_chunk_ptr = DYN_ARRAY_GET_ELT(&(list_1->mem_chunks), 0UL, mem_chunk_t);
     if (mem_chunk_ptr == NULL)
     {
         fprintf(stderr, "Unable to get mem chunk #0\n");
@@ -70,7 +69,7 @@ int main(int argc, char **argv)
         fprintf(stderr, "Number of mem chunks is %ld instead of expected 1\n", list_1->num_mem_chunks);
         goto error_out;
     }
-    DYN_ARRAY_GET_ELT(&(list_1->mem_chunks), 0UL, mem_chunk_t, mem_chunk_ptr);
+    mem_chunk_ptr = DYN_ARRAY_GET_ELT(&(list_1->mem_chunks), 0UL, mem_chunk_t);
     if (mem_chunk_ptr == NULL)
     {
         fprintf(stderr, "Unable to get mem chunk #0\n");
@@ -99,7 +98,7 @@ int main(int argc, char **argv)
         fprintf(stderr, "Number of mem chunks is %ld instead of expected 1\n", list_1->num_mem_chunks);
         goto error_out;
     }
-    DYN_ARRAY_GET_ELT(&(list_1->mem_chunks), 0UL, mem_chunk_t, mem_chunk_ptr);
+    mem_chunk_ptr = DYN_ARRAY_GET_ELT(&(list_1->mem_chunks), 0UL, mem_chunk_t);
     if (mem_chunk_ptr == NULL)
     {
         fprintf(stderr, "Unable to get mem chunk #0\n");
@@ -142,7 +141,7 @@ int main(int argc, char **argv)
         size_t j;
         for (j = 0; j <= i; j++)
         {
-            DYN_ARRAY_GET_ELT(&(list_1->mem_chunks), j, mem_chunk_t, mem_chunk_ptr);
+            mem_chunk_ptr = DYN_ARRAY_GET_ELT(&(list_1->mem_chunks), j, mem_chunk_t);
             if (mem_chunk_ptr == NULL)
             {
                 fprintf(stderr, "Unable to get mem chunk #%ld\n", j);
@@ -184,7 +183,7 @@ int main(int argc, char **argv)
         size_t j;
         for (j = 0; j < 1000; j++)
         {
-            DYN_ARRAY_GET_ELT(&(list_1->mem_chunks), j, mem_chunk_t, mem_chunk_ptr);
+            mem_chunk_ptr = DYN_ARRAY_GET_ELT(&(list_1->mem_chunks), j, mem_chunk_t);
             if (mem_chunk_ptr == NULL)
             {
                 fprintf(stderr, "Unable to get mem chunk #%ld\n", j);

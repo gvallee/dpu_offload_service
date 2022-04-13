@@ -31,8 +31,10 @@ static ucs_status_t am_term_msg_cb(void *arg, const void *header, size_t header_
         d->server->connected_clients.clients[idx].status = DISCONNECTED;
 #endif
         d->server->connected_clients.num_connected_clients--;
-        DBG("Remaining number of connected clients: %ld", d->server->connected_clients.num_connected_clients);
-        if (d->server->connected_clients.num_connected_clients == 0)
+        DBG("Remaining number of connected clients: %ld, ongoing connections: %ld", 
+            d->server->connected_clients.num_connected_clients,
+            d->server->connected_clients.num_ongoing_connections);
+        if (d->server->connected_clients.num_connected_clients == 0 && d->server->connected_clients.num_ongoing_connections == 0)
         {
             DBG("server is now done");
             d->server->done = true;

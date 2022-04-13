@@ -100,8 +100,11 @@ static inline dpu_offload_status_t oob_server_ucx_client_connection_step1(execut
     /* 1. Receive the address size */
     size_t client_addr_size = 0;
     ucp_tag_t ucp_tag, ucp_tag_mask;
-    DBG("Posting recv - Tag: %d, scope_id: %d, econtext: %p\n", econtext->server->conn_data.oob.tag, econtext->scope_id, econtext);
-    MAKE_RECV_TAG(ucp_tag, ucp_tag_mask, econtext->server->conn_data.oob.tag, 0, 0, econtext->scope_id, 0);
+    DBG("Posting recv - Tag: %d, scope_id: %d, econtext: %p, peer_id: %ld\n",
+        econtext->server->conn_data.oob.tag,
+        econtext->scope_id,
+        econtext, client_info->id);
+    MAKE_RECV_TAG(ucp_tag, ucp_tag_mask, econtext->server->conn_data.oob.tag, client_info->id, 0, econtext->scope_id, 0);
     ucp_request_param_t recv_param;
     recv_param.op_attr_mask = UCP_OP_ATTR_FIELD_CALLBACK |
                               UCP_OP_ATTR_FIELD_DATATYPE |
@@ -162,7 +165,7 @@ static inline dpu_offload_status_t oob_server_ucx_client_connection_step2(execut
     recv_param.user_data = &(client_info->bootstrapping.addr_ctx);
     recv_param.cb.recv = oob_recv_addr_handler_2;
     DBG("Tag: %d; scope_id: %d\n", econtext->server->conn_data.oob.tag, econtext->scope_id);
-    MAKE_RECV_TAG(ucp_tag, ucp_tag_mask, econtext->server->conn_data.oob.tag, 0, 0, econtext->scope_id, 0);
+    MAKE_RECV_TAG(ucp_tag, ucp_tag_mask, econtext->server->conn_data.oob.tag, client_info->id, 0, econtext->scope_id, 0);
     client_info->bootstrapping.addr_request = ucp_tag_recv_nbx(GET_WORKER(econtext),
                                                                client_info->peer_addr,
                                                                client_info->peer_addr_len,
@@ -219,7 +222,7 @@ static inline dpu_offload_status_t oob_server_ucx_client_connection_step3(execut
     recv_param.user_data = &(client_info->bootstrapping.rank_ctx);
     recv_param.cb.recv = oob_recv_addr_handler_2;
     DBG("Tag: %d; scope_id: %d\n", econtext->server->conn_data.oob.tag, econtext->scope_id);
-    MAKE_RECV_TAG(ucp_tag, ucp_tag_mask, econtext->server->conn_data.oob.tag, 0, 0, econtext->scope_id, 0);
+    MAKE_RECV_TAG(ucp_tag, ucp_tag_mask, econtext->server->conn_data.oob.tag, client_info->id, 0, econtext->scope_id, 0);
     client_info->bootstrapping.rank_request = ucp_tag_recv_nbx(GET_WORKER(econtext),
                                                                &(client_info->rank_data),
                                                                sizeof(rank_info_t),
@@ -307,13 +310,15 @@ static dpu_offload_status_t oob_server_accept(execution_context_t *econtext, cha
     struct sockaddr_in servaddr;
     int optval = 1;
     int rc;
+    int accept_sock;
+    struct sockaddr_in addr;
+    int addr_len = sizeof(client_addr);
 
     ECONTEXT_LOCK(econtext);
     uint16_t server_port = econtext->server->conn_params.port;
 
     if (econtext->server->conn_data.oob.listenfd == -1)
     {
-        int accept_sock;
         econtext->server->conn_data.oob.listenfd = socket(AF_INET, SOCK_STREAM, 0);
 
         memset(&servaddr, 0, sizeof(servaddr));
@@ -329,17 +334,19 @@ static dpu_offload_status_t oob_server_accept(execution_context_t *econtext, cha
         CHECK_ERR_GOTO((rc), error_out, "listen() failed: %s", strerror(errno));
 
         // fixme: debug when multi-connections are required
-        DBG("Accepting connection on port %" PRIu16 "...", server_port);
-        struct sockaddr_in addr;
-        int addr_len = sizeof(client_addr);
-        ECONTEXT_UNLOCK(econtext);
-        accept_sock = accept(econtext->server->conn_data.oob.listenfd, (struct sockaddr *)&addr, &addr_len);
-        ECONTEXT_LOCK(econtext);
-        econtext->server->conn_data.oob.sock = accept_sock;
-        struct in_addr ipAddr = addr.sin_addr;
-        inet_ntop(AF_INET, &ipAddr, client_addr, INET_ADDRSTRLEN);
-        DBG("Connection accepted from %s on fd=%d", client_addr, econtext->server->conn_data.oob.sock);
+        DBG("Listening for connections on port %" PRIu16 "...", server_port);
     }
+    else
+    {
+        DBG("Already listening on socket %d", econtext->server->conn_data.oob.listenfd);
+    }
+    ECONTEXT_UNLOCK(econtext);
+    accept_sock = accept(econtext->server->conn_data.oob.listenfd, (struct sockaddr *)&addr, &addr_len);
+    ECONTEXT_LOCK(econtext);
+    econtext->server->conn_data.oob.sock = accept_sock;
+    struct in_addr ipAddr = addr.sin_addr;
+    inet_ntop(AF_INET, &ipAddr, client_addr, INET_ADDRSTRLEN);
+    DBG("Connection accepted from %s on fd=%d", client_addr, econtext->server->conn_data.oob.sock);
     ECONTEXT_UNLOCK(econtext);
     return DO_SUCCESS;
 
@@ -652,7 +659,7 @@ static dpu_offload_status_t client_ucx_boostrap_step3(execution_context_t *econt
     send_param.datatype = ucp_dt_make_contig(1);
     send_param.user_data = &(econtext->client->bootstrapping.rank_ctx);
     DBG("Tag: %d; scope_id: %d", econtext->client->conn_data.oob.tag, econtext->scope_id);
-    ucp_tag_t ucp_tag = MAKE_SEND_TAG(econtext->client->conn_data.oob.tag, 0, 0, econtext->scope_id, 0);
+    ucp_tag_t ucp_tag = MAKE_SEND_TAG(econtext->client->conn_data.oob.tag, econtext->client->id, 0, econtext->scope_id, 0);
     econtext->client->bootstrapping.rank_request = ucp_tag_send_nbx(econtext->client->server_ep,
                                                                     &(econtext->rank),
                                                                     sizeof(rank_info_t),
@@ -686,7 +693,7 @@ static dpu_offload_state_t client_ucx_bootstrap_step2(execution_context_t *econt
     send_param.datatype = ucp_dt_make_contig(1);
     send_param.user_data = &(econtext->client->bootstrapping.addr_ctx);
     DBG("Tag: %d; scope_id: %d\n", econtext->client->conn_data.oob.tag, econtext->scope_id);
-    ucp_tag_t ucp_tag = MAKE_SEND_TAG(econtext->client->conn_data.oob.tag, 0, 0, econtext->scope_id, 0);
+    ucp_tag_t ucp_tag = MAKE_SEND_TAG(econtext->client->conn_data.oob.tag, econtext->client->id, 0, econtext->scope_id, 0);
     econtext->client->bootstrapping.addr_request = ucp_tag_send_nbx(econtext->client->server_ep,
                                                                     econtext->client->conn_data.oob.local_addr,
                                                                     econtext->client->conn_data.oob.local_addr_len,
@@ -735,7 +742,7 @@ static dpu_offload_status_t client_ucx_bootstrap_step1(execution_context_t *econ
     send_param.user_data = &(econtext->client->bootstrapping.addr_size_ctx);
 
     /* 1. Send the address size */
-    ucp_tag_t ucp_tag = MAKE_SEND_TAG(econtext->client->conn_data.oob.tag, 0, 0, econtext->scope_id, 0);
+    ucp_tag_t ucp_tag = MAKE_SEND_TAG(econtext->client->conn_data.oob.tag, econtext->client->id, 0, econtext->scope_id, 0);
     DBG("Tag: %d; scope_id: %d\n", econtext->client->conn_data.oob.tag, econtext->scope_id);
     econtext->client->bootstrapping.addr_size_request = ucp_tag_send_nbx(econtext->client->server_ep, &(econtext->client->conn_data.oob.local_addr_len), sizeof(size_t), ucp_tag, &send_param);
     if (UCS_PTR_IS_ERR(econtext->client->bootstrapping.addr_size_request))
@@ -954,19 +961,15 @@ static void progress_event_recv(execution_context_t *econtext)
         // SERVER
         size_t n_client = 0;
         size_t idx = 0;
-        // DBG("%ld connected clients, checking their status to receive notifications", econtext->server->connected_clients.num_connected_clients);
         while (n_client < econtext->server->connected_clients.num_connected_clients)
         {
-            peer_info_t *client_info;
-            DYN_ARRAY_GET_ELT(&(econtext->server->connected_clients.clients), idx, peer_info_t, client_info);
+            peer_info_t *client_info = DYN_ARRAY_GET_ELT(&(econtext->server->connected_clients.clients), idx, peer_info_t);
             if (client_info == NULL || client_info->bootstrapping.phase != BOOTSTRAP_DONE)
             {
-                DBG("Client #%ld not fully bootstrapped", idx);
                 idx++;
                 continue;
             }
 
-            // DBG("Checking client #%ld", idx);
             ucp_worker_h worker = GET_WORKER(econtext);
             if (client_info->notif_recv.initialized == false)
             {
@@ -985,10 +988,6 @@ static void progress_event_recv(execution_context_t *econtext)
                                 econtext->scope_id);
                 client_info->notif_recv.initialized = true;
             }
-            /*
-            else
-                DBG("Reception of notification already all set");
-            */
             // The function will handle whether a new receive is required to be posted or not
             ECONTEXT_UNLOCK(econtext);
             post_new_notif_recv(worker,
@@ -1046,27 +1045,19 @@ static void execution_context_progress(execution_context_t *ctx)
 
     if (ctx->type == CONTEXT_SERVER && ctx->server->connected_clients.num_ongoing_connections > 0)
     {
-        size_t i = 0;
+        size_t i = 0; // Number of ongoing connections we already handled
         size_t idx = 0;
         // Find the clients that are currently connecting
-        while (i < ctx->server->connected_clients.num_ongoing_connections)
+        while (i < ctx->server->connected_clients.num_ongoing_connections && idx < ctx->server->connected_clients.clients.num_elts)
         {
-            peer_info_t *client_info;
-            DYN_ARRAY_GET_ELT(&(ctx->server->connected_clients.clients), idx, peer_info_t, client_info);
-            if (client_info == NULL)
-            {
-                idx++;
-                i++;
-                continue;
-            }
-
-            // DBG("Progressing connection of client #%ld\n", i);
+            peer_info_t *client_info = DYN_ARRAY_GET_ELT(&(ctx->server->connected_clients.clients), idx, peer_info_t);
+            assert(client_info);
             if (client_info->bootstrapping.phase == OOB_CONNECT_DONE)
             {
                 dpu_offload_status_t rc;
                 if (client_info->bootstrapping.addr_size_ctx.complete == false && client_info->bootstrapping.addr_size_request == NULL)
                 {
-                    DBG("UCX level bootstrap - step 1 - Getting address size");
+                    DBG("UCX level bootstrap - client #%" PRIu64 ", step 1 - Getting address size", idx);
                     rc = oob_server_ucx_client_connection_step1(ctx, client_info);
                     CHECK_ERR_GOTO((rc), error_out, "oob_server_ucx_client_connection_step1() failed");
                 }
@@ -1080,7 +1071,7 @@ static void execution_context_progress(execution_context_t *ctx)
 
                 if (client_info->bootstrapping.addr_size_ctx.complete == true && client_info->bootstrapping.addr_ctx.complete == false && client_info->bootstrapping.addr_request == NULL)
                 {
-                    DBG("UCX level bootstrap - step 2 - Getting address");
+                    DBG("UCX level bootstrap - client #%" PRIu64 ", step 2 - Getting address", idx);
                     rc = oob_server_ucx_client_connection_step2(ctx, client_info);
                     CHECK_ERR_GOTO((rc), error_out, "oob_server_ucx_client_connection_step2() failed");
                 }
@@ -1094,7 +1085,7 @@ static void execution_context_progress(execution_context_t *ctx)
 
                 if (client_info->bootstrapping.addr_ctx.complete == true && client_info->bootstrapping.rank_ctx.complete == false && client_info->bootstrapping.rank_request == NULL)
                 {
-                    DBG("UCX level bootstrap - step 3 - Getting rank info");
+                    DBG("UCX level bootstrap - client #%" PRIu64 ", step 3 - Getting rank info", idx);
                     rc = oob_server_ucx_client_connection_step3(ctx, client_info);
                     CHECK_ERR_GOTO((rc), error_out, "oob_server_ucx_client_connection_step3() failed");
                 }
@@ -1170,6 +1161,7 @@ static void execution_context_progress(execution_context_t *ctx)
                     client_info->bootstrapping.phase = BOOTSTRAP_DONE;
                     ctx->server->connected_clients.num_ongoing_connections--;
                     ctx->server->connected_clients.num_connected_clients++;
+                    ctx->server->connected_clients.num_total_connected_clients++;
                     DBG("****** Bootstrapping of client #%ld now completed, %ld are now connected",
                         idx,
                         ctx->server->connected_clients.num_connected_clients);
@@ -1186,9 +1178,9 @@ static void execution_context_progress(execution_context_t *ctx)
                     }
                     ECONTEXT_UNLOCK(ctx);
                 }
+                i++; // We just finished handling a client in the process of connecting
             }
             idx++;
-            i++;
         }
     }
     else
@@ -1605,7 +1597,7 @@ static void oob_recv_rank_handler(void *request, ucs_status_t status,
 static inline uint64_t generate_unique_client_id(execution_context_t *econtext)
 {
     // For now we only use the slot that the client will have in the list of connected clients
-    return (uint64_t)(econtext->server->connected_clients.num_connected_clients + econtext->server->connected_clients.num_ongoing_connections);
+    return (uint64_t)(econtext->server->connected_clients.num_total_connected_clients + econtext->server->connected_clients.num_ongoing_connections);
 }
 
 /**
@@ -1630,14 +1622,16 @@ static dpu_offload_status_t oob_server_listen(execution_context_t *econtext)
     DBG("Server ID sent (len: %ld)", size_sent);
     uint64_t client_id = generate_unique_client_id(econtext);
     size_sent = send(econtext->server->conn_data.oob.sock, &client_id, sizeof(uint64_t), 0);
-    DBG("Client ID sent (len: %ld)", size_sent);
+    DBG("Client ID sent (len: %ld, value: %" PRIu64 ")", size_sent, client_id);
 
     /* All done, the rest is done when progressing the execution contexts */
-    peer_info_t *client_info;
-    DYN_ARRAY_GET_ELT(&(econtext->server->connected_clients.clients), client_id, peer_info_t, client_info);
+    peer_info_t *client_info = DYN_ARRAY_GET_ELT(&(econtext->server->connected_clients.clients), client_id, peer_info_t);
     assert(client_info);
     client_info->bootstrapping.phase = OOB_CONNECT_DONE;
+    client_info->id = client_id;
     econtext->server->connected_clients.num_ongoing_connections++;
+    DBG("Client #%" PRIu64 " (%p) is now in the OOB_CONNECT_DONE state", client_id, client_info);
+    DBG("Total number of ongoing connections: %ld\n", econtext->server->connected_clients.num_ongoing_connections);
     ECONTEXT_UNLOCK(econtext);
     return DO_SUCCESS;
 error_out:
@@ -1689,8 +1683,6 @@ static void *connect_thread(void *arg)
                 ERR_MSG("oob_server_listen() failed");
                 pthread_exit(NULL);
             }
-
-            pthread_exit(NULL); // fixme: properly support multiple connections
         }
         }
 
@@ -1738,18 +1730,18 @@ dpu_offload_status_t server_init_context(execution_context_t *econtext, init_par
     econtext->server->mode = OOB; // By default, we connect with the OOB mode
     DYN_ARRAY_ALLOC(&(econtext->server->connected_clients.clients), DEFAULT_MAX_NUM_CLIENTS, peer_info_t);
     econtext->server->connected_clients.num_connected_clients = 0;
+    econtext->server->connected_clients.num_total_connected_clients = 0;
     econtext->server->connected_clients.num_ongoing_connections = 0;
     econtext->server->connected_cb = NULL;
     for (i = 0; i < DEFAULT_MAX_NUM_CLIENTS; i++)
     {
-        peer_info_t *peer_info;
-        DYN_ARRAY_GET_ELT(&(econtext->server->connected_clients.clients), i, peer_info_t, peer_info);
+        peer_info_t *peer_info = DYN_ARRAY_GET_ELT(&(econtext->server->connected_clients.clients), i, peer_info_t);
+        assert(peer_info);
         peer_info->bootstrapping.phase = BOOTSTRAP_NOT_INITIATED;
         peer_info->bootstrapping.addr_ctx.complete = false;
         peer_info->bootstrapping.addr_size_ctx.complete = false;
         peer_info->bootstrapping.rank_ctx.complete = false;
         peer_info->notif_recv.ctx.complete = true; // to make we can post the initial recv
-        assert(peer_info);
         DYN_ARRAY_ALLOC(&(peer_info->cache_entries), MAX_CACHE_ENTRIES_PER_PROC, peer_cache_entry_t *);
     }
 
@@ -1947,14 +1939,13 @@ void server_fini(execution_context_t **exec_ctx)
     }
 
     dpu_offload_server_t *server = (*exec_ctx)->server;
-    pthread_join(server->connect_tid, NULL);
+    pthread_cancel(server->connect_tid);
     pthread_mutex_destroy(&(server->mutex));
 
     /* Close the clients' endpoint */
     for (i = 0; i < server->connected_clients.num_connected_clients; i++)
     {
-        peer_info_t *peer_info;
-        DYN_ARRAY_GET_ELT(&(server->connected_clients.clients), i, peer_info_t, peer_info);
+        peer_info_t *peer_info = DYN_ARRAY_GET_ELT(&(server->connected_clients.clients), i, peer_info_t);
         assert(peer_info);
         ep_close(GET_WORKER(*exec_ctx), peer_info->ep);
     }
