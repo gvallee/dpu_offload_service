@@ -10,7 +10,9 @@
 #include <assert.h>
 #include <signal.h>
 
+#ifdef HAVE_PMIX
 #include <pmix.h>
+#endif // HAVE_PMIX
 
 #include "dpu_offload_common.h"
 #include "dpu_offload_types.h"
@@ -44,6 +46,7 @@ dpu_offload_status_t host_offload_init(offload_config_t *cfg)
 {
     int rc;
 
+#ifdef HAVE_PMIX
     rc = host_offload_dpu_discover(cfg);
     if (rc != DPU_OFFLOAD_SUCCESS) {
         return rc;
@@ -64,10 +67,14 @@ dpu_offload_status_t host_offload_init(offload_config_t *cfg)
     }
 
     return DPU_OFFLOAD_SUCCESS;
+#else
+    return DO_ERROR;
+#endif // HAVE_PMIX
 }
 
 static void dvm_start(offload_config_t *cfg)
 {
+#ifdef HAVE_PMIX
     cfg->infra.pmix.dvm_argc = 5;
     cfg->infra.pmix.dvm_argv = (char**) calloc(cfg->infra.pmix.dvm_argc + 1, sizeof(char*));
     cfg->infra.pmix.dvm_argv[0] = strdup("/global/scratch/users/geoffroy/projects/pmix/x86/install/prrte/bin/prte");
@@ -85,7 +92,7 @@ static void dvm_start(offload_config_t *cfg)
     }
 
     fprintf(stdout, "[INFO] BlueField is now reachable for service bootstrapping (pid=%d)...\n", cfg->infra.pmix.dvm_pid);
-
+#endif // HAVE_PMIX
 }
 
 static void wait_from_dvm_complete_bootstrap(offload_config_t *cfg)
@@ -95,6 +102,7 @@ static void wait_from_dvm_complete_bootstrap(offload_config_t *cfg)
 
 static void prun_start(offload_config_t *cfg)
 {
+#ifdef HAVE_PMIX
     if (cfg->infra.pmix.dvm_pid <= 0)
     {
         fprintf(stderr, "ERROR: invalid DVM pid (%d)\n", cfg->infra.pmix.dvm_pid);
@@ -121,6 +129,7 @@ static void prun_start(offload_config_t *cfg)
         execv("/global/scratch/users/geoffroy/projects/pmix/x86/install/prrte/bin/prun", cfg->infra.pmix.dvm_argv);
     }
     fprintf(stdout, "[INFO] Offloading service is now running on the BlueField...\n");
+#endif // HAVE_PMIX
 }
 
 static inline dpu_offload_status_t
@@ -146,6 +155,7 @@ bootstrap_pmix_infrastructure(offload_config_t *cfg)
 static inline dpu_offload_status_t
 finalize_pmix_infrastructure(offload_config_t *cfg)
 {
+#ifdef HAVE_PMIX
     if (cfg->infra.pmix.service_started == true)
     {
         if (cfg->infra.pmix.service_pid > 0)
@@ -198,10 +208,14 @@ finalize_pmix_infrastructure(offload_config_t *cfg)
 
     fprintf(stderr, "%d\n", __LINE__);
     return DPU_OFFLOAD_SUCCESS;
+#else
+    return DO_ERROR;
+#endif // HAVE_PMIX
 }
 
 dpu_offload_status_t dpu_offload_service_start(offload_config_t *cfg)
 {
+#ifdef HAVE_PMIX
     if (cfg->with_pmix) {
         int rc = bootstrap_pmix_infrastructure(cfg);
         if (rc != DPU_OFFLOAD_SUCCESS)
@@ -211,6 +225,9 @@ dpu_offload_status_t dpu_offload_service_start(offload_config_t *cfg)
         return DPU_OFFLOAD_ERROR;
     }
     return DPU_OFFLOAD_SUCCESS;
+#else
+    return DO_ERROR;
+#endif // HAVE_PMIX
 }
 
 dpu_offload_status_t dpu_offload_service_check(offload_config_t *cfg)
@@ -221,6 +238,7 @@ dpu_offload_status_t dpu_offload_service_check(offload_config_t *cfg)
 
 dpu_offload_status_t dpu_offload_service_end(offload_config_t *cfg)
 {
+#ifdef HAVE_PMIX
     PMIx_Finalize (NULL, 0);
     cfg->state = DPU_OFFLOAD_STATE_FINALIZED;
     if (cfg->with_pmix == true)
@@ -228,4 +246,7 @@ dpu_offload_status_t dpu_offload_service_end(offload_config_t *cfg)
         finalize_pmix_infrastructure(cfg);
     }
     return DPU_OFFLOAD_SUCCESS;
+#else
+    return DO_ERROR;
+#endif // HAVE_PMIX
 }
