@@ -2,6 +2,8 @@
 
 The following packages and versions are required:
 - UCX 1.12 or newer
+  
+The following pachages are optional when there is no need to remotely start binaries on DPUs:
 - openpmix 4.1.0 or newer
 - PRTE 2.0.0 or newer
 
@@ -9,14 +11,22 @@ The following packages and versions are required:
 
 ## Standard mode
 
+For standard configurations:
+```
+./autogen.sh && ./configure --prefix=<PREFIX> --with-ucx=<UCX/INSTALL/DIR> && make -j install
+```
+
+With PMIx and PRRTE support:
 ```
 ./autogen.sh && ./configure --prefix=<PREFIX> --with-pmix=<PMIX/INSTALL/DIR> --with-prrte=<PRRTE/INSTALL/DIR> --with-ucx=<UCX/INSTALL/DIR> && make -j install
 ```
 
 ## Debug mode
 
+Simply add the `--enable-debug` configuration option. For example:
+
 ```
-./autogen.sh && ./configure --prefix=<PREFIX> --with-pmix=<PMIX/INSTALL/DIR> --with-prrte=<PRRTE/INSTALL/DIR> --with-ucx=<UCX/INSTALL/DIR> --enable-debug && make -j install
+./autogen.sh && ./configure --prefix=<PREFIX> --with-ucx=<UCX/INSTALL/DIR> --enable-debug && make -j install
 ```
 
 Note that this also enables tracing, developers will be able to see debug messages for the main capabilities of the library.

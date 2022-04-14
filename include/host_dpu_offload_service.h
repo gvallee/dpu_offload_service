@@ -8,7 +8,9 @@
 #define HOST_DPU_OFFLOAD_SERVICE_H
 
 #include <stdio.h>
+#ifdef HAVE_PMIX
 #include <pmix.h>
+#endif // HAVE_PMIX
 #include "dpu_offload_common.h"
 #include "dpu_offload_types.h"
 
