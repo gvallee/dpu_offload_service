@@ -1218,6 +1218,34 @@ typedef struct pending_notification
     _e;                                                         \
 })
 
+#define GET_REMOTE_DPU_EP(_engine, _idx) ({                        \
+    remote_dpu_info_t **_list_dpus = LIST_DPUS_FROM_ENGINE(_engine);          \
+    ucp_ep_h __ep = NULL;                                                     \
+    if (_idx < (_engine)->num_connected_dpus)                                 \
+    {                                                                         \
+        if (_list_dpus[_idx]->ep != NULL)                                     \
+        {                                                                     \
+            __ep = _list_dpus[_idx]->ep;                                      \
+        }                                                                     \
+        else                                                                  \
+        {                                                                     \
+            if (_list_dpus[_idx]->peer_addr != NULL)                          \
+            {                                                                 \
+                /* Generate the endpoint with the data we have */             \
+                ucp_ep_params_t _ep_params;                                   \
+                _ep_params.field_mask = UCP_EP_PARAM_FIELD_REMOTE_ADDRESS;    \
+                _ep_params.address = _list_dpus[_idx]->peer_addr;             \
+                ucs_status_t status = ucp_ep_create((_engine)->ucp_worker,    \
+                                                    &_ep_params,              \
+                                                    &(_list_dpus[_idx]->ep)); \
+                assert(_list_dpus[_idx]->ep);                                 \
+                __ep = _list_dpus[_idx]->ep;                                  \
+            }                                                                 \
+        }                                                                     \
+    }                                                                         \
+    __ep;                                                                     \
+})
+
 typedef enum
 {
     CONNECT_STATUS_UNKNOWN = 0,
