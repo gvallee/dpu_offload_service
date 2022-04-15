@@ -300,26 +300,13 @@ dpu_offload_status_t get_dpu_id_by_group_rank(offloading_engine_t *engine, int64
 
 ucp_ep_h get_dpu_ep_by_id(offloading_engine_t *engine, uint64_t id)
 {
+    ucp_ep_h ep;
     remote_dpu_info_t **list_dpus = LIST_DPUS_FROM_ENGINE(engine);
     DBG("Looking up entry for DPU #%" PRIu64, id);
     if (list_dpus != NULL && list_dpus[id] == NULL)
         return NULL;
-
-    if (list_dpus[id]->ep == NULL && list_dpus[id]->peer_addr != NULL)
-    {
-        ucp_ep_params_t ep_params;
-        ep_params.field_mask = UCP_EP_PARAM_FIELD_REMOTE_ADDRESS;
-        ep_params.address = list_dpus[id]->peer_addr;
-        /* NOT SUPPORTED FOR NOW
-        ep_params.err_mode = err_handling_opt.ucp_err_mode;
-        ep_params.err_handler.cb = err_cb;
-        ep_params.err_handler.arg = NULL;
-        */
-        assert(list_dpus[id]->ucp_worker);
-        ucs_status_t status = ucp_ep_create(list_dpus[id]->ucp_worker, &ep_params, &(list_dpus[id]->ep));
-    }
-
-    return list_dpus[id]->ep;
+    ep = GET_REMOTE_DPU_EP(engine, id);
+    return ep;
 }
 
 /******************************************/
