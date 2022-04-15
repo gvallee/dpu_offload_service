@@ -1221,7 +1221,7 @@ typedef struct pending_notification
 #define GET_REMOTE_DPU_EP(_engine, _idx) ({                        \
     remote_dpu_info_t **_list_dpus = LIST_DPUS_FROM_ENGINE(_engine);          \
     ucp_ep_h __ep = NULL;                                                     \
-    if (_idx < (_engine)->num_connected_dpus)                                 \
+    if (_idx <= (_engine)->num_connected_dpus)                                \
     {                                                                         \
         if (_list_dpus[_idx]->ep != NULL)                                     \
         {                                                                     \
