@@ -57,6 +57,31 @@ struct oob_msg
 #define GET_PEER_DATA_HANDLE(_pool_free_peer_descs, _peer_data) \
     DYN_LIST_GET(_pool_free_peer_descs, peer_cache_entry_t, item, _peer_data);
 
+#define ADD_DEFAULT_ENGINE_CALLBACKS(_engine, _econtext)                                                                                                     \
+    do                                                                                                                                                       \
+    {                                                                                                                                                        \
+        if ((_engine)->num_default_notifications > 0)                                                                                                        \
+        {                                                                                                                                                    \
+            notification_callback_entry_t *_list_callbacks = (notification_callback_entry_t *)(_engine)->default_notifications->notification_callbacks.base; \
+            size_t _i;                                                                                                                                       \
+            size_t _n = 0;                                                                                                                                   \
+            for (_i = 0; _i < (_engine)->default_notifications->notification_callbacks.num_elts; _i++)                                                       \
+            {                                                                                                                                                \
+                if (_list_callbacks[_i].set)                                                                                                                 \
+                {                                                                                                                                            \
+                    dpu_offload_status_t _rc = event_channel_register((_econtext)->event_channels, _i, _list_callbacks[_i].cb);                              \
+                    CHECK_ERR_GOTO((rc), error_out, "unable to register engine's default notification to new execution context (type: %ld)", _i);            \
+                    _n++;                                                                                                                                    \
+                }                                                                                                                                            \
+                if (_n == (_engine)->num_default_notifications)                                                                                              \
+                {                                                                                                                                            \
+                    /* All done, no need to continue parsing the array. */                                                                                   \
+                    break;                                                                                                                                   \
+                }                                                                                                                                            \
+            }                                                                                                                                                \
+        }                                                                                                                                                    \
+    } while (0)
+
 extern dpu_offload_status_t get_env_config(conn_params_t *params);
 
 static void err_cb(void *arg, ucp_ep_h ep, ucs_status_t status)
@@ -1404,6 +1429,9 @@ execution_context_t *client_init(offloading_engine_t *offload_engine, init_param
 
     ECONTEXT_LOCK(ctx);
     rc = register_default_notifications(ctx->event_channels);
+    ENGINE_LOCK(offload_engine);
+    ADD_DEFAULT_ENGINE_CALLBACKS(offload_engine, ctx);
+    ENGINE_UNLOCK(offload_engine);
     ECONTEXT_UNLOCK(ctx);
     CHECK_ERR_GOTO((rc), error_out, "register_default_notfications() failed");
 
@@ -1889,27 +1917,7 @@ execution_context_t *server_init(offloading_engine_t *offloading_engine, init_pa
     CHECK_ERR_GOTO((rc), error_out, "register_default_notfications() failed");
 
     ENGINE_LOCK(offloading_engine);
-    if (offloading_engine->num_default_notifications > 0)
-    {
-        notification_callback_entry_t *list_callbacks = (notification_callback_entry_t *)offloading_engine->default_notifications->notification_callbacks.base;
-        size_t i;
-        size_t n = 0;
-        for (i = 0; i < offloading_engine->default_notifications->notification_callbacks.num_elts; i++)
-        {
-            if (list_callbacks[i].set)
-            {
-                rc = event_channel_register(execution_context->event_channels, i, list_callbacks[i].cb);
-                CHECK_ERR_GOTO((rc), error_out, "unable to register engine's default notification to new execution context (type: %ld)", i);
-                n++;
-            }
-
-            if (n == offloading_engine->num_default_notifications)
-            {
-                // All done, no need to continue parsing the array.
-                break;
-            }
-        }
-    }
+    ADD_DEFAULT_ENGINE_CALLBACKS(offloading_engine, execution_context);
     ENGINE_UNLOCK(offloading_engine);
     ECONTEXT_UNLOCK(execution_context);
 
