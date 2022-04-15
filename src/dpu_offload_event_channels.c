@@ -383,6 +383,12 @@ int tag_send_event_msg(dpu_offload_event_t **event)
     struct ucx_context *hdr_request = NULL;
     assert((*event)->dest_ep);
     (*event)->hdr_request = ucp_tag_send_nbx((*event)->dest_ep, &((*event)->ctx.hdr), sizeof(am_header_t), hdr_ucp_tag, &send_param);
+    if (UCS_PTR_IS_ERR((*event)->hdr_request))
+    {
+        ucs_status_t send_status = UCS_PTR_STATUS((*event)->hdr_request);
+        ERR_MSG("ucp_tag_send_nbx() failed: %s", ucs_status_string(send_status));
+        return send_status;
+    }
     DBG("event %p send posted (hdr) - scope_id: %d, id: %"PRIu64, (*event), (*event)->scope_id, myid);
 
     /* 2. Send the payload */
@@ -391,6 +397,12 @@ int tag_send_event_msg(dpu_offload_event_t **event)
         ucp_tag_t payload_ucp_tag = MAKE_SEND_TAG(AM_EVENT_MSG_ID, myid, 0, (*event)->scope_id, 0);
         struct ucx_context *payload_request = NULL;
         (*event)->payload_request = ucp_tag_send_nbx((*event)->dest_ep, (*event)->payload, (*event)->ctx.hdr.payload_size, payload_ucp_tag, &send_param);
+        if (UCS_PTR_IS_ERR((*event)->payload_request))
+        {
+            ucs_status_t send_status = UCS_PTR_STATUS((*event)->payload_request);
+            ERR_MSG("ucp_tag_send_nbx() failed: %s", ucs_status_string(send_status));
+            return send_status;
+        }
         DBG("event %p send posted (payload) - scope_id: %d", (*event), (*event)->scope_id);
     }
 
