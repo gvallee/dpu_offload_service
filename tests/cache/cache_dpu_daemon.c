@@ -73,6 +73,52 @@ static int send_test_successful_message(execution_context_t *econtext)
     return 0;
 }
 
+static bool endpoint_success = false;
+void cache_entry_cb(void *data)
+{
+    assert(data);
+    cache_entry_request_t *cache_entry_req = (cache_entry_request_t*)data;
+    fprintf(stderr, "Cache entry for %"PRId64"/%"PRId64" is now available\n",
+            cache_entry_req->gp_id,
+            cache_entry_req->rank);
+    assert(cache_entry_req->offload_engine);
+    offloading_engine_t *engine = (offloading_engine_t*)cache_entry_req->offload_engine;
+    ucp_ep_h target_dpu_ep = get_dpu_ep_by_id(engine, cache_entry_req->target_dpu_idx);
+    if (target_dpu_ep == NULL)
+    {
+        fprintf(stderr, "l.%d - [ERROR] shadow DPU endpoint is undefined\n", __LINE__);
+        return;
+    }
+    fprintf(stderr, "l.%d - Successfully retrieved endpoint (%p)\n", __LINE__, target_dpu_ep);
+    fprintf(stderr, "-> lookup succeeded (l.%d)\n", __LINE__);
+    dpu_offload_event_t *end_test_cb_ev;
+    remote_dpu_info_t **list_dpus = LIST_DPUS_FROM_ENGINE(engine);
+    dpu_offload_status_t rc = event_get(engine->default_econtext->event_channels, NULL, &end_test_cb_ev);
+    if (rc)
+    {
+        fprintf(stderr, "l.%d: [ERROR] event_get() failed\n", __LINE__);
+        return;
+    }
+    rc = event_channel_emit(&end_test_cb_ev, config_data.local_dpu.id, END_TEST_FROM_CALLBACK, list_dpus[1]->ep, NULL);
+    if (rc != EVENT_DONE && rc != EVENT_INPROGRESS)
+    {
+        fprintf(stderr, "l.%d: [ERROR] event_channel_emit() failed\n", __LINE__);
+        return;
+    }
+    endpoint_success = true;
+}
+
+static int do_lookup_from_callback(offloading_engine_t *offload_engine, int64_t gp_id, int64_t rank_id, int64_t expected_dpu_id)
+{
+    dpu_offload_status_t rc = get_cache_entry_by_group_rank(offload_engine, gp_id, rank_id, 0, cache_entry_cb);
+    if (rc != DO_SUCCESS)
+    {
+        fprintf(stderr, "get_cache_entry_by_group_rank() failed");
+        return -1;
+    }
+    return 0;
+}
+
 static int do_lookup(offloading_engine_t *offload_engine, int64_t gp_id, int64_t rank_id, int64_t expected_dpu_id)
 {
     dpu_offload_status_t rc;
@@ -147,7 +193,6 @@ static int test_complete_notification_cb(struct dpu_offload_ev_sys *ev_sys, exec
 }
 
 static bool cb_test_done = false;
-
 static int end_test_cb(struct dpu_offload_ev_sys *ev_sys, execution_context_t *econtext, am_header_t *hdr, size_t hdr_len, void *data, size_t data_len)
 {
     cb_test_done = true;
@@ -161,22 +206,8 @@ static int test_cb(struct dpu_offload_ev_sys *ev_sys, execution_context_t *econt
     offloading_engine_t *engine = (offloading_engine_t *)econtext->engine;
     remote_dpu_info_t **list_dpus = LIST_DPUS_FROM_ENGINE(engine);
     fprintf(stderr, "-> Starting test from a callback...\n");
-    int ret = do_lookup(engine, 42, 52, 1);
+    int ret = do_lookup_from_callback(engine, 42, 52, 1);
     assert(ret == 0);
-    fprintf(stderr, "-> lookup succeeded (l.%d)\n", __LINE__);
-    dpu_offload_event_t *end_test_cb_ev;
-    dpu_offload_status_t rc = event_get(ev_sys, NULL, &end_test_cb_ev);
-    if (rc)
-    {
-        fprintf(stderr, "l.%d: [ERROR] event_get() failed\n", __LINE__);
-        goto error_out;
-    }
-    rc = event_channel_emit(&end_test_cb_ev, config_data.local_dpu.id, END_TEST_FROM_CALLBACK, list_dpus[1]->ep, NULL);
-    if (rc != EVENT_DONE && rc != EVENT_INPROGRESS)
-    {
-        fprintf(stderr, "l.%d: [ERROR] event_channel_emit() failed\n", __LINE__);
-        goto error_out;
-    }
     cb_test_done = true;
     return 0;
 error_out:
@@ -387,15 +418,8 @@ int main(int argc, char **argv)
         execution_context_t *econtext = ECONTEXT_FOR_DPU_COMMUNICATION(offload_engine, 1);
         send_test_successful_message(econtext);
 
-        while (!cb_test_done)
+        while (!endpoint_success)
             offload_engine_progress(offload_engine);
-
-        ret = do_lookup(offload_engine, 42, 52, 1);
-        if (ret != 0)
-        {
-            fprintf(stderr, "[ERROR] lookup failed\n");
-            goto error_out;
-        }
 
         fprintf(stderr, "All done with second test, notify DPU #1...\n");
         send_test_successful_message(econtext);

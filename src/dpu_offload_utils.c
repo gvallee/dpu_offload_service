@@ -189,7 +189,7 @@ dpu_offload_status_t exchange_cache(execution_context_t *econtext, offloading_co
     }
 
     for (i = 0; i < cfg->info_connecting_to.num_connect_to; i++)
-    {        
+    {
         dpu_offload_client_t *client = offload_engine->inter_dpus_clients[offload_engine->num_inter_dpus_clients].client_econtext->client;
         ucp_ep_h dest_ep = client->server_ep;
         rc = send_cache(econtext, &(econtext->engine->procs_cache), dest_ep, meta_evt);
@@ -198,8 +198,18 @@ dpu_offload_status_t exchange_cache(execution_context_t *econtext, offloading_co
     return DO_SUCCESS;
 }
 
-dpu_offload_status_t get_dpu_id_by_group_rank(offloading_engine_t *engine, int64_t gp_id, int64_t rank, int64_t dpu_idx, int64_t *dpu_id, dpu_offload_event_t **ev)
+static dpu_offload_status_t do_get_cache_entry_by_group_rank(offloading_engine_t *engine, int64_t gp_id, int64_t rank, int64_t dpu_idx, request_compl_cb_t cb, int64_t *dpu_id, dpu_offload_event_t **ev)
 {
+    if (ev != NULL && cb != NULL)
+    {
+        ERR_MSG("%s(): both the event and the callback are defined, impossible to understand the context");
+        return DO_ERROR;
+    }
+
+    // If the event is defined, the dpu_id must also be defined, they go in pairs
+    if (ev != NULL)
+        assert(dpu_id);
+
     if (is_in_cache(&(engine->procs_cache), gp_id, rank))
     {
         // The cache has the data
@@ -207,8 +217,11 @@ dpu_offload_status_t get_dpu_id_by_group_rank(offloading_engine_t *engine, int64
         dyn_array_t *gp_data = DYN_ARRAY_GET_ELT(gps_data, gp_id, dyn_array_t);
         peer_cache_entry_t *cache_entry = GET_GROUP_RANK_CACHE_ENTRY(&(engine->procs_cache), gp_id, rank);
         DBG("%" PRId64 "/%" PRId64 " is in the cache, DPU ID = %" PRId64, rank, gp_id, cache_entry->shadow_dpus[dpu_idx]);
-        *ev = NULL;
-        *dpu_id = cache_entry->shadow_dpus[dpu_idx];
+        if (ev != NULL)
+        {
+            *ev = NULL;
+            *dpu_id = cache_entry->shadow_dpus[dpu_idx];
+        }
         return DO_SUCCESS;
     }
 
@@ -232,7 +245,30 @@ dpu_offload_status_t get_dpu_id_by_group_rank(offloading_engine_t *engine, int64
     ucs_list_add_tail(&(cache_entry->events), &(cache_entry_updated_ev->item));
     DBG("Cache entry %p for gp/rank %" PRIu64 "/%" PRIu64 " now has %ld update events",
         cache_entry, gp_id, rank, ucs_list_length(&(cache_entry->events)));
-    *ev = cache_entry_updated_ev;
+    if (ev != NULL)
+    {
+        // If the calling function is expecting an event back, no need for anything other than
+        // make sure we return the event
+        *ev = cache_entry_updated_ev;
+    }
+    if (cb != NULL)
+    {
+        // If the calling function specified a callback, the event needs to be hidden from the
+        // caller and the callback will be invoked upon completion. So we need to put the event
+        // on the list of ongoing events. Make sure to never return the event to the caller to
+        // prevent the case where the event could be put on two different lists (which leads
+        // to memory corruptions).
+        cache_entry_request_t *request_data;
+        DYN_LIST_GET(engine->free_cache_entry_requests, cache_entry_request_t, item, request_data);
+        assert(request_data);
+        request_data->gp_id = gp_id;
+        request_data->rank = rank;
+        request_data->target_dpu_idx = dpu_idx;
+        request_data->offload_engine = engine;
+        cache_entry_updated_ev->ctx.completion_cb = cb;
+        cache_entry_updated_ev->ctx.completion_cb_ctx = (void*)request_data;
+        ucs_list_add_tail(&(engine->default_econtext->ongoing_events), &(cache_entry_updated_ev->item));
+    }
 
     if (engine->on_dpu == true)
     {
@@ -294,8 +330,17 @@ dpu_offload_status_t get_dpu_id_by_group_rank(offloading_engine_t *engine, int64
         execution_context_t *econtext = engine->client;
         return send_cache_entry_request(econtext, GET_SERVER_EP(econtext), &rank_data, ev);
     }
-
     return DO_SUCCESS;
+}
+
+dpu_offload_status_t get_cache_entry_by_group_rank(offloading_engine_t *engine, int64_t gp_id, int64_t rank, int64_t dpu_idx, request_compl_cb_t cb)
+{
+    return do_get_cache_entry_by_group_rank(engine, gp_id, rank, dpu_idx, cb, NULL, NULL);
+}
+
+dpu_offload_status_t get_dpu_id_by_group_rank(offloading_engine_t *engine, int64_t gp_id, int64_t rank, int64_t dpu_idx, int64_t *dpu_id, dpu_offload_event_t **ev)
+{
+    return do_get_cache_entry_by_group_rank(engine, gp_id, rank, dpu_idx, NULL, dpu_id, ev);
 }
 
 ucp_ep_h get_dpu_ep_by_id(offloading_engine_t *engine, uint64_t id)

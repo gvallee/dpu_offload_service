@@ -299,7 +299,7 @@ static void notification_emit_cb(void *user_data, const char *type_str)
     if (ev == NULL)
         return;
     DBG("ev=%p ctx=%p id=%" PRIu64, ev, &(ev->ctx), ev->ctx.hdr.id);
-    ev->ctx.complete = 1;
+    COMPLETE_EVENT(ev);
     assert(ev->event_system);
     execution_context_t *econtext = ev->event_system->econtext;
     DBG("Associated econtext: %p", econtext);
@@ -409,7 +409,7 @@ int tag_send_event_msg(dpu_offload_event_t **event)
     if ((*event)->hdr_request == NULL && (*event)->payload_request == NULL)
     {
         DBG("event %p send immediately completed", (*event));
-        (*event)->ctx.complete = 1;
+        COMPLETE_EVENT(*event);
         (*event)->was_pending = false;
         dpu_offload_status_t rc = event_return(event);
         CHECK_ERR_RETURN((rc), DO_ERROR, "event_return() failed");
@@ -623,7 +623,7 @@ bool event_completed(dpu_offload_event_t *ev)
         if (ucs_list_is_empty(&(ev->sub_events)) && ev->req == NULL)
         {
             DBG("All sub-events completed");
-            ev->ctx.complete = true;
+            COMPLETE_EVENT(ev);
             return true;
         }
     }
@@ -633,7 +633,7 @@ bool event_completed(dpu_offload_event_t *ev)
         if (ev->hdr_request == NULL && ev->payload_request == NULL)
         {
             DBG("Event %p is completed", ev);
-            ev->ctx.complete = true;
+            COMPLETE_EVENT(ev);
         }
 #endif
     }
@@ -819,7 +819,7 @@ static dpu_offload_status_t peer_cache_entries_recv_cb(struct dpu_offload_ev_sys
                 while (!ucs_list_is_empty(&(cache_entry->events)))
                 {
                     dpu_offload_event_t *e = ucs_list_extract_head(&(cache_entry->events), dpu_offload_event_t, item);
-                    e->ctx.complete = 1;
+                    COMPLETE_EVENT(e);
                 }
             }
         }

@@ -16,6 +16,15 @@
 // Set to 1 to use the AM implementaton; 0 to use tag send/recv implementation
 #define USE_AM_IMPLEM (0)
 
+#define COMPLETE_EVENT(__ev) do {                                 \
+    (__ev)->ctx.complete = true;                                  \
+    if ((__ev)->ctx.completion_cb != NULL)                        \
+    {                                                             \
+        (__ev)->ctx.completion_cb((__ev)->ctx.completion_cb_ctx); \
+        (__ev)->ctx.completion_cb = NULL;                         \
+    }                                                             \
+} while(0)
+
 dpu_offload_status_t event_channels_init(execution_context_t *);
 dpu_offload_status_t ev_channels_init(dpu_offload_ev_sys_t **ev_channels);
 dpu_offload_status_t event_channels_fini(dpu_offload_ev_sys_t **);
