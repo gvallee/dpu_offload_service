@@ -312,6 +312,18 @@ typedef struct peer_cache_entry
     ucs_list_link_t events;
 } peer_cache_entry_t;
 
+typedef struct cache_entry_request {
+    ucs_list_link_t item;
+
+    struct offloading_engine *offload_engine;
+
+    // ID of the target DPU ID in case multiple DPUs are attached to the target group/rank
+    uint64_t target_dpu_idx;
+
+    int64_t gp_id;
+    int64_t rank;
+} cache_entry_request_t;
+
 /**
  * @brief am_header_t is the structure used to represent the header sent with UCX active messages
  */
@@ -332,6 +344,8 @@ typedef struct am_header
     uint64_t payload_size;
 } am_header_t; // todo: rename, nothing to do with AM
 
+typedef void (*request_compl_cb_t)(void *);
+
 /**
  * @brief am_req_t is the structure used to track completion of a notification.
  */
@@ -345,6 +359,12 @@ typedef struct am_req
     // is a notification requiring the exchange of a RDV message under
     // the cover.
     int complete; // fixme: segfault if changed to bool
+
+    // Callback to invoke upon completion
+    request_compl_cb_t completion_cb;
+
+    // Context to be passed in the completion callback
+    void *completion_cb_ctx;
 } am_req_t;       // todo: rename, nothing to do with AM
 
 #if !USE_AM_IMPLEM
@@ -896,21 +916,23 @@ typedef struct dpu_offload_event
  * only once and reuse as events are reused. However, it is initialized when the
  * dynamic list is initialized
  */
-#define RESET_EVENT(__ev)                   \
-    do                                      \
-    {                                       \
-        (__ev)->context = NULL;             \
-        (__ev)->payload = NULL;             \
-        (__ev)->event_system = NULL;        \
-        (__ev)->req = NULL;                 \
-        (__ev)->ctx.complete = 0;           \
-        (__ev)->ctx.hdr.type = 0;           \
-        (__ev)->ctx.hdr.id = 0;             \
-        (__ev)->ctx.hdr.payload_size = 0;   \
-        (__ev)->manage_payload_buf = false; \
-        (__ev)->dest_ep = NULL;             \
-        (__ev)->was_pending = false;        \
-        (__ev)->scope_id = SCOPE_HOST_DPU;  \
+#define RESET_EVENT(__ev)                     \
+    do                                        \
+    {                                         \
+        (__ev)->context = NULL;               \
+        (__ev)->payload = NULL;               \
+        (__ev)->event_system = NULL;          \
+        (__ev)->req = NULL;                   \
+        (__ev)->ctx.complete = 0;             \
+        (__ev)->ctx.completion_cb = NULL;     \
+        (__ev)->ctx.completion_cb_ctx = NULL; \
+        (__ev)->ctx.hdr.type = 0;             \
+        (__ev)->ctx.hdr.id = 0;               \
+        (__ev)->ctx.hdr.payload_size = 0;     \
+        (__ev)->manage_payload_buf = false;   \
+        (__ev)->dest_ep = NULL;               \
+        (__ev)->was_pending = false;          \
+        (__ev)->scope_id = SCOPE_HOST_DPU;    \
     } while (0)
 
 #define CHECK_EVENT(__ev)                                     \
@@ -1087,7 +1109,8 @@ typedef struct offloading_engine
     /* Cache for groups/rank so we can propagate rank and DPU related data */
     cache_t procs_cache;
     dyn_list_t *free_peer_cache_entries; // pool of peer descriptors that can also be used directly into a cache
-    dyn_list_t *free_peer_descs;         // pool of peer data descriptirs
+    dyn_list_t *free_peer_descs;         // pool of peer data descriptors (type: peer_data_t)
+    dyn_list_t *free_cache_entry_requests; // pool of descriptors to issue asynchronous cache updates (type: cache_entry_request_t)
 
     /* Objects used during wire-up */
     dyn_list_t *pool_conn_params;
@@ -1114,6 +1137,34 @@ typedef struct offloading_engine
     // Current number of default notifications that have been registered
     size_t num_default_notifications;
 } offloading_engine_t;
+
+#define ENGINE_RESET(_engine) do {               \
+    (_engine)->done = false;                     \
+    (_engine)->config = NULL;                    \
+    (_engine)->client = NULL;                    \
+    (_engine)->num_max_servers = 0;              \
+    (_engine)->num_servers = 0;                  \
+    (_engine)->servers = NULL;                   \
+    (_engine)->default_econtext = NULL;          \
+    (_engine)->ucp_worker = NULL;                \
+    (_engine)->ucp_context = NULL;               \
+    (_engine)->self_ep = NULL;                   \
+    (_engine)->num_inter_dpus_clients = 0;       \
+    (_engine)->num_max_inter_dpus_clients = 0;   \
+    (_engine)->inter_dpus_clients = NULL;        \
+    (_engine)->num_registered_ops = 0;           \
+    (_engine)->registered_ops = NULL;            \
+    (_engine)->free_op_descs = NULL;             \
+    (_engine)->free_peer_cache_entries = NULL;   \
+    (_engine)->free_peer_descs = NULL;           \
+    (_engine)->free_cache_entry_requests = NULL; \
+    (_engine)->pool_conn_params = NULL;          \
+    (_engine)->on_dpu = false;                   \
+    (_engine)->num_dpus = 0;                     \
+    (_engine)->num_connected_dpus = 0;           \
+    (_engine)->default_notifications = NULL;     \
+    (_engine)->num_default_notifications = 0;    \
+} while (0)
 
 /***************************/
 /* NOTIFICATIONS INTERNALS */
@@ -1216,6 +1267,34 @@ typedef struct pending_notification
         _e = _list[_dpu_idx]->econtext;                         \
     }                                                           \
     _e;                                                         \
+})
+
+#define GET_REMOTE_DPU_EP(_engine, _idx) ({                        \
+    remote_dpu_info_t **_list_dpus = LIST_DPUS_FROM_ENGINE(_engine);          \
+    ucp_ep_h __ep = NULL;                                                     \
+    if (_idx <= (_engine)->num_connected_dpus)                                \
+    {                                                                         \
+        if (_list_dpus[_idx]->ep != NULL)                                     \
+        {                                                                     \
+            __ep = _list_dpus[_idx]->ep;                                      \
+        }                                                                     \
+        else                                                                  \
+        {                                                                     \
+            if (_list_dpus[_idx]->peer_addr != NULL)                          \
+            {                                                                 \
+                /* Generate the endpoint with the data we have */             \
+                ucp_ep_params_t _ep_params;                                   \
+                _ep_params.field_mask = UCP_EP_PARAM_FIELD_REMOTE_ADDRESS;    \
+                _ep_params.address = _list_dpus[_idx]->peer_addr;             \
+                ucs_status_t status = ucp_ep_create((_engine)->ucp_worker,    \
+                                                    &_ep_params,              \
+                                                    &(_list_dpus[_idx]->ep)); \
+                assert(_list_dpus[_idx]->ep);                                 \
+                __ep = _list_dpus[_idx]->ep;                                  \
+            }                                                                 \
+        }                                                                     \
+    }                                                                         \
+    __ep;                                                                     \
 })
 
 typedef enum

@@ -57,6 +57,31 @@ struct oob_msg
 #define GET_PEER_DATA_HANDLE(_pool_free_peer_descs, _peer_data) \
     DYN_LIST_GET(_pool_free_peer_descs, peer_cache_entry_t, item, _peer_data);
 
+#define ADD_DEFAULT_ENGINE_CALLBACKS(_engine, _econtext)                                                                                                     \
+    do                                                                                                                                                       \
+    {                                                                                                                                                        \
+        if ((_engine)->num_default_notifications > 0)                                                                                                        \
+        {                                                                                                                                                    \
+            notification_callback_entry_t *_list_callbacks = (notification_callback_entry_t *)(_engine)->default_notifications->notification_callbacks.base; \
+            size_t _i;                                                                                                                                       \
+            size_t _n = 0;                                                                                                                                   \
+            for (_i = 0; _i < (_engine)->default_notifications->notification_callbacks.num_elts; _i++)                                                       \
+            {                                                                                                                                                \
+                if (_list_callbacks[_i].set)                                                                                                                 \
+                {                                                                                                                                            \
+                    dpu_offload_status_t _rc = event_channel_register((_econtext)->event_channels, _i, _list_callbacks[_i].cb);                              \
+                    CHECK_ERR_GOTO((rc), error_out, "unable to register engine's default notification to new execution context (type: %ld)", _i);            \
+                    _n++;                                                                                                                                    \
+                }                                                                                                                                            \
+                if (_n == (_engine)->num_default_notifications)                                                                                              \
+                {                                                                                                                                            \
+                    /* All done, no need to continue parsing the array. */                                                                                   \
+                    break;                                                                                                                                   \
+                }                                                                                                                                            \
+            }                                                                                                                                                \
+        }                                                                                                                                                    \
+    } while (0)
+
 extern dpu_offload_status_t get_env_config(conn_params_t *params);
 
 static void err_cb(void *arg, ucp_ep_h ep, ucs_status_t status)
@@ -916,37 +941,47 @@ dpu_offload_status_t lib_progress(execution_context_t *econtext)
 dpu_offload_status_t offload_engine_init(offloading_engine_t **engine)
 {
     offloading_engine_t *d = MALLOC(sizeof(offloading_engine_t));
-    CHECK_ERR_RETURN((d == NULL), DO_ERROR, "Unable to allocate resources");
+    CHECK_ERR_GOTO((d == NULL), error_out, "Unable to allocate resources");
     int ret = pthread_mutex_init(&(d->mutex), NULL);
-    CHECK_ERR_RETURN((ret), DO_ERROR, "pthread_mutex_init() failed: %s", strerror(errno));
-    d->done = 0;
-    d->ucp_worker = NULL;
-    d->ucp_context = NULL;
-    d->client = NULL;
+    CHECK_ERR_GOTO((ret), error_out, "pthread_mutex_init() failed: %s", strerror(errno));
+    ENGINE_RESET(d);    
     d->num_max_servers = DEFAULT_MAX_NUM_SERVERS;
-    d->default_econtext = NULL;
-    d->num_servers = 0;
     d->servers = MALLOC(d->num_max_servers * sizeof(dpu_offload_server_t));
-    d->num_inter_dpus_clients = 0;
     d->num_max_inter_dpus_clients = DEFAULT_MAX_NUM_SERVERS;
     d->inter_dpus_clients = MALLOC(d->num_max_inter_dpus_clients * sizeof(remote_dpu_connect_tracker_t));
-    CHECK_ERR_RETURN((d->servers == NULL), DO_ERROR, "unable to allocate resources");
+    CHECK_ERR_GOTO((d->servers == NULL), error_out, "unable to allocate resources");
     DYN_LIST_ALLOC(d->free_op_descs, 8, op_desc_t, item);
+    CHECK_ERR_GOTO((d->free_op_descs == NULL), error_out, "Allocation of pool of free operation descriptors failed");
     DYN_LIST_ALLOC(d->free_peer_cache_entries, DEFAULT_NUM_PEERS, peer_cache_entry_t, item);
-    CHECK_ERR_RETURN((d->free_peer_cache_entries == NULL), DO_ERROR, "Allocation of pool of free cache entries failed");
+    CHECK_ERR_GOTO((d->free_peer_cache_entries == NULL), error_out, "Allocation of pool of free cache entries failed");
     DYN_LIST_ALLOC(d->free_peer_descs, DEFAULT_NUM_PEERS, peer_data_t, item);
-    CHECK_ERR_RETURN((d->free_peer_descs == NULL), DO_ERROR, "Allocation of pool of proc descriptor failed");
+    CHECK_ERR_GOTO((d->free_peer_descs == NULL), error_out, "Allocation of pool of proc descriptor failed");
+    DYN_LIST_ALLOC(d->free_cache_entry_requests, DEFAULT_NUM_PEERS, cache_entry_request_t, item);
+    CHECK_ERR_GOTO((d->free_cache_entry_requests == NULL), error_out, "Allocations of pool of descriptions for cache queries failed");
     DYN_LIST_ALLOC(d->pool_conn_params, 32, conn_params_t, item);
-    CHECK_ERR_RETURN((d->pool_conn_params == NULL), DO_ERROR, "Allocation of pool of connection parameter descriptors failed");
+    CHECK_ERR_GOTO((d->pool_conn_params == NULL), error_out, "Allocation of pool of connection parameter descriptors failed");
     // Note that engine->dpus is a vector of remote_dpu_info_t pointers.
     // The actual object are from a dynamic array when parsing the configuration file
     DYN_ARRAY_ALLOC(&(d->dpus), 32, remote_dpu_info_t *);
     GROUPS_CACHE_INIT(&(d->procs_cache));
     dpu_offload_status_t rc = ev_channels_init(&(d->default_notifications));
-    CHECK_ERR_RETURN((rc), DO_ERROR, "ev_channels_init() failed");
+    CHECK_ERR_GOTO((rc), error_out, "ev_channels_init() failed");
 
     *engine = d;
     return DO_SUCCESS;
+error_out:
+    if (d->servers)
+        free(d->servers);
+    if (d->inter_dpus_clients)
+        free(d->inter_dpus_clients);
+    if (d->free_op_descs)
+        DYN_LIST_FREE(d->free_op_descs, op_desc_t, item);
+    if (d->free_peer_cache_entries)
+        DYN_LIST_FREE(d->free_peer_cache_entries, peer_cache_entry_t, item);
+    if (d->free_cache_entry_requests)
+        DYN_LIST_FREE(d->free_cache_entry_requests, cache_entry_request_t, item);
+    *engine = NULL;
+    return DO_ERROR;
 }
 
 static void progress_event_recv(execution_context_t *econtext)
@@ -1404,6 +1439,9 @@ execution_context_t *client_init(offloading_engine_t *offload_engine, init_param
 
     ECONTEXT_LOCK(ctx);
     rc = register_default_notifications(ctx->event_channels);
+    ENGINE_LOCK(offload_engine);
+    ADD_DEFAULT_ENGINE_CALLBACKS(offload_engine, ctx);
+    ENGINE_UNLOCK(offload_engine);
     ECONTEXT_UNLOCK(ctx);
     CHECK_ERR_GOTO((rc), error_out, "register_default_notfications() failed");
 
@@ -1424,6 +1462,9 @@ void offload_engine_fini(offloading_engine_t **offload_engine)
     GROUPS_CACHE_FINI(&((*offload_engine)->procs_cache));
     DYN_LIST_FREE((*offload_engine)->free_op_descs, op_desc_t, item);
     DYN_LIST_FREE((*offload_engine)->free_peer_cache_entries, peer_cache_entry_t, item);
+    DYN_LIST_FREE((*offload_engine)->free_cache_entry_requests, cache_entry_request_t, item);
+    DYN_LIST_FREE((*offload_engine)->free_peer_descs, peer_data_t, item); 
+
     DYN_ARRAY_FREE(&((*offload_engine)->dpus));
     free((*offload_engine)->client);
     int i;
@@ -1889,27 +1930,7 @@ execution_context_t *server_init(offloading_engine_t *offloading_engine, init_pa
     CHECK_ERR_GOTO((rc), error_out, "register_default_notfications() failed");
 
     ENGINE_LOCK(offloading_engine);
-    if (offloading_engine->num_default_notifications > 0)
-    {
-        notification_callback_entry_t *list_callbacks = (notification_callback_entry_t *)offloading_engine->default_notifications->notification_callbacks.base;
-        size_t i;
-        size_t n = 0;
-        for (i = 0; i < offloading_engine->default_notifications->notification_callbacks.num_elts; i++)
-        {
-            if (list_callbacks[i].set)
-            {
-                rc = event_channel_register(execution_context->event_channels, i, list_callbacks[i].cb);
-                CHECK_ERR_GOTO((rc), error_out, "unable to register engine's default notification to new execution context (type: %ld)", i);
-                n++;
-            }
-
-            if (n == offloading_engine->num_default_notifications)
-            {
-                // All done, no need to continue parsing the array.
-                break;
-            }
-        }
-    }
+    ADD_DEFAULT_ENGINE_CALLBACKS(offloading_engine, execution_context);
     ENGINE_UNLOCK(offloading_engine);
     ECONTEXT_UNLOCK(execution_context);
 

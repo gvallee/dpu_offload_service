@@ -191,7 +191,7 @@ dpu_offload_status_t connect_to_remote_dpu(remote_dpu_info_t *remote_dpu_info)
     remote_dpu_info->init_params.connected_cb = connected_to_server_dpu;
     remote_dpu_info->init_params.scope_id = SCOPE_INTER_DPU;
     execution_context_t *client = client_init(offload_engine, &(remote_dpu_info->init_params));
-    CHECK_ERR_RETURN ((client == NULL), DO_ERROR, "Unable to connect to %s\n", remote_dpu_info->init_params.conn_params->addr_str);
+    CHECK_ERR_RETURN((client == NULL), DO_ERROR, "Unable to connect to %s\n", remote_dpu_info->init_params.conn_params->addr_str);
     ENGINE_LOCK(offload_engine);
     offload_engine->inter_dpus_clients[offload_engine->num_inter_dpus_clients].client_econtext = client;
     offload_engine->inter_dpus_clients[offload_engine->num_inter_dpus_clients].remote_dpu_info = remote_dpu_info;
@@ -218,10 +218,23 @@ connect_to_dpus(offloading_engine_t *offload_engine, dpu_inter_connect_info_t *i
 
 void client_dpu_connected(void *data)
 {
-    DBG("New client DPU is now connected");
     assert(data);
     connected_peer_data_t *connected_peer = (connected_peer_data_t *)data;
+    DBG("New client DPU (DPU #%" PRIu64 ") is now connected", connected_peer->peer_id);
+
+    // Set the default econtext if necessary, the function will figure out what to do
     set_default_econtext(connected_peer);
+
+    // Update data in the list of DPUs
+    assert(connected_peer->econtext);
+    assert(connected_peer->econtext->engine);
+    remote_dpu_info_t **list_dpus = LIST_DPUS_FROM_ENGINE(connected_peer->econtext->engine);
+    assert(list_dpus);
+    list_dpus[connected_peer->peer_id]->peer_addr = connected_peer->peer_addr;
+    list_dpus[connected_peer->peer_id]->econtext = connected_peer->econtext;
+    ENGINE_LOCK(connected_peer->econtext->engine);
+    connected_peer->econtext->engine->num_connected_dpus++;
+    ENGINE_UNLOCK(connected_peer->econtext->engine);
 }
 
 dpu_offload_status_t inter_dpus_connect_mgr(offloading_engine_t *engine, offloading_config_t *cfg)
@@ -229,7 +242,8 @@ dpu_offload_status_t inter_dpus_connect_mgr(offloading_engine_t *engine, offload
     CHECK_ERR_RETURN((engine == NULL), DO_ERROR, "undefined engine");
     CHECK_ERR_RETURN((cfg == NULL), DO_ERROR, "undefined configuration");
     engine->on_dpu = true;
-    DBG("Connection manager: expecting %ld inbound connections and %ld outbound connections", cfg->num_connecting_dpus, cfg->info_connecting_to.num_connect_to);
+    DBG("Connection manager: expecting %ld inbound connections and %ld outbound connections",
+        cfg->num_connecting_dpus, cfg->info_connecting_to.num_connect_to);
 
     /* Init UCP if necessary */
     engine->ucp_context = INIT_UCX();
