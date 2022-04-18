@@ -122,8 +122,23 @@ dpu_offload_status_t get_dpu_id_by_group_rank(offloading_engine_t *engine, int64
  * @param[in] gp_id Target group identifier
  * @param[in] rank Target rank in the group
  * @param[in] dpu_idx In case of multiple DPUs per host, index of the target shadow DPU for the group/rank
- * @param[out] cb Associated callabck. If the event completes right away, the callback is still being invoked.
- * @return dpu_offload_status_t 
+ * @param[out] cb Associated callback. If the event completes right away, the callback is still being invoked. The user is in charge of returning the object related to the request.
+ * @return dpu_offload_status_t
+ * 
+ * Example:
+ *      - To issue the request for the first DPU attached to the group/rank `gp_id` and `rank_id`
+ *          get_cache_entry_by_group_rank(offload_engine, gp_id, rank_id, 0, my_completion_cb);
+ *      - Completion callback example:
+ *          void my_completion_cb(void *data)
+ *          {
+ *              assert(data);
+ *              cache_entry_request_t *cache_entry_req = (cache_entry_request_t*)data;
+ *              assert(cache_entry_req->offload_engine);
+ *              offloading_engine_t *engine = (offloading_engine_t*)cache_entry_req->offload_engine;
+ *              ucp_ep_h target_dpu_ep = get_dpu_ep_by_id(engine, cache_entry_req->target_dpu_idx);
+ *              assert(target_dpu_ep == NULL);
+ *              DYN_LIST_RETURN(engine->free_cache_entry_requests, cache_entry_req, item);
+ *          }
  */
 dpu_offload_status_t get_cache_entry_by_group_rank(offloading_engine_t *engine, int64_t gp_id, int64_t rank, int64_t dpu_idx, request_compl_cb_t cb);
 

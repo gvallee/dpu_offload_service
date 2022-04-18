@@ -105,6 +105,7 @@ void cache_entry_cb(void *data)
         fprintf(stderr, "l.%d: [ERROR] event_channel_emit() failed\n", __LINE__);
         return;
     }
+    DYN_LIST_RETURN(engine->free_cache_entry_requests, cache_entry_req, item);
     endpoint_success = true;
 }
 
