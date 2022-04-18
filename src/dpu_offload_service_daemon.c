@@ -1144,7 +1144,10 @@ static void execution_context_progress(execution_context_t *ctx)
                     {
                         // Update the pointer to track cache entries, i.e., groups/ranks, for the peer
                         DBG("Adding gp/rank %" PRId64 "/%" PRId64 " to cache", client_info->rank_data.group_id, client_info->rank_data.group_rank);
-                        peer_cache_entry_t *cache_entry = SET_GROUP_RANK_CACHE_ENTRY(ctx, client_info->rank_data.group_id, client_info->rank_data.group_rank);
+                        peer_cache_entry_t *cache_entry = SET_GROUP_RANK_CACHE_ENTRY(ctx,
+                                                                                     client_info->rank_data.group_id,
+                                                                                     client_info->rank_data.group_rank,
+                                                                                     client_info->rank_data.group_size);
                         CHECK_ERR_GOTO((cache_entry == NULL), error_out, "undefined cache entry");
                         cache_entry->peer.addr_len = client_info->peer_addr_len;
                         if (client_info->peer_addr != NULL)
@@ -1158,6 +1161,10 @@ static void execution_context_progress(execution_context_t *ctx)
                         peer_cache_entry_t **cache_entries = (peer_cache_entry_t **)(client_info->cache_entries.base);
                         assert(cache_entries);
                         cache_entries[0] = cache_entry;
+
+                        // Trigger the exchange of the cache between DPUs when possible
+                        // Do not check for errors, it may fail at this point (if all DPUs are not connected) and it is okay
+                        broadcast_group_cache(ctx->engine, client_info->rank_data.group_id);
                     }
 
                     if (ECONTEXT_ON_DPU(ctx))
@@ -1396,12 +1403,14 @@ execution_context_t *client_init(offloading_engine_t *offload_engine, init_param
         {
             ctx->rank.group_id = init_params->proc_info->group_id;
             ctx->rank.group_rank = init_params->proc_info->group_rank;
+            ctx->rank.group_size = init_params->proc_info->group_size;
         }
     }
     else
     {
         ctx->rank.group_id = INVALID_GROUP;
         ctx->rank.group_rank = INVALID_RANK;
+        ctx->rank.group_size = 0;
     }
     DBG("execution context successfully initialized");
 

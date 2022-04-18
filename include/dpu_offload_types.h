@@ -244,6 +244,7 @@ typedef struct rank_info
 {
     int64_t group_id;
     int64_t group_rank;
+    int64_t group_size;
 } rank_info_t;
 
 // fixme: long term, we do not want to have a limit on the length of the address
@@ -978,10 +979,23 @@ typedef struct cache
 typedef struct group_cache
 {
     bool initialized;
+    size_t group_size;
+    // How many entries are already locally populated
+    size_t num_local_entries;
     dyn_array_t ranks;
 } group_cache_t;
 
-#define GET_GROUP_RANK_CACHE_ENTRY(_cache, _gp_id, _rank)                        \
+#define GET_GROUP_CACHE(_cache, _gp_id) ({                            \
+    group_cache_t *_gps_cache = (group_cache_t *)(_cache)->data.base; \
+    group_cache_t *_c = NULL;                                         \
+    if (_gps_cache != NULL)                                           \
+    {                                                                 \
+        _c = &(_gps_cache[_gp_id]);                                   \
+    }                                                                 \
+    _c;                                                               \
+})
+
+#define GET_GROUP_RANK_CACHE_ENTRY(_cache, _gp_id, _rank, _gp_size)              \
     ({                                                                           \
         peer_cache_entry_t *_entry = NULL;                                       \
         group_cache_t *_gp_cache = (group_cache_t *)(_cache)->data.base;         \
@@ -991,6 +1005,7 @@ typedef struct group_cache
             /* Cache for the group is empty */                                   \
             DYN_ARRAY_ALLOC(_rank_cache, DEFAULT_NUM_PEERS, peer_cache_entry_t); \
             _gp_cache[_gp_id].initialized = true;                                \
+            _gp_cache[_gp_id].group_size = _gp_size;                             \
             (_cache)->size++;                                                    \
         }                                                                        \
         if (_rank >= _rank_cache->num_elts)                                      \
@@ -1001,10 +1016,10 @@ typedef struct group_cache
         _entry;                                                                  \
     })
 
-#define SET_GROUP_RANK_CACHE_ENTRY(__econtext, __gp_id, __rank)                                        \
+#define SET_GROUP_RANK_CACHE_ENTRY(__econtext, __gp_id, __rank, __gp_size)                             \
     ({                                                                                                 \
         peer_cache_entry_t *__entry = GET_GROUP_RANK_CACHE_ENTRY(&((__econtext)->engine->procs_cache), \
-                                                                 __gp_id, __rank);                     \
+                                                                 __gp_id, __rank, __gp_size);          \
         if (__entry != NULL)                                                                           \
         {                                                                                              \
             __entry->peer.proc_info.group_id = __gp_id;                                                \
@@ -1030,25 +1045,30 @@ typedef struct group_cache
         cache_entry_t *_cache = (cache_entry_t *)_ptr->base;                                      \
         _cache[_peer_data->group_rank].peer.proc_info.group_id = _peer_data->group_id;            \
         _cache[_peer_data->group_rank].peer.proc_info.group_rank = _peer_data->group_rank;        \
+        _cache[_peer_data->group_rank].peer.proc_info.group_size = _peer_data->group_size;        \
         _cache[_peer_data->group_rank].set = true;                                                \
     } while (0)
 
-#define SET_PEER_CACHE_ENTRY(_peer_cache, _entry)                                          \
-    ({                                                                                     \
-        int64_t _gp_id = (_entry)->peer.proc_info.group_id;                                \
-        int64_t _rank = (_entry)->peer.proc_info.group_rank;                               \
-        peer_cache_entry_t *_ptr = GET_GROUP_RANK_CACHE_ENTRY(_peer_cache, _gp_id, _rank); \
-        if (_ptr != NULL)                                                                  \
-        {                                                                                  \
-            _ptr->set = true;                                                              \
-            memcpy(&(_ptr->peer), &((_entry)->peer), sizeof(peer_data_t));                 \
-            _ptr->ep = NULL;                                                               \
-            _ptr->num_shadow_dpus = (_entry)->num_shadow_dpus;                             \
-            size_t _i;                                                                     \
-            for (_i = 0; _i < (_entry)->num_shadow_dpus; _i++)                             \
-                _ptr->shadow_dpus[_i] = (_entry)->shadow_dpus[_i];                         \
-        }                                                                                  \
-        _ptr;                                                                              \
+#define SET_PEER_CACHE_ENTRY(_peer_cache, _entry)                          \
+    ({                                                                     \
+        int64_t _gp_id = (_entry)->peer.proc_info.group_id;                \
+        int64_t _rank = (_entry)->peer.proc_info.group_rank;               \
+        int64_t _gp_size  = (_entry)->peer.proc_info.group_size;           \
+        peer_cache_entry_t *_ptr = GET_GROUP_RANK_CACHE_ENTRY(_peer_cache, \
+                                                              _gp_id,      \
+                                                              _rank,       \
+                                                              _gp_size);   \
+        if (_ptr != NULL)                                                  \
+        {                                                                  \
+            _ptr->set = true;                                              \
+            memcpy(&(_ptr->peer), &((_entry)->peer), sizeof(peer_data_t)); \
+            _ptr->ep = NULL;                                               \
+            _ptr->num_shadow_dpus = (_entry)->num_shadow_dpus;             \
+            size_t _i;                                                     \
+            for (_i = 0; _i < (_entry)->num_shadow_dpus; _i++)             \
+                _ptr->shadow_dpus[_i] = (_entry)->shadow_dpus[_i];         \
+        }                                                                  \
+        _ptr;                                                              \
     })
 
 struct remote_dpu_info; // Forward declaration
@@ -1126,9 +1146,7 @@ typedef struct offloading_engine
     // Number of DPUs defined in dpus
     size_t num_dpus;
 
-    // Number of DPUs we are connected to.
-    // Note that ATM it only account for the number of DPUs that the current DPU connects to,
-    // not the DPUs connecting to it.
+    // Number of DPUs with which a connection is established (both as server and client).
     size_t num_connected_dpus;
 
     // List of default notifications that are applied to all new execution contexts added to the engine.

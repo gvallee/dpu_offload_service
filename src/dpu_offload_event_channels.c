@@ -720,9 +720,9 @@ static dpu_offload_status_t xgvmi_key_recv_cb(struct dpu_offload_ev_sys *ev_sys,
 extern dpu_offload_status_t send_group_cache(execution_context_t *econtext, ucp_ep_h dest, int64_t gp_id, dpu_offload_event_t *metaev);
 extern int send_cache_entry_request(execution_context_t *econtext, ucp_ep_h ep, rank_info_t *requested_peer, dpu_offload_event_t **ev);
 
-bool is_in_cache(cache_t *cache, int64_t gp_id, int64_t rank_id)
+bool is_in_cache(cache_t *cache, int64_t gp_id, int64_t rank_id, int64_t group_size)
 {
-    peer_cache_entry_t *entry = GET_GROUP_RANK_CACHE_ENTRY(cache, gp_id, rank_id);
+    peer_cache_entry_t *entry = GET_GROUP_RANK_CACHE_ENTRY(cache, gp_id, rank_id, group_size);
     if (entry == NULL)
         return false;
     return (entry->set);
@@ -736,7 +736,7 @@ static dpu_offload_status_t peer_cache_entries_request_recv_cb(struct dpu_offloa
 
     DBG("Cache entry requested received for gp/rank %" PRIu64 "/%" PRIu64, rank_info->group_id, rank_info->group_rank);
 
-    if (is_in_cache(&(econtext->engine->procs_cache), rank_info->group_id, rank_info->group_rank))
+    if (is_in_cache(&(econtext->engine->procs_cache), rank_info->group_id, rank_info->group_rank, rank_info->group_size))
     {
         // We send the cache back to the sender
         dpu_offload_status_t rc;
@@ -796,6 +796,7 @@ static dpu_offload_status_t peer_cache_entries_recv_cb(struct dpu_offload_ev_sys
     size_t cur_size = 0;
     size_t idx = 0;
     int64_t group_id = INVALID_GROUP;
+    int64_t group_rank, group_size;
     while (cur_size < data_len)
     {
         cache_t *cache = &(engine->procs_cache);
@@ -804,11 +805,12 @@ static dpu_offload_status_t peer_cache_entries_recv_cb(struct dpu_offload_ev_sys
             group_id = entries[idx].peer.proc_info.group_id;
 
         // Now that we know for sure we have the group ID, we can move the received data into the local cache
-        int64_t group_rank = entries[idx].peer.proc_info.group_rank;
+        group_size = entries[idx].peer.proc_info.group_size;
+        group_rank = entries[idx].peer.proc_info.group_rank;
         DBG("Received a cache entry for rank:%ld, group:%ld from DPU %" PRId64 " (msg size=%ld, peer addr len=%ld)",
             group_rank, group_id, hdr->id, data_len, entries[idx].peer.addr_len);
 
-        if (!is_in_cache(cache, group_id, group_rank))
+        if (!is_in_cache(cache, group_id, group_rank, group_size))
         {
             peer_cache_entry_t *cache_entry = SET_PEER_CACHE_ENTRY(cache, &(entries[idx]));
             group_cache_t *gp_caches = (group_cache_t *)cache->data.base;
@@ -851,9 +853,9 @@ static dpu_offload_status_t add_group_rank_recv_cb(struct dpu_offload_ev_sys *ev
     offloading_engine_t *engine = (offloading_engine_t *)econtext->engine;
     rank_info_t *rank_info = (rank_info_t *)data;
 
-    if (!is_in_cache(&(econtext->engine->procs_cache), rank_info->group_id, rank_info->group_rank))
+    if (!is_in_cache(&(econtext->engine->procs_cache), rank_info->group_id, rank_info->group_rank, rank_info->group_size))
     {
-        SET_GROUP_RANK_CACHE_ENTRY(econtext, rank_info->group_id, rank_info->group_rank);
+        SET_GROUP_RANK_CACHE_ENTRY(econtext, rank_info->group_id, rank_info->group_rank, rank_info->group_size);
     }
 
     return DO_SUCCESS;

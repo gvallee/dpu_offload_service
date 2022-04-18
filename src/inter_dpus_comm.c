@@ -14,6 +14,8 @@
 #include "dpu_offload_types.h"
 #include "dpu_offload_debug.h"
 #include "dpu_offload_envvars.h"
+#include "dpu_offload_event_channels.h"
+#include "dpu_offload_service_daemon.h"
 
 /**
  * @brief invalid_group_rank is used when there is a need to exchange
@@ -151,9 +153,15 @@ static int set_default_econtext(connected_peer_data_t *connected_peer_data)
     ENGINE_UNLOCK(engine);
 }
 
+/**
+ * @brief Callback invoked when a connection to a remote server DPU completes
+ * 
+ * @param data 
+ */
 void connected_to_server_dpu(void *data)
 {
     assert(data);
+    bool need_to_exchange_cache = false;
     connected_peer_data_t *connected_peer = (connected_peer_data_t *)data;
     DBG("Successfully connected to server DPU at %s\n", connected_peer->peer_addr);
     set_default_econtext(connected_peer);
@@ -174,6 +182,30 @@ void connected_to_server_dpu(void *data)
             }
         }
     }
+    if (connected_peer->econtext->engine->num_connected_dpus + 1 == connected_peer->econtext->engine->num_dpus)
+        need_to_exchange_cache = true;
+    connected_peer->econtext->engine->num_connected_dpus++;
+
+    // If we now have all the connections with the other DPUs, we exchange our cache
+    if (need_to_exchange_cache)
+    {
+        dpu_offload_event_t *exchange_event;
+        dpu_offload_status_t rc = event_get(connected_peer->econtext->event_channels,
+                                            NULL,
+                                            &exchange_event);
+        if (exchange_event == NULL)
+        {
+            ERR_MSG("event_get() failed");
+        }
+        rc = exchange_cache(connected_peer->econtext, &(connected_peer->econtext->engine->procs_cache), exchange_event);
+        if (rc != DO_SUCCESS)
+        {
+            ERR_MSG("exchange_cache() failed");
+        }
+        // We do not want to explicitly deal with the event so we put it on the list of ongoing events
+        ucs_list_add_tail(&(connected_peer->econtext->ongoing_events), &(exchange_event->item));
+    }
+
 }
 
 dpu_offload_status_t connect_to_remote_dpu(remote_dpu_info_t *remote_dpu_info)
@@ -216,10 +248,21 @@ connect_to_dpus(offloading_engine_t *offload_engine, dpu_inter_connect_info_t *i
     return DO_SUCCESS;
 }
 
+/**
+ * @brief Callback invoked when a client DPU finalizes its connection to us.
+ * 
+ * @param data DPU data
+ */
 void client_dpu_connected(void *data)
 {
+    connected_peer_data_t *connected_peer;
+    remote_dpu_info_t **list_dpus;
+    dpu_offload_status_t rc;
+    dpu_offload_event_t *exchange_ev;
+    bool need_to_exchange_cache = false;
+
     assert(data);
-    connected_peer_data_t *connected_peer = (connected_peer_data_t *)data;
+    connected_peer = (connected_peer_data_t *)data;
     DBG("New client DPU (DPU #%" PRIu64 ") is now connected", connected_peer->peer_id);
 
     // Set the default econtext if necessary, the function will figure out what to do
@@ -228,13 +271,34 @@ void client_dpu_connected(void *data)
     // Update data in the list of DPUs
     assert(connected_peer->econtext);
     assert(connected_peer->econtext->engine);
-    remote_dpu_info_t **list_dpus = LIST_DPUS_FROM_ENGINE(connected_peer->econtext->engine);
+    list_dpus = LIST_DPUS_FROM_ENGINE(connected_peer->econtext->engine);
     assert(list_dpus);
     list_dpus[connected_peer->peer_id]->peer_addr = connected_peer->peer_addr;
     list_dpus[connected_peer->peer_id]->econtext = connected_peer->econtext;
     ENGINE_LOCK(connected_peer->econtext->engine);
+    if (connected_peer->econtext->engine->num_connected_dpus + 1 == connected_peer->econtext->engine->num_dpus)
+        need_to_exchange_cache = true;
     connected_peer->econtext->engine->num_connected_dpus++;
     ENGINE_UNLOCK(connected_peer->econtext->engine);
+
+    // If we now have all the connections with the other DPUs, we exchange our cache
+    if (need_to_exchange_cache)
+    {
+        dpu_offload_status_t rc;
+        dpu_offload_event_t *exchange_event;
+        rc = event_get(connected_peer->econtext->event_channels, NULL, &exchange_event);
+        if (exchange_event == NULL)
+        {
+            ERR_MSG("event_get() failed");
+        }
+        rc = exchange_cache(connected_peer->econtext, &(connected_peer->econtext->engine->procs_cache), exchange_event);
+        if (rc != DO_SUCCESS)
+        {
+            ERR_MSG("exchange_cache() failed");
+        }
+        // We do not want to explicitly deal with the event so we put it on the list of ongoing events
+        ucs_list_add_tail(&(connected_peer->econtext->ongoing_events), &(exchange_event->item));
+    }
 }
 
 dpu_offload_status_t inter_dpus_connect_mgr(offloading_engine_t *engine, offloading_config_t *cfg)
