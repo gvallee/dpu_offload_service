@@ -817,9 +817,12 @@ static dpu_offload_status_t peer_cache_entries_recv_cb(struct dpu_offload_ev_sys
                 }
             }
 
+            group_cache_t *gp_cache = GET_GROUP_CACHE(&(econtext->engine->procs_cache), group_id);
+            gp_cache->num_local_entries++;
+            DBG("The cache for group %ld now has %ld entries", gp_cache->group_size, gp_cache->num_local_entries);
+
             if (econtext->engine->on_dpu)
             {
-                group_cache_t *gp_cache = GET_GROUP_CACHE(&(econtext->engine->procs_cache), group_id);
                 if (gp_cache->group_size > 0 && gp_cache->num_local_entries == gp_cache->group_size)
                 {
                     size_t n = 0, idx = 0;
@@ -838,11 +841,17 @@ static dpu_offload_status_t peer_cache_entries_recv_cb(struct dpu_offload_ev_sys
                         rc = event_get(econtext->event_channels, NULL, &metaev);
                         if (rc != DO_SUCCESS || metaev == NULL)
                             ERR_MSG("event_get() failed"); // todo: better handle errors
+                        DBG("Sending cache to client #%ld ep: %p", idx, client_info->ep);
                         rc = send_group_cache(econtext, client_info->ep, group_id, metaev);
                         if (rc != DO_SUCCESS)
                             ERR_MSG("send_group_cache() failed"); // todo: better handle errors
                         n++;
                     }
+                }
+                else
+                {
+                    DBG("Cache is still missing some data. group_size: %ld, num_local_entries: %ld",
+                        gp_cache->group_size, gp_cache->num_local_entries);
                 }
             }
         }
