@@ -1044,6 +1044,8 @@ typedef struct group_cache
         {                                                                                              \
             __entry->peer.proc_info.group_id = __gp_id;                                                \
             __entry->peer.proc_info.group_rank = __rank;                                               \
+            __entry->peer.proc_info.group_size = __gp_size;                                            \
+            __entry->peer.proc_info.n_local_ranks = __n_local_ranks;                                   \
             __entry->num_shadow_dpus = 1; /* fixme: find a way to get the DPUs config from here */     \
             __entry->shadow_dpus[0] = ECONTEXT_ID(__econtext);                                         \
             __entry->set = true;                                                                       \
