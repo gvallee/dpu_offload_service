@@ -153,15 +153,63 @@ static int set_default_econtext(connected_peer_data_t *connected_peer_data)
     ENGINE_UNLOCK(engine);
 }
 
+static void sync_group_caches(execution_context_t *econtext)
+{
+    size_t n = 0;
+    size_t n_gp_cache_handled = 0;
+    offloading_engine_t *engine;
+    dpu_offload_status_t rc;
+
+    assert(econtext);
+    engine = econtext->engine;
+    assert(engine);
+
+    while (n < engine->procs_cache.size && n_gp_cache_handled < engine->procs_cache.size)
+    {
+        group_cache_t *gp_cache = GET_GROUP_CACHE(&(engine->procs_cache), n);
+        if (gp_cache->initialized == false)
+        {
+            n++;
+            continue;
+        }
+
+        if (gp_cache->n_local_ranks >= 0)
+        {
+            // We know how many local ranks to expected, we exchange the cache only when they are all connected
+            if (gp_cache->n_local_ranks_populated == gp_cache->n_local_ranks)
+            {
+                rc = broadcast_group_cache(engine, n);
+                if (rc != DO_SUCCESS)
+                {
+                    ERR_MSG("broadcast_group_cache() failed");
+                    return;
+                }
+            }
+        }
+        else
+        {
+            // If we do not know how many local ranks to expect, we broadcast the group cache to all other DPUs
+            rc = broadcast_group_cache(engine, n);
+            if (rc != DO_SUCCESS)
+            {
+                ERR_MSG("broadcast_group_cache() failed");
+                return;
+            }
+        }
+        n_gp_cache_handled++;
+        n++;
+    }
+}
+
 /**
  * @brief Callback invoked when a connection to a remote server DPU completes
- * 
- * @param data 
+ *
+ * @param data
  */
 void connected_to_server_dpu(void *data)
 {
     assert(data);
-    bool need_to_exchange_cache = false;
+    bool can_exchange_cache = false;
     connected_peer_data_t *connected_peer = (connected_peer_data_t *)data;
     DBG("Successfully connected to server DPU at %s\n", connected_peer->peer_addr);
     set_default_econtext(connected_peer);
@@ -183,29 +231,12 @@ void connected_to_server_dpu(void *data)
         }
     }
     if (connected_peer->econtext->engine->num_connected_dpus + 1 == connected_peer->econtext->engine->num_dpus)
-        need_to_exchange_cache = true;
+        can_exchange_cache = true;
     connected_peer->econtext->engine->num_connected_dpus++;
 
     // If we now have all the connections with the other DPUs, we exchange our cache
-    if (need_to_exchange_cache)
-    {
-        dpu_offload_event_t *exchange_event;
-        dpu_offload_status_t rc = event_get(connected_peer->econtext->event_channels,
-                                            NULL,
-                                            &exchange_event);
-        if (exchange_event == NULL)
-        {
-            ERR_MSG("event_get() failed");
-        }
-        rc = exchange_cache(connected_peer->econtext, &(connected_peer->econtext->engine->procs_cache), exchange_event);
-        if (rc != DO_SUCCESS)
-        {
-            ERR_MSG("exchange_cache() failed");
-        }
-        // We do not want to explicitly deal with the event so we put it on the list of ongoing events
-        ucs_list_add_tail(&(connected_peer->econtext->ongoing_events), &(exchange_event->item));
-    }
-
+    if (can_exchange_cache)
+        sync_group_caches(connected_peer->econtext);
 }
 
 dpu_offload_status_t connect_to_remote_dpu(remote_dpu_info_t *remote_dpu_info)
@@ -250,7 +281,7 @@ connect_to_dpus(offloading_engine_t *offload_engine, dpu_inter_connect_info_t *i
 
 /**
  * @brief Callback invoked when a client DPU finalizes its connection to us.
- * 
+ *
  * @param data DPU data
  */
 void client_dpu_connected(void *data)
@@ -259,7 +290,7 @@ void client_dpu_connected(void *data)
     remote_dpu_info_t **list_dpus;
     dpu_offload_status_t rc;
     dpu_offload_event_t *exchange_ev;
-    bool need_to_exchange_cache = false;
+    bool can_exchange_cache = false;
 
     assert(data);
     connected_peer = (connected_peer_data_t *)data;
@@ -277,28 +308,13 @@ void client_dpu_connected(void *data)
     list_dpus[connected_peer->peer_id]->econtext = connected_peer->econtext;
     ENGINE_LOCK(connected_peer->econtext->engine);
     if (connected_peer->econtext->engine->num_connected_dpus + 1 == connected_peer->econtext->engine->num_dpus)
-        need_to_exchange_cache = true;
+        can_exchange_cache = true;
     connected_peer->econtext->engine->num_connected_dpus++;
     ENGINE_UNLOCK(connected_peer->econtext->engine);
 
     // If we now have all the connections with the other DPUs, we exchange our cache
-    if (need_to_exchange_cache)
-    {
-        dpu_offload_status_t rc;
-        dpu_offload_event_t *exchange_event;
-        rc = event_get(connected_peer->econtext->event_channels, NULL, &exchange_event);
-        if (exchange_event == NULL)
-        {
-            ERR_MSG("event_get() failed");
-        }
-        rc = exchange_cache(connected_peer->econtext, &(connected_peer->econtext->engine->procs_cache), exchange_event);
-        if (rc != DO_SUCCESS)
-        {
-            ERR_MSG("exchange_cache() failed");
-        }
-        // We do not want to explicitly deal with the event so we put it on the list of ongoing events
-        ucs_list_add_tail(&(connected_peer->econtext->ongoing_events), &(exchange_event->item));
-    }
+    if (can_exchange_cache)
+        sync_group_caches(connected_peer->econtext);
 }
 
 dpu_offload_status_t inter_dpus_connect_mgr(offloading_engine_t *engine, offloading_config_t *cfg)

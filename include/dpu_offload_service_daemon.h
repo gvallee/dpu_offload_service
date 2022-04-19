@@ -79,6 +79,26 @@ void client_fini(execution_context_t **);
 dpu_offload_status_t inter_dpus_connect_mgr(offloading_engine_t *, offloading_config_t *);
 
 /**
+ * @brief Broadcast group cast between DPUs
+ * 
+ * @param engine 
+ * @param group_id 
+ * @return dpu_offload_status_t 
+ */
+dpu_offload_status_t broadcast_group_cache(offloading_engine_t *engine, int64_t group_id);
+
+/**
+ * @brief Send group cache to a specific destination, mainly used to send the cache back to the local ranks.
+ * 
+ * @param econtext 
+ * @param dest 
+ * @param gp_id 
+ * @param metaev 
+ * @return dpu_offload_status_t 
+ */
+dpu_offload_status_t send_group_cache(execution_context_t *econtext, ucp_ep_h dest, int64_t gp_id, dpu_offload_event_t *metaev);
+
+/**
  * @brief send_cache sends the content of the local endpoint cache to a specific remote endpoint.
  * This is a non-blocking operation.
  *

@@ -25,11 +25,11 @@
 #if USE_AM_IMPLEM
 /**
  * @brief Note that the function assumes the execution context is not locked before it is invoked.
- * 
- * @param request 
- * @param status 
- * @param length 
- * @param user_data 
+ *
+ * @param request
+ * @param status
+ * @param length
+ * @param user_data
  */
 static void am_rdv_recv_cb(void *request, ucs_status_t status, size_t length, void *user_data)
 {
@@ -220,7 +220,7 @@ dpu_offload_status_t event_channel_register(dpu_offload_ev_sys_t *ev_sys, uint64
     entry->cb = cb;
     entry->set = true;
     entry->ev_sys = (struct dpu_offload_ev_sys *)ev_sys;
-    DBG("Callback for notification of type %"PRIu64" is now registered on event system %p", type, ev_sys);
+    DBG("Callback for notification of type %" PRIu64 " is now registered on event system %p", type, ev_sys);
 
     /* check for any pending notification that would match */
     pending_notification_t *pending_notif, *next_pending_notif;
@@ -389,7 +389,7 @@ int tag_send_event_msg(dpu_offload_event_t **event)
         ERR_MSG("ucp_tag_send_nbx() failed: %s", ucs_status_string(send_status));
         return send_status;
     }
-    DBG("event %p send posted (hdr) - scope_id: %d, id: %"PRIu64, (*event), (*event)->scope_id, myid);
+    DBG("event %p send posted (hdr) - scope_id: %d, id: %" PRIu64, (*event), (*event)->scope_id, myid);
 
     /* 2. Send the payload */
     if ((*event)->ctx.hdr.payload_size > 0)
@@ -569,7 +569,7 @@ static dpu_offload_status_t do_event_return(dpu_offload_event_t *ev)
     ev->event_system->num_used_evs--;
     DYN_LIST_RETURN((ev->event_system->free_evs), ev, item);
     SYS_EVENT_UNLOCK(ev->event_system);
-    DBG("event %p successfully returned", ev); 
+    DBG("event %p successfully returned", ev);
     return EVENT_DONE;
 }
 
@@ -796,7 +796,7 @@ static dpu_offload_status_t peer_cache_entries_recv_cb(struct dpu_offload_ev_sys
     size_t cur_size = 0;
     size_t idx = 0;
     int64_t group_id = INVALID_GROUP;
-    int64_t group_rank, group_size;
+    int64_t group_rank, group_size, n_local_ranks;
     while (cur_size < data_len)
     {
         cache_t *cache = &(engine->procs_cache);
@@ -807,8 +807,9 @@ static dpu_offload_status_t peer_cache_entries_recv_cb(struct dpu_offload_ev_sys
         // Now that we know for sure we have the group ID, we can move the received data into the local cache
         group_size = entries[idx].peer.proc_info.group_size;
         group_rank = entries[idx].peer.proc_info.group_rank;
-        DBG("Received a cache entry for rank:%ld, group:%ld from DPU %" PRId64 " (msg size=%ld, peer addr len=%ld)",
-            group_rank, group_id, hdr->id, data_len, entries[idx].peer.addr_len);
+        n_local_ranks = entries[idx].peer.proc_info.n_local_ranks;
+        DBG("Received a cache entry for rank:%ld, group:%ld, group size:%ld, number of local rank: %ld from DPU %" PRId64 " (msg size=%ld, peer addr len=%ld)",
+            group_rank, group_id, group_size, n_local_ranks, hdr->id, data_len, entries[idx].peer.addr_len);
 
         if (!is_in_cache(cache, group_id, group_rank, group_size))
         {
@@ -824,7 +825,37 @@ static dpu_offload_status_t peer_cache_entries_recv_cb(struct dpu_offload_ev_sys
                     COMPLETE_EVENT(e);
                 }
             }
+
+            if (econtext->engine->on_dpu)
+            {
+                group_cache_t *gp_cache = GET_GROUP_CACHE(&(econtext->engine->procs_cache), group_id);
+                if (gp_cache->group_size > 0 && gp_cache->num_local_entries == gp_cache->group_size)
+                {
+                    size_t n = 0, idx = 0;
+                    DBG("Cache is complete, sending it to the local ranks");
+                    //ctx->server->connected_clients
+                    while (n < econtext->server->connected_clients.num_connected_clients)
+                    {
+                        dpu_offload_status_t rc;
+                        dpu_offload_event_t *metaev;
+                        peer_info_t *client_info = DYN_ARRAY_GET_ELT(&(econtext->server->connected_clients.clients), idx, peer_info_t);
+                        if (client_info == NULL)
+                        {
+                            idx++;
+                            continue;
+                        }
+                        rc = event_get(econtext->event_channels, NULL, &metaev);
+                        if (rc != DO_SUCCESS || metaev == NULL)
+                            ERR_MSG("event_get() failed"); // todo: better handle errors
+                        rc = send_group_cache(econtext, client_info->ep, group_id, metaev);
+                        if (rc != DO_SUCCESS)
+                            ERR_MSG("send_group_cache() failed"); // todo: better handle errors
+                        n++;
+                    }
+                }
+            }
         }
+
         cur_size += sizeof(peer_cache_entry_t);
         idx++;
     }
@@ -855,7 +886,7 @@ static dpu_offload_status_t add_group_rank_recv_cb(struct dpu_offload_ev_sys *ev
 
     if (!is_in_cache(&(econtext->engine->procs_cache), rank_info->group_id, rank_info->group_rank, rank_info->group_size))
     {
-        SET_GROUP_RANK_CACHE_ENTRY(econtext, rank_info->group_id, rank_info->group_rank, rank_info->group_size);
+        SET_GROUP_RANK_CACHE_ENTRY(econtext, rank_info->group_id, rank_info->group_rank, rank_info->group_size, rank_info->n_local_ranks);
     }
 
     return DO_SUCCESS;

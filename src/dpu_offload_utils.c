@@ -253,7 +253,7 @@ static dpu_offload_status_t do_get_cache_entry_by_group_rank(offloading_engine_t
 {
     if (ev != NULL && cb != NULL)
     {
-        ERR_MSG("%s(): both the event and the callback are defined, impossible to understand the context");
+        ERR_MSG("%s(): both the event and the callback are defined, impossible to understand the context", __func__);
         return DO_ERROR;
     }
 

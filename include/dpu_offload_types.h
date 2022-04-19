@@ -242,9 +242,17 @@ typedef struct ucx_server_ctx
 
 typedef struct rank_info
 {
+    // ID of the group associated to the rank
     int64_t group_id;
+
+    // Rank in the group
     int64_t group_rank;
+
+    // Size of the group associated to the rank
     int64_t group_size;
+
+    // Number of ranks on the host. Used for optimization. Can be set to any negative value when unknown
+    int64_t n_local_ranks;
 } rank_info_t;
 
 // fixme: long term, we do not want to have a limit on the length of the address
@@ -979,9 +987,17 @@ typedef struct cache
 typedef struct group_cache
 {
     bool initialized;
+
     size_t group_size;
+
     // How many entries are already locally populated
     size_t num_local_entries;
+
+    // Number of ranks on the local host
+    size_t n_local_ranks;
+
+    // Number of ranks on the local host that we already know about
+    size_t n_local_ranks_populated;
     dyn_array_t ranks;
 } group_cache_t;
 
@@ -1016,10 +1032,14 @@ typedef struct group_cache
         _entry;                                                                  \
     })
 
-#define SET_GROUP_RANK_CACHE_ENTRY(__econtext, __gp_id, __rank, __gp_size)                             \
+#define SET_GROUP_RANK_CACHE_ENTRY(__econtext, __gp_id, __rank, __gp_size, __n_local_ranks)            \
     ({                                                                                                 \
         peer_cache_entry_t *__entry = GET_GROUP_RANK_CACHE_ENTRY(&((__econtext)->engine->procs_cache), \
                                                                  __gp_id, __rank, __gp_size);          \
+        group_cache_t *__gp_cache = GET_GROUP_CACHE(&((__econtext)->engine->procs_cache),              \
+                                                   __gp_id);                                           \
+        if (__gp_cache->n_local_ranks <= 0)                                                            \
+            __gp_cache->n_local_ranks = __n_local_ranks;                                               \
         if (__entry != NULL)                                                                           \
         {                                                                                              \
             __entry->peer.proc_info.group_id = __gp_id;                                                \
