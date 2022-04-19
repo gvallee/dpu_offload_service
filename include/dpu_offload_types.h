@@ -1415,7 +1415,7 @@ typedef struct dpu_inter_connect_info
     size_t num_connect_to;
 } dpu_inter_connect_info_t;
 
-typedef struct dpu_config
+typedef struct offloading_config
 {
     char *list_dpus;
     char *config_file;

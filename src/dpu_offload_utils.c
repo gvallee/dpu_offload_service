@@ -242,6 +242,12 @@ dpu_offload_status_t broadcast_group_cache(offloading_engine_t *engine, int64_t 
         dpu_offload_status_t rc;
         dpu_offload_event_t *ev;
         ucp_ep_h dest_ep;
+
+        // Do not send to self
+        offloading_config_t *cfg = (offloading_config_t*)engine->config;
+        if (i == cfg->local_dpu.id)
+            continue;
+
         assert(list_dpus[i]->econtext);
         event_get(list_dpus[i]->econtext->event_channels, NULL, &ev);
         assert(ev);
