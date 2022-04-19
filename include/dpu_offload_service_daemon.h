@@ -79,15 +79,6 @@ void client_fini(execution_context_t **);
 dpu_offload_status_t inter_dpus_connect_mgr(offloading_engine_t *, offloading_config_t *);
 
 /**
- * @brief Broadcast group cast between DPUs
- * 
- * @param engine 
- * @param group_id 
- * @return dpu_offload_status_t 
- */
-dpu_offload_status_t broadcast_group_cache(offloading_engine_t *engine, int64_t group_id);
-
-/**
  * @brief Send group cache to a specific destination, mainly used to send the cache back to the local ranks.
  * 
  * @param econtext 
@@ -182,5 +173,9 @@ dpu_offload_status_t get_cache_entry_by_group_rank(offloading_engine_t *engine, 
  * @return ucp_ep_h DPU's endpoint
  */
 ucp_ep_h get_dpu_ep_by_id(offloading_engine_t *engine, uint64_t id);
+
+bool group_cache_populated(offloading_engine_t *engine, int64_t gp_id);
+
+bool is_in_cache(cache_t *cache, int64_t gp_id, int64_t rank_id, int64_t group_size);
 
 #endif // DPU_OFFLOAD_SERVICE_DAEMON_H_

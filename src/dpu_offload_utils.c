@@ -56,7 +56,13 @@ dpu_offload_status_t send_add_group_rank_request(execution_context_t *econtext, 
 /* FUNCTIONS RELATED TO THE ENDPOINT CACHES */
 /********************************************/
 
-extern bool is_in_cache(cache_t *cache, int64_t gp_id, int64_t rank_id);
+bool group_cache_populated(offloading_engine_t *engine, int64_t gp_id)
+{
+    group_cache_t *gp_cache = GET_GROUP_CACHE(&(engine->procs_cache), gp_id);
+    if (gp_cache->group_size == gp_cache->num_local_entries)
+        return true;
+    return false;
+}
 
 dpu_offload_status_t send_cache_entry_request(execution_context_t *econtext, ucp_ep_h ep, rank_info_t *requested_peer, dpu_offload_event_t **ev)
 {
@@ -249,6 +255,14 @@ dpu_offload_status_t broadcast_group_cache(offloading_engine_t *engine, int64_t 
     return DO_SUCCESS;
 }
 
+bool is_in_cache(cache_t *cache, int64_t gp_id, int64_t rank_id, int64_t group_size)
+{
+    peer_cache_entry_t *entry = GET_GROUP_RANK_CACHE_ENTRY(cache, gp_id, rank_id, group_size);
+    if (entry == NULL)
+        return false;
+    return (entry->set);
+}
+
 static dpu_offload_status_t do_get_cache_entry_by_group_rank(offloading_engine_t *engine, int64_t gp_id, int64_t rank, int64_t gp_size, int64_t dpu_idx, request_compl_cb_t cb, int64_t *dpu_id, dpu_offload_event_t **ev)
 {
     if (ev != NULL && cb != NULL)
@@ -261,7 +275,7 @@ static dpu_offload_status_t do_get_cache_entry_by_group_rank(offloading_engine_t
     if (ev != NULL)
         assert(dpu_id);
 
-    if (is_in_cache(&(engine->procs_cache), gp_id, rank))
+    if (is_in_cache(&(engine->procs_cache), gp_id, rank, gp_size))
     {
         // The cache has the data
         dyn_array_t *gps_data = &(engine->procs_cache.data);

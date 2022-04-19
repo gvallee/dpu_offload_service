@@ -717,16 +717,7 @@ static dpu_offload_status_t xgvmi_key_recv_cb(struct dpu_offload_ev_sys *ev_sys,
 /* Endpoint cache related functions */
 /************************************/
 
-extern dpu_offload_status_t send_group_cache(execution_context_t *econtext, ucp_ep_h dest, int64_t gp_id, dpu_offload_event_t *metaev);
 extern int send_cache_entry_request(execution_context_t *econtext, ucp_ep_h ep, rank_info_t *requested_peer, dpu_offload_event_t **ev);
-
-bool is_in_cache(cache_t *cache, int64_t gp_id, int64_t rank_id, int64_t group_size)
-{
-    peer_cache_entry_t *entry = GET_GROUP_RANK_CACHE_ENTRY(cache, gp_id, rank_id, group_size);
-    if (entry == NULL)
-        return false;
-    return (entry->set);
-}
 
 static dpu_offload_status_t peer_cache_entries_request_recv_cb(struct dpu_offload_ev_sys *ev_sys, execution_context_t *econtext, am_header_t *hdr, size_t hdr_size, void *data, size_t data_len)
 {

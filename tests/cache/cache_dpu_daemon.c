@@ -27,9 +27,6 @@ uint64_t group_size = 2;
 
 offloading_config_t config_data; // TODO: find a way to avoid having a global variable when we want to access the config from a handler
 
-// from dpu_offload_event_channels.c
-extern bool is_in_cache(cache_t *cache, int64_t gp_id, int64_t rank_id);
-
 #define TEST_COMPLETED_NOTIF_ID (5000)
 #define START_TEST_FROM_CALLBACK (5001)
 #define END_TEST_FROM_CALLBACK (5002)
@@ -224,7 +221,7 @@ error_out:
         DYN_LIST_GET((_engine)->free_peer_cache_entries, peer_cache_entry_t, item, _new_entry); \
         if (_new_entry == NULL)                                                                 \
         {                                                                                       \
-            fprintf(stderr, "[ERROR] Unable to get cache entry\n");                                     \
+            fprintf(stderr, "[ERROR] Unable to get cache entry\n");                             \
             goto error_out;                                                                     \
         }                                                                                       \
         _new_entry->peer.proc_info.group_rank = _rank;                                          \
@@ -235,9 +232,9 @@ error_out:
         _new_entry->shadow_dpus[0] = (_config_data).local_dpu.id;                               \
         _new_entry->peer.addr_len = 43;                                                         \
         SET_PEER_CACHE_ENTRY(&((_engine)->procs_cache), _new_entry);                            \
-        if (!is_in_cache(&((_engine)->procs_cache), _gp, _rank))                                \
+        if (!is_in_cache(&((_engine)->procs_cache), _gp, _rank, group_size))                    \
         {                                                                                       \
-            fprintf(stderr, "[ERROR] Cache entry not reported as being in the cache\n");                \
+            fprintf(stderr, "[ERROR] Cache entry not reported as being in the cache\n");        \
             goto error_out;                                                                     \
         }                                                                                       \
     } while (0)
