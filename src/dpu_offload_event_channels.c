@@ -826,19 +826,20 @@ static dpu_offload_status_t peer_cache_entries_recv_cb(struct dpu_offload_ev_sys
                 if (gp_cache->group_size > 0 && gp_cache->num_local_entries == gp_cache->group_size)
                 {
                     size_t n = 0, idx = 0;
-                    DBG("Cache is complete, sending it to the local ranks");
-                    //ctx->server->connected_clients
-                    while (n < econtext->server->connected_clients.num_connected_clients)
+                    execution_context_t *server = get_server_servicing_host(engine);
+                    DBG("Cache is complete, sending it to the local ranks (number of connected clients: %ld)",
+                        server->server->connected_clients.num_connected_clients);
+                    while (n < server->server->connected_clients.num_connected_clients)
                     {
                         dpu_offload_status_t rc;
                         dpu_offload_event_t *metaev;
-                        peer_info_t *client_info = DYN_ARRAY_GET_ELT(&(econtext->server->connected_clients.clients), idx, peer_info_t);
+                        peer_info_t *client_info = DYN_ARRAY_GET_ELT(&(server->server->connected_clients.clients), idx, peer_info_t);
                         if (client_info == NULL)
                         {
                             idx++;
                             continue;
                         }
-                        rc = event_get(econtext->event_channels, NULL, &metaev);
+                        rc = event_get(server->server->event_channels, NULL, &metaev);
                         if (rc != DO_SUCCESS || metaev == NULL)
                             ERR_MSG("event_get() failed"); // todo: better handle errors
                         DBG("Sending cache to client #%ld ep: %p", idx, client_info->ep);
