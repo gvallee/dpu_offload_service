@@ -1460,6 +1460,14 @@ execution_context_t *client_init(offloading_engine_t *offload_engine, init_param
             ctx->rank.group_rank = init_params->proc_info->group_rank;
             ctx->rank.group_size = init_params->proc_info->group_size;
             ctx->rank.n_local_ranks = init_params->proc_info->n_local_ranks;
+
+            /* Update the local cache for consistency */
+            group_cache_t *gp_cache = GET_GROUP_CACHE(&(offload_engine->procs_cache), ctx->rank.group_id);
+            if (gp_cache->group_size <= 0)
+            {
+                gp_cache->group_size = init_params->proc_info->group_size;
+                gp_cache->n_local_ranks = init_params->proc_info->n_local_ranks;
+            }
         }
     }
     else
@@ -1510,6 +1518,28 @@ execution_context_t *client_init(offloading_engine_t *offload_engine, init_param
     ENGINE_UNLOCK(offload_engine);
     ECONTEXT_UNLOCK(ctx);
     CHECK_ERR_GOTO((rc), error_out, "register_default_notfications() failed");
+
+    // We add ourselves to the local EP cache
+    if (ctx->rank.group_id != INVALID_GROUP &&
+        ctx->rank.group_rank != INVALID_RANK &&
+        !is_in_cache(&(offload_engine->procs_cache), ctx->rank.group_id, ctx->rank.group_rank, ctx->rank.group_size))
+    {
+        peer_cache_entry_t *cache_entry = GET_GROUP_RANK_CACHE_ENTRY(&(offload_engine->procs_cache),
+                                                                     ctx->rank.group_id,
+                                                                     ctx->rank.group_rank,
+                                                                     ctx->rank.group_size);
+        group_cache_t *gp_cache = GET_GROUP_CACHE(&(offload_engine->procs_cache), ctx->rank.group_id);
+        assert(cache_entry);
+        assert(gp_cache);
+        cache_entry->shadow_dpus[cache_entry->num_shadow_dpus] = ctx->client->server_id;
+        cache_entry->peer.proc_info.group_id = ctx->rank.group_id;
+        cache_entry->peer.proc_info.group_rank = ctx->rank.group_rank;
+        cache_entry->peer.proc_info.group_size = ctx->rank.group_size;
+        cache_entry->peer.proc_info.n_local_ranks = ctx->rank.n_local_ranks;
+        cache_entry->num_shadow_dpus++;
+        cache_entry->set = true;
+        gp_cache->num_local_entries++;
+    }
 
     DBG("%s() done", __func__);
     return ctx;
