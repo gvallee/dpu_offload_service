@@ -1139,7 +1139,11 @@ static void execution_context_progress(execution_context_t *ctx)
                     // and fully complete the local initialization for the client.
                     ECONTEXT_LOCK(ctx);
                     client_info->bootstrapping.phase = UCX_CONNECT_DONE;
-                    DBG("group/rank received: (%" PRId64 "/%" PRId64 ")", client_info->rank_data.group_id, client_info->rank_data.group_rank);
+                    DBG("group/rank received: (%" PRId64 "/%" PRId64 "); group_size: %ld, local ranks: %ld",
+                        client_info->rank_data.group_id,
+                        client_info->rank_data.group_rank,
+                        client_info->rank_data.group_size,
+                        client_info->rank_data.n_local_ranks);
                     if (client_info->rank_data.group_id != INVALID_GROUP && client_info->rank_data.group_rank != INVALID_RANK)
                     {
                         bool group_cache_now_full = false;
@@ -1152,16 +1156,20 @@ static void execution_context_progress(execution_context_t *ctx)
                                                                                      client_info->rank_data.n_local_ranks);
                         group_cache_t *gp_cache = GET_GROUP_CACHE(&(ctx->engine->procs_cache), client_info->rank_data.group_id);
                         CHECK_ERR_GOTO((cache_entry == NULL), error_out, "undefined cache entry");
-                        if (gp_cache->num_local_entries <= 0 && client_info->rank_data.n_local_ranks >= 0)
+                        if (gp_cache->n_local_ranks <= 0 && client_info->rank_data.n_local_ranks >= 0)
                         {
                             DBG("Setting the number of local ranks for the group %" PRId64 " (%" PRId64 ")",
                                 client_info->rank_data.group_id,
                                 client_info->rank_data.n_local_ranks);
-                            gp_cache->num_local_entries = client_info->rank_data.n_local_ranks;
+                            gp_cache->n_local_ranks = client_info->rank_data.n_local_ranks;
                         }
                         if (gp_cache->group_size == gp_cache->num_local_entries + 1)
                         {
                             // The cache is above to be fully populated
+                            DBG("Cache is complete for group %ld (gp size: %ld, local entries: %ld)\n",
+                                client_info->rank_data.group_id,
+                                gp_cache->group_size,
+                                gp_cache->num_local_entries + 1);
                             group_cache_now_full = true;
                         }
                         gp_cache->n_local_ranks_populated++;
