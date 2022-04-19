@@ -178,4 +178,6 @@ bool group_cache_populated(offloading_engine_t *engine, int64_t gp_id);
 
 bool is_in_cache(cache_t *cache, int64_t gp_id, int64_t rank_id, int64_t group_size);
 
+execution_context_t * get_server_servicing_host(offloading_engine_t *engine);
+
 #endif // DPU_OFFLOAD_SERVICE_DAEMON_H_

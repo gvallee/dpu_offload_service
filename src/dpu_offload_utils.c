@@ -136,7 +136,12 @@ dpu_offload_status_t send_group_cache(execution_context_t *econtext, ucp_ep_h de
         peer_cache_entry_t *cache_entry = GET_GROUP_RANK_CACHE_ENTRY(&(econtext->engine->procs_cache), gp_id, i, gp_cache[gp_id].group_size);
         if (cache_entry->set)
         {
-            DBG("Sending cache entry for rank:%ld/gp:%ld (event: %p)", cache_entry->peer.proc_info.group_rank, cache_entry->peer.proc_info.group_id, metaev);
+            DBG("Sending cache entry for rank:%ld/gp:%ld gp_size:%ld local_ranks:%ld (event: %p)",
+                cache_entry->peer.proc_info.group_rank,
+                cache_entry->peer.proc_info.group_id,
+                cache_entry->peer.proc_info.group_size,
+                cache_entry->peer.proc_info.n_local_ranks,
+                metaev);
             dpu_offload_event_t *e;
             dpu_offload_status_t rc = send_cache_entry(econtext, dest, cache_entry, &e);
             CHECK_ERR_RETURN((rc), DO_ERROR, "send_cache_entry() failed");
@@ -212,7 +217,7 @@ bool all_dpus_connected(offloading_engine_t *engine)
     if (!engine->on_dpu)
         return false;
 
-    return (engine->num_dpus == engine->num_connected_dpus);
+    return (engine->num_dpus == (engine->num_connected_dpus + 1)); // Plus one because we do not connect to ourselves
 }
 
 dpu_offload_status_t broadcast_group_cache(offloading_engine_t *engine, int64_t group_id)
@@ -224,12 +229,15 @@ dpu_offload_status_t broadcast_group_cache(offloading_engine_t *engine, int64_t 
     assert(group_id >= 0);
 
     if (!engine->on_dpu)
+    {
+        ERR_MSG("Not on a DPU, not allowed to broadcast group cache");
         return DO_ERROR;
+    }
 
     if (!all_dpus_connected(engine))
     {
         // Not all the DPUs are connected, we cannot exchange the data yet
-        WARN_MSG("Not all DPUs are connected, unable to broadcast group cache");
+        WARN_MSG("Not all DPUs are connected, unable to broadcast group cache (num DPUS: %ld, connected DPUs: %ld)", engine->num_dpus, engine->num_connected_dpus);
         return DO_ERROR;
     }
 
@@ -904,4 +912,19 @@ dpu_offload_status_t get_host_config(offloading_config_t *config_data)
     }
 
     return DO_SUCCESS;
+}
+
+execution_context_t * get_server_servicing_host(offloading_engine_t *engine)
+{
+    size_t i;
+    // We start at the end of the list because the server servicing the host
+    // is traditionally the last one added
+    for (i = engine->num_servers; i >= 0; i--)
+    {
+        assert(engine->servers[i]);
+        if (engine->servers[i]->scope_id == SCOPE_HOST_DPU)
+            return (engine->servers[i]);
+    }
+
+    return NULL;
 }
