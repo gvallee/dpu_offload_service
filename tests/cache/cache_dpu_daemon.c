@@ -110,7 +110,7 @@ void cache_entry_cb(void *data)
 
 static int do_lookup_from_callback(offloading_engine_t *offload_engine, int64_t gp_id, int64_t rank_id, int64_t expected_dpu_id)
 {
-    dpu_offload_status_t rc = get_cache_entry_by_group_rank(offload_engine, gp_id, rank_id, group_size, 0, cache_entry_cb);
+    dpu_offload_status_t rc = get_cache_entry_by_group_rank(offload_engine, gp_id, rank_id, 0, cache_entry_cb);
     if (rc != DO_SUCCESS)
     {
         fprintf(stderr, "get_cache_entry_by_group_rank() failed");
@@ -132,7 +132,7 @@ static int do_lookup(offloading_engine_t *offload_engine, int64_t gp_id, int64_t
     }
 
     fprintf(stderr, "Looking up endpoint for %" PRId64 "/%" PRId64 "\n", gp_id, rank_id);
-    rc = get_dpu_id_by_group_rank(offload_engine, gp_id, rank_id, group_size, 0, &remote_dpu_id, &ev);
+    rc = get_dpu_id_by_group_rank(offload_engine, gp_id, rank_id, 0, &remote_dpu_id, &ev);
     if (rc != DO_SUCCESS)
     {
         fprintf(stderr, "[ERROR] first get_dpu_id_by_host_rank() failed\n");
@@ -154,7 +154,7 @@ static int do_lookup(offloading_engine_t *offload_engine, int64_t gp_id, int64_t
             goto error_out;
         }
 
-        rc = get_dpu_id_by_group_rank(offload_engine, gp_id, rank_id, group_size, 0, &remote_dpu_id, &ev);
+        rc = get_dpu_id_by_group_rank(offload_engine, gp_id, rank_id, 0, &remote_dpu_id, &ev);
         if (rc != DO_SUCCESS)
         {
             fprintf(stderr, "[ERROR] second get_dpu_id_by_host_rank() failed\n");
@@ -325,7 +325,7 @@ int main(int argc, char **argv)
 
         // Next test with local cache: look up the cache entry that is already in the cache
         dpu_offload_event_t *ev;
-        rc = get_dpu_id_by_group_rank(offload_engine, 42, 42, group_size, 0, &remote_dpu_id, &ev);
+        rc = get_dpu_id_by_group_rank(offload_engine, 42, 42, 0, &remote_dpu_id, &ev);
         if (rc != DO_SUCCESS)
         {
             fprintf(stderr, "[ERROR] first get_dpu_id_by_host_rank() failed\n");
