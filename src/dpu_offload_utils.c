@@ -24,6 +24,8 @@ char *my_hostname = NULL;
 
 const char *config_file_version_token = "Format version:";
 
+#define GROUP_SIZE_UNKNOWN (-1)
+
 /*************************************/
 /* FUNCTIONS RELATED TO GROUPS/RANKS */
 /*************************************/
@@ -282,7 +284,7 @@ bool is_in_cache(cache_t *cache, int64_t gp_id, int64_t rank_id, int64_t group_s
     return (entry->set);
 }
 
-static dpu_offload_status_t do_get_cache_entry_by_group_rank(offloading_engine_t *engine, int64_t gp_id, int64_t rank, int64_t gp_size, int64_t dpu_idx, request_compl_cb_t cb, int64_t *dpu_id, dpu_offload_event_t **ev)
+static dpu_offload_status_t do_get_cache_entry_by_group_rank(offloading_engine_t *engine, int64_t gp_id, int64_t rank, int64_t dpu_idx, request_compl_cb_t cb, int64_t *dpu_id, dpu_offload_event_t **ev)
 {
     if (ev != NULL && cb != NULL)
     {
@@ -294,12 +296,12 @@ static dpu_offload_status_t do_get_cache_entry_by_group_rank(offloading_engine_t
     if (ev != NULL)
         assert(dpu_id);
 
-    if (is_in_cache(&(engine->procs_cache), gp_id, rank, gp_size))
+    if (is_in_cache(&(engine->procs_cache), gp_id, rank, -1))
     {
         // The cache has the data
         dyn_array_t *gps_data = &(engine->procs_cache.data);
         dyn_array_t *gp_data = DYN_ARRAY_GET_ELT(gps_data, gp_id, dyn_array_t);
-        peer_cache_entry_t *cache_entry = GET_GROUP_RANK_CACHE_ENTRY(&(engine->procs_cache), gp_id, rank, gp_size);
+        peer_cache_entry_t *cache_entry = GET_GROUP_RANK_CACHE_ENTRY(&(engine->procs_cache), gp_id, rank, GROUP_SIZE_UNKNOWN);
         DBG("%" PRId64 "/%" PRId64 " is in the cache, DPU ID = %" PRId64, rank, gp_id, cache_entry->shadow_dpus[dpu_idx]);
         if (ev != NULL)
         {
@@ -317,7 +319,7 @@ static dpu_offload_status_t do_get_cache_entry_by_group_rank(offloading_engine_t
 
     // Create the local event so we can know when the cache entry has been received
     dpu_offload_event_t *cache_entry_updated_ev;
-    peer_cache_entry_t *cache_entry = GET_GROUP_RANK_CACHE_ENTRY(&(engine->procs_cache), gp_id, rank, gp_size);
+    peer_cache_entry_t *cache_entry = GET_GROUP_RANK_CACHE_ENTRY(&(engine->procs_cache), gp_id, rank, GROUP_SIZE_UNKNOWN);
     assert(engine->default_econtext);
     dpu_offload_status_t rc = event_get(engine->default_econtext->event_channels, NULL, &cache_entry_updated_ev);
     CHECK_ERR_RETURN((rc), DO_ERROR, "event_get() failed");
@@ -417,14 +419,14 @@ static dpu_offload_status_t do_get_cache_entry_by_group_rank(offloading_engine_t
     return DO_SUCCESS;
 }
 
-dpu_offload_status_t get_cache_entry_by_group_rank(offloading_engine_t *engine, int64_t gp_id, int64_t rank, int64_t gp_size, int64_t dpu_idx, request_compl_cb_t cb)
+dpu_offload_status_t get_cache_entry_by_group_rank(offloading_engine_t *engine, int64_t gp_id, int64_t rank, int64_t dpu_idx, request_compl_cb_t cb)
 {
-    return do_get_cache_entry_by_group_rank(engine, gp_id, rank, gp_size, dpu_idx, cb, NULL, NULL);
+    return do_get_cache_entry_by_group_rank(engine, gp_id, rank, dpu_idx, cb, NULL, NULL);
 }
 
-dpu_offload_status_t get_dpu_id_by_group_rank(offloading_engine_t *engine, int64_t gp_id, int64_t rank, int64_t gp_size, int64_t dpu_idx, int64_t *dpu_id, dpu_offload_event_t **ev)
+dpu_offload_status_t get_dpu_id_by_group_rank(offloading_engine_t *engine, int64_t gp_id, int64_t rank, int64_t dpu_idx, int64_t *dpu_id, dpu_offload_event_t **ev)
 {
-    return do_get_cache_entry_by_group_rank(engine, gp_id, rank, gp_size, dpu_idx, NULL, dpu_id, ev);
+    return do_get_cache_entry_by_group_rank(engine, gp_id, rank, dpu_idx, NULL, dpu_id, ev);
 }
 
 ucp_ep_h get_dpu_ep_by_id(offloading_engine_t *engine, uint64_t id)

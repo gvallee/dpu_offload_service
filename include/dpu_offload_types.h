@@ -321,7 +321,8 @@ typedef struct peer_cache_entry
     ucs_list_link_t events;
 } peer_cache_entry_t;
 
-typedef struct cache_entry_request {
+typedef struct cache_entry_request
+{
     ucs_list_link_t item;
 
     struct offloading_engine *offload_engine;
@@ -374,7 +375,7 @@ typedef struct am_req
 
     // Context to be passed in the completion callback
     void *completion_cb_ctx;
-} am_req_t;       // todo: rename, nothing to do with AM
+} am_req_t; // todo: rename, nothing to do with AM
 
 #if !USE_AM_IMPLEM
 // Forward declaration
@@ -1018,11 +1019,19 @@ typedef struct group_cache
         dyn_array_t *_rank_cache = &(_gp_cache[_gp_id].ranks);                   \
         if (_gp_cache[_gp_id].initialized == false)                              \
         {                                                                        \
-            /* Cache for the group is empty */                                   \
+            /* Cache for the group is empty, lazy initialization */              \
             DYN_ARRAY_ALLOC(_rank_cache, DEFAULT_NUM_PEERS, peer_cache_entry_t); \
             _gp_cache[_gp_id].initialized = true;                                \
-            _gp_cache[_gp_id].group_size = _gp_size;                             \
+            if (_gp_size >= 0)                                                   \
+                _gp_cache[_gp_id].group_size = _gp_size;                         \
             (_cache)->size++;                                                    \
+        }                                                                        \
+        if (_gp_cache[_gp_id].initialized &&                                     \
+            _gp_cache[_gp_id].group_size <= 0 &&                                 \
+            _gp_size >= 0)                                                       \
+        {                                                                        \
+            /* the cache was initialized with a group size but we now know it */ \
+            _gp_cache[_gp_id].group_size = _gp_size;                             \
         }                                                                        \
         if (_rank >= _rank_cache->num_elts)                                      \
             DYN_ARRAY_GROW(_rank_cache, peer_cache_entry_t, _rank);              \
@@ -1037,7 +1046,7 @@ typedef struct group_cache
         peer_cache_entry_t *__entry = GET_GROUP_RANK_CACHE_ENTRY(&((__econtext)->engine->procs_cache), \
                                                                  __gp_id, __rank, __gp_size);          \
         group_cache_t *__gp_cache = GET_GROUP_CACHE(&((__econtext)->engine->procs_cache),              \
-                                                   __gp_id);                                           \
+                                                    __gp_id);                                          \
         if (__gp_cache->n_local_ranks <= 0)                                                            \
             __gp_cache->n_local_ranks = __n_local_ranks;                                               \
         if (__entry != NULL)                                                                           \
@@ -1075,7 +1084,7 @@ typedef struct group_cache
     ({                                                                     \
         int64_t _gp_id = (_entry)->peer.proc_info.group_id;                \
         int64_t _rank = (_entry)->peer.proc_info.group_rank;               \
-        int64_t _gp_size  = (_entry)->peer.proc_info.group_size;           \
+        int64_t _gp_size = (_entry)->peer.proc_info.group_size;            \
         peer_cache_entry_t *_ptr = GET_GROUP_RANK_CACHE_ENTRY(_peer_cache, \
                                                               _gp_id,      \
                                                               _rank,       \
@@ -1150,8 +1159,8 @@ typedef struct offloading_engine
 
     /* Cache for groups/rank so we can propagate rank and DPU related data */
     cache_t procs_cache;
-    dyn_list_t *free_peer_cache_entries; // pool of peer descriptors that can also be used directly into a cache
-    dyn_list_t *free_peer_descs;         // pool of peer data descriptors (type: peer_data_t)
+    dyn_list_t *free_peer_cache_entries;   // pool of peer descriptors that can also be used directly into a cache
+    dyn_list_t *free_peer_descs;           // pool of peer data descriptors (type: peer_data_t)
     dyn_list_t *free_cache_entry_requests; // pool of descriptors to issue asynchronous cache updates (type: cache_entry_request_t)
 
     /* Objects used during wire-up */
@@ -1178,33 +1187,35 @@ typedef struct offloading_engine
     size_t num_default_notifications;
 } offloading_engine_t;
 
-#define ENGINE_RESET(_engine) do {               \
-    (_engine)->done = false;                     \
-    (_engine)->config = NULL;                    \
-    (_engine)->client = NULL;                    \
-    (_engine)->num_max_servers = 0;              \
-    (_engine)->num_servers = 0;                  \
-    (_engine)->servers = NULL;                   \
-    (_engine)->default_econtext = NULL;          \
-    (_engine)->ucp_worker = NULL;                \
-    (_engine)->ucp_context = NULL;               \
-    (_engine)->self_ep = NULL;                   \
-    (_engine)->num_inter_dpus_clients = 0;       \
-    (_engine)->num_max_inter_dpus_clients = 0;   \
-    (_engine)->inter_dpus_clients = NULL;        \
-    (_engine)->num_registered_ops = 0;           \
-    (_engine)->registered_ops = NULL;            \
-    (_engine)->free_op_descs = NULL;             \
-    (_engine)->free_peer_cache_entries = NULL;   \
-    (_engine)->free_peer_descs = NULL;           \
-    (_engine)->free_cache_entry_requests = NULL; \
-    (_engine)->pool_conn_params = NULL;          \
-    (_engine)->on_dpu = false;                   \
-    (_engine)->num_dpus = 0;                     \
-    (_engine)->num_connected_dpus = 0;           \
-    (_engine)->default_notifications = NULL;     \
-    (_engine)->num_default_notifications = 0;    \
-} while (0)
+#define ENGINE_RESET(_engine)                        \
+    do                                               \
+    {                                                \
+        (_engine)->done = false;                     \
+        (_engine)->config = NULL;                    \
+        (_engine)->client = NULL;                    \
+        (_engine)->num_max_servers = 0;              \
+        (_engine)->num_servers = 0;                  \
+        (_engine)->servers = NULL;                   \
+        (_engine)->default_econtext = NULL;          \
+        (_engine)->ucp_worker = NULL;                \
+        (_engine)->ucp_context = NULL;               \
+        (_engine)->self_ep = NULL;                   \
+        (_engine)->num_inter_dpus_clients = 0;       \
+        (_engine)->num_max_inter_dpus_clients = 0;   \
+        (_engine)->inter_dpus_clients = NULL;        \
+        (_engine)->num_registered_ops = 0;           \
+        (_engine)->registered_ops = NULL;            \
+        (_engine)->free_op_descs = NULL;             \
+        (_engine)->free_peer_cache_entries = NULL;   \
+        (_engine)->free_peer_descs = NULL;           \
+        (_engine)->free_cache_entry_requests = NULL; \
+        (_engine)->pool_conn_params = NULL;          \
+        (_engine)->on_dpu = false;                   \
+        (_engine)->num_dpus = 0;                     \
+        (_engine)->num_connected_dpus = 0;           \
+        (_engine)->default_notifications = NULL;     \
+        (_engine)->num_default_notifications = 0;    \
+    } while (0)
 
 /***************************/
 /* NOTIFICATIONS INTERNALS */
@@ -1309,7 +1320,7 @@ typedef struct pending_notification
     _e;                                                         \
 })
 
-#define GET_REMOTE_DPU_EP(_engine, _idx) ({                        \
+#define GET_REMOTE_DPU_EP(_engine, _idx) ({                                   \
     remote_dpu_info_t **_list_dpus = LIST_DPUS_FROM_ENGINE(_engine);          \
     ucp_ep_h __ep = NULL;                                                     \
     if (_idx <= (_engine)->num_connected_dpus)                                \

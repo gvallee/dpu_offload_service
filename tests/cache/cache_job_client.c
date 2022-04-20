@@ -14,7 +14,7 @@
  * This test is meant to be used in conjunction with the daemons/job_persistent/job_persistent_dpu_daemon
  * daemon running on DPUs. It is assmued that a configuration file is being used through the OFFLOAD_CONFIG_FILE_PATH
  * environment variable.
- * 
+ *
  * The intent of the test is the following:
  * - start the daemon on the DPU(s) (see documentation)
  * - start 2 clients, which the associated DPU daemons will track
@@ -23,7 +23,7 @@
  * - the clients should ultimately get the endpoints.
  * Note that it should not matter how many DPU daemons are used (one or more) and
  * whether the ranks are running on the same host.
- * 
+ *
  * Please provide the rank on the command line to start the test. Each process must have a unique rank.
  *      ./cache_job_client <RANK>
  */
@@ -85,7 +85,7 @@ int main(int argc, char **argv)
 
     dpu_offload_event_t *ev;
     uint64_t shadow_dpu_id;
-    rc = get_dpu_id_by_group_rank(offload_engine, 0, target, group_size, 0, &shadow_dpu_id, &ev);
+    rc = get_dpu_id_by_group_rank(offload_engine, 0, target, 0, &shadow_dpu_id, &ev);
     if (rc != DO_SUCCESS)
     {
         fprintf(stderr, "get_dpu_id_by_host_rank() failed\n");
@@ -96,7 +96,7 @@ int main(int argc, char **argv)
     {
         while (!event_completed(ev))
             client->progress(client);
-        
+
         rc = event_return(&ev);
         if (rc != DO_SUCCESS)
         {
@@ -104,7 +104,7 @@ int main(int argc, char **argv)
             goto error_out;
         }
 
-        rc = get_dpu_id_by_group_rank(offload_engine, 0, target, group_size, 0, &shadow_dpu_id, &ev);
+        rc = get_dpu_id_by_group_rank(offload_engine, 0, target, 0, &shadow_dpu_id, &ev);
         if (rc != DO_SUCCESS)
         {
             fprintf(stderr, "get_dpu_id_by_host_rank() failed\n");
@@ -123,7 +123,7 @@ int main(int argc, char **argv)
         fprintf(stderr, "shadow DPU endpoint is undefined\n");
         goto error_out;
     }
-    
+
     client_fini(&client);
     offload_engine_fini(&offload_engine);
     fprintf(stdout, "%s: test successful\n", argv[0]);
