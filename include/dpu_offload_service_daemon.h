@@ -78,6 +78,8 @@ void client_fini(execution_context_t **);
 
 dpu_offload_status_t inter_dpus_connect_mgr(offloading_engine_t *, offloading_config_t *);
 
+dpu_offload_status_t send_add_group_rank_request(execution_context_t *econtext, ucp_ep_h ep, int64_t group_id, int64_t rank, int64_t group_size, dpu_offload_event_t **e);
+
 /**
  * @brief Send group cache to a specific destination, mainly used to send the cache back to the local ranks.
  * 
