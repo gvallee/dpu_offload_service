@@ -821,7 +821,9 @@ error_out:
 
 dpu_offload_status_t finalize_connection_to_remote_dpu(offloading_engine_t *offload_engine, remote_dpu_info_t *remote_dpu_info, execution_context_t *client)
 {
-    DBG("Connection successfully established");
+    DBG("Connection successfully established (num DPUs: %ld, number of connection with other DPUs: %ld)",
+        offload_engine->num_dpus,
+        offload_engine->num_connected_dpus);
     ENGINE_LOCK(offload_engine);
     remote_dpu_info_t **list_dpus = (remote_dpu_info_t **)offload_engine->dpus.base;
     list_dpus[remote_dpu_info->idx]->ep = client->client->server_ep;
@@ -838,7 +840,8 @@ dpu_offload_status_t finalize_connection_to_remote_dpu(offloading_engine_t *offl
 
     if (offload_engine->default_econtext == NULL)
         offload_engine->default_econtext = client;
-    offload_engine->num_connected_dpus++;
+    // Do not increment num_connected_dpus, it is already done in the callback invoked when the connection goes through
+    DBG("we now have %ld connections with other DPUs", offload_engine->num_connected_dpus);
     ENGINE_UNLOCK(offload_engine);
     return DO_SUCCESS;
 }
@@ -1267,9 +1270,10 @@ static void execution_context_progress(execution_context_t *ctx)
                     ctx->server->connected_clients.num_ongoing_connections--;
                     ctx->server->connected_clients.num_connected_clients++;
                     ctx->server->connected_clients.num_total_connected_clients++;
-                    DBG("****** Bootstrapping of client #%ld now completed, %ld are now connected",
+                    DBG("****** Bootstrapping of client #%ld now completed, %ld are now connected (connected DPUs: %ld)",
                         idx,
-                        ctx->server->connected_clients.num_connected_clients);
+                        ctx->server->connected_clients.num_connected_clients,
+                        ctx->engine->num_connected_dpus);
 
                     if (ctx->server->connected_cb != NULL)
                     {
