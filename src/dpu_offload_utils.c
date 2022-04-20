@@ -237,7 +237,9 @@ dpu_offload_status_t broadcast_group_cache(offloading_engine_t *engine, int64_t 
     if (!all_dpus_connected(engine))
     {
         // Not all the DPUs are connected, we cannot exchange the data yet
-        WARN_MSG("Not all DPUs are connected, unable to broadcast group cache (num DPUS: %ld, connected DPUs: %ld)", engine->num_dpus, engine->num_connected_dpus);
+        WARN_MSG("Not all DPUs are connected, unable to broadcast group cache (num DPUS: %ld, connected DPUs: %ld)",
+                 engine->num_dpus,
+                 engine->num_connected_dpus);
         return DO_ERROR;
     }
 
@@ -919,8 +921,10 @@ execution_context_t * get_server_servicing_host(offloading_engine_t *engine)
     size_t i;
     // We start at the end of the list because the server servicing the host
     // is traditionally the last one added
-    for (i = engine->num_servers; i >= 0; i--)
+    for (i = engine->num_servers - 1; i >= 0; i--)
     {
+        if (engine->servers[i] == NULL)
+            ERR_MSG("Server #%ld is not defined", i);
         assert(engine->servers[i]);
         if (engine->servers[i]->scope_id == SCOPE_HOST_DPU)
             return (engine->servers[i]);
