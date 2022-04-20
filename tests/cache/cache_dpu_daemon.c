@@ -23,10 +23,9 @@
 #include "dpu_offload_service_daemon.h"
 #include "dpu_offload_envvars.h"
 
-offloading_config_t config_data; // TODO: find a way to avoid having a global variable when we want to access the config from a handler
+uint64_t group_size = 2;
 
-// from dpu_offload_event_channels.c
-extern bool is_in_cache(cache_t *cache, int64_t gp_id, int64_t rank_id);
+offloading_config_t config_data; // TODO: find a way to avoid having a global variable when we want to access the config from a handler
 
 #define TEST_COMPLETED_NOTIF_ID (5000)
 #define START_TEST_FROM_CALLBACK (5001)
@@ -111,7 +110,7 @@ void cache_entry_cb(void *data)
 
 static int do_lookup_from_callback(offloading_engine_t *offload_engine, int64_t gp_id, int64_t rank_id, int64_t expected_dpu_id)
 {
-    dpu_offload_status_t rc = get_cache_entry_by_group_rank(offload_engine, gp_id, rank_id, 0, cache_entry_cb);
+    dpu_offload_status_t rc = get_cache_entry_by_group_rank(offload_engine, gp_id, rank_id, group_size, 0, cache_entry_cb);
     if (rc != DO_SUCCESS)
     {
         fprintf(stderr, "get_cache_entry_by_group_rank() failed");
@@ -133,7 +132,7 @@ static int do_lookup(offloading_engine_t *offload_engine, int64_t gp_id, int64_t
     }
 
     fprintf(stderr, "Looking up endpoint for %" PRId64 "/%" PRId64 "\n", gp_id, rank_id);
-    rc = get_dpu_id_by_group_rank(offload_engine, gp_id, rank_id, 0, &remote_dpu_id, &ev);
+    rc = get_dpu_id_by_group_rank(offload_engine, gp_id, rank_id, group_size, 0, &remote_dpu_id, &ev);
     if (rc != DO_SUCCESS)
     {
         fprintf(stderr, "[ERROR] first get_dpu_id_by_host_rank() failed\n");
@@ -155,7 +154,7 @@ static int do_lookup(offloading_engine_t *offload_engine, int64_t gp_id, int64_t
             goto error_out;
         }
 
-        rc = get_dpu_id_by_group_rank(offload_engine, gp_id, rank_id, 0, &remote_dpu_id, &ev);
+        rc = get_dpu_id_by_group_rank(offload_engine, gp_id, rank_id, group_size, 0, &remote_dpu_id, &ev);
         if (rc != DO_SUCCESS)
         {
             fprintf(stderr, "[ERROR] second get_dpu_id_by_host_rank() failed\n");
@@ -222,7 +221,7 @@ error_out:
         DYN_LIST_GET((_engine)->free_peer_cache_entries, peer_cache_entry_t, item, _new_entry); \
         if (_new_entry == NULL)                                                                 \
         {                                                                                       \
-            fprintf(stderr, "[ERROR] Unable to get cache entry\n");                                     \
+            fprintf(stderr, "[ERROR] Unable to get cache entry\n");                             \
             goto error_out;                                                                     \
         }                                                                                       \
         _new_entry->peer.proc_info.group_rank = _rank;                                          \
@@ -233,9 +232,9 @@ error_out:
         _new_entry->shadow_dpus[0] = (_config_data).local_dpu.id;                               \
         _new_entry->peer.addr_len = 43;                                                         \
         SET_PEER_CACHE_ENTRY(&((_engine)->procs_cache), _new_entry);                            \
-        if (!is_in_cache(&((_engine)->procs_cache), _gp, _rank))                                \
+        if (!is_in_cache(&((_engine)->procs_cache), _gp, _rank, group_size))                    \
         {                                                                                       \
-            fprintf(stderr, "[ERROR] Cache entry not reported as being in the cache\n");                \
+            fprintf(stderr, "[ERROR] Cache entry not reported as being in the cache\n");        \
             goto error_out;                                                                     \
         }                                                                                       \
     } while (0)
@@ -326,7 +325,7 @@ int main(int argc, char **argv)
 
         // Next test with local cache: look up the cache entry that is already in the cache
         dpu_offload_event_t *ev;
-        rc = get_dpu_id_by_group_rank(offload_engine, 42, 42, 0, &remote_dpu_id, &ev);
+        rc = get_dpu_id_by_group_rank(offload_engine, 42, 42, group_size, 0, &remote_dpu_id, &ev);
         if (rc != DO_SUCCESS)
         {
             fprintf(stderr, "[ERROR] first get_dpu_id_by_host_rank() failed\n");

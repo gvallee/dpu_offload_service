@@ -79,6 +79,17 @@ void client_fini(execution_context_t **);
 dpu_offload_status_t inter_dpus_connect_mgr(offloading_engine_t *, offloading_config_t *);
 
 /**
+ * @brief Send group cache to a specific destination, mainly used to send the cache back to the local ranks.
+ * 
+ * @param econtext 
+ * @param dest 
+ * @param gp_id 
+ * @param metaev 
+ * @return dpu_offload_status_t 
+ */
+dpu_offload_status_t send_group_cache(execution_context_t *econtext, ucp_ep_h dest, int64_t gp_id, dpu_offload_event_t *metaev);
+
+/**
  * @brief send_cache sends the content of the local endpoint cache to a specific remote endpoint.
  * This is a non-blocking operation.
  *
@@ -103,17 +114,14 @@ dpu_offload_status_t send_cache(execution_context_t *econtext, cache_t *cache, u
 dpu_offload_status_t exchange_cache(execution_context_t *econtext, cache_t *cache, dpu_offload_event_t *meta_event);
 
 /**
- * @brief Get the dpu ID by host rank object. That ID can then be used to look up the corresponding endpoint.
+ * @brief The function exchange a group cache between DPUs but only if all DPUs are
+ * connected, otherwise the broadcast would be incomplete.
  * 
- * @param[in] engine Offloading engine for the query
- * @param[in] gp_id Target group identifier
- * @param[in] rank Target rank in the group
- * @param[in] dpu_idx In case of multiple DPUs per host, index of the target shadow DPU for the group/rank
- * @param[out] dpu_id Resulting DPU identifier
- * @param[out] ev Associated event. If NULL, the DPU identifier is available right away. If not, it is required to call the function again once the event has completed. The caller is in charge of returning the event after completion. The event cannot be added to any list since it is already put on a list.
+ * @param engine Current offloading engine
+ * @param group_id ID of the group to broadcast.
  * @return dpu_offload_status_t 
  */
-dpu_offload_status_t get_dpu_id_by_group_rank(offloading_engine_t *engine, int64_t gp_id, int64_t rank, int64_t dpu_idx, int64_t *dpu_id, dpu_offload_event_t **ev);
+dpu_offload_status_t broadcast_group_cache(offloading_engine_t *engine, int64_t group_id);
 
 /**
  * @brief Get the dpu ID by host rank object. That ID can then be used to look up the corresponding endpoint.
@@ -121,6 +129,21 @@ dpu_offload_status_t get_dpu_id_by_group_rank(offloading_engine_t *engine, int64
  * @param[in] engine Offloading engine for the query
  * @param[in] gp_id Target group identifier
  * @param[in] rank Target rank in the group
+ * @param[in] gp_size Target group size
+ * @param[in] dpu_idx In case of multiple DPUs per host, index of the target shadow DPU for the group/rank
+ * @param[out] dpu_id Resulting DPU identifier
+ * @param[out] ev Associated event. If NULL, the DPU identifier is available right away. If not, it is required to call the function again once the event has completed. The caller is in charge of returning the event after completion. The event cannot be added to any list since it is already put on a list.
+ * @return dpu_offload_status_t 
+ */
+dpu_offload_status_t get_dpu_id_by_group_rank(offloading_engine_t *engine, int64_t gp_id, int64_t rank, int64_t gp_size, int64_t dpu_idx, int64_t *dpu_id, dpu_offload_event_t **ev);
+
+/**
+ * @brief Get the dpu ID by host rank object. That ID can then be used to look up the corresponding endpoint.
+ * 
+ * @param[in] engine Offloading engine for the query
+ * @param[in] gp_id Target group identifier
+ * @param[in] rank Target rank in the group
+ * @param[in] gp_size Target group size
  * @param[in] dpu_idx In case of multiple DPUs per host, index of the target shadow DPU for the group/rank
  * @param[out] cb Associated callback. If the event completes right away, the callback is still being invoked. The user is in charge of returning the object related to the request.
  * @return dpu_offload_status_t
@@ -140,7 +163,7 @@ dpu_offload_status_t get_dpu_id_by_group_rank(offloading_engine_t *engine, int64
  *              DYN_LIST_RETURN(engine->free_cache_entry_requests, cache_entry_req, item);
  *          }
  */
-dpu_offload_status_t get_cache_entry_by_group_rank(offloading_engine_t *engine, int64_t gp_id, int64_t rank, int64_t dpu_idx, request_compl_cb_t cb);
+dpu_offload_status_t get_cache_entry_by_group_rank(offloading_engine_t *engine, int64_t gp_id, int64_t rank, int64_t gp_size, int64_t dpu_idx, request_compl_cb_t cb);
 
 /**
  * @brief Get the DPU endpoint by ID object, i.e., the identifier returned by get_dpu_id_by_host_rank
@@ -150,5 +173,11 @@ dpu_offload_status_t get_cache_entry_by_group_rank(offloading_engine_t *engine, 
  * @return ucp_ep_h DPU's endpoint
  */
 ucp_ep_h get_dpu_ep_by_id(offloading_engine_t *engine, uint64_t id);
+
+bool group_cache_populated(offloading_engine_t *engine, int64_t gp_id);
+
+bool is_in_cache(cache_t *cache, int64_t gp_id, int64_t rank_id, int64_t group_size);
+
+execution_context_t * get_server_servicing_host(offloading_engine_t *engine);
 
 #endif // DPU_OFFLOAD_SERVICE_DAEMON_H_

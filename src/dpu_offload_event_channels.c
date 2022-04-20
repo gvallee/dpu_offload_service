@@ -25,11 +25,11 @@
 #if USE_AM_IMPLEM
 /**
  * @brief Note that the function assumes the execution context is not locked before it is invoked.
- * 
- * @param request 
- * @param status 
- * @param length 
- * @param user_data 
+ *
+ * @param request
+ * @param status
+ * @param length
+ * @param user_data
  */
 static void am_rdv_recv_cb(void *request, ucs_status_t status, size_t length, void *user_data)
 {
@@ -220,7 +220,7 @@ dpu_offload_status_t event_channel_register(dpu_offload_ev_sys_t *ev_sys, uint64
     entry->cb = cb;
     entry->set = true;
     entry->ev_sys = (struct dpu_offload_ev_sys *)ev_sys;
-    DBG("Callback for notification of type %"PRIu64" is now registered on event system %p", type, ev_sys);
+    DBG("Callback for notification of type %" PRIu64 " is now registered on event system %p", type, ev_sys);
 
     /* check for any pending notification that would match */
     pending_notification_t *pending_notif, *next_pending_notif;
@@ -389,7 +389,7 @@ int tag_send_event_msg(dpu_offload_event_t **event)
         ERR_MSG("ucp_tag_send_nbx() failed: %s", ucs_status_string(send_status));
         return send_status;
     }
-    DBG("event %p send posted (hdr) - scope_id: %d, id: %"PRIu64, (*event), (*event)->scope_id, myid);
+    DBG("event %p send posted (hdr) - scope_id: %d, id: %" PRIu64, (*event), (*event)->scope_id, myid);
 
     /* 2. Send the payload */
     if ((*event)->ctx.hdr.payload_size > 0)
@@ -509,7 +509,8 @@ dpu_offload_status_t event_channels_fini(dpu_offload_ev_sys_t **ev_sys)
 dpu_offload_status_t event_get(dpu_offload_ev_sys_t *ev_sys, dpu_offload_event_info_t *info, dpu_offload_event_t **ev)
 {
     dpu_offload_event_t *_ev;
-    DBG("Getting event...");
+    DBG("Getting event (econtext: %p, econtext scope_id: %d)...",
+        ev_sys->econtext, ev_sys->econtext->scope_id);
     CHECK_ERR_RETURN((ev_sys == NULL), DO_ERROR, "Undefine event system");
     SYS_EVENT_LOCK(ev_sys);
     DYN_LIST_GET(ev_sys->free_evs, dpu_offload_event_t, item, _ev);
@@ -535,7 +536,7 @@ dpu_offload_status_t event_get(dpu_offload_ev_sys_t *ev_sys, dpu_offload_event_i
     }
 
 out:
-    DBG("Got event %p from list %p", _ev, ev_sys->free_evs);
+    DBG("Got event %p from list %p (scope_id: %d)", _ev, ev_sys->free_evs, _ev->scope_id);
     *ev = _ev;
     return DO_SUCCESS;
 }
@@ -569,7 +570,7 @@ static dpu_offload_status_t do_event_return(dpu_offload_event_t *ev)
     ev->event_system->num_used_evs--;
     DYN_LIST_RETURN((ev->event_system->free_evs), ev, item);
     SYS_EVENT_UNLOCK(ev->event_system);
-    DBG("event %p successfully returned", ev); 
+    DBG("event %p successfully returned", ev);
     return EVENT_DONE;
 }
 
@@ -717,16 +718,7 @@ static dpu_offload_status_t xgvmi_key_recv_cb(struct dpu_offload_ev_sys *ev_sys,
 /* Endpoint cache related functions */
 /************************************/
 
-extern dpu_offload_status_t send_group_cache(execution_context_t *econtext, ucp_ep_h dest, int64_t gp_id, dpu_offload_event_t *metaev);
 extern int send_cache_entry_request(execution_context_t *econtext, ucp_ep_h ep, rank_info_t *requested_peer, dpu_offload_event_t **ev);
-
-bool is_in_cache(cache_t *cache, int64_t gp_id, int64_t rank_id)
-{
-    peer_cache_entry_t *entry = GET_GROUP_RANK_CACHE_ENTRY(cache, gp_id, rank_id);
-    if (entry == NULL)
-        return false;
-    return (entry->set);
-}
 
 static dpu_offload_status_t peer_cache_entries_request_recv_cb(struct dpu_offload_ev_sys *ev_sys, execution_context_t *econtext, am_header_t *hdr, size_t hdr_size, void *data, size_t data_len)
 {
@@ -736,7 +728,7 @@ static dpu_offload_status_t peer_cache_entries_request_recv_cb(struct dpu_offloa
 
     DBG("Cache entry requested received for gp/rank %" PRIu64 "/%" PRIu64, rank_info->group_id, rank_info->group_rank);
 
-    if (is_in_cache(&(econtext->engine->procs_cache), rank_info->group_id, rank_info->group_rank))
+    if (is_in_cache(&(econtext->engine->procs_cache), rank_info->group_id, rank_info->group_rank, rank_info->group_size))
     {
         // We send the cache back to the sender
         dpu_offload_status_t rc;
@@ -796,6 +788,7 @@ static dpu_offload_status_t peer_cache_entries_recv_cb(struct dpu_offload_ev_sys
     size_t cur_size = 0;
     size_t idx = 0;
     int64_t group_id = INVALID_GROUP;
+    int64_t group_rank, group_size, n_local_ranks;
     while (cur_size < data_len)
     {
         cache_t *cache = &(engine->procs_cache);
@@ -804,14 +797,19 @@ static dpu_offload_status_t peer_cache_entries_recv_cb(struct dpu_offload_ev_sys
             group_id = entries[idx].peer.proc_info.group_id;
 
         // Now that we know for sure we have the group ID, we can move the received data into the local cache
-        int64_t group_rank = entries[idx].peer.proc_info.group_rank;
-        DBG("Received a cache entry for rank:%ld, group:%ld from DPU %" PRId64 " (msg size=%ld, peer addr len=%ld)",
-            group_rank, group_id, hdr->id, data_len, entries[idx].peer.addr_len);
+        group_size = entries[idx].peer.proc_info.group_size;
+        group_rank = entries[idx].peer.proc_info.group_rank;
+        n_local_ranks = entries[idx].peer.proc_info.n_local_ranks;
+        DBG("Received a cache entry for rank:%ld, group:%ld, group size:%ld, number of local rank: %ld from DPU %" PRId64 " (msg size=%ld, peer addr len=%ld)",
+            group_rank, group_id, group_size, n_local_ranks, hdr->id, data_len, entries[idx].peer.addr_len);
 
-        if (!is_in_cache(cache, group_id, group_rank))
+        if (!is_in_cache(cache, group_id, group_rank, group_size))
         {
             peer_cache_entry_t *cache_entry = SET_PEER_CACHE_ENTRY(cache, &(entries[idx]));
             group_cache_t *gp_caches = (group_cache_t *)cache->data.base;
+
+            DBG("Adding received entry to cache...");
+
             // If any event is associated to the cache entry, handle them
             if (cache_entry->events_initialized)
             {
@@ -822,7 +820,52 @@ static dpu_offload_status_t peer_cache_entries_recv_cb(struct dpu_offload_ev_sys
                     COMPLETE_EVENT(e);
                 }
             }
+
+            group_cache_t *gp_cache = GET_GROUP_CACHE(&(econtext->engine->procs_cache), group_id);
+            gp_cache->num_local_entries++;
+            DBG("The cache for group %ld now has %ld entries", gp_cache->group_size, gp_cache->num_local_entries);
+
+            if (econtext->engine->on_dpu)
+            {
+                if (gp_cache->group_size > 0 && gp_cache->num_local_entries == gp_cache->group_size)
+                {
+                    size_t n = 0, idx = 0;
+                    execution_context_t *server = get_server_servicing_host(engine);
+                    assert(server->scope_id == SCOPE_HOST_DPU);
+                    DBG("Cache is complete, sending it to the local ranks (number of connected clients: %ld)",
+                        server->server->connected_clients.num_connected_clients);
+                    while (n < server->server->connected_clients.num_connected_clients)
+                    {
+                        dpu_offload_status_t rc;
+                        dpu_offload_event_t *metaev;
+                        peer_info_t *client_info = DYN_ARRAY_GET_ELT(&(server->server->connected_clients.clients), idx, peer_info_t);
+                        if (client_info == NULL)
+                        {
+                            idx++;
+                            continue;
+                        }
+                        rc = event_get(server->server->event_channels, NULL, &metaev);
+                        if (rc != DO_SUCCESS || metaev == NULL)
+                            ERR_MSG("event_get() failed"); // todo: better handle errors
+                        DBG("Sending cache to client #%ld (econtext: %p, ep: %p, scope_id: %d)", idx, server, client_info->ep, server->scope_id);
+                        rc = send_group_cache(server, client_info->ep, group_id, metaev);
+                        if (rc != DO_SUCCESS)
+                            ERR_MSG("send_group_cache() failed"); // todo: better handle errors
+                        n++;
+                    }
+                }
+                else
+                {
+                    DBG("Cache is still missing some data. group_size: %ld, num_local_entries: %ld",
+                        gp_cache->group_size, gp_cache->num_local_entries);
+                }
+            }
         }
+        else
+        {
+            DBG("Entry already in cache");
+        }
+
         cur_size += sizeof(peer_cache_entry_t);
         idx++;
     }
@@ -851,9 +894,9 @@ static dpu_offload_status_t add_group_rank_recv_cb(struct dpu_offload_ev_sys *ev
     offloading_engine_t *engine = (offloading_engine_t *)econtext->engine;
     rank_info_t *rank_info = (rank_info_t *)data;
 
-    if (!is_in_cache(&(econtext->engine->procs_cache), rank_info->group_id, rank_info->group_rank))
+    if (!is_in_cache(&(econtext->engine->procs_cache), rank_info->group_id, rank_info->group_rank, rank_info->group_size))
     {
-        SET_GROUP_RANK_CACHE_ENTRY(econtext, rank_info->group_id, rank_info->group_rank);
+        SET_GROUP_RANK_CACHE_ENTRY(econtext, rank_info->group_id, rank_info->group_rank, rank_info->group_size, rank_info->n_local_ranks);
     }
 
     return DO_SUCCESS;

@@ -28,6 +28,8 @@
  *      ./cache_job_client <RANK>
  */
 
+uint64_t group_size = 2;
+
 int main(int argc, char **argv)
 {
     offloading_engine_t *offload_engine = NULL;
@@ -83,7 +85,7 @@ int main(int argc, char **argv)
 
     dpu_offload_event_t *ev;
     uint64_t shadow_dpu_id;
-    rc = get_dpu_id_by_group_rank(offload_engine, 0, target, 0, &shadow_dpu_id, &ev);
+    rc = get_dpu_id_by_group_rank(offload_engine, 0, target, group_size, 0, &shadow_dpu_id, &ev);
     if (rc != DO_SUCCESS)
     {
         fprintf(stderr, "get_dpu_id_by_host_rank() failed\n");
@@ -102,7 +104,7 @@ int main(int argc, char **argv)
             goto error_out;
         }
 
-        rc = get_dpu_id_by_group_rank(offload_engine, 0, target, 0, &shadow_dpu_id, &ev);
+        rc = get_dpu_id_by_group_rank(offload_engine, 0, target, group_size, 0, &shadow_dpu_id, &ev);
         if (rc != DO_SUCCESS)
         {
             fprintf(stderr, "get_dpu_id_by_host_rank() failed\n");
