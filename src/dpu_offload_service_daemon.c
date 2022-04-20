@@ -1208,7 +1208,7 @@ static void execution_context_progress(execution_context_t *ctx)
                         if (group_cache_now_full && gp_cache->group_size > 0 && gp_cache->num_local_entries == gp_cache->group_size)
                         {
                             size_t n = 0, idx = 0;
-                            DBG("Cache is now complete, sending it to the local ranks");
+                            DBG("Cache is now complete, sending it to the local ranks (scope_id: %d)", ctx->scope_id);
                             // ctx->server->connected_clients
                             while (n < ctx->server->connected_clients.num_connected_clients)
                             {

@@ -509,7 +509,8 @@ dpu_offload_status_t event_channels_fini(dpu_offload_ev_sys_t **ev_sys)
 dpu_offload_status_t event_get(dpu_offload_ev_sys_t *ev_sys, dpu_offload_event_info_t *info, dpu_offload_event_t **ev)
 {
     dpu_offload_event_t *_ev;
-    DBG("Getting event...");
+    DBG("Getting event (econtext: %p, econtext scope_id: %d)...",
+        ev_sys->econtext, ev_sys->econtext->scope_id);
     CHECK_ERR_RETURN((ev_sys == NULL), DO_ERROR, "Undefine event system");
     SYS_EVENT_LOCK(ev_sys);
     DYN_LIST_GET(ev_sys->free_evs, dpu_offload_event_t, item, _ev);
@@ -535,7 +536,7 @@ dpu_offload_status_t event_get(dpu_offload_ev_sys_t *ev_sys, dpu_offload_event_i
     }
 
 out:
-    DBG("Got event %p from list %p", _ev, ev_sys->free_evs);
+    DBG("Got event %p from list %p (scope_id: %d)", _ev, ev_sys->free_evs, _ev->scope_id);
     *ev = _ev;
     return DO_SUCCESS;
 }
@@ -806,6 +807,9 @@ static dpu_offload_status_t peer_cache_entries_recv_cb(struct dpu_offload_ev_sys
         {
             peer_cache_entry_t *cache_entry = SET_PEER_CACHE_ENTRY(cache, &(entries[idx]));
             group_cache_t *gp_caches = (group_cache_t *)cache->data.base;
+
+            DBG("Adding received entry to cache...");
+
             // If any event is associated to the cache entry, handle them
             if (cache_entry->events_initialized)
             {
@@ -827,6 +831,7 @@ static dpu_offload_status_t peer_cache_entries_recv_cb(struct dpu_offload_ev_sys
                 {
                     size_t n = 0, idx = 0;
                     execution_context_t *server = get_server_servicing_host(engine);
+                    assert(server->scope_id == SCOPE_HOST_DPU);
                     DBG("Cache is complete, sending it to the local ranks (number of connected clients: %ld)",
                         server->server->connected_clients.num_connected_clients);
                     while (n < server->server->connected_clients.num_connected_clients)
@@ -842,8 +847,8 @@ static dpu_offload_status_t peer_cache_entries_recv_cb(struct dpu_offload_ev_sys
                         rc = event_get(server->server->event_channels, NULL, &metaev);
                         if (rc != DO_SUCCESS || metaev == NULL)
                             ERR_MSG("event_get() failed"); // todo: better handle errors
-                        DBG("Sending cache to client #%ld ep: %p", idx, client_info->ep);
-                        rc = send_group_cache(econtext, client_info->ep, group_id, metaev);
+                        DBG("Sending cache to client #%ld (econtext: %p, ep: %p, scope_id: %d)", idx, server, client_info->ep, server->scope_id);
+                        rc = send_group_cache(server, client_info->ep, group_id, metaev);
                         if (rc != DO_SUCCESS)
                             ERR_MSG("send_group_cache() failed"); // todo: better handle errors
                         n++;
@@ -855,6 +860,10 @@ static dpu_offload_status_t peer_cache_entries_recv_cb(struct dpu_offload_ev_sys
                         gp_cache->group_size, gp_cache->num_local_entries);
                 }
             }
+        }
+        else
+        {
+            DBG("Entry already in cache");
         }
 
         cur_size += sizeof(peer_cache_entry_t);

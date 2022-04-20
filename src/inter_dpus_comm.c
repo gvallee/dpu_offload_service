@@ -233,6 +233,7 @@ void connected_to_server_dpu(void *data)
     if (connected_peer->econtext->engine->num_connected_dpus + 1 == connected_peer->econtext->engine->num_dpus)
         can_exchange_cache = true;
     connected_peer->econtext->engine->num_connected_dpus++;
+    DBG("we now have %ld connections with other DPUs", connected_peer->econtext->engine->num_connected_dpus);
 
     // If we now have all the connections with the other DPUs, we exchange our cache
     if (can_exchange_cache)
@@ -310,6 +311,7 @@ void client_dpu_connected(void *data)
     if (connected_peer->econtext->engine->num_connected_dpus + 1 == connected_peer->econtext->engine->num_dpus)
         can_exchange_cache = true;
     connected_peer->econtext->engine->num_connected_dpus++;
+    DBG("we now have %ld connections with other DPUs", connected_peer->econtext->engine->num_connected_dpus);
     ENGINE_UNLOCK(connected_peer->econtext->engine);
 
     // If we now have all the connections with the other DPUs, we exchange our cache
