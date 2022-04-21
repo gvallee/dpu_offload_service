@@ -982,7 +982,7 @@ typedef struct cache
     // How many group caches that compose the cache are currently in use.
     size_t size;
 
-    // data is a dynamic array for all the groups (type: group_cache_t)
+    // data is a dynamic array for all the group caches (type: group_cache_t)
     dyn_array_t data;
 } cache_t;
 
