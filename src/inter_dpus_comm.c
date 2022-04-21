@@ -155,7 +155,7 @@ static int set_default_econtext(connected_peer_data_t *connected_peer_data)
 
 static void sync_group_caches(execution_context_t *econtext)
 {
-    size_t n = 0;
+    size_t idx = 0;
     size_t n_gp_cache_handled = 0;
     offloading_engine_t *engine;
     dpu_offload_status_t rc;
@@ -164,12 +164,12 @@ static void sync_group_caches(execution_context_t *econtext)
     engine = econtext->engine;
     assert(engine);
 
-    while (n < engine->procs_cache.size && n_gp_cache_handled < engine->procs_cache.size)
+    while (idx < engine->procs_cache.data.num_elts && n_gp_cache_handled < engine->procs_cache.size)
     {
-        group_cache_t *gp_cache = GET_GROUP_CACHE(&(engine->procs_cache), n);
+        group_cache_t *gp_cache = GET_GROUP_CACHE(&(engine->procs_cache), idx);
         if (gp_cache->initialized == false)
         {
-            n++;
+            idx++;
             continue;
         }
 
@@ -178,7 +178,7 @@ static void sync_group_caches(execution_context_t *econtext)
             // We know how many local ranks to expected, we exchange the cache only when they are all connected
             if (gp_cache->n_local_ranks_populated == gp_cache->n_local_ranks)
             {
-                rc = broadcast_group_cache(engine, n);
+                rc = broadcast_group_cache(engine, idx);
                 if (rc != DO_SUCCESS)
                 {
                     ERR_MSG("broadcast_group_cache() failed");
@@ -189,7 +189,7 @@ static void sync_group_caches(execution_context_t *econtext)
         else
         {
             // If we do not know how many local ranks to expect, we broadcast the group cache to all other DPUs
-            rc = broadcast_group_cache(engine, n);
+            rc = broadcast_group_cache(engine, idx);
             if (rc != DO_SUCCESS)
             {
                 ERR_MSG("broadcast_group_cache() failed");
@@ -197,7 +197,7 @@ static void sync_group_caches(execution_context_t *econtext)
             }
         }
         n_gp_cache_handled++;
-        n++;
+        idx++;
     }
 }
 
