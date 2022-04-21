@@ -181,7 +181,7 @@ static void sync_group_caches(execution_context_t *econtext)
                 rc = broadcast_group_cache(engine, idx);
                 if (rc != DO_SUCCESS)
                 {
-                    ERR_MSG("broadcast_group_cache() failed");
+                    ERR_MSG("unable to broadcast cache for group %ld", idx);
                     return;
                 }
             }
@@ -192,7 +192,7 @@ static void sync_group_caches(execution_context_t *econtext)
             rc = broadcast_group_cache(engine, idx);
             if (rc != DO_SUCCESS)
             {
-                ERR_MSG("broadcast_group_cache() failed");
+                ERR_MSG("unable to broadcast cache for group %ld", idx);
                 return;
             }
         }
