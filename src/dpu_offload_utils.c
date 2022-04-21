@@ -429,15 +429,23 @@ dpu_offload_status_t get_dpu_id_by_group_rank(offloading_engine_t *engine, int64
     return do_get_cache_entry_by_group_rank(engine, gp_id, rank, dpu_idx, NULL, dpu_id, ev);
 }
 
-ucp_ep_h get_dpu_ep_by_id(offloading_engine_t *engine, uint64_t id)
+dpu_offload_status_t get_dpu_ep_by_id(offloading_engine_t *engine, uint64_t id, ucp_ep_h *dpu_ep, execution_context_t **econtext_comm)
 {
     ucp_ep_h ep;
-    remote_dpu_info_t **list_dpus = LIST_DPUS_FROM_ENGINE(engine);
+    remote_dpu_info_t **list_dpus;
+    CHECK_ERR_RETURN((engine == NULL), DO_ERROR, "engine is undefined");
+    CHECK_ERR_RETURN((id >= engine->num_dpus), DO_ERROR, "request DPU #%ld but only %ld DPUs are known", id, engine->num_dpus);
+    list_dpus = LIST_DPUS_FROM_ENGINE(engine);
     DBG("Looking up entry for DPU #%" PRIu64, id);
     if (list_dpus != NULL && list_dpus[id] == NULL)
-        return NULL;
-    ep = GET_REMOTE_DPU_EP(engine, id);
-    return ep;
+    {
+        *dpu_ep = ep;
+        // This is not an error, just that the data is not yet available.
+        return DO_SUCCESS;
+    }
+    *dpu_ep = GET_REMOTE_DPU_EP(engine, id);
+    *econtext_comm = GET_REMOTE_DPU_ECONTEXT(engine, id);
+    return DO_SUCCESS;
 }
 
 /******************************************/

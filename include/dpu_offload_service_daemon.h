@@ -168,11 +168,13 @@ dpu_offload_status_t get_cache_entry_by_group_rank(offloading_engine_t *engine, 
 /**
  * @brief Get the DPU endpoint by ID object, i.e., the identifier returned by get_dpu_id_by_host_rank
  * 
- * @param engine engine Offloading engine for the query
- * @param id DPU identifier
- * @return ucp_ep_h DPU's endpoint
+ * @param[in] engine engine Offloading engine for the query
+ * @param[in] id DPU identifier
+ * @param[out] ucp_ep_h DPU's endpoint to use to communicate with the target DPU
+ * @param[out] econtext_comm The execution context to use for notification, must be used to get an event
+ * @return dpu_offload_status_t
  */
-ucp_ep_h get_dpu_ep_by_id(offloading_engine_t *engine, uint64_t id);
+dpu_offload_status_t get_dpu_ep_by_id(offloading_engine_t *engine, uint64_t id, ucp_ep_h *ep, execution_context_t **econtext_comm);
 
 bool group_cache_populated(offloading_engine_t *engine, int64_t gp_id);
 

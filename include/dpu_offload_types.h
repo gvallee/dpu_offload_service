@@ -1002,7 +1002,7 @@ typedef struct group_cache
     size_t n_local_ranks_populated;
 
     // Array with all the ranks in the group (type: peer_cache_entry_t)
-    dyn_array_t ranks; 
+    dyn_array_t ranks;
 } group_cache_t;
 
 #define GET_GROUP_CACHE(_cache, _gp_id) ({                            \
@@ -1321,6 +1321,19 @@ typedef struct pending_notification
         _e = _list[_dpu_idx]->econtext;                         \
     }                                                           \
     _e;                                                         \
+})
+
+#define GET_REMOTE_DPU_ECONTEXT(_engine, _idx) ({                    \
+    remote_dpu_info_t **_list_dpus = LIST_DPUS_FROM_ENGINE(_engine); \
+    execution_context_t *_e = NULL;                                  \
+    if (_idx <= (_engine)->num_connected_dpus)                       \
+    {                                                                \
+        if (_list_dpus[_idx]->econtext != NULL)                      \
+        {                                                            \
+            _e = _list_dpus[_idx]->econtext;                         \
+        }                                                            \
+    }                                                                \
+    _e;                                                              \
 })
 
 #define GET_REMOTE_DPU_EP(_engine, _idx) ({                                   \
