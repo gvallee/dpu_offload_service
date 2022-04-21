@@ -76,23 +76,35 @@ static bool endpoint_success = false;
 void cache_entry_cb(void *data)
 {
     assert(data);
-    cache_entry_request_t *cache_entry_req = (cache_entry_request_t*)data;
-    fprintf(stderr, "Cache entry for %"PRId64"/%"PRId64" is now available\n",
+    cache_entry_request_t *cache_entry_req = (cache_entry_request_t *)data;
+    fprintf(stderr, "Cache entry for %" PRId64 "/%" PRId64 " is now available\n",
             cache_entry_req->gp_id,
             cache_entry_req->rank);
     assert(cache_entry_req->offload_engine);
-    offloading_engine_t *engine = (offloading_engine_t*)cache_entry_req->offload_engine;
-    ucp_ep_h target_dpu_ep = get_dpu_ep_by_id(engine, cache_entry_req->target_dpu_idx);
+    offloading_engine_t *engine = (offloading_engine_t *)cache_entry_req->offload_engine;
+    ucp_ep_h target_dpu_ep;
+    execution_context_t *econtext_comm;
+    dpu_offload_status_t rc = get_dpu_ep_by_id(engine, cache_entry_req->target_dpu_idx, &target_dpu_ep, &econtext_comm);
+    if (rc)
+    {
+        fprintf(stderr, "l.%d - [ERROR] get_dpu_ep_by_id() failed\n", __LINE__);
+        return;
+    }
     if (target_dpu_ep == NULL)
     {
         fprintf(stderr, "l.%d - [ERROR] shadow DPU endpoint is undefined\n", __LINE__);
+        return;
+    }
+    if (econtext_comm == NULL)
+    {
+        fprintf(stderr, "l.%d - [ERROR] econtext is undefined\n", __LINE__);
         return;
     }
     fprintf(stderr, "l.%d - Successfully retrieved endpoint (%p)\n", __LINE__, target_dpu_ep);
     fprintf(stderr, "-> lookup succeeded (l.%d)\n", __LINE__);
     dpu_offload_event_t *end_test_cb_ev;
     remote_dpu_info_t **list_dpus = LIST_DPUS_FROM_ENGINE(engine);
-    dpu_offload_status_t rc = event_get(engine->default_econtext->event_channels, NULL, &end_test_cb_ev);
+    rc = event_get(engine->default_econtext->event_channels, NULL, &end_test_cb_ev);
     if (rc)
     {
         fprintf(stderr, "l.%d: [ERROR] event_get() failed\n", __LINE__);
@@ -174,10 +186,22 @@ static int do_lookup(offloading_engine_t *offload_engine, int64_t gp_id, int64_t
     }
     fprintf(stderr, "Successfully got the remote DPU ID, getting the corresponding endpoint...\n");
 
-    ucp_ep_h target_dpu_ep = get_dpu_ep_by_id(offload_engine, remote_dpu_id);
+    ucp_ep_h target_dpu_ep;
+    execution_context_t *econtext_comm;
+    rc = get_dpu_ep_by_id(offload_engine, remote_dpu_id, &target_dpu_ep, &econtext_comm);
+    if (rc)
+    {
+        fprintf(stderr, "l.%d - [ERROR] get_dpu_ep_by_id\n", __LINE__);
+        goto error_out;
+    }
     if (target_dpu_ep == NULL)
     {
         fprintf(stderr, "l.%d - [ERROR] shadow DPU endpoint is undefined\n", __LINE__);
+        goto error_out;
+    }
+    if (econtext_comm == NULL)
+    {
+        fprintf(stderr, "l.%d - [ERROR] undefined execution context\n", __LINE__);
         goto error_out;
     }
     fprintf(stderr, "l.%d - Successfully retrieved endpoint (%p)\n", __LINE__, target_dpu_ep);
@@ -338,13 +362,23 @@ int main(int argc, char **argv)
             goto error_out;
         }
 
-        ucp_ep_h target_dpu_ep = get_dpu_ep_by_id(offload_engine, remote_dpu_id);
-        if (target_dpu_ep == NULL)
+        ucp_ep_h target_dpu_ep;
+        execution_context_t *econtext_comm;
+        rc = get_dpu_ep_by_id(offload_engine, remote_dpu_id, &target_dpu_ep, &econtext_comm);
+        if (rc)
         {
             fprintf(stderr, "[ERROR] get_dpu_ep_by_id() failed\n");
+        }
+        if (target_dpu_ep == NULL)
+        {
+            fprintf(stderr, "[ERROR] undefined endpoint\n");
             goto error_out;
         }
-
+        if (econtext_comm == NULL)
+        {
+            fprintf(stderr, "[ERROR] undefined execution context\n");
+            goto error_out;
+        }
         if (target_dpu_ep != list_dpus[config_data.local_dpu.id]->ep)
         {
             fprintf(stderr, "[ERROR] invalid endpoint was returned (%p instead of %p)\n", target_dpu_ep, list_dpus[config_data.local_dpu.id]->ep);
