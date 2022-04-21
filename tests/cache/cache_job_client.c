@@ -117,10 +117,22 @@ int main(int argc, char **argv)
         }
     }
 
-    ucp_ep_h target_dpu_ep = get_dpu_ep_by_id(offload_engine, shadow_dpu_id);
+    ucp_ep_h target_dpu_ep;
+    execution_context_t *comm_econtext;
+    rc = get_dpu_ep_by_id(offload_engine, shadow_dpu_id, &target_dpu_ep, &comm_econtext);
+    if (rc)
+    {
+        fprintf(stderr, "get_dpu_ep_by_id() failed\n");
+        goto error_out;
+    }
     if (target_dpu_ep == NULL)
     {
         fprintf(stderr, "shadow DPU endpoint is undefined\n");
+        goto error_out;
+    }
+    if (comm_econtext == NULL)
+    {
+        fprintf(stderr, "econtext is undefined\n");
         goto error_out;
     }
 
