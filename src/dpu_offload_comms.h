@@ -123,7 +123,8 @@ static int handle_notif_msg(execution_context_t *econtext, am_header_t *hdr, siz
     if (entry->set == false)
     {
         pending_notification_t *pending_notif;
-        DBG("callback not available for %" PRIu64 " on event system %p", hdr->type, econtext->event_channels);
+        DBG("callback not available for %" PRIu64 " on event system %p (econtext: %p)",
+            hdr->type, econtext->event_channels, econtext);
         DYN_LIST_GET(econtext->event_channels->free_pending_notifications, pending_notification_t, item, pending_notif);
         CHECK_ERR_RETURN((pending_notif == NULL), UCS_ERR_NO_MESSAGE, "unable to get pending notification object");
         RESET_PENDING_NOTIF(pending_notif);

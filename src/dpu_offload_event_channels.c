@@ -220,7 +220,8 @@ dpu_offload_status_t event_channel_register(dpu_offload_ev_sys_t *ev_sys, uint64
     entry->cb = cb;
     entry->set = true;
     entry->ev_sys = (struct dpu_offload_ev_sys *)ev_sys;
-    DBG("Callback for notification of type %" PRIu64 " is now registered on event system %p", type, ev_sys);
+    DBG("Callback for notification of type %" PRIu64 " is now registered on event system %p (econtext: %p)",
+        type, ev_sys, ev_sys->econtext);
 
     /* check for any pending notification that would match */
     pending_notification_t *pending_notif, *next_pending_notif;
