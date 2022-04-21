@@ -979,9 +979,10 @@ typedef enum
 
 typedef struct cache
 {
-    size_t size; // not used at the moment
+    // How many group caches that compose the cache are currently in use.
+    size_t size;
 
-    /* data is a dynamic array for all the groups */
+    // data is a dynamic array for all the group caches (type: group_cache_t)
     dyn_array_t data;
 } cache_t;
 
@@ -999,7 +1000,9 @@ typedef struct group_cache
 
     // Number of ranks on the local host that we already know about
     size_t n_local_ranks_populated;
-    dyn_array_t ranks;
+
+    // Array with all the ranks in the group (type: peer_cache_entry_t)
+    dyn_array_t ranks; 
 } group_cache_t;
 
 #define GET_GROUP_CACHE(_cache, _gp_id) ({                            \
