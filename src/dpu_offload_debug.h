@@ -11,15 +11,19 @@
 #include <sys/types.h>
 #include <unistd.h>
 extern char *my_hostname;
-#define DBG(_dbg_fmt, ...) do {                                                              \
-    if (my_hostname == NULL) {                                                               \
-        my_hostname = malloc(1024); /* fixme: free properly */                               \
-        my_hostname[1023] = '\0';                                                            \
-        gethostname(my_hostname, 1023);                                                      \
-    }                                                                                        \
-    fprintf(stdout, "[%s:l.%d:%s():%s:pid=%d] " _dbg_fmt "\n",                               \
-            __FILE__, __LINE__, __func__, my_hostname, getpid() __VA_OPT__(, ) __VA_ARGS__); \
-} while(0)
+#define DBG(_dbg_fmt, ...)                                         \
+    do                                                             \
+    {                                                              \
+        if (my_hostname == NULL)                                   \
+        {                                                          \
+            my_hostname = malloc(1024);                            \
+            my_hostname[1023] = '\0';                              \
+            gethostname(my_hostname, 1023);                        \
+        }                                                          \
+        fprintf(stdout, "[%s:l.%d:%s():%s:pid=%d] " _dbg_fmt "\n", \
+                __FILE__, __LINE__, __func__, my_hostname,         \
+                getpid() __VA_OPT__(, ) __VA_ARGS__);              \
+    } while (0)
 #else
 #define DBG(...) \
     do           \
@@ -27,12 +31,33 @@ extern char *my_hostname;
     } while (0)
 #endif
 
-#define ERR_MSG(_err_fmt, ...) \
-    fprintf(stderr, "[%s:l.%d] ERROR: %s() failed. " _err_fmt "\n", __FILE__, __LINE__, __func__ __VA_OPT__(, ) __VA_ARGS__)
+#define ERR_MSG(_err_fmt, ...)                                                    \
+    do                                                                            \
+    {                                                                             \
+        if (my_hostname == NULL)                                                  \
+        {                                                                         \
+            my_hostname = malloc(1024);                                           \
+            my_hostname[1023] = '\0';                                             \
+            gethostname(my_hostname, 1023);                                       \
+        }                                                                         \
+        fprintf(stderr, "[%s:l.%d:%s:pid=%d] ERROR: %s() failed. " _err_fmt "\n", \
+                __FILE__, __LINE__, my_hostname, getpid(),                        \
+                __func__ __VA_OPT__(, ) __VA_ARGS__);                             \
+    } while (0)
 
-#define WARN_MSG(_warn_fmt, ...) \
-    fprintf(stderr, "[%s:l.%d:%s()] WARN: " _warn_fmt "\n", __FILE__, __LINE__, __func__ __VA_OPT__(, ) __VA_ARGS__)
-
+#define WARN_MSG(_warn_fmt, ...)                                          \
+    do                                                                    \
+    {                                                                     \
+        if (my_hostname == NULL)                                          \
+        {                                                                 \
+            my_hostname = malloc(1024);                                   \
+            my_hostname[1023] = '\0';                                     \
+            gethostname(my_hostname, 1023);                               \
+        }                                                                 \
+        fprintf(stderr, "[%s:l.%d:%s():%s:pid=%d] WARN: " _warn_fmt "\n", \
+                __FILE__, __LINE__, __func__, my_hostname,                \
+                getpid() __VA_OPT__(, ) __VA_ARGS__);                     \
+    } while (0)
 
 #if !NDEBUG
 #define CHECK_ERR_GOTO(_exp, _label, _check_fmt, ...) \

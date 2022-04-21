@@ -250,3 +250,14 @@ dpu_offload_status_t dpu_offload_service_end(offload_config_t *cfg)
     return DO_ERROR;
 #endif // HAVE_PMIX
 }
+
+#if !NDEBUG
+__attribute__((destructor)) void calledLast()
+{
+	if (my_hostname != NULL)
+    {
+        free(my_hostname);
+        my_hostname = NULL;
+    }
+}
+#endif

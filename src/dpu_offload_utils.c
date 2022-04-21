@@ -935,3 +935,14 @@ execution_context_t * get_server_servicing_host(offloading_engine_t *engine)
 
     return NULL;
 }
+
+#if !NDEBUG
+__attribute__((destructor)) void calledLast()
+{
+	if (my_hostname != NULL)
+    {
+        free(my_hostname);
+        my_hostname = NULL;
+    }
+}
+#endif
