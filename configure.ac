@@ -174,5 +174,6 @@ AC_CONFIG_FILES([Makefile
                  tests/offload_service/Makefile
                  tests/offload_service/server/Makefile
                  tests/offload_service/client/Makefile
-                 tests/dyn_structs/Makefile])
+                 tests/dyn_structs/Makefile
+                 tests/config/Makefile])
 AC_OUTPUT
