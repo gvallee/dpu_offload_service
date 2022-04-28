@@ -63,7 +63,8 @@ int main(int argc, char **argv)
 
     dpu_config_data_t *dpu_config;
     dpu_config = config_data.dpus_config.base;
-    fprintf(stderr, "INFO: connecting to DPU %s:%d\n", dpu_config[0].version_1.addr, dpu_config[0].version_1.rank_port);
+    int *connect_port = DYN_ARRAY_GET_ELT(&(dpu_config[0].version_1.host_ports), 0, int);
+    fprintf(stderr, "INFO: connecting to DPU %s:%d\n", dpu_config[0].version_1.addr, *connect_port);
 
     rank_info_t my_rank_info = {
         .group_id = 0,

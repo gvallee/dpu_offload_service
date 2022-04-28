@@ -1585,6 +1585,13 @@ void offload_engine_fini(offloading_engine_t **offload_engine)
         client_fini(&((*offload_engine)->inter_dpus_clients[i].client_econtext));
     }
     free((*offload_engine)->servers);
+
+    if ((*offload_engine)->config != NULL)
+    {
+        offload_config_free((*offload_engine)->config);
+        // engine->config is usually not allocate with malloc, no need to free it here
+    }
+
     free(*offload_engine);
     *offload_engine = NULL;
 }

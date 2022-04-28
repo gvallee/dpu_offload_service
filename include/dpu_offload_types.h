@@ -1423,6 +1423,10 @@ typedef struct remote_dpu_info
         (_info)->ep = NULL;                                 \
     } while (0)
 
+/**
+ * @brief Data structure used when parsing a configuration file.
+ * 
+ */
 typedef struct dpu_config_data
 {
     union
@@ -1431,8 +1435,8 @@ typedef struct dpu_config_data
         {
             char *hostname;
             char *addr;
-            int rank_port;
-            int interdpu_port;
+            dyn_array_t host_ports; // Type: int
+            dyn_array_t interdpu_ports; // Type: int
         } version_1;
     };
 } dpu_config_data_t;
@@ -1444,17 +1448,41 @@ typedef struct dpu_inter_connect_info
     size_t num_connect_to;
 } dpu_inter_connect_info_t;
 
+/**
+ * @brief offloading_config_t represents the configuration that will be used by the offloading infrastructure.
+ * It reflects for instance the content of the configuration when a configuration file is used.
+ * 
+ */
 typedef struct offloading_config
 {
+    // List of DPUs to be used during the execution of the job. Usually from a environment variable.
     char *list_dpus;
+
+    // Path to the configuration file (NULL when no configuration file is used).
     char *config_file;
+
+    // Version of the format of the configuration file when config_file is not NULL.
     int format_version;
+
+    // Associated offloading engine.
     offloading_engine_t *offloading_engine;
+    
+    // Specifies whether the local DPU has been found in the configuration
     bool dpu_found;
+
+    // Number of DPUs to connect to (only valid on DPUs), used for inter-DPUs connections
     size_t num_connecting_dpus;
+
+    // Data related to the DPUs that the infrastructure needs to connect to (only valid on DPUs)
     dpu_inter_connect_info_t info_connecting_to;
+
+    // Total number of DPUs to be used
     size_t num_dpus;
+
+    // Configuration of all the DPUs (type: dpu_config_data_t)
     dyn_array_t dpus_config;
+
+    // Configuration of the local DPU (only valid on DPUs)
     struct
     {
         // id is the unique identifier This will be used to set the context ID for the server on the DPU
