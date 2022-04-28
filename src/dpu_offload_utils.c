@@ -493,7 +493,7 @@ bool line_is_comment(char *line)
     return false;
 }
 
-// <dpu_hostname:interdpu-port:rank-conn-port>
+// <dpu_hostname:interdpu-port1&interdpu-port2,...:host-conn-port1&host-conn-port2,...>
 static inline bool parse_dpu_cfg(char *str, dpu_config_data_t *config_entry)
 {
     assert(str);
@@ -518,44 +518,47 @@ static inline bool parse_dpu_cfg(char *str, dpu_config_data_t *config_entry)
             DBG("-> addr is %s", token);
             config_entry->version_1.addr = strdup(token); // freed when calling offload_config_free()
             step++;
+            token = strtok_r(rest, ":", &rest);
             break;
         case 1:
             j = 0;
-            char *token_interdpu_ports = strtok_r(rest, ",", &rest);
-            assert(token_interdpu_ports); // We must have at least one port
-            while (token_interdpu_ports != NULL)
+            char *interdpu_ports_str = token;
+            char *token_port = strtok_r(interdpu_ports_str, "&", &interdpu_ports_str);
+            assert(token_port); // We must have at least one port
+            while (token_port != NULL)
             {
-                DBG("-> inter-DPU port #%d is %s", j, token_interdpu_ports);
+                DBG("-> inter-DPU port #%d is %s", j, token_port);
                 int *port = DYN_ARRAY_GET_ELT(&(config_entry->version_1.interdpu_ports), j, int);
-                *port = atoi(token_interdpu_ports);
+                *port = atoi(token_port);
                 j++;
-                token_interdpu_ports = strtok_r(rest, ":", &rest);
+                token_port = strtok_r(interdpu_ports_str, "&", &interdpu_ports_str);
             }
+            token = strtok_r(rest, ":", &rest);
+            assert(token);
             step++;
             break;
         case 2:
             j = 0;
-            char *token_host_ports = strtok_r(rest, ",", &rest);
-            assert(token_host_ports); // We must have at least one port
-            while (token_host_ports != NULL)
+            char *host_ports_str = token;
+            token_port = strtok_r(host_ports_str, "&", &host_ports_str);
+            assert(token_port); // We must have at least one port
+            while (token_port != NULL)
             {
-                DBG("-> port to connect with host #%d is %s", j, token_host_ports);
+                DBG("-> port to connect with host #%d is %s", j, token_port);
                 int *port = DYN_ARRAY_GET_ELT(&(config_entry->version_1.host_ports), j, int);
-                *port = atoi(token_host_ports);
+                *port = atoi(token_port);
                 j++;
-                token_host_ports = strtok_r(rest, ":", &rest);
+                token_port = strtok_r(host_ports_str, "&", &host_ports_str);
             }
             return true;
         }
-        token = strtok_r(rest, ":", &rest);
     }
 
     DBG("unable to parse entry, stopping at step %d", step);
     return false;
 }
 
-// <host name>,<dpu1_hostname:dpu_conn_addr:interdpu-port:rank-conn-port>,...
-// bool parse_line_dpu_version_1(int format_version, char *dpu_hostname, char *line, offloading_config_t **local_dpu_config, dyn_array_t *dpus, size_t *num_dpus_connecting_from)
+// <host name>,<dpu1_hostname:dpu_conn_addr:interdpu-port1&interdpu-port2,...:rank-conn-port1&rank-conn-port2,...>,...
 bool parse_line_dpu_version_1(offloading_config_t *data, char *line)
 {
     int idx = 0;
@@ -563,6 +566,9 @@ bool parse_line_dpu_version_1(offloading_config_t *data, char *line)
     uint64_t num_dpus = 0;
     char *rest_line = line;
     dpu_config_data_t *target_entry = NULL;
+
+    assert(data);
+    assert(line);
 
     while (line[idx] == ' ')
         idx++;
@@ -583,6 +589,8 @@ bool parse_line_dpu_version_1(offloading_config_t *data, char *line)
         for (i = 0; i < data->num_dpus; i++)
         {
             dpu_config_data_t *entry = DYN_ARRAY_GET_ELT(&(data->dpus_config), i, dpu_config_data_t);
+            assert(entry);
+            assert(entry->version_1.hostname);
             // We do not expect users to be super strict in the way they create the list of DPUs
             size_t _strlen = strlen(token);
             if (_strlen > strlen(entry->version_1.hostname))
@@ -609,11 +617,14 @@ bool parse_line_dpu_version_1(offloading_config_t *data, char *line)
                 *displayed_host_port);
 
             /* Save the configuration details */
-            remote_dpu_info_t **list_dpus = (remote_dpu_info_t **)data->offloading_engine->dpus.base;
+            remote_dpu_info_t **list_dpus = LIST_DPUS_FROM_ENGINE(data->offloading_engine);
+            assert(list_dpus);
             for (j = 0; j < data->offloading_engine->num_dpus; j++)
             {
                 if (list_dpus[j] == NULL)
+                {
                     continue;
+                }
 
                 if (strncmp(target_entry->version_1.hostname, list_dpus[j]->hostname,
                             strlen(list_dpus[j]->hostname)) == 0)
@@ -637,7 +648,7 @@ bool parse_line_dpu_version_1(offloading_config_t *data, char *line)
             if (strncmp(data->local_dpu.hostname, target_entry->version_1.hostname, strlen(target_entry->version_1.hostname)) == 0)
             {
                 // This is the DPU's configuration we were looking for
-                DBG("-> This is my configuration, my index is %d", idx);
+                DBG("-> This is my configuration");
                 data->dpu_found = true;
                 // At the moment, the unique ID from the list of DPUs is used as:
                 // - reference,
@@ -659,6 +670,7 @@ bool parse_line_dpu_version_1(offloading_config_t *data, char *line)
                 int *host_port = DYN_ARRAY_GET_ELT(&(target_entry->version_1.host_ports), 0, int);
                 data->local_dpu.host_conn_params.port = *host_port;
                 data->local_dpu.host_conn_params.port_str = NULL;
+                assert(data->local_dpu.id <= data->offloading_engine->num_dpus);
 
                 list_dpus[data->local_dpu.id]->ep = data->offloading_engine->self_ep;
                 // data->local_dpu.id is already set while parsing the list of DPUs to use for the job
