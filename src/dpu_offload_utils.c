@@ -258,7 +258,7 @@ dpu_offload_status_t broadcast_group_cache(offloading_engine_t *engine, int64_t 
         ucp_ep_h dest_ep;
 
         // Do not send to self
-        offloading_config_t *cfg = (offloading_config_t*)engine->config;
+        offloading_config_t *cfg = (offloading_config_t *)engine->config;
         if (i == cfg->local_dpu.id)
             continue;
 
@@ -352,7 +352,7 @@ static dpu_offload_status_t do_get_cache_entry_by_group_rank(offloading_engine_t
         request_data->target_dpu_idx = dpu_idx;
         request_data->offload_engine = engine;
         cache_entry_updated_ev->ctx.completion_cb = cb;
-        cache_entry_updated_ev->ctx.completion_cb_ctx = (void*)request_data;
+        cache_entry_updated_ev->ctx.completion_cb_ctx = (void *)request_data;
         ucs_list_add_tail(&(engine->default_econtext->ongoing_events), &(cache_entry_updated_ev->item));
     }
 
@@ -493,19 +493,21 @@ bool line_is_comment(char *line)
     return false;
 }
 
-// <dpu_hostname:interdpu-port:rank-conn-port>
-static inline bool parse_dpu_cfg(char *str, char **hostname, char **addr, int *interdpu_conn_port, int *host_conn_port)
+// <dpu_hostname:interdpu-port1&interdpu-port2,...:host-conn-port1&host-conn-port2,...>
+static inline bool parse_dpu_cfg(char *str, dpu_config_data_t *config_entry)
 {
-    assert(hostname);
-    assert(addr);
-    assert(interdpu_conn_port);
-    assert(host_conn_port);
+    assert(str);
+    assert(config_entry);
+
+    DYN_ARRAY_ALLOC(&(config_entry->version_1.interdpu_ports), 2, int);
+    DYN_ARRAY_ALLOC(&(config_entry->version_1.host_ports), 2, int);
 
     char *rest = str;
     char *token = strtok_r(rest, ":", &rest);
     assert(token);
     int step = 0;
-    *hostname = strdup(token); // fixme: correctly free
+    int j;
+    config_entry->version_1.hostname = strdup(token); // freed when calling offload_config_free()
     token = strtok_r(rest, ":", &rest);
     assert(token);
     while (token != NULL)
@@ -514,34 +516,59 @@ static inline bool parse_dpu_cfg(char *str, char **hostname, char **addr, int *i
         {
         case 0:
             DBG("-> addr is %s", token);
-            *addr = strdup(token); // fixme: correctly free
+            config_entry->version_1.addr = strdup(token); // freed when calling offload_config_free()
             step++;
+            token = strtok_r(rest, ":", &rest);
             break;
         case 1:
-            DBG("-> inter-DPU port is %s", token);
-            *interdpu_conn_port = atoi(token);
+            j = 0;
+            char *interdpu_ports_str = token;
+            char *token_port = strtok_r(interdpu_ports_str, "&", &interdpu_ports_str);
+            assert(token_port); // We must have at least one port
+            while (token_port != NULL)
+            {
+                DBG("-> inter-DPU port #%d is %s", j, token_port);
+                int *port = DYN_ARRAY_GET_ELT(&(config_entry->version_1.interdpu_ports), j, int);
+                *port = atoi(token_port);
+                j++;
+                token_port = strtok_r(interdpu_ports_str, "&", &interdpu_ports_str);
+            }
+            token = strtok_r(rest, ":", &rest);
+            assert(token);
             step++;
             break;
         case 2:
-            DBG("-> port to connect with host is %s", token);
-            *host_conn_port = atoi(token);
+            j = 0;
+            char *host_ports_str = token;
+            token_port = strtok_r(host_ports_str, "&", &host_ports_str);
+            assert(token_port); // We must have at least one port
+            while (token_port != NULL)
+            {
+                DBG("-> port to connect with host #%d is %s", j, token_port);
+                int *port = DYN_ARRAY_GET_ELT(&(config_entry->version_1.host_ports), j, int);
+                *port = atoi(token_port);
+                j++;
+                token_port = strtok_r(host_ports_str, "&", &host_ports_str);
+            }
             return true;
         }
-        token = strtok_r(rest, ":", &rest);
     }
 
     DBG("unable to parse entry, stopping at step %d", step);
     return false;
 }
 
-// <host name>,<dpu1_hostname:dpu_conn_addr:interdpu-port:rank-conn-port>,...
-// bool parse_line_dpu_version_1(int format_version, char *dpu_hostname, char *line, offloading_config_t **local_dpu_config, dyn_array_t *dpus, size_t *num_dpus_connecting_from)
+// <host name>,<dpu1_hostname:dpu_conn_addr:interdpu-port1&interdpu-port2,...:rank-conn-port1&rank-conn-port2,...>,...
 bool parse_line_dpu_version_1(offloading_config_t *data, char *line)
 {
     int idx = 0;
     bool rc = false;
     uint64_t num_dpus = 0;
     char *rest_line = line;
+    dpu_config_data_t *target_entry = NULL;
+
+    assert(data);
+    assert(line);
 
     while (line[idx] == ' ')
         idx++;
@@ -559,78 +586,91 @@ bool parse_line_dpu_version_1(offloading_config_t *data, char *line)
         DBG("-> DPU data: %s", token);
 
         /* if the DPU is not part of the list of DPUs to use, we skip it */
-        dpu_config_data_t *list_dpus_from_list = (dpu_config_data_t *)data->dpus_config.base;
         for (i = 0; i < data->num_dpus; i++)
         {
+            dpu_config_data_t *entry = DYN_ARRAY_GET_ELT(&(data->dpus_config), i, dpu_config_data_t);
+            assert(entry);
+            assert(entry->version_1.hostname);
             // We do not expect users to be super strict in the way they create the list of DPUs
             size_t _strlen = strlen(token);
-            if (_strlen > strlen(list_dpus_from_list[i].version_1.hostname))
-                _strlen = strlen(list_dpus_from_list[i].version_1.hostname);
-            if (strncmp(list_dpus_from_list[i].version_1.hostname, token, _strlen) == 0)
+            if (_strlen > strlen(entry->version_1.hostname))
+                _strlen = strlen(entry->version_1.hostname);
+            if (strncmp(entry->version_1.hostname, token, _strlen) == 0)
             {
                 target_dpu = true;
-                DBG("Found the configuration for %s", list_dpus_from_list[i].version_1.hostname);
+                target_entry = entry;
+                DBG("Found the configuration for %s", entry->version_1.hostname);
                 break;
             }
         }
 
         if (target_dpu)
         {
-            int interdpu_conn_port, host_conn_port;
-            bool parsing_okay = parse_dpu_cfg(token,
-                                              &(list_dpus_from_list[i].version_1.hostname),
-                                              &(list_dpus_from_list[i].version_1.addr),
-                                              &interdpu_conn_port,
-                                              &host_conn_port);
+            bool parsing_okay = parse_dpu_cfg(token, target_entry);
             CHECK_ERR_RETURN((parsing_okay == false), false, "unable to parse config file entry");
-            DBG("-> DPU %s found (%s:%d:%d)", list_dpus_from_list[i].version_1.hostname, list_dpus_from_list[i].version_1.addr, interdpu_conn_port, host_conn_port);
-            list_dpus_from_list[i].version_1.interdpu_port = interdpu_conn_port;
-            list_dpus_from_list[i].version_1.rank_port = host_conn_port;
+            // fixme: support ranks dealing with multiple daemons on a single DPU (issue #98)
+            int *displayed_interdpu_port = DYN_ARRAY_GET_ELT(&(target_entry->version_1.interdpu_ports), 0, int);
+            int *displayed_host_port = DYN_ARRAY_GET_ELT(&(target_entry->version_1.host_ports), 0, int);
+            DBG("-> DPU %s found (%s:%d:%d)", target_entry->version_1.hostname,
+                target_entry->version_1.addr,
+                *displayed_interdpu_port,
+                *displayed_host_port);
 
             /* Save the configuration details */
-            remote_dpu_info_t **list_dpus = (remote_dpu_info_t **)data->offloading_engine->dpus.base;
+            remote_dpu_info_t **list_dpus = LIST_DPUS_FROM_ENGINE(data->offloading_engine);
+            assert(list_dpus);
             for (j = 0; j < data->offloading_engine->num_dpus; j++)
             {
                 if (list_dpus[j] == NULL)
+                {
                     continue;
+                }
 
-                if (strncmp(list_dpus_from_list[i].version_1.hostname, list_dpus[j]->hostname, strlen(list_dpus[j]->hostname)) == 0)
+                if (strncmp(target_entry->version_1.hostname, list_dpus[j]->hostname,
+                            strlen(list_dpus[j]->hostname)) == 0)
                 {
                     DBG("Saving configuration details for DPU #%ld, %s (addr: %s)",
                         j,
-                        list_dpus_from_list[i].version_1.hostname,
-                        list_dpus_from_list[i].version_1.addr);
+                        target_entry->version_1.hostname,
+                        target_entry->version_1.addr);
 
                     // We found the DPU in the engine's list
                     if (list_dpus[j]->init_params.conn_params != NULL)
                     {
-                        list_dpus[j]->init_params.conn_params->addr_str = list_dpus_from_list[i].version_1.addr;
-                        list_dpus[j]->init_params.conn_params->port = list_dpus_from_list[i].version_1.interdpu_port;
+                        list_dpus[j]->init_params.conn_params->addr_str = target_entry->version_1.addr;
+                        // fixme: support ranks dealing with multiple daemons on a single DPU (issue #98)
+                        int *port = DYN_ARRAY_GET_ELT(&(target_entry->version_1.interdpu_ports), 0, int);
+                        list_dpus[j]->init_params.conn_params->port = *port;
                     }
                 }
             }
 
-            if (strncmp(data->local_dpu.hostname, list_dpus_from_list[i].version_1.hostname, strlen(list_dpus_from_list[i].version_1.hostname)) == 0)
+            if (strncmp(data->local_dpu.hostname, target_entry->version_1.hostname, strlen(target_entry->version_1.hostname)) == 0)
             {
                 // This is the DPU's configuration we were looking for
-                DBG("-> This is my configuration, my index is %d", idx);
+                DBG("-> This is my configuration");
                 data->dpu_found = true;
                 // At the moment, the unique ID from the list of DPUs is used as:
                 // - reference,
                 // - unique identifier when connecting to other DPUs or other DPUs connecting to us,
                 // - unique identifier when handling connections from the ranks running on the local host.
-                // In other terms, it is used to create the mapping between all DPUs and all ranks.
+                // In other words, it is used to create the mapping between all DPUs and all ranks.
                 data->local_dpu.interdpu_init_params.id_set = true;
                 data->local_dpu.interdpu_init_params.id = data->local_dpu.id;
                 data->local_dpu.host_init_params.id_set = true;
                 data->local_dpu.host_init_params.id = data->local_dpu.id;
-                data->local_dpu.config = &(list_dpus_from_list[i]);
+                data->local_dpu.config = target_entry;
                 data->local_dpu.interdpu_conn_params.addr_str = data->local_dpu.config->version_1.addr;
-                data->local_dpu.interdpu_conn_params.port = data->local_dpu.config->version_1.interdpu_port;
+                // fixme: support ranks dealing with multiple daemons on a single DPU (issue #98)
+                int *dpu_port = DYN_ARRAY_GET_ELT(&(target_entry->version_1.interdpu_ports), 0, int);
+                data->local_dpu.interdpu_conn_params.port = *dpu_port;
                 data->local_dpu.interdpu_conn_params.port_str = NULL;
                 data->local_dpu.host_conn_params.addr_str = data->local_dpu.config->version_1.addr;
-                data->local_dpu.host_conn_params.port = data->local_dpu.config->version_1.rank_port;
+                // fixme: support ranks dealing with multiple daemons on a single DPU (issue #98)
+                int *host_port = DYN_ARRAY_GET_ELT(&(target_entry->version_1.host_ports), 0, int);
+                data->local_dpu.host_conn_params.port = *host_port;
                 data->local_dpu.host_conn_params.port_str = NULL;
+                assert(data->local_dpu.id <= data->offloading_engine->num_dpus);
 
                 list_dpus[data->local_dpu.id]->ep = data->offloading_engine->self_ep;
                 // data->local_dpu.id is already set while parsing the list of DPUs to use for the job
@@ -641,16 +681,18 @@ bool parse_line_dpu_version_1(offloading_config_t *data, char *line)
             remote_dpu_info_t *connect_to, *next_connect_to;
             ucs_list_for_each_safe(connect_to, next_connect_to, &(data->info_connecting_to.connect_to), item)
             {
-                DBG("Check DPU %s that we need to connect to (with %s)", connect_to->hostname, list_dpus_from_list[i].version_1.hostname);
-                if (strncmp(list_dpus_from_list[i].version_1.hostname, connect_to->hostname, strlen(connect_to->hostname)) == 0)
+                DBG("Check DPU %s that we need to connect to (with %s)", connect_to->hostname, target_entry->version_1.hostname);
+                if (strncmp(target_entry->version_1.hostname, connect_to->hostname, strlen(connect_to->hostname)) == 0)
                 {
                     DBG("Saving connection parameters to connect to %s (%p)", connect_to->hostname, connect_to);
                     conn_params_t *new_conn_params;
                     DYN_LIST_GET(data->offloading_engine->pool_conn_params, conn_params_t, item, new_conn_params); // fixme: properly return it
                     RESET_CONN_PARAMS(new_conn_params);
                     connect_to->init_params.conn_params = new_conn_params;
-                    connect_to->init_params.conn_params->addr_str = list_dpus_from_list[i].version_1.addr;
-                    connect_to->init_params.conn_params->port = list_dpus_from_list[i].version_1.interdpu_port;
+                    connect_to->init_params.conn_params->addr_str = target_entry->version_1.addr;
+                    // fixme: add support for multiple daemons on a single DPU (issue #98);
+                    int *port = DYN_ARRAY_GET_ELT(&(target_entry->version_1.interdpu_ports), 0, int);
+                    connect_to->init_params.conn_params->port = *port;
                 }
             }
         }
@@ -685,16 +727,12 @@ bool parse_line_version_1(char *target_hostname, offloading_config_t *data, char
         token = strtok_r(rest, ",", &rest);
         while (token != NULL)
         {
-            dpu_config_data_t *dpu_config;
-            dpu_config = data->dpus_config.base;
+            // We overwrite the configuration until we find the entry associated to the host
+            dpu_config_data_t *dpu_config = DYN_ARRAY_GET_ELT(&(data->dpus_config), 0, dpu_config_data_t);
             assert(dpu_config);
             CHECK_ERR_RETURN((dpu_config == NULL), DO_ERROR, "unable to allocate resources for DPUs' configuration");
 
-            bool rc = parse_dpu_cfg(token,
-                                    &(dpu_config[0].version_1.hostname),
-                                    &(dpu_config[0].version_1.addr),
-                                    &(dpu_config[0].version_1.interdpu_port),
-                                    &(dpu_config[0].version_1.rank_port));
+            bool rc = parse_dpu_cfg(token, dpu_config);
             CHECK_ERR_RETURN((rc == false), DO_ERROR, "parse_dpu_cfg() failed");
             data->num_dpus++;
             token = strtok_r(rest, ",", &rest);
@@ -706,7 +744,8 @@ bool parse_line_version_1(char *target_hostname, offloading_config_t *data, char
 }
 
 /**
- * @brief parse_line parses a line of the configuration file looking for a specific host name. It shall not be used to seek the configuration of a DPU.
+ * @brief parse_line parses a line of the configuration file looking for a specific host name.
+ * It shall not be used to seek the configuration of a DPU.
  *
  * @param target_hostname Host's name
  * @param line Line from the configuration file that is being parsed
@@ -927,7 +966,7 @@ dpu_offload_status_t get_host_config(offloading_config_t *config_data)
     return DO_SUCCESS;
 }
 
-execution_context_t * get_server_servicing_host(offloading_engine_t *engine)
+execution_context_t *get_server_servicing_host(offloading_engine_t *engine)
 {
     size_t i;
     // We start at the end of the list because the server servicing the host
@@ -944,10 +983,30 @@ execution_context_t * get_server_servicing_host(offloading_engine_t *engine)
     return NULL;
 }
 
+void offload_config_free(offloading_config_t *cfg)
+{
+    dpu_config_data_t *list_dpus = (dpu_config_data_t *)cfg->dpus_config.base;
+    size_t i;
+    for (i = 0; i < cfg->num_dpus; i++)
+    {
+        if (list_dpus[i].version_1.hostname != NULL)
+        {
+            free(list_dpus[i].version_1.hostname);
+            list_dpus[i].version_1.hostname = NULL;
+        }
+
+        if (list_dpus[i].version_1.addr != NULL)
+        {
+            free(list_dpus[i].version_1.addr);
+            list_dpus[i].version_1.addr = NULL;
+        }
+    }
+}
+
 #if !NDEBUG
 __attribute__((destructor)) void calledLast()
 {
-	if (my_hostname != NULL)
+    if (my_hostname != NULL)
     {
         free(my_hostname);
         my_hostname = NULL;

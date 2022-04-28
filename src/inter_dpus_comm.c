@@ -30,26 +30,27 @@ rank_info_t invalid_group_rank = {
 extern execution_context_t *server_init(offloading_engine_t *, init_params_t *);
 extern execution_context_t *client_init(offloading_engine_t *, init_params_t *);
 
-#define SET_DPU_TO_CONNECT_TO(_econtext, _cfg, _dpu_hostname, _idx)                                         \
-    do                                                                                                      \
-    {                                                                                                       \
-        remote_dpu_info_t *new_conn_to;                                                                     \
-        DYN_LIST_GET(_cfg->info_connecting_to.pool_remote_dpu_info, remote_dpu_info_t, item, new_conn_to);  \
-        assert(new_conn_to);                                                                                \
-        RESET_REMOTE_DPU_INFO(new_conn_to);                                                                 \
-        new_conn_to->idx = _idx;                                                                            \
-        remote_dpu_info_t **_list_dpus = (remote_dpu_info_t **)_econtext->dpus.base;                        \
-        _list_dpus[_idx] = new_conn_to;                                                                     \
-        conn_params_t *new_conn_params;                                                                     \
-        DYN_LIST_GET(_cfg->offloading_engine->pool_conn_params, conn_params_t, item, new_conn_params);      \
-        assert(new_conn_params);                                                                            \
-        RESET_CONN_PARAMS(new_conn_params);                                                                 \
-        new_conn_to->hostname = _dpu_hostname;                                                              \
-        new_conn_to->init_params.conn_params = new_conn_params;                                             \
-        /* all connection parameters are not available at this point, we only have the list of hostnames */ \
-        new_conn_to->offload_engine = _cfg->offloading_engine;                                              \
-        ucs_list_add_tail(&(_cfg->info_connecting_to.connect_to), &(new_conn_to->item));                    \
-        _cfg->info_connecting_to.num_connect_to++;                                                          \
+#define SET_DPU_TO_CONNECT_TO(_econtext, _cfg, _dpu_hostname, _idx)                                          \
+    do                                                                                                       \
+    {                                                                                                        \
+        remote_dpu_info_t *new_conn_to;                                                                      \
+        DYN_LIST_GET((_cfg)->info_connecting_to.pool_remote_dpu_info, remote_dpu_info_t, item, new_conn_to); \
+        assert(new_conn_to);                                                                                 \
+        RESET_REMOTE_DPU_INFO(new_conn_to);                                                                  \
+        new_conn_to->idx = _idx;                                                                             \
+        remote_dpu_info_t **_list_dpus = (remote_dpu_info_t **)_econtext->dpus.base;                         \
+        _list_dpus[_idx] = new_conn_to;                                                                      \
+        conn_params_t *new_conn_params;                                                                      \
+        assert((_cfg)->offloading_engine);                                                                   \
+        DYN_LIST_GET((_cfg)->offloading_engine->pool_conn_params, conn_params_t, item, new_conn_params);     \
+        assert(new_conn_params);                                                                             \
+        RESET_CONN_PARAMS(new_conn_params);                                                                  \
+        new_conn_to->hostname = _dpu_hostname;                                                               \
+        new_conn_to->init_params.conn_params = new_conn_params;                                              \
+        /* all connection parameters are not available at this point, we only have the list of hostnames */  \
+        new_conn_to->offload_engine = (_cfg)->offloading_engine;                                             \
+        ucs_list_add_tail(&((_cfg)->info_connecting_to.connect_to), &(new_conn_to->item));                   \
+        (_cfg)->info_connecting_to.num_connect_to++;                                                         \
     } while (0)
 
 /**
@@ -65,7 +66,7 @@ extern execution_context_t *client_init(offloading_engine_t *, init_params_t *);
  * @param[out] my_dpu_id Unique identifier assigned to the DPU, based on the index in the list.
  * @return dpu_offload_status_t
  */
-static dpu_offload_status_t
+dpu_offload_status_t
 dpu_offload_parse_list_dpus(offloading_engine_t *engine, offloading_config_t *config_data, uint64_t *my_dpu_id)
 {
     size_t dpu_idx = 0;
@@ -75,6 +76,9 @@ dpu_offload_parse_list_dpus(offloading_engine_t *engine, offloading_config_t *co
     size_t n_connecting_from = 0;
     size_t n_connecting_to = 0;
     remote_dpu_info_t **dpu_info = (remote_dpu_info_t **)engine->dpus.base;
+
+    if (config_data->offloading_engine == NULL)
+        config_data->offloading_engine = engine;
 
     token = strtok(config_data->list_dpus, ",");
 
@@ -123,7 +127,9 @@ dpu_offload_parse_list_dpus(offloading_engine_t *engine, offloading_config_t *co
             dpu_info[dpu_idx] = new_remote_dpu;
         }
         else
+        {
             SET_DPU_TO_CONNECT_TO(engine, config_data, dpu_config->version_1.hostname, dpu_idx);
+        }
         dpu_idx++;
         token = strtok(NULL, ",");
     }
@@ -137,7 +143,6 @@ dpu_offload_parse_list_dpus(offloading_engine_t *engine, offloading_config_t *co
 
     config_data->num_connecting_dpus = n_connecting_from;
     config_data->offloading_engine->num_dpus = dpu_idx;
-
     return DO_SUCCESS;
 }
 

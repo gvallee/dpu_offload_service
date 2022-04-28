@@ -76,6 +76,8 @@ void server_fini(execution_context_t **);
 execution_context_t *client_init(offloading_engine_t *, init_params_t *);
 void client_fini(execution_context_t **);
 
+void offload_config_free(offloading_config_t *cfg);
+
 dpu_offload_status_t inter_dpus_connect_mgr(offloading_engine_t *, offloading_config_t *);
 
 dpu_offload_status_t send_add_group_rank_request(execution_context_t *econtext, ucp_ep_h ep, int64_t group_id, int64_t rank, int64_t group_size, dpu_offload_event_t **e);
