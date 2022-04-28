@@ -1071,6 +1071,35 @@ static void progress_event_recv(execution_context_t *econtext)
 #endif
 }
 
+static dpu_offload_status_t send_group_cache_to_local_ranks(execution_context_t *econtext, int64_t group_id)
+{
+    size_t n = 0, idx = 0;
+    DBG("Cache for group %ld is now complete, sending it to the local ranks (scope_id: %d, num connected clients: %ld)",
+        group_id, econtext->scope_id, econtext->server->connected_clients.num_connected_clients);
+    while (n < econtext->server->connected_clients.num_connected_clients)
+    {
+        dpu_offload_event_t *metaev;
+        peer_info_t *c = DYN_ARRAY_GET_ELT(&(econtext->server->connected_clients.clients), idx, peer_info_t);
+        if (c == NULL)
+        {
+            idx++;
+            continue;
+        }
+        DBG("Send cache to client #%ld", idx);
+        dpu_offload_status_t rc = event_get(econtext->event_channels, NULL, &metaev);
+        if (rc != DO_SUCCESS)
+            ERR_MSG("event_get() failed"); // todo: better handle errors
+        rc = send_group_cache(econtext, c->ep, group_id, metaev);
+        if (rc != DO_SUCCESS)
+            ERR_MSG("send_group_cache() failed"); // todo: better handler errors
+        // We do not have to manage the event so we put it on the list of ongoing events
+        ucs_list_add_tail(&(econtext->ongoing_events), &(metaev->item));
+        n++;
+        idx++;
+    }
+    return DO_SUCCESS;
+}
+
 static void execution_context_progress(execution_context_t *ctx)
 {
     assert(ctx);
@@ -1204,32 +1233,10 @@ static void execution_context_progress(execution_context_t *ctx)
                             broadcast_group_cache(ctx->engine, client_info->rank_data.group_id);
                         }
 
-                        // And if the cache is fully populated, send it to the local ranks
+                        // Check if the cache is fully populated
                         if (group_cache_now_full && gp_cache->group_size > 0 && gp_cache->num_local_entries == gp_cache->group_size)
                         {
-                            size_t n = 0, idx = 0;
-                            DBG("Cache is now complete, sending it to the local ranks (scope_id: %d)", ctx->scope_id);
-                            // ctx->server->connected_clients
-                            while (n < ctx->server->connected_clients.num_connected_clients)
-                            {
-                                dpu_offload_event_t *metaev;
-                                peer_info_t *c = DYN_ARRAY_GET_ELT(&(ctx->server->connected_clients.clients), idx, peer_info_t);
-                                if (c == NULL)
-                                {
-                                    idx++;
-                                    continue;
-                                }
-                                rc = event_get(ctx->event_channels, NULL, &metaev);
-                                if (rc != DO_SUCCESS)
-                                    ERR_MSG("event_get() failed"); // todo: better handle errors
-                                rc = send_group_cache(ctx, c->ep, client_info->rank_data.group_id, metaev);
-                                if (rc != DO_SUCCESS)
-                                    ERR_MSG("send_group_cache() failed"); // todo: better handler errors
-                                // We do not have to manage the event so we put it on the list of ongoing events
-                                ucs_list_add_tail(&(ctx->ongoing_events), &(metaev->item));
-                                n++;
-                                idx++;
-                            }
+                            DBG("Cache is now complete, we will send it as soon as all the ranks are fully connected");
                         }
                     }
 
@@ -1274,6 +1281,38 @@ static void execution_context_progress(execution_context_t *ctx)
                         idx,
                         ctx->server->connected_clients.num_connected_clients,
                         ctx->engine->num_connected_dpus);
+
+                    // Do we need to send a group cache?
+                    int64_t target_group = INVALID_GROUP;
+                    size_t c;
+                    for (c = 0; c < ctx->server->connected_clients.num_connected_clients; c++)
+                    {
+                        peer_info_t *client_info = DYN_ARRAY_GET_ELT(&(ctx->server->connected_clients.clients), c, peer_info_t);
+                        assert(client_info);
+                        if (client_info->rank_data.group_id == INVALID_GROUP)
+                        {
+                            DBG("Clients do not seem to have group/rank data, no cache to manage");
+                            break;
+                        }
+
+                        if (target_group != INVALID_GROUP && target_group != client_info->rank_data.group_id)
+                        {
+                            ERR_MSG("Inconsistent data, two groups detected while only one is expected (%"PRId64" vs. %"PRId64")",
+                                    target_group, client_info->rank_data.group_id);
+                            target_group = INVALID_GROUP;
+                            break;
+                        }
+
+                        if (target_group == INVALID_GROUP) {
+                            target_group = client_info->rank_data.group_id;
+                        }
+                    }
+
+                    if (target_group != INVALID_GROUP)
+                    {
+                        rc = send_group_cache_to_local_ranks(ctx, target_group);
+                        CHECK_ERR_GOTO((rc), error_out, "send_group_cache_to_local_ranks() failed");
+                    }
 
                     if (ctx->server->connected_cb != NULL)
                     {
