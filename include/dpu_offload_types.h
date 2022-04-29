@@ -437,6 +437,10 @@ typedef struct peer_info
     // Peer's address. Used to create endpoint when using OOB
     void *peer_addr;
 
+    // Human readable version of the address used for bootstrapping
+    // todo: this is current used to lookup which DPU is in the process of connecting, we should not have to do lookup based on a string
+    char *peer_addr_str;
+
     // UCX endpoint to communicate with the peer
     ucp_ep_h ep;
 

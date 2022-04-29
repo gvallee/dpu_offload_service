@@ -1292,6 +1292,7 @@ static void execution_context_progress(execution_context_t *ctx)
                     if (ECONTEXT_ON_DPU(ctx))
                     {
                         /* Check if it is a DPU we are expecting to connect to us */
+                        DBG("Checking if the DPU connection is expected...");
                         size_t dpu;
                         remote_dpu_info_t **list_dpus = LIST_DPUS_FROM_ECONTEXT(ctx);
                         CHECK_ERR_GOTO((list_dpus == NULL), error_out, "unable to get list of DPUs");
@@ -1307,7 +1308,8 @@ static void execution_context_progress(execution_context_t *ctx)
                             CHECK_ERR_GOTO((list_dpus[dpu]->init_params.conn_params->addr_str == NULL),
                                            error_out,
                                            "Address of DPU #%ld is undefined", dpu);
-                            if (strncmp(list_dpus[dpu]->init_params.conn_params->addr_str, client_info->peer_addr, client_info->peer_addr_len) == 0)
+                            DBG("Comparing address %s and %s", list_dpus[dpu]->init_params.conn_params->addr_str, client_info->peer_addr_str);
+                            if (strncmp(list_dpus[dpu]->init_params.conn_params->addr_str, client_info->peer_addr_str, strlen(client_info->peer_addr_str)) == 0)
                             {
                                 // Set the endpoint to communicate with that remote DPU
                                 list_dpus[dpu]->ep = client_info->ep;
@@ -1841,6 +1843,7 @@ static dpu_offload_status_t oob_server_listen(execution_context_t *econtext)
     assert(client_info);
     client_info->bootstrapping.phase = OOB_CONNECT_DONE;
     client_info->id = client_id;
+    client_info->peer_addr_str = client_addr;
     econtext->server->connected_clients.num_ongoing_connections++;
     DBG("Client #%" PRIu64 " (%p) is now in the OOB_CONNECT_DONE state", client_id, client_info);
     DBG("Total number of ongoing connections: %ld\n", econtext->server->connected_clients.num_ongoing_connections);

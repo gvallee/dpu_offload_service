@@ -186,17 +186,10 @@ bool is_in_cache(cache_t *cache, int64_t gp_id, int64_t rank_id, int64_t group_s
 
 execution_context_t *get_server_servicing_host(offloading_engine_t *engine);
 
-#define SET_DEFAULT_DPU_SERVER_CALLBACKS(_econtext)                                         \
-    do                                                                                      \
-    {                                                                                       \
-        if ((_econtext)->type == CONTEXT_SERVER)                                            \
-        {                                                                                   \
-            (_econtext)->server->connected_cb = local_rank_connect_default_callback;        \
-        }                                                                                   \
-        else                                                                                \
-        {                                                                                   \
-            fprintf(stderr, "[ERR] Trying to set default DPU server callback on a client"); \
-        }                                                                                   \
+#define SET_DEFAULT_DPU_HOST_SERVER_CALLBACKS(_init_params)                      \
+    do                                                                      \
+    {                                                                       \
+        (_init_params)->connected_cb = local_rank_connect_default_callback; \
     } while (0)
 
 #endif // DPU_OFFLOAD_SERVICE_DAEMON_H_
