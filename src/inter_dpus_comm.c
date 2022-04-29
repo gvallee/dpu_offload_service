@@ -207,9 +207,11 @@ static void sync_group_caches(execution_context_t *econtext)
 }
 
 /**
- * @brief Callback invoked when a connection to a remote server DPU completes
+ * @brief Callback invoked when a connection to a remote server DPU completes.
+ * This is set on clients on DPUs that are used to connect to servers on other DPUs.
+ * In other words, client->connected_cb is set to this pointer.
  *
- * @param data
+ * @param data Generic pointer to pass callback data
  */
 void connected_to_server_dpu(void *data)
 {
@@ -287,6 +289,8 @@ connect_to_dpus(offloading_engine_t *offload_engine, dpu_inter_connect_info_t *i
 
 /**
  * @brief Callback invoked when a client DPU finalizes its connection to us.
+ * This is set on servers on DPUs that are used to let client DPUs connect.
+ * In other words, server->connected_cb is set to this pointer
  *
  * @param data DPU data
  */

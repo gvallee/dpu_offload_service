@@ -1100,6 +1100,55 @@ static dpu_offload_status_t send_group_cache_to_local_ranks(execution_context_t 
     return DO_SUCCESS;
 }
 
+/**
+ * @brief callback that servers on DPUs can set (server->connected_cb) to have
+ * implicit management of caches, especially when all the ranks of the group
+ * are on the local host. In such a situation, it will be detected when the last
+ * ranks connects, the group cache therefore completes and the cache is then sent
+ * back to local ranks.
+ *
+ */
+void local_rank_connect_default_callback(void *data)
+{
+    connected_peer_data_t *connected_peer;
+    uint64_t peer_id;
+    peer_info_t *client_info;
+    int64_t group_id;
+    group_cache_t *gc;
+
+    assert(data);
+    connected_peer = (connected_peer_data_t *)data;
+    assert(connected_peer->econtext);
+
+    // Look up the details about the peer
+    peer_id = connected_peer->peer_id;
+    client_info = DYN_ARRAY_GET_ELT(&(connected_peer->econtext->server->connected_clients.clients), peer_id, peer_info_t);
+    assert(client_info);
+    group_id = client_info->rank_data.group_id;
+
+    if (group_id == INVALID_GROUP)
+    {
+        DBG("No group associated to peer that is finalizing connection, not dealing with cache aspects");
+        return;
+    }
+
+    assert(connected_peer->econtext->engine);
+    gc = GET_GROUP_CACHE(&(connected_peer->econtext->engine->procs_cache), group_id);
+    assert(gc);
+
+    // If the cache is full, send it back to all ranks
+    if (gc->group_size == gc->num_local_entries)
+    {
+        dpu_offload_status_t rc = send_group_cache_to_local_ranks(connected_peer->econtext, group_id);
+        CHECK_ERR_GOTO((rc), error_out, "send_group_cache_to_local_ranks() failed");
+    }
+
+    return;
+error_out:
+    ERR_MSG("unable to figure out if cache needs to be sent out to local ranks");
+    return;
+}
+
 static void execution_context_progress(execution_context_t *ctx)
 {
     assert(ctx);
@@ -1281,38 +1330,6 @@ static void execution_context_progress(execution_context_t *ctx)
                         idx,
                         ctx->server->connected_clients.num_connected_clients,
                         ctx->engine->num_connected_dpus);
-
-                    // Do we need to send a group cache?
-                    int64_t target_group = INVALID_GROUP;
-                    size_t c;
-                    for (c = 0; c < ctx->server->connected_clients.num_connected_clients; c++)
-                    {
-                        peer_info_t *client_info = DYN_ARRAY_GET_ELT(&(ctx->server->connected_clients.clients), c, peer_info_t);
-                        assert(client_info);
-                        if (client_info->rank_data.group_id == INVALID_GROUP)
-                        {
-                            DBG("Clients do not seem to have group/rank data, no cache to manage");
-                            break;
-                        }
-
-                        if (target_group != INVALID_GROUP && target_group != client_info->rank_data.group_id)
-                        {
-                            ERR_MSG("Inconsistent data, two groups detected while only one is expected (%"PRId64" vs. %"PRId64")",
-                                    target_group, client_info->rank_data.group_id);
-                            target_group = INVALID_GROUP;
-                            break;
-                        }
-
-                        if (target_group == INVALID_GROUP) {
-                            target_group = client_info->rank_data.group_id;
-                        }
-                    }
-
-                    if (target_group != INVALID_GROUP)
-                    {
-                        rc = send_group_cache_to_local_ranks(ctx, target_group);
-                        CHECK_ERR_GOTO((rc), error_out, "send_group_cache_to_local_ranks() failed");
-                    }
 
                     if (ctx->server->connected_cb != NULL)
                     {
