@@ -88,6 +88,7 @@ Makefile
 config.log
 config.status
 autom4te.cache/
+configure~
 
 # VScode files
 .vscode/settings.json
