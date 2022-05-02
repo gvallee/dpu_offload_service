@@ -1122,6 +1122,7 @@ void local_rank_connect_default_callback(void *data)
 
     // Look up the details about the peer
     peer_id = connected_peer->peer_id;
+    DBG("Finalizing connection with rank on the host (client #%ld)", peer_id);
     client_info = DYN_ARRAY_GET_ELT(&(connected_peer->econtext->server->connected_clients.clients), peer_id, peer_info_t);
     assert(client_info);
     group_id = client_info->rank_data.group_id;
@@ -1136,13 +1137,16 @@ void local_rank_connect_default_callback(void *data)
     gc = GET_GROUP_CACHE(&(connected_peer->econtext->engine->procs_cache), group_id);
     assert(gc);
 
-    // If the cache is full, send it back to all ranks
+    DBG("Checking group %" PRId64 " (number of local entries: %ld)", group_id, gc->num_local_entries);
+    
+    // If the cache is full, i.e., all the ranks of the group are on the host, send it back to all ranks
     if (gc->group_size == gc->num_local_entries)
     {
         dpu_offload_status_t rc = send_group_cache_to_local_ranks(connected_peer->econtext, group_id);
         CHECK_ERR_GOTO((rc), error_out, "send_group_cache_to_local_ranks() failed");
     }
 
+    // No need to trigger the broadcast of the cache, it is handled by the inter-dpu code.
     return;
 error_out:
     ERR_MSG("unable to figure out if cache needs to be sent out to local ranks");
@@ -1289,7 +1293,7 @@ static void execution_context_progress(execution_context_t *ctx)
                         }
                     }
 
-                    if (ECONTEXT_ON_DPU(ctx))
+                    if (ECONTEXT_ON_DPU(ctx) && ctx->scope_id == SCOPE_INTER_DPU)
                     {
                         /* Check if it is a DPU we are expecting to connect to us */
                         DBG("Checking if the DPU connection is expected...");
