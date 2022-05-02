@@ -262,6 +262,10 @@ dpu_offload_status_t broadcast_group_cache(offloading_engine_t *engine, int64_t 
         if (i == cfg->local_dpu.id)
             continue;
 
+        if (list_dpus[i]->econtext == NULL)
+        {
+            ERR_MSG("execution context for DPU #%ld is undefined", i);
+        }
         assert(list_dpus[i]->econtext);
         event_get(list_dpus[i]->econtext->event_channels, NULL, &ev);
         assert(ev);

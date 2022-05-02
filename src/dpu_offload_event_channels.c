@@ -824,7 +824,7 @@ static dpu_offload_status_t peer_cache_entries_recv_cb(struct dpu_offload_ev_sys
 
             group_cache_t *gp_cache = GET_GROUP_CACHE(&(econtext->engine->procs_cache), group_id);
             gp_cache->num_local_entries++;
-            DBG("The cache for group %ld now has %ld entries", gp_cache->group_size, gp_cache->num_local_entries);
+            DBG("The cache for group %ld now has %ld entries (group size: %ld)", group_id, gp_cache->num_local_entries, gp_cache->group_size);
 
             if (econtext->engine->on_dpu)
             {
@@ -853,6 +853,7 @@ static dpu_offload_status_t peer_cache_entries_recv_cb(struct dpu_offload_ev_sys
                         if (rc != DO_SUCCESS)
                             ERR_MSG("send_group_cache() failed"); // todo: better handle errors
                         n++;
+                        idx++;
                     }
                 }
                 else

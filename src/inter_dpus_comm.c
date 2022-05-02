@@ -207,9 +207,11 @@ static void sync_group_caches(execution_context_t *econtext)
 }
 
 /**
- * @brief Callback invoked when a connection to a remote server DPU completes
+ * @brief Callback invoked when a connection to a remote server DPU completes.
+ * This is set on clients on DPUs that are used to connect to servers on other DPUs.
+ * In other words, client->connected_cb is set to this pointer.
  *
- * @param data
+ * @param data Generic pointer to pass callback data
  */
 void connected_to_server_dpu(void *data)
 {
@@ -255,8 +257,11 @@ dpu_offload_status_t connect_to_remote_dpu(remote_dpu_info_t *remote_dpu_info)
         remote_dpu_info->hostname,
         remote_dpu_info->init_params.conn_params->addr_str,
         remote_dpu_info->init_params.conn_params->port);
-    // Inter-DPU connection, no group/rank
-    remote_dpu_info->init_params.proc_info = &invalid_group_rank;
+    // Inter-DPU connection, no group, rank is the ID
+    rank_info_t dpu_info;
+    dpu_info.group_id = INVALID_GROUP;
+    dpu_info.group_rank = offload_engine->config->local_dpu.id;
+    remote_dpu_info->init_params.proc_info = &dpu_info;
     remote_dpu_info->init_params.connected_cb = connected_to_server_dpu;
     remote_dpu_info->init_params.scope_id = SCOPE_INTER_DPU;
     execution_context_t *client = client_init(offload_engine, &(remote_dpu_info->init_params));
@@ -287,6 +292,8 @@ connect_to_dpus(offloading_engine_t *offload_engine, dpu_inter_connect_info_t *i
 
 /**
  * @brief Callback invoked when a client DPU finalizes its connection to us.
+ * This is set on servers on DPUs that are used to let client DPUs connect.
+ * In other words, server->connected_cb is set to this pointer
  *
  * @param data DPU data
  */
@@ -296,22 +303,46 @@ void client_dpu_connected(void *data)
     remote_dpu_info_t **list_dpus;
     dpu_offload_status_t rc;
     dpu_offload_event_t *exchange_ev;
+    execution_context_t *econtext;
     bool can_exchange_cache = false;
+    uint64_t dpu_id;
+    size_t dpu_client_num;
+    peer_info_t *dpu_info;
 
     assert(data);
     connected_peer = (connected_peer_data_t *)data;
-    DBG("New client DPU (DPU #%" PRIu64 ") is now connected", connected_peer->peer_id);
+    econtext = connected_peer->econtext;
+    assert(econtext);
+    assert(econtext->type == CONTEXT_SERVER);
+    assert(econtext->engine);
+
+    // Lookup the DPU client data
+    list_dpus = LIST_DPUS_FROM_ENGINE(connected_peer->econtext->engine);
+    assert(list_dpus);
+    dpu_info = DYN_ARRAY_GET_ELT(&(econtext->server->connected_clients.clients),
+                                 connected_peer->peer_id,
+                                 peer_info_t);
+    assert(dpu_info);
+    DBG("New client DPU (addr: %s) is now connected", dpu_info->peer_addr_str);
+    // todo: find a way to avoid that look up
+    for (dpu_client_num = 0; dpu_client_num < econtext->engine->num_dpus; dpu_client_num++)
+    {
+        if (strncmp(list_dpus[dpu_client_num]->init_params.conn_params->addr_str, dpu_info->peer_addr_str, strlen(dpu_info->peer_addr_str)) == 0)
+        {
+            DBG("DPU #%" PRIu64 " is now fully connected", dpu_client_num);
+            dpu_id = dpu_client_num;
+            break;
+        }
+    }
+
+    assert(dpu_client_num != econtext->engine->num_dpus);
 
     // Set the default econtext if necessary, the function will figure out what to do
     set_default_econtext(connected_peer);
 
     // Update data in the list of DPUs
-    assert(connected_peer->econtext);
-    assert(connected_peer->econtext->engine);
-    list_dpus = LIST_DPUS_FROM_ENGINE(connected_peer->econtext->engine);
-    assert(list_dpus);
-    list_dpus[connected_peer->peer_id]->peer_addr = connected_peer->peer_addr;
-    list_dpus[connected_peer->peer_id]->econtext = connected_peer->econtext;
+    list_dpus[dpu_id]->peer_addr = connected_peer->peer_addr;
+    list_dpus[dpu_id]->econtext = connected_peer->econtext;
     ENGINE_LOCK(connected_peer->econtext->engine);
     if (connected_peer->econtext->engine->num_connected_dpus + 1 == connected_peer->econtext->engine->num_dpus)
         can_exchange_cache = true;
@@ -447,7 +478,8 @@ dpu_offload_status_t get_dpu_config(offloading_engine_t *offload_engine, offload
         config_data->num_dpus,
         config_data->info_connecting_to.num_connect_to,
         config_data->num_connecting_dpus);
-    DBG("My configuration: addr: %s, inter-dpu port: %d, host port: %d",
+    DBG("My configuration: id: %"PRIu64", addr: %s, inter-dpu port: %d, host port: %d",
+        config_data->local_dpu.id,
         config_data->local_dpu.interdpu_conn_params.addr_str,
         config_data->local_dpu.interdpu_conn_params.port,
         config_data->local_dpu.host_conn_params.port);
