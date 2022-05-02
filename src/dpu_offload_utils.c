@@ -444,6 +444,7 @@ dpu_offload_status_t get_dpu_ep_by_id(offloading_engine_t *engine, uint64_t id, 
     if (list_dpus != NULL && list_dpus[id] == NULL)
     {
         *dpu_ep = NULL;
+        *econtext_comm = NULL;
         DBG("Endpoint not available");
         // This is not an error, just that the data is not yet available.
         return DO_SUCCESS;

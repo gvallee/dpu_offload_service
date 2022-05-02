@@ -1327,17 +1327,23 @@ typedef struct pending_notification
     _e;                                                         \
 })
 
-#define GET_REMOTE_DPU_ECONTEXT(_engine, _idx) ({                    \
-    remote_dpu_info_t **_list_dpus = LIST_DPUS_FROM_ENGINE(_engine); \
-    execution_context_t *_e = NULL;                                  \
-    if (_idx <= (_engine)->num_connected_dpus)                       \
-    {                                                                \
-        if (_list_dpus[_idx]->econtext != NULL)                      \
-        {                                                            \
-            _e = _list_dpus[_idx]->econtext;                         \
-        }                                                            \
-    }                                                                \
-    _e;                                                              \
+#define GET_REMOTE_DPU_ECONTEXT(_engine, _idx) ({                                          \
+    remote_dpu_info_t **_list_dpus = LIST_DPUS_FROM_ENGINE(_engine);                       \
+    execution_context_t *_e = NULL;                                                        \
+    if (_idx <= (_engine)->num_connected_dpus)                                             \
+    {                                                                                      \
+        if (_list_dpus[_idx]->econtext == NULL && _idx == (_engine)->config->local_dpu.id) \
+        {                                                                                  \
+            /* self endpoint but no econtext associated (which make sense). */             \
+            /* Lazy assignment to default econtext. FIXME*/                                \
+            _list_dpus[_idx]->econtext = (_engine)->default_econtext;                      \
+        }                                                                                  \
+        if (_list_dpus[_idx]->econtext != NULL)                                            \
+        {                                                                                  \
+            _e = _list_dpus[_idx]->econtext;                                               \
+        }                                                                                  \
+    }                                                                                      \
+    _e;                                                                                    \
 })
 
 #define GET_REMOTE_DPU_EP(_engine, _idx) ({                                   \
