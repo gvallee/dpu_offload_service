@@ -443,12 +443,14 @@ dpu_offload_status_t get_dpu_ep_by_id(offloading_engine_t *engine, uint64_t id, 
     DBG("Looking up entry for DPU #%" PRIu64, id);
     if (list_dpus != NULL && list_dpus[id] == NULL)
     {
-        *dpu_ep = ep;
+        *dpu_ep = NULL;
+        DBG("Endpoint not available");
         // This is not an error, just that the data is not yet available.
         return DO_SUCCESS;
     }
     *dpu_ep = GET_REMOTE_DPU_EP(engine, id);
     *econtext_comm = GET_REMOTE_DPU_ECONTEXT(engine, id);
+    DBG("Details to communicate with DPU #%" PRIu64": econtext=%p ep=%p", id, *econtext_comm, *dpu_ep);
     return DO_SUCCESS;
 }
 

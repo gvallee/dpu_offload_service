@@ -1296,36 +1296,20 @@ static void execution_context_progress(execution_context_t *ctx)
                     if (ECONTEXT_ON_DPU(ctx) && ctx->scope_id == SCOPE_INTER_DPU)
                     {
                         /* Check if it is a DPU we are expecting to connect to us */
-                        DBG("Checking if the DPU connection is expected...");
-                        size_t dpu;
+                        size_t dpu = client_info->rank_data.group_rank;
                         remote_dpu_info_t **list_dpus = LIST_DPUS_FROM_ECONTEXT(ctx);
                         CHECK_ERR_GOTO((list_dpus == NULL), error_out, "unable to get list of DPUs");
+                        assert(dpu < ctx->engine->num_dpus);
                         assert(ctx->engine);
-                        for (dpu = 0; dpu < ctx->engine->num_dpus; dpu++)
-                        {
-                            if (SELF_DPU(ctx->engine, dpu))
-                                continue;
-
-                            CHECK_ERR_GOTO((list_dpus[dpu]->init_params.conn_params == NULL),
-                                           error_out,
-                                           "connection parameters of DPU #%ld is undefined", i);
-                            CHECK_ERR_GOTO((list_dpus[dpu]->init_params.conn_params->addr_str == NULL),
-                                           error_out,
-                                           "Address of DPU #%ld is undefined", dpu);
-                            DBG("Comparing address %s and %s", list_dpus[dpu]->init_params.conn_params->addr_str, client_info->peer_addr_str);
-                            if (strncmp(list_dpus[dpu]->init_params.conn_params->addr_str, client_info->peer_addr_str, strlen(client_info->peer_addr_str)) == 0)
-                            {
-                                // Set the endpoint to communicate with that remote DPU
-                                list_dpus[dpu]->ep = client_info->ep;
-                                // Set the pointer to the execution context in the list of know DPUs. Used for notifications with the remote DPU.
-                                list_dpus[dpu]->econtext = ctx;
-                                DBG("-> DPU #%ld: addr=%s, port=%d, ep=%p", dpu,
-                                    list_dpus[dpu]->init_params.conn_params->addr_str,
-                                    list_dpus[dpu]->init_params.conn_params->port,
-                                    list_dpus[dpu]->ep);
-                                break;
-                            }
-                        }
+                        // Set the endpoint to communicate with that remote DPU
+                        list_dpus[dpu]->ep = client_info->ep;
+                        // Set the pointer to the execution context in the list of know DPUs. Used for notifications with the remote DPU.
+                        list_dpus[dpu]->econtext = ctx;
+                        DBG("-> DPU #%ld: addr=%s, port=%d, ep=%p, econtext=%p", dpu,
+                            list_dpus[dpu]->init_params.conn_params->addr_str,
+                            list_dpus[dpu]->init_params.conn_params->port,
+                            list_dpus[dpu]->ep,
+                            ctx);
                     }
 
                     client_info->bootstrapping.phase = BOOTSTRAP_DONE;
