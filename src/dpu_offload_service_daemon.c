@@ -866,6 +866,11 @@ dpu_offload_status_t offload_engine_progress(offloading_engine_t *engine)
     ENGINE_LOCK(engine);
     bool on_dpu = engine->on_dpu;
     ENGINE_UNLOCK(engine);
+
+    // Progress self_econtext
+    assert(engine->self_econtext);
+    engine->self_econtext->progress(engine->self_econtext);
+
     if (on_dpu)
     {
         // Progress connections between DPUs when necessary
