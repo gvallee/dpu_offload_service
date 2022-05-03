@@ -85,8 +85,11 @@ typedef enum
     _ep;                                      \
 })
 
+/**
+ * @brief GET_CLIENT_EP returns the UCX endpoint based on a client's ID (warning, the ID is not equal to rank)
+ */
 #define GET_CLIENT_EP(_exec_ctx, _client_id) ({                                                 \
-    ucp_ep_h _ep;                                                                               \
+    ucp_ep_h _ep = NULL;                                                                        \
     if ((_exec_ctx)->type == CONTEXT_SERVER)                                                    \
     {                                                                                           \
         peer_info_t *_pi = DYN_ARRAY_GET_ELT(&((_exec_ctx)->server->connected_clients.clients), \
@@ -95,11 +98,36 @@ typedef enum
         assert(_pi);                                                                            \
         _ep = _pi->ep;                                                                          \
     }                                                                                           \
-    else                                                                                        \
-    {                                                                                           \
-        _ep = NULL;                                                                             \
-    }                                                                                           \
     _ep;                                                                                        \
+})
+
+#define GET_CLIENT_EP_BY_RANK(_exec_ctx, _gp_id, _rank) ({                                              \
+    ucp_ep_h _ep = NULL;                                                                                \
+    size_t _idx = 0;                                                                                    \
+    size_t _n = 0;                                                                                      \
+    if ((_exec_ctx)->type == CONTEXT_SERVER)                                                            \
+    {                                                                                                   \
+        while (_n < (_exec_ctx)->server->connected_clients.num_connected_clients)                       \
+        {                                                                                               \
+            peer_info_t *_p_info = DYN_ARRAY_GET_ELT(&((_exec_ctx)->server->connected_clients.clients), \
+                                                     _idx,                                              \
+                                                     peer_info_t);                                      \
+            if (_p_info == NULL)                                                                        \
+            {                                                                                           \
+                _idx++;                                                                                 \
+                continue;                                                                               \
+            }                                                                                           \
+            /* FIXME: support more than one group */                                                    \
+            if (_p_info->rank_data.group_id == _gp_id && _p_info->rank_data.group_rank == _rank)        \
+            {                                                                                           \
+                _ep = _p_info->ep;                                                                      \
+                break;                                                                                  \
+            }                                                                                           \
+            _n++;                                                                                       \
+            _idx++;                                                                                     \
+        }                                                                                               \
+    }                                                                                                   \
+    _ep;                                                                                                \
 })
 
 #define GET_WORKER(_exec_ctx) ({                       \
@@ -1435,7 +1463,7 @@ typedef struct remote_dpu_info
 
 /**
  * @brief Data structure used when parsing a configuration file.
- * 
+ *
  */
 typedef struct dpu_config_data
 {
@@ -1445,7 +1473,7 @@ typedef struct dpu_config_data
         {
             char *hostname;
             char *addr;
-            dyn_array_t host_ports; // Type: int
+            dyn_array_t host_ports;     // Type: int
             dyn_array_t interdpu_ports; // Type: int
         } version_1;
     };
@@ -1461,7 +1489,7 @@ typedef struct dpu_inter_connect_info
 /**
  * @brief offloading_config_t represents the configuration that will be used by the offloading infrastructure.
  * It reflects for instance the content of the configuration when a configuration file is used.
- * 
+ *
  */
 typedef struct offloading_config
 {
@@ -1476,7 +1504,7 @@ typedef struct offloading_config
 
     // Associated offloading engine.
     offloading_engine_t *offloading_engine;
-    
+
     // Specifies whether the local DPU has been found in the configuration
     bool dpu_found;
 
