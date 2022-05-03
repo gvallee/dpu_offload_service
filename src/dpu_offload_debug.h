@@ -7,9 +7,10 @@
 #ifndef _DPU_OFFLOAD_DEBUG_H
 #define _DPU_OFFLOAD_DEBUG_H
 
-#if !NDEBUG
 #include <sys/types.h>
 #include <unistd.h>
+
+#if !NDEBUG
 extern char *my_hostname;
 #define DBG(_dbg_fmt, ...)                                         \
     do                                                             \
@@ -34,28 +35,22 @@ extern char *my_hostname;
 #define ERR_MSG(_err_fmt, ...)                                                    \
     do                                                                            \
     {                                                                             \
-        if (my_hostname == NULL)                                                  \
-        {                                                                         \
-            my_hostname = malloc(1024);                                           \
-            my_hostname[1023] = '\0';                                             \
-            gethostname(my_hostname, 1023);                                       \
-        }                                                                         \
+        char myhostname[1024];                                                    \
+        myhostname[1023] = '\0';                                                  \
+        gethostname(myhostname, 1023);                                            \
         fprintf(stderr, "[%s:l.%d:%s:pid=%d] ERROR: %s() failed. " _err_fmt "\n", \
-                __FILE__, __LINE__, my_hostname, getpid(),                        \
+                __FILE__, __LINE__, myhostname, getpid(),                         \
                 __func__ __VA_OPT__(, ) __VA_ARGS__);                             \
     } while (0)
 
 #define WARN_MSG(_warn_fmt, ...)                                          \
     do                                                                    \
     {                                                                     \
-        if (my_hostname == NULL)                                          \
-        {                                                                 \
-            my_hostname = malloc(1024);                                   \
-            my_hostname[1023] = '\0';                                     \
-            gethostname(my_hostname, 1023);                               \
-        }                                                                 \
+        char myhostname[1024];                                            \
+        myhostname[1023] = '\0';                                          \
+        gethostname(myhostname, 1023);                                    \
         fprintf(stderr, "[%s:l.%d:%s():%s:pid=%d] WARN: " _warn_fmt "\n", \
-                __FILE__, __LINE__, __func__, my_hostname,                \
+                __FILE__, __LINE__, __func__, myhostname,                 \
                 getpid() __VA_OPT__(, ) __VA_ARGS__);                     \
     } while (0)
 
