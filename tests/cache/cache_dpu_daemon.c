@@ -73,6 +73,7 @@ static int send_test_successful_message(execution_context_t *econtext)
 }
 
 static bool endpoint_success = false;
+/* Called on DPU #0 */
 void cache_entry_cb(void *data)
 {
     assert(data);
@@ -104,7 +105,9 @@ void cache_entry_cb(void *data)
     fprintf(stderr, "-> lookup succeeded (l.%d)\n", __LINE__);
     dpu_offload_event_t *end_test_cb_ev;
     remote_dpu_info_t **list_dpus = LIST_DPUS_FROM_ENGINE(engine);
-    rc = event_get(engine->default_econtext->event_channels, NULL, &end_test_cb_ev);
+    execution_context_t *target_dpu_econtext = list_dpus[0]->econtext;
+    assert(target_dpu_econtext);
+    rc = event_get(target_dpu_econtext->event_channels, NULL, &end_test_cb_ev);
     if (rc)
     {
         fprintf(stderr, "l.%d: [ERROR] event_get() failed\n", __LINE__);
@@ -120,6 +123,15 @@ void cache_entry_cb(void *data)
     endpoint_success = true;
 }
 
+/**
+ * @brief Called on DPU #0.
+ * 
+ * @param offload_engine 
+ * @param gp_id 
+ * @param rank_id 
+ * @param expected_dpu_id 
+ * @return int 
+ */
 static int do_lookup_from_callback(offloading_engine_t *offload_engine, int64_t gp_id, int64_t rank_id, int64_t expected_dpu_id)
 {
     dpu_offload_status_t rc = get_cache_entry_by_group_rank(offload_engine, gp_id, rank_id, 0, cache_entry_cb);
@@ -222,6 +234,17 @@ static int end_test_cb(struct dpu_offload_ev_sys *ev_sys, execution_context_t *e
     cb_test_done = true;
 }
 
+/**
+ * @brief Callback invoked upon reception of the notification to start the test from a callback. Invoked on DPU #0.
+ * 
+ * @param ev_sys 
+ * @param econtext 
+ * @param hdr 
+ * @param hdr_len 
+ * @param data 
+ * @param data_len 
+ * @return int 
+ */
 static int test_cb(struct dpu_offload_ev_sys *ev_sys, execution_context_t *econtext, am_header_t *hdr, size_t hdr_len, void *data, size_t data_len)
 {
     // We received the init callback from the server, we look up the EP we are supposed
@@ -391,7 +414,9 @@ int main(int argc, char **argv)
         fprintf(stderr, "-> l.%d - Sending notification to initiate the test in a callback...\n", __LINE__);
         ADD_TO_CACHE(52, 42, offload_engine, config_data);
         dpu_offload_event_t *start_test_cb_ev;
-        rc = event_get(offload_engine->default_econtext->event_channels, NULL, &start_test_cb_ev);
+        execution_context_t *dpu0_econtext = list_dpus[0]->econtext;
+        assert(dpu0_econtext);
+        rc = event_get(dpu0_econtext->event_channels, NULL, &start_test_cb_ev);
         if (rc)
         {
             fprintf(stderr, "l.%d: [ERROR] event_get() failed\n", __LINE__);

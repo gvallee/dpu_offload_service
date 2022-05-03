@@ -24,6 +24,9 @@
 #include "dpu_offload_ops.h"
 #include "dpu_offload_comms.h"
 
+static dpu_offload_status_t execution_context_init(offloading_engine_t *offload_engine, uint64_t type, execution_context_t **econtext);
+static void execution_context_fini(execution_context_t **ctx);
+
 extern dpu_offload_status_t register_default_notifications(dpu_offload_ev_sys_t *);
 #if USE_AM_IMPLEM
 extern int am_send_event_msg(dpu_offload_event_t **event);
@@ -838,8 +841,6 @@ dpu_offload_status_t finalize_connection_to_remote_dpu(offloading_engine_t *offl
         list_dpus[remote_dpu_info->idx]->ep,
         list_dpus[remote_dpu_info->idx]->econtext);
 
-    if (offload_engine->default_econtext == NULL)
-        offload_engine->default_econtext = client;
     // Do not increment num_connected_dpus, it is already done in the callback invoked when the connection goes through
     DBG("we now have %ld connections with other DPUs", offload_engine->num_connected_dpus);
     ENGINE_UNLOCK(offload_engine);
@@ -863,13 +864,6 @@ dpu_offload_status_t offload_engine_progress(offloading_engine_t *engine)
 {
     // Progress the default UCX worker to eventually complete some communications
     ENGINE_LOCK(engine);
-    if (engine->default_econtext != NULL)
-    {
-        ECONTEXT_LOCK(engine->default_econtext);
-        ucp_worker_h worker = GET_WORKER(engine->default_econtext);
-        ECONTEXT_UNLOCK(engine->default_econtext);
-        ucp_worker_progress(worker);
-    }
     bool on_dpu = engine->on_dpu;
     ENGINE_UNLOCK(engine);
     if (on_dpu)
@@ -970,6 +964,22 @@ dpu_offload_status_t offload_engine_init(offloading_engine_t **engine)
     dpu_offload_status_t rc = ev_channels_init(&(d->default_notifications));
     CHECK_ERR_GOTO((rc), error_out, "ev_channels_init() failed");
 
+    /* INITIALIZE THE SELF EXECUTION CONTEXT */
+    execution_context_t *self_econtext = NULL;
+    DBG("initializing execution context...");
+    rc = execution_context_init(d, CONTEXT_SELF, &self_econtext);
+    CHECK_ERR_GOTO((rc), error_out, "execution_context_init() failed");
+    self_econtext->scope_id = SCOPE_SELF;
+    DBG("execution context created (econtext: %p, scope_id: %d)", self_econtext, self_econtext->scope_id);
+    d->self_econtext = self_econtext;
+    rc = event_channels_init(self_econtext);
+    CHECK_ERR_GOTO((rc), error_out, "event_channel_init() failed");
+    CHECK_ERR_GOTO((self_econtext->event_channels == NULL), error_out, "event channel handle is undefined");
+    DBG("event channel %p successfully initialized (econtext: %p, scope_id: %d)",
+        self_econtext->event_channels,
+        self_econtext,
+        self_econtext->scope_id);
+
     *engine = d;
     return DO_SUCCESS;
 error_out:
@@ -983,6 +993,8 @@ error_out:
         DYN_LIST_FREE(d->free_peer_cache_entries, peer_cache_entry_t, item);
     if (d->free_cache_entry_requests)
         DYN_LIST_FREE(d->free_cache_entry_requests, cache_entry_request_t, item);
+    if (d->self_econtext)
+        execution_context_fini(&d->self_econtext);
     *engine = NULL;
     return DO_ERROR;
 }

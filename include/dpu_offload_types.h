@@ -24,7 +24,8 @@ _EXTERN_C_BEGIN
 typedef enum
 {
     CONTEXT_CLIENT = 0,
-    CONTEXT_SERVER
+    CONTEXT_SERVER,
+    CONTEXT_SELF,
 } daemon_type_t;
 
 #define INIT_UCX() ({                                                      \
@@ -588,6 +589,7 @@ typedef enum
 {
     SCOPE_HOST_DPU = 0,
     SCOPE_INTER_DPU,
+    SCOPE_SELF,
 } execution_scope_t;
 
 typedef struct init_params
@@ -1168,9 +1170,8 @@ typedef struct offloading_engine
     size_t num_servers;
     execution_context_t **servers;
 
-    // On DPU to simply communications with other DPUs, we set a default execution context
-    // so we can always easily get events
-    execution_context_t *default_econtext;
+    // Execution context for communications and notifications to self
+    execution_context_t *self_econtext;
 
     // Engine's worker
     ucp_worker_h ucp_worker;
@@ -1231,7 +1232,7 @@ typedef struct offloading_engine
         (_engine)->num_max_servers = 0;              \
         (_engine)->num_servers = 0;                  \
         (_engine)->servers = NULL;                   \
-        (_engine)->default_econtext = NULL;          \
+        (_engine)->self_econtext = NULL;             \
         (_engine)->ucp_worker = NULL;                \
         (_engine)->ucp_context = NULL;               \
         (_engine)->self_ep = NULL;                   \
@@ -1362,9 +1363,7 @@ typedef struct pending_notification
     {                                                                                      \
         if (_list_dpus[_idx]->econtext == NULL && _idx == (_engine)->config->local_dpu.id) \
         {                                                                                  \
-            /* self endpoint but no econtext associated (which make sense). */             \
-            /* Lazy assignment to default econtext. FIXME*/                                \
-            _list_dpus[_idx]->econtext = (_engine)->default_econtext;                      \
+            _list_dpus[_idx]->econtext = (_engine)->self_econtext;                         \
         }                                                                                  \
         if (_list_dpus[_idx]->econtext != NULL)                                            \
         {                                                                                  \
