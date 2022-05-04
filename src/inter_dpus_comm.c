@@ -302,7 +302,6 @@ void client_dpu_connected(void *data)
     execution_context_t *econtext;
     bool can_exchange_cache = false;
     uint64_t dpu_id;
-    size_t dpu_client_num;
     peer_info_t *dpu_info;
 
     assert(data);
@@ -319,19 +318,9 @@ void client_dpu_connected(void *data)
                                  connected_peer->peer_id,
                                  peer_info_t);
     assert(dpu_info);
-    DBG("New client DPU (addr: %s) is now connected", dpu_info->peer_addr_str);
-    // todo: find a way to avoid that look up
-    for (dpu_client_num = 0; dpu_client_num < econtext->engine->num_dpus; dpu_client_num++)
-    {
-        if (strncmp(list_dpus[dpu_client_num]->init_params.conn_params->addr_str, dpu_info->peer_addr_str, strlen(dpu_info->peer_addr_str)) == 0)
-        {
-            DBG("DPU #%" PRIu64 " is now fully connected", dpu_client_num);
-            dpu_id = dpu_client_num;
-            break;
-        }
-    }
-
-    assert(dpu_client_num != econtext->engine->num_dpus);
+    DBG("DPU #%" PRIu64 " is now fully connected", connected_peer->peer_id);
+    dpu_id = connected_peer->peer_id;
+    assert(dpu_id < econtext->engine->num_dpus);
 
     // Set the default econtext if necessary, the function will figure out what to do
     set_default_econtext(connected_peer);
