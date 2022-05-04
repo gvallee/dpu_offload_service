@@ -152,10 +152,6 @@ static int set_default_econtext(connected_peer_data_t *connected_peer_data)
     assert(connected_peer_data->econtext);
     assert(connected_peer_data->econtext->engine);
     offloading_engine_t *engine = connected_peer_data->econtext->engine;
-    ENGINE_LOCK(engine);
-    if (connected_peer_data->econtext->engine->default_econtext == NULL)
-        connected_peer_data->econtext->engine->default_econtext = connected_peer_data->econtext;
-    ENGINE_UNLOCK(engine);
 }
 
 static void sync_group_caches(execution_context_t *econtext)

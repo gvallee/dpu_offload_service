@@ -24,6 +24,10 @@
 #include "dpu_offload_ops.h"
 #include "dpu_offload_comms.h"
 
+static dpu_offload_status_t execution_context_init(offloading_engine_t *offload_engine, uint64_t type, execution_context_t **econtext);
+static void execution_context_fini(execution_context_t **ctx);
+static void progress_self_event_recv(execution_context_t *econtext);
+
 extern dpu_offload_status_t register_default_notifications(dpu_offload_ev_sys_t *);
 #if USE_AM_IMPLEM
 extern int am_send_event_msg(dpu_offload_event_t **event);
@@ -512,6 +516,7 @@ static void send_cb(void *request, ucs_status_t status, void *user_data)
     do                                                                                                             \
     {                                                                                                              \
         ucp_worker_h _econtext_worker;                                                                             \
+        bool _worker_set = true;                                                                                   \
         if ((_init_params) == NULL || (_init_params)->worker == NULL)                                              \
         {                                                                                                          \
             if ((_econtext)->engine->ucp_context == NULL)                                                          \
@@ -524,6 +529,7 @@ static void send_cb(void *request, ucs_status_t status, void *user_data)
                                                          &(_econtext_worker));                                     \
                 CHECK_ERR_RETURN((_ret != 0), DO_ERROR, "init_context() failed");                                  \
                 SET_WORKER((_econtext), _econtext_worker);                                                         \
+                _worker_set = true;                                                                                \
                 DBG("context successfully initialized (worker=%p)", _econtext_worker);                             \
             }                                                                                                      \
         }                                                                                                          \
@@ -541,6 +547,12 @@ static void send_cb(void *request, ucs_status_t status, void *user_data)
                 (_econtext)->engine->ucp_context = (_init_params)->ucp_context;                                    \
             assert(GET_WORKER(_econtext) == NULL);                                                                 \
             SET_WORKER(_econtext, (_init_params)->worker);                                                         \
+            _worker_set = true;                                                                                    \
+        }                                                                                                          \
+        if (_worker_set == true)                                                                                   \
+        {                                                                                                          \
+            /* As soon as the worker is set, we can finish to initialize notifications to self */                  \
+            progress_self_event_recv((_econtext)->engine->self_econtext);                                          \
         }                                                                                                          \
     } while (0)
 
@@ -838,8 +850,6 @@ dpu_offload_status_t finalize_connection_to_remote_dpu(offloading_engine_t *offl
         list_dpus[remote_dpu_info->idx]->ep,
         list_dpus[remote_dpu_info->idx]->econtext);
 
-    if (offload_engine->default_econtext == NULL)
-        offload_engine->default_econtext = client;
     // Do not increment num_connected_dpus, it is already done in the callback invoked when the connection goes through
     DBG("we now have %ld connections with other DPUs", offload_engine->num_connected_dpus);
     ENGINE_UNLOCK(offload_engine);
@@ -861,17 +871,19 @@ static void progress_servers(offloading_engine_t *engine)
 
 dpu_offload_status_t offload_engine_progress(offloading_engine_t *engine)
 {
+    assert(engine);
+    assert(engine->ucp_worker);
+
     // Progress the default UCX worker to eventually complete some communications
     ENGINE_LOCK(engine);
-    if (engine->default_econtext != NULL)
-    {
-        ECONTEXT_LOCK(engine->default_econtext);
-        ucp_worker_h worker = GET_WORKER(engine->default_econtext);
-        ECONTEXT_UNLOCK(engine->default_econtext);
-        ucp_worker_progress(worker);
-    }
+    ucp_worker_progress(engine->ucp_worker);
     bool on_dpu = engine->on_dpu;
     ENGINE_UNLOCK(engine);
+
+    // Progress self_econtext
+    assert(engine->self_econtext);
+    engine->self_econtext->progress(engine->self_econtext);
+
     if (on_dpu)
     {
         // Progress connections between DPUs when necessary
@@ -970,6 +982,23 @@ dpu_offload_status_t offload_engine_init(offloading_engine_t **engine)
     dpu_offload_status_t rc = ev_channels_init(&(d->default_notifications));
     CHECK_ERR_GOTO((rc), error_out, "ev_channels_init() failed");
 
+    /* INITIALIZE THE SELF EXECUTION CONTEXT */
+    execution_context_t *self_econtext = NULL;
+    DBG("initializing execution context...");
+    rc = execution_context_init(d, CONTEXT_SELF, &self_econtext);
+    CHECK_ERR_GOTO((rc), error_out, "execution_context_init() failed");
+    self_econtext->scope_id = SCOPE_SELF;
+    DBG("execution context created (econtext: %p, scope_id: %d)", self_econtext, self_econtext->scope_id);
+    d->self_econtext = self_econtext;
+    rc = event_channels_init(self_econtext);
+    CHECK_ERR_GOTO((rc), error_out, "event_channel_init() failed");
+    CHECK_ERR_GOTO((self_econtext->event_channels == NULL), error_out, "event channel handle is undefined");
+    self_econtext->event_channels->econtext = self_econtext;
+    DBG("event channel %p successfully initialized (econtext: %p, scope_id: %d)",
+        self_econtext->event_channels,
+        self_econtext,
+        self_econtext->scope_id);
+
     *engine = d;
     return DO_SUCCESS;
 error_out:
@@ -983,91 +1012,136 @@ error_out:
         DYN_LIST_FREE(d->free_peer_cache_entries, peer_cache_entry_t, item);
     if (d->free_cache_entry_requests)
         DYN_LIST_FREE(d->free_cache_entry_requests, cache_entry_request_t, item);
+    if (d->self_econtext)
+        execution_context_fini(&d->self_econtext);
     *engine = NULL;
     return DO_ERROR;
 }
+
+static void progress_server_event_recv(execution_context_t *econtext)
+{
+    size_t n_client = 0;
+    size_t idx = 0;
+    ECONTEXT_LOCK(econtext);
+    while (n_client < econtext->server->connected_clients.num_connected_clients)
+    {
+        peer_info_t *client_info = DYN_ARRAY_GET_ELT(&(econtext->server->connected_clients.clients), idx, peer_info_t);
+        if (client_info == NULL || client_info->bootstrapping.phase != BOOTSTRAP_DONE)
+        {
+            idx++;
+            continue;
+        }
+
+        ucp_worker_h worker = GET_WORKER(econtext);
+        if (client_info->notif_recv.initialized == false)
+        {
+            // Note: tag and tag mask are calculated by the macro to match the client
+            // i.e., only messages from that client will be received.
+            DBG("Preparing reception of notification from client #%ld (econtext: %p, scope_id: %d)",
+                idx,
+                econtext,
+                econtext->scope_id);
+            PREP_NOTIF_RECV(client_info->notif_recv.ctx,
+                            client_info->notif_recv.hdr_recv_params,
+                            client_info->notif_recv.hdr_ucp_tag,
+                            client_info->notif_recv.hdr_ucp_tag_mask,
+                            worker,
+                            idx,
+                            econtext->scope_id);
+            client_info->notif_recv.initialized = true;
+        }
+        // The function will handle whether a new receive is required to be posted or not
+        ECONTEXT_UNLOCK(econtext);
+        post_new_notif_recv(worker,
+                            &(client_info->notif_recv.ctx),
+                            econtext,
+                            client_info->notif_recv.hdr_ucp_tag,
+                            client_info->notif_recv.hdr_ucp_tag_mask,
+                            &(client_info->notif_recv.hdr_recv_params));
+        ECONTEXT_LOCK(econtext);
+        idx++;
+        n_client++;
+    }
+    ECONTEXT_UNLOCK(econtext);
+}
+
+static void progress_client_event_recv(execution_context_t *econtext)
+{
+    ECONTEXT_LOCK(econtext);
+    ucp_worker_h worker = GET_WORKER(econtext);
+    if (econtext->event_channels->notif_recv.initialized == false)
+    {
+        // Note: tag and tag mask are calculated by the macro to match the client
+        // i.e., only messages from the sever will be received.
+        PREP_NOTIF_RECV(econtext->event_channels->notif_recv.ctx,
+                        econtext->event_channels->notif_recv.hdr_recv_params,
+                        econtext->event_channels->notif_recv.hdr_ucp_tag,
+                        econtext->event_channels->notif_recv.hdr_ucp_tag_mask,
+                        worker,
+                        econtext->client->server_id,
+                        econtext->scope_id);
+        econtext->event_channels->notif_recv.initialized = true;
+    }
+    ECONTEXT_UNLOCK(econtext);
+
+    // The function will handle whether a new receive is required to be posted or not
+    post_new_notif_recv(worker,
+                        &(econtext->event_channels->notif_recv.ctx),
+                        econtext,
+                        econtext->event_channels->notif_recv.hdr_ucp_tag,
+                        econtext->event_channels->notif_recv.hdr_ucp_tag_mask,
+                        &(econtext->event_channels->notif_recv.hdr_recv_params));
+}
+
+static void progress_self_event_recv(execution_context_t *econtext)
+{
+    ECONTEXT_LOCK(econtext);
+    ucp_worker_h worker = GET_WORKER(econtext);
+    if (econtext->event_channels->notif_recv.initialized == false)
+    {
+        // Note: tag and tag mask are calculated by the macro to match the client
+        // i.e., only messages from the sever will be received.
+        PREP_NOTIF_RECV(econtext->event_channels->notif_recv.ctx,
+                        econtext->event_channels->notif_recv.hdr_recv_params,
+                        econtext->event_channels->notif_recv.hdr_ucp_tag,
+                        econtext->event_channels->notif_recv.hdr_ucp_tag_mask,
+                        worker,
+                        0, // context ID is always 0 for self notifications (a.k.a. local notifications)
+                        econtext->scope_id);
+        econtext->event_channels->notif_recv.initialized = true;
+    }
+    ECONTEXT_UNLOCK(econtext);
+
+    // The function will handle whether a new receive is required to be posted or not
+    post_new_notif_recv(worker,
+                        &(econtext->event_channels->notif_recv.ctx),
+                        econtext,
+                        econtext->event_channels->notif_recv.hdr_ucp_tag,
+                        econtext->event_channels->notif_recv.hdr_ucp_tag_mask,
+                        &(econtext->event_channels->notif_recv.hdr_recv_params));
+}
+
 
 static void progress_event_recv(execution_context_t *econtext)
 {
 #if USE_AM_IMPLEM
     /* Nothing to do */
 #else
-    ECONTEXT_LOCK(econtext);
     // Progress the ongoing communications
-    if (econtext->type == CONTEXT_SERVER)
+    switch(econtext->type)
     {
-        // SERVER
-        size_t n_client = 0;
-        size_t idx = 0;
-        while (n_client < econtext->server->connected_clients.num_connected_clients)
-        {
-            peer_info_t *client_info = DYN_ARRAY_GET_ELT(&(econtext->server->connected_clients.clients), idx, peer_info_t);
-            if (client_info == NULL || client_info->bootstrapping.phase != BOOTSTRAP_DONE)
-            {
-                idx++;
-                continue;
-            }
-
-            ucp_worker_h worker = GET_WORKER(econtext);
-            if (client_info->notif_recv.initialized == false)
-            {
-                // Note: tag and tag mask are calculated by the macro to match the client
-                // i.e., only messages from that client will be received.
-                DBG("Preparing reception of notification from client #%ld (econtext: %p, scope_id: %d)",
-                    idx,
-                    econtext,
-                    econtext->scope_id);
-                PREP_NOTIF_RECV(client_info->notif_recv.ctx,
-                                client_info->notif_recv.hdr_recv_params,
-                                client_info->notif_recv.hdr_ucp_tag,
-                                client_info->notif_recv.hdr_ucp_tag_mask,
-                                worker,
-                                idx,
-                                econtext->scope_id);
-                client_info->notif_recv.initialized = true;
-            }
-            // The function will handle whether a new receive is required to be posted or not
-            ECONTEXT_UNLOCK(econtext);
-            post_new_notif_recv(worker,
-                                &(client_info->notif_recv.ctx),
-                                econtext,
-                                client_info->notif_recv.hdr_ucp_tag,
-                                client_info->notif_recv.hdr_ucp_tag_mask,
-                                &(client_info->notif_recv.hdr_recv_params));
-            ECONTEXT_LOCK(econtext);
-            idx++;
-            n_client++;
-        }
+        case CONTEXT_SERVER:
+            progress_server_event_recv(econtext);
+            break;
+        case CONTEXT_CLIENT:
+            progress_client_event_recv(econtext);
+            break;
+        case CONTEXT_SELF:
+            progress_self_event_recv(econtext);
+            break;
+        default:
+            ERR_MSG("invalid execution context type (%d)", econtext->type);
     }
-    else
-    {
-        // CLIENT
-        ucp_worker_h worker = GET_WORKER(econtext);
-        if (econtext->event_channels->notif_recv.initialized == false)
-        {
-            // Note: tag and tag mask are calculated by the macro to match the client
-            // i.e., only messages from the sever will be received.
-            PREP_NOTIF_RECV(econtext->event_channels->notif_recv.ctx,
-                            econtext->event_channels->notif_recv.hdr_recv_params,
-                            econtext->event_channels->notif_recv.hdr_ucp_tag,
-                            econtext->event_channels->notif_recv.hdr_ucp_tag_mask,
-                            worker,
-                            econtext->client->server_id,
-                            econtext->scope_id);
-            econtext->event_channels->notif_recv.initialized = true;
-        }
-
-        // The function will handle whether a new receive is required to be posted or not
-        ECONTEXT_UNLOCK(econtext);
-        post_new_notif_recv(worker,
-                            &(econtext->event_channels->notif_recv.ctx),
-                            econtext,
-                            econtext->event_channels->notif_recv.hdr_ucp_tag,
-                            econtext->event_channels->notif_recv.hdr_ucp_tag_mask,
-                            &(econtext->event_channels->notif_recv.hdr_recv_params));
-        ECONTEXT_LOCK(econtext);
-    }
-    ECONTEXT_UNLOCK(econtext);
 #endif
 }
 
@@ -1138,7 +1212,7 @@ void local_rank_connect_default_callback(void *data)
     assert(gc);
 
     DBG("Checking group %" PRId64 " (number of local entries: %ld)", group_id, gc->num_local_entries);
-    
+
     // If the cache is full, i.e., all the ranks of the group are on the host, send it back to all ranks
     if (gc->group_size == gc->num_local_entries)
     {
@@ -1153,17 +1227,9 @@ error_out:
     return;
 }
 
-static void execution_context_progress(execution_context_t *ctx)
+static void progress_server_econtext(execution_context_t *ctx)
 {
-    assert(ctx);
-
-    // Progress the UCX worker to eventually complete some communications
-    ECONTEXT_LOCK(ctx);
-    ucp_worker_h worker = GET_WORKER(ctx);
-    ECONTEXT_UNLOCK(ctx);
-    ucp_worker_progress(worker);
-
-    if (ctx->type == CONTEXT_SERVER && ctx->server->connected_clients.num_ongoing_connections > 0)
+    if (ctx->server->connected_clients.num_ongoing_connections > 0)
     {
         size_t i = 0; // Number of ongoing connections we already handled
         size_t idx = 0;
@@ -1179,7 +1245,11 @@ static void execution_context_progress(execution_context_t *ctx)
                 {
                     DBG("UCX level bootstrap - client #%" PRIu64 ", step 1 - Getting address size", idx);
                     rc = oob_server_ucx_client_connection_step1(ctx, client_info);
-                    CHECK_ERR_GOTO((rc), error_out, "oob_server_ucx_client_connection_step1() failed");
+                    if (rc)
+                    {
+                        ERR_MSG("oob_server_ucx_client_connection_step1() failed");
+                        return;
+                    }
                 }
 
                 if (client_info->bootstrapping.addr_size_ctx.complete == true && client_info->bootstrapping.addr_size_request != NULL)
@@ -1193,7 +1263,11 @@ static void execution_context_progress(execution_context_t *ctx)
                 {
                     DBG("UCX level bootstrap - client #%" PRIu64 ", step 2 - Getting address", idx);
                     rc = oob_server_ucx_client_connection_step2(ctx, client_info);
-                    CHECK_ERR_GOTO((rc), error_out, "oob_server_ucx_client_connection_step2() failed");
+                    if (rc)
+                    {
+                        ERR_MSG("oob_server_ucx_client_connection_step2() failed");
+                        return;
+                    }
                 }
 
                 if (client_info->bootstrapping.addr_ctx.complete == true && client_info->bootstrapping.addr_request != NULL)
@@ -1207,7 +1281,11 @@ static void execution_context_progress(execution_context_t *ctx)
                 {
                     DBG("UCX level bootstrap - client #%" PRIu64 ", step 3 - Getting rank info", idx);
                     rc = oob_server_ucx_client_connection_step3(ctx, client_info);
-                    CHECK_ERR_GOTO((rc), error_out, "oob_server_ucx_client_connection_step3() failed");
+                    if (rc)
+                    {
+                        ERR_MSG("oob_server_ucx_client_connection_step3() failed");
+                        return;
+                    }
                 }
 
                 if (client_info->bootstrapping.rank_ctx.complete == true)
@@ -1240,7 +1318,11 @@ static void execution_context_progress(execution_context_t *ctx)
                                                                                      client_info->rank_data.group_size,
                                                                                      client_info->rank_data.n_local_ranks);
                         group_cache_t *gp_cache = GET_GROUP_CACHE(&(ctx->engine->procs_cache), client_info->rank_data.group_id);
-                        CHECK_ERR_GOTO((cache_entry == NULL), error_out, "undefined cache entry");
+                        if (cache_entry == NULL){
+                            ERR_MSG("undefined cache entry");
+                            ECONTEXT_UNLOCK(ctx);
+                            return;
+                        }
                         if (gp_cache->n_local_ranks <= 0 && client_info->rank_data.n_local_ranks >= 0)
                         {
                             DBG("Setting the number of local ranks for the group %" PRId64 " (%" PRId64 ")",
@@ -1298,7 +1380,12 @@ static void execution_context_progress(execution_context_t *ctx)
                         /* Check if it is a DPU we are expecting to connect to us */
                         size_t dpu = client_info->rank_data.group_rank;
                         remote_dpu_info_t **list_dpus = LIST_DPUS_FROM_ECONTEXT(ctx);
-                        CHECK_ERR_GOTO((list_dpus == NULL), error_out, "unable to get list of DPUs");
+                        if (list_dpus == NULL)
+                        {
+                            ERR_MSG("unable to get list of DPUs");
+                            ECONTEXT_UNLOCK(ctx);
+                            return;
+                        }
                         assert(dpu < ctx->engine->num_dpus);
                         assert(ctx->engine);
                         // Set the endpoint to communicate with that remote DPU
@@ -1338,74 +1425,107 @@ static void execution_context_progress(execution_context_t *ctx)
             idx++;
         }
     }
-    else
+}
+
+static void progress_client_econtext(execution_context_t *ctx)
+{
+    if (ctx->client->bootstrapping.phase == OOB_CONNECT_DONE)
     {
-        // CLIENT
-        if (ctx->client->bootstrapping.phase == OOB_CONNECT_DONE)
+        dpu_offload_status_t rc;
+        // Need now to progress UCX bootstrapping
+        if (ctx->client->bootstrapping.addr_size_ctx.complete == false && ctx->client->bootstrapping.addr_size_request == NULL)
         {
-            dpu_offload_status_t rc;
-            // Need now to progress UCX bootstrapping
-            if (ctx->client->bootstrapping.addr_size_ctx.complete == false && ctx->client->bootstrapping.addr_size_request == NULL)
+            DBG("UCX level bootstrap - step 1");
+            rc = client_ucx_bootstrap_step1(ctx);
+            if (rc)
             {
-                DBG("UCX level bootstrap - step 1");
-                rc = client_ucx_bootstrap_step1(ctx);
-                CHECK_ERR_GOTO((rc), error_out, "client_ucx_bootstrap_step1() failed");
-            }
-
-            if (ctx->client->bootstrapping.addr_size_ctx.complete == true && ctx->client->bootstrapping.addr_size_request != NULL)
-            {
-                // The send did not complete right away but now is, some clean up to do
-                ucp_request_free(ctx->client->bootstrapping.addr_size_request);
-                ctx->client->bootstrapping.addr_size_request = NULL;
-            }
-
-            if (ctx->client->bootstrapping.addr_size_ctx.complete == true && ctx->client->bootstrapping.addr_ctx.complete == false && ctx->client->bootstrapping.addr_request == NULL)
-            {
-                DBG("UCX level boostrap - step 2");
-                rc = client_ucx_bootstrap_step2(ctx);
-                CHECK_ERR_GOTO((rc), error_out, "client_ucx_boostrap_step2() failed");
-            }
-
-            if (ctx->client->bootstrapping.addr_ctx.complete == true && ctx->client->bootstrapping.addr_request != NULL)
-            {
-                // The send did not complete right away but now is, some clean up to do
-                ucp_request_free(ctx->client->bootstrapping.addr_request);
-                ctx->client->bootstrapping.addr_request = NULL;
-            }
-
-            if (ctx->client->bootstrapping.addr_ctx.complete == true && ctx->client->bootstrapping.rank_ctx.complete == false && ctx->client->bootstrapping.rank_request == NULL)
-            {
-                DBG("UCX level boostrap - step 3");
-                rc = client_ucx_boostrap_step3(ctx);
-                CHECK_ERR_GOTO((rc), error_out, "client_ucx_boostrap_step3() failed");
-            }
-
-            if (ctx->client->bootstrapping.rank_ctx.complete == true && ctx->client->bootstrapping.rank_request != NULL)
-            {
-                // The send did not complete right away but now is, some clean up to do
-                ucp_request_free(ctx->client->bootstrapping.rank_request);
-                ctx->client->bootstrapping.rank_request = NULL;
-                ctx->client->bootstrapping.phase = UCX_CONNECT_DONE;
-            }
-
-            if (ctx->client->bootstrapping.addr_size_ctx.complete == true &&
-                ctx->client->bootstrapping.addr_ctx.complete == true &&
-                ctx->client->bootstrapping.rank_ctx.complete == true &&
-                ctx->client->bootstrapping.addr_size_request == NULL &&
-                ctx->client->bootstrapping.addr_request == NULL &&
-                ctx->client->bootstrapping.rank_request == NULL)
-            {
-                ctx->client->bootstrapping.phase = BOOTSTRAP_DONE;
-                if (ctx->client->connected_cb != NULL)
-                {
-                    DBG("Successfully connected, invoking connected callback");
-                    connected_peer_data_t cb_data;
-                    cb_data.peer_addr = ctx->client->conn_params.addr_str;
-                    cb_data.econtext = ctx;
-                    ctx->client->connected_cb(&cb_data);
-                }
+                ERR_MSG("client_ucx_bootstrap_step1() failed");
+                return;
             }
         }
+
+        if (ctx->client->bootstrapping.addr_size_ctx.complete == true && ctx->client->bootstrapping.addr_size_request != NULL)
+        {
+            // The send did not complete right away but now is, some clean up to do
+            ucp_request_free(ctx->client->bootstrapping.addr_size_request);
+            ctx->client->bootstrapping.addr_size_request = NULL;
+        }
+
+        if (ctx->client->bootstrapping.addr_size_ctx.complete == true && ctx->client->bootstrapping.addr_ctx.complete == false && ctx->client->bootstrapping.addr_request == NULL)
+        {
+            DBG("UCX level boostrap - step 2");
+            rc = client_ucx_bootstrap_step2(ctx);
+            if (rc)
+            {
+                ERR_MSG("client_ucx_boostrap_step2() failed");
+                return;
+            }
+        }
+
+        if (ctx->client->bootstrapping.addr_ctx.complete == true && ctx->client->bootstrapping.addr_request != NULL)
+        {
+            // The send did not complete right away but now is, some clean up to do
+            ucp_request_free(ctx->client->bootstrapping.addr_request);
+            ctx->client->bootstrapping.addr_request = NULL;
+        }
+
+        if (ctx->client->bootstrapping.addr_ctx.complete == true && ctx->client->bootstrapping.rank_ctx.complete == false && ctx->client->bootstrapping.rank_request == NULL)
+        {
+            DBG("UCX level boostrap - step 3");
+            rc = client_ucx_boostrap_step3(ctx);
+            if (rc)
+            {
+                ERR_MSG("client_ucx_boostrap_step3() failed");
+                return;
+            }
+        }
+
+        if (ctx->client->bootstrapping.rank_ctx.complete == true && ctx->client->bootstrapping.rank_request != NULL)
+        {
+            // The send did not complete right away but now is, some clean up to do
+            ucp_request_free(ctx->client->bootstrapping.rank_request);
+            ctx->client->bootstrapping.rank_request = NULL;
+            ctx->client->bootstrapping.phase = UCX_CONNECT_DONE;
+        }
+
+        if (ctx->client->bootstrapping.addr_size_ctx.complete == true &&
+            ctx->client->bootstrapping.addr_ctx.complete == true &&
+            ctx->client->bootstrapping.rank_ctx.complete == true &&
+            ctx->client->bootstrapping.addr_size_request == NULL &&
+            ctx->client->bootstrapping.addr_request == NULL &&
+            ctx->client->bootstrapping.rank_request == NULL)
+        {
+            ctx->client->bootstrapping.phase = BOOTSTRAP_DONE;
+            if (ctx->client->connected_cb != NULL)
+            {
+                DBG("Successfully connected, invoking connected callback");
+                connected_peer_data_t cb_data;
+                cb_data.peer_addr = ctx->client->conn_params.addr_str;
+                cb_data.econtext = ctx;
+                ctx->client->connected_cb(&cb_data);
+            }
+        }
+    }
+}
+
+static void execution_context_progress(execution_context_t *ctx)
+{
+    assert(ctx);
+
+    // Progress the UCX worker to eventually complete some communications
+    ECONTEXT_LOCK(ctx);
+    ucp_worker_h worker = GET_WORKER(ctx);
+    ECONTEXT_UNLOCK(ctx);
+    ucp_worker_progress(worker);
+
+    switch (ctx->type)
+    {
+    case CONTEXT_SERVER:
+        progress_server_econtext(ctx);
+        break;
+    case CONTEXT_CLIENT:
+        progress_client_econtext(ctx);
+        break;
     }
 
     // Progress reception of events
@@ -1445,7 +1565,10 @@ static void execution_context_progress(execution_context_t *ctx)
 
     // Progress all active operations
     dpu_offload_status_t rc = progress_active_ops(ctx);
-error_out:
+    if (rc)
+    {
+        ERR_MSG("progress_active_ops() failed");
+    }
     ECONTEXT_UNLOCK(ctx);
     return;
 }

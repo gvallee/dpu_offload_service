@@ -68,7 +68,6 @@
                 goto error_out;                                                          \
             }                                                                            \
         }                                                                                \
-                                                                                         \
     } while (0)
 
 #endif // _TEST_CACHE_COMMON_H_

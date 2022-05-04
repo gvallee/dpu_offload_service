@@ -324,8 +324,7 @@ static dpu_offload_status_t do_get_cache_entry_by_group_rank(offloading_engine_t
     // Create the local event so we can know when the cache entry has been received
     dpu_offload_event_t *cache_entry_updated_ev;
     peer_cache_entry_t *cache_entry = GET_GROUP_RANK_CACHE_ENTRY(&(engine->procs_cache), gp_id, rank, GROUP_SIZE_UNKNOWN);
-    assert(engine->default_econtext);
-    dpu_offload_status_t rc = event_get(engine->default_econtext->event_channels, NULL, &cache_entry_updated_ev);
+    dpu_offload_status_t rc = event_get(engine->self_econtext->event_channels, NULL, &cache_entry_updated_ev);
     CHECK_ERR_RETURN((rc), DO_ERROR, "event_get() failed");
     if (!cache_entry->events_initialized)
     {
@@ -357,7 +356,7 @@ static dpu_offload_status_t do_get_cache_entry_by_group_rank(offloading_engine_t
         request_data->offload_engine = engine;
         cache_entry_updated_ev->ctx.completion_cb = cb;
         cache_entry_updated_ev->ctx.completion_cb_ctx = (void *)request_data;
-        ucs_list_add_tail(&(engine->default_econtext->ongoing_events), &(cache_entry_updated_ev->item));
+        ucs_list_add_tail(&(engine->self_econtext->ongoing_events), &(cache_entry_updated_ev->item));
     }
 
     if (engine->on_dpu == true)

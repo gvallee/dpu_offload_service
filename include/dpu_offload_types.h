@@ -24,7 +24,8 @@ _EXTERN_C_BEGIN
 typedef enum
 {
     CONTEXT_CLIENT = 0,
-    CONTEXT_SERVER
+    CONTEXT_SERVER,
+    CONTEXT_SELF,
 } daemon_type_t;
 
 #define INIT_UCX() ({                                                      \
@@ -59,17 +60,21 @@ typedef enum
     _ret;                                                                                                          \
 })
 
-#define ECONTEXT_ID(_exec_ctx) ({            \
-    uint64_t _my_id;                         \
-    if ((_exec_ctx)->type == CONTEXT_CLIENT) \
-    {                                        \
-        _my_id = (_exec_ctx)->client->id;    \
-    }                                        \
-    else                                     \
-    {                                        \
-        _my_id = (_exec_ctx)->server->id;    \
-    }                                        \
-    _my_id;                                  \
+#define ECONTEXT_ID(_exec_ctx) ({         \
+    uint64_t _my_id;                      \
+    switch ((_exec_ctx)->type)            \
+    {                                     \
+    case CONTEXT_CLIENT:                  \
+        _my_id = (_exec_ctx)->client->id; \
+        break;                            \
+    case CONTEXT_SERVER:                  \
+        _my_id = (_exec_ctx)->server->id; \
+        break;                            \
+    default:                              \
+        /* including self */              \
+        _my_id = 0;                       \
+    }                                     \
+    _my_id;                               \
 })
 
 #define GET_SERVER_EP(_exec_ctx) ({           \
@@ -142,14 +147,18 @@ typedef enum
     } while (0)
 
 #define EV_SYS(_exec_ctx) ({                        \
-    dpu_offload_ev_sys_t *_sys;                     \
-    if ((_exec_ctx)->type == CONTEXT_CLIENT)        \
+    dpu_offload_ev_sys_t *_sys = NULL;              \
+    switch ((_exec_ctx)->type)                      \
     {                                               \
+    case CONTEXT_CLIENT:                            \
         _sys = (_exec_ctx)->client->event_channels; \
-    }                                               \
-    else                                            \
-    {                                               \
+        break;                                      \
+    case CONTEXT_SERVER:                            \
         _sys = (_exec_ctx)->server->event_channels; \
+        break;                                      \
+    case CONTEXT_SELF:                              \
+        _sys = (_exec_ctx)->event_channels;         \
+        break;                                      \
     }                                               \
     _sys;                                           \
 })
@@ -588,6 +597,7 @@ typedef enum
 {
     SCOPE_HOST_DPU = 0,
     SCOPE_INTER_DPU,
+    SCOPE_SELF,
 } execution_scope_t;
 
 typedef struct init_params
@@ -685,20 +695,30 @@ typedef struct init_params
     do                                             \
     {                                              \
         pthread_mutex_lock(&((_econtext)->mutex)); \
-        if ((_econtext)->type == CONTEXT_CLIENT)   \
-            CLIENT_LOCK((_econtext)->client);      \
-        else                                       \
-            SERVER_LOCK((_econtext)->server);      \
+        switch((_econtext)->type)                  \
+        {                                          \
+            case CONTEXT_CLIENT:                   \
+                CLIENT_LOCK((_econtext)->client);  \
+                break;                             \
+            case CONTEXT_SERVER:                   \
+                SERVER_LOCK((_econtext)->server);  \
+                break;                             \
+        }                                          \
     } while (0)
 
 #define ECONTEXT_UNLOCK(_econtext)                   \
     do                                               \
     {                                                \
         pthread_mutex_unlock(&((_econtext)->mutex)); \
-        if ((_econtext)->type == CONTEXT_CLIENT)     \
-            CLIENT_UNLOCK((_econtext)->client);      \
-        else                                         \
-            SERVER_UNLOCK((_econtext)->server);      \
+        switch((_econtext)->type)                    \
+        {                                            \
+            case CONTEXT_CLIENT:                     \
+                CLIENT_UNLOCK((_econtext)->client);  \
+                break;                               \
+            case CONTEXT_SERVER:                     \
+                SERVER_UNLOCK((_econtext)->server);  \
+                break;                               \
+        }                                            \
     } while (0)
 
 #define ADD_CLIENT_TO_ENGINE(_client, _engine) \
@@ -1168,9 +1188,8 @@ typedef struct offloading_engine
     size_t num_servers;
     execution_context_t **servers;
 
-    // On DPU to simply communications with other DPUs, we set a default execution context
-    // so we can always easily get events
-    execution_context_t *default_econtext;
+    // Execution context for communications and notifications to self
+    execution_context_t *self_econtext;
 
     // Engine's worker
     ucp_worker_h ucp_worker;
@@ -1231,7 +1250,7 @@ typedef struct offloading_engine
         (_engine)->num_max_servers = 0;              \
         (_engine)->num_servers = 0;                  \
         (_engine)->servers = NULL;                   \
-        (_engine)->default_econtext = NULL;          \
+        (_engine)->self_econtext = NULL;             \
         (_engine)->ucp_worker = NULL;                \
         (_engine)->ucp_context = NULL;               \
         (_engine)->self_ep = NULL;                   \
@@ -1362,9 +1381,7 @@ typedef struct pending_notification
     {                                                                                      \
         if (_list_dpus[_idx]->econtext == NULL && _idx == (_engine)->config->local_dpu.id) \
         {                                                                                  \
-            /* self endpoint but no econtext associated (which make sense). */             \
-            /* Lazy assignment to default econtext. FIXME*/                                \
-            _list_dpus[_idx]->econtext = (_engine)->default_econtext;                      \
+            _list_dpus[_idx]->econtext = (_engine)->self_econtext;                         \
         }                                                                                  \
         if (_list_dpus[_idx]->econtext != NULL)                                            \
         {                                                                                  \

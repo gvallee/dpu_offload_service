@@ -51,6 +51,7 @@ tests/cache/cache_job_client
 tests/cache/cache_dpu_daemon
 tests/dyn_structs/dyn_structs_test
 tests/config/config_file
+tests/comms/self_comm
 
 # Debug files
 *.dSYM/
