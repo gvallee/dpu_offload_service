@@ -430,6 +430,8 @@ int event_channel_emit_with_payload(dpu_offload_event_t **event, uint64_t my_id,
     assert(event);
     assert(dest_ep);
     assert((*event));
+    // This function can only be used when the user is managing the payload
+    assert((*event)->manage_payload_buf == false);
     DBG("Sending notification of type %" PRIu64 " (my_id=%" PRIu64 ")", type, my_id);
     (*event)->ctx.complete = 0;
     (*event)->ctx.hdr.type = type;
