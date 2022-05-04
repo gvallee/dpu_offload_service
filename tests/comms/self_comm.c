@@ -96,6 +96,7 @@ int main(int argc, char **argv)
         fprintf(stderr, "[ERROR] get_config() failed\n");
         return EXIT_FAILURE;
     }
+    engine->config = &config_data;
 
     /*
      * INITIATE CONNECTION BETWEEN DPUS.
@@ -228,6 +229,7 @@ int main(int argc, char **argv)
     while (self_notif_received == false)
         offload_engine_progress(engine);
 
+    offload_engine_fini(&engine);
 
     fprintf(stdout, "Test succeeded\n");
 

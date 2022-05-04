@@ -1513,9 +1513,7 @@ static void execution_context_progress(execution_context_t *ctx)
     assert(ctx);
 
     // Progress the UCX worker to eventually complete some communications
-    ECONTEXT_LOCK(ctx);
     ucp_worker_h worker = GET_WORKER(ctx);
-    ECONTEXT_UNLOCK(ctx);
     ucp_worker_progress(worker);
 
     switch (ctx->type)
@@ -2114,7 +2112,7 @@ dpu_offload_status_t server_init_context(execution_context_t *econtext, init_par
         DBG("server initialized with OOB backend");
         econtext->server->conn_data.oob.tag = OOB_DEFAULT_TAG;
         econtext->server->conn_data.oob.tag_mask = UINT64_MAX;
-        econtext->server->conn_data.oob.addr_msg_str = strdup(UCX_ADDR_MSG);
+        econtext->server->conn_data.oob.addr_msg_str = strdup(UCX_ADDR_MSG); // fixme: correctly free
         econtext->server->conn_data.oob.peer_addr = NULL;
         econtext->server->conn_data.oob.local_addr = NULL;
         econtext->server->conn_data.oob.local_addr_len = 0;

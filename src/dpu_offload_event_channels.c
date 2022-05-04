@@ -386,8 +386,9 @@ int tag_send_event_msg(dpu_offload_event_t **event)
 
     /* 1. Send the hdr */
     ucp_tag_t hdr_ucp_tag = MAKE_SEND_TAG(AM_EVENT_MSG_HDR_ID, myid, 0, (*event)->scope_id, 0);
-    struct ucx_context *hdr_request = NULL;
     assert((*event)->dest_ep);
+    (*event)->hdr_request = NULL;
+    (*event)->payload_request = NULL;
     (*event)->hdr_request = ucp_tag_send_nbx((*event)->dest_ep, &((*event)->ctx.hdr), sizeof(am_header_t), hdr_ucp_tag, &send_param);
     if (UCS_PTR_IS_ERR((*event)->hdr_request))
     {
@@ -402,13 +403,15 @@ int tag_send_event_msg(dpu_offload_event_t **event)
     {
         ucp_tag_t payload_ucp_tag = MAKE_SEND_TAG(AM_EVENT_MSG_ID, myid, 0, (*event)->scope_id, 0);
         struct ucx_context *payload_request = NULL;
-        (*event)->payload_request = ucp_tag_send_nbx((*event)->dest_ep, (*event)->payload, (*event)->ctx.hdr.payload_size, payload_ucp_tag, &send_param);
-        if (UCS_PTR_IS_ERR((*event)->payload_request))
+        payload_request = ucp_tag_send_nbx((*event)->dest_ep, (*event)->payload, (*event)->ctx.hdr.payload_size, payload_ucp_tag, &send_param);
+        if (UCS_PTR_IS_ERR(payload_request))
         {
-            ucs_status_t send_status = UCS_PTR_STATUS((*event)->payload_request);
+            ucs_status_t send_status = UCS_PTR_STATUS(payload_request);
             ERR_MSG("ucp_tag_send_nbx() failed: %s", ucs_status_string(send_status));
             return send_status;
         }
+        if (payload_request != NULL)
+            (*event)->payload_request = payload_request;
         DBG("event %p send posted (payload) - scope_id: %d", (*event), (*event)->scope_id);
     }
 
