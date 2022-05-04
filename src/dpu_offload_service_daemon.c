@@ -1106,7 +1106,7 @@ static void progress_self_event_recv(execution_context_t *econtext)
                         econtext->event_channels->notif_recv.hdr_ucp_tag,
                         econtext->event_channels->notif_recv.hdr_ucp_tag_mask,
                         worker,
-                        0, // context ID is always 0 for self notifications (a.k.a. local notifications)
+                        0UL, // context ID is always 0 for self notifications (a.k.a. local notifications)
                         econtext->scope_id);
         econtext->event_channels->notif_recv.initialized = true;
     }

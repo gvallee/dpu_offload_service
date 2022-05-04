@@ -103,7 +103,7 @@ int main(int argc, char **argv)
     int recv_msg;
     int msg_tag = 42;
     ucp_tag_t msg_tag_mask = (ucp_tag_t)-1;
-    fprintf(stdout, "[INFO] self EP: %p\n");
+    fprintf(stdout, "[INFO] self EP: %p\n", engine->self_ep);
 
     fprintf(stdout, "Posting a nb recv from myself...\n");
     struct ucx_context *recv_req = ucp_tag_recv_nb(engine->ucp_worker, &recv_msg, sizeof(recv_msg), ucp_dt_make_contig(1), msg_tag, msg_tag_mask, recv_cb);
