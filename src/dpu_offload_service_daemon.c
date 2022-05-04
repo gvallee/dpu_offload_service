@@ -871,8 +871,12 @@ static void progress_servers(offloading_engine_t *engine)
 
 dpu_offload_status_t offload_engine_progress(offloading_engine_t *engine)
 {
+    assert(engine);
+    assert(engine->ucp_worker);
+
     // Progress the default UCX worker to eventually complete some communications
     ENGINE_LOCK(engine);
+    ucp_worker_progress(engine->ucp_worker);
     bool on_dpu = engine->on_dpu;
     ENGINE_UNLOCK(engine);
 
