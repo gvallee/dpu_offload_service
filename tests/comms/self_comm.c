@@ -16,7 +16,7 @@
 
 #define MY_TEST_NOTIF_ID (1000)
 #define MY_TEST_MANY_NOTIFS_ID (1001)
-#define NUM_NOTIFS (1)
+#define NUM_NOTIFS (1000)
 
 static bool self_notif_received = false;
 static int self_notification_cb(struct dpu_offload_ev_sys *ev_sys, execution_context_t *econtext, am_header_t *hdr, size_t hdr_len, void *data, size_t data_len)
