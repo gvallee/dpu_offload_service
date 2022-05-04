@@ -14,6 +14,14 @@
 
 #include "dpu_offload_service_daemon.h"
 
+#define MY_TEST_NOTIF_ID (1000)
+
+static bool self_notif_received = false;
+static int self_notification_cb(struct dpu_offload_ev_sys *ev_sys, execution_context_t *econtext, am_header_t *hdr, size_t hdr_len, void *data, size_t data_len)
+{
+    self_notif_received = true;
+}
+
 static inline bool req_completed(struct ucx_context *req)
 {
     if (req == NULL)
@@ -27,12 +35,12 @@ static inline bool req_completed(struct ucx_context *req)
 
 static void recv_cb(void *request, ucs_status_t status, ucp_tag_recv_info_t *info)
 {
-    fprintf(stderr, "ping msg from client successfully received, sending pong...\n");
+    fprintf(stderr, "[INFO] msg successfully received\n");
 }
 
 static void send_cb(void *request, ucs_status_t status)
 {
-    fprintf(stderr, "pong successfully sent\n");
+    fprintf(stderr, "[INFO] msg successfully sent\n");
 }
 
 int main(int argc, char **argv)
@@ -48,6 +56,14 @@ int main(int argc, char **argv)
     {
         fprintf(stderr, "offload_engine_init() failed\n");
         goto error_out;
+    }
+
+    fprintf(stderr, "Registering callback for notifications of test completion %d\n", MY_TEST_NOTIF_ID);
+    rc = engine_register_default_notification_handler(engine, MY_TEST_NOTIF_ID, self_notification_cb);
+    if (rc)
+    {
+        fprintf(stderr, "[ERROR] engine_register_default_notification_handler() failed\n");
+        return EXIT_FAILURE;
     }
 
     /*
@@ -76,6 +92,7 @@ int main(int argc, char **argv)
     }
     fprintf(stderr, "Connections between DPUs successfully initialized\n");
 
+    /* UCX communication to self */
     if (engine->self_ep == NULL)
     {
         fprintf(stderr, "[ERROR] self EP is undefined\n");
@@ -133,6 +150,25 @@ int main(int argc, char **argv)
     {
         fprintf(stderr, "[ERROR] We received %d but were expecting %d\n", recv_msg, send_msg);
     }
+
+    /* Notification to self */
+    dpu_offload_event_t *self_ev;
+    rc = event_get(engine->self_econtext->event_channels, NULL, &self_ev);
+    assert(self_ev);
+    assert(rc == DO_SUCCESS);
+
+    rc = event_channel_emit(&self_ev, 0, MY_TEST_NOTIF_ID, engine->self_ep, NULL);
+    if (rc != EVENT_DONE && rc != EVENT_INPROGRESS)
+    {
+        fprintf(stderr, "[ERROR] event_channel_emit() failed\n");
+        goto error_out;
+    }
+    if (rc == EVENT_INPROGRESS)
+        ucs_list_add_tail(&(engine->self_econtext->ongoing_events), &(self_ev->item));
+
+    while (self_notif_received == false)
+        offload_engine_progress(engine);
+
 
     fprintf(stdout, "Test succeeded\n");
 

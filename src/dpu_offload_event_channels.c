@@ -165,13 +165,13 @@ dpu_offload_status_t ev_channels_init(dpu_offload_ev_sys_t **ev_channels)
 dpu_offload_status_t event_channels_init(execution_context_t *econtext)
 {
     CHECK_ERR_RETURN((econtext == NULL), DO_ERROR, "Undefined execution context");
-    CHECK_ERR_RETURN((GET_WORKER(econtext) == NULL), DO_ERROR, "Undefined worker");
 
     dpu_offload_status_t rc = ev_channels_init(&(econtext->event_channels));
     CHECK_ERR_RETURN((rc), DO_ERROR, "ev_channels_init() failed");
 
 #if USE_AM_IMPLEM
     // Register the UCX AM handler
+    CHECK_ERR_RETURN((GET_WORKER(econtext) == NULL), DO_ERROR, "Undefined worker");
     ucp_am_handler_param_t am_param;
     am_param.field_mask = UCP_AM_HANDLER_PARAM_FIELD_ID |
                           UCP_AM_HANDLER_PARAM_FIELD_CB |
@@ -263,6 +263,11 @@ dpu_offload_status_t engine_register_default_notification_handler(offloading_eng
     ENGINE_UNLOCK(engine);
     CHECK_ERR_RETURN((entry == NULL), DO_ERROR, "unable to get callback %ld", type);
     CHECK_ERR_RETURN((entry->set == true), DO_ERROR, "type %" PRIu64 " is already set", type);
+
+    // Make sure the self_econtext gets the notification handler registered as well
+    assert(engine->self_econtext);
+    dpu_offload_status_t rc = event_channel_register(engine->self_econtext->event_channels, type, cb);
+    CHECK_ERR_RETURN((rc), DO_ERROR, "event_channel_register() failed");
 
     entry->cb = cb;
     entry->set = true;

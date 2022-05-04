@@ -314,10 +314,11 @@ static void post_new_notif_recv(ucp_worker_h worker, hdr_notif_req_t *ctx, execu
     // Post a new receive only if we are not already in the middle of receiving a notification
     if (ctx->complete == true && ctx->payload_ctx.complete == true)
     {
+        assert(worker);
         // Post the receive for the header
         ctx->complete = false;
         ctx->econtext = (struct execution_context *)econtext;
-        DBG("-------------> Posting recv for notif header (econtext: %p, scope_id: %d)", econtext, econtext->scope_id);
+        DBG("-------------> Posting recv for notif header (econtext: %p, scope_id: %d, worker: %p)", econtext, econtext->scope_id, worker);
         ctx->req = ucp_tag_recv_nbx(worker, &(ctx->hdr), sizeof(am_header_t), hdr_ucp_tag, hdr_ucp_tag_mask, hdr_recv_param);
         if (ctx->req == NULL)
         {
