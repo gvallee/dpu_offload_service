@@ -16,7 +16,7 @@
 
 #define MY_TEST_NOTIF_ID (1000)
 #define MY_TEST_MANY_NOTIFS_ID (1001)
-#define NUM_NOTIFS (10)
+#define NUM_NOTIFS (1000)
 
 static bool self_notif_received = false;
 static int self_notification_cb(struct dpu_offload_ev_sys *ev_sys, execution_context_t *econtext, am_header_t *hdr, size_t hdr_len, void *data, size_t data_len)
@@ -27,8 +27,8 @@ static int self_notification_cb(struct dpu_offload_ev_sys *ev_sys, execution_con
 static size_t count = 0;
 static int self_many_notifs_cb(struct dpu_offload_ev_sys *ev_sys, execution_context_t *econtext, am_header_t *hdr, size_t hdr_len, void *data, size_t data_len)
 {
+    fprintf(stdout, "notifications #%ld received\n", count);
     count++;
-    fprintf(stdout, "%ld notifications received\n", count);
 }
 
 static inline bool req_completed(struct ucx_context *req)
@@ -172,7 +172,7 @@ int main(int argc, char **argv)
     size_t n;
     for (n = 0; n < NUM_NOTIFS; n++)
     {
-            dpu_offload_event_t *self_ev;
+        dpu_offload_event_t *self_ev;
         rc = event_get(engine->self_econtext->event_channels, NULL, &self_ev);
         assert(self_ev);
         assert(rc == DO_SUCCESS);
@@ -187,10 +187,28 @@ int main(int argc, char **argv)
             ucs_list_add_tail(&(engine->self_econtext->ongoing_events), &(self_ev->item));
     }
 
-    while (ucs_list_length(&(engine->self_econtext->ongoing_events)) != 0)
+    while (count != NUM_NOTIFS)
         offload_engine_progress(engine);
 
-    assert(count == NUM_NOTIFS);
+    count = 0;
+    for (n = 0; n < NUM_NOTIFS; n++)
+    {
+        dpu_offload_event_t *self_ev;
+        dpu_offload_event_info_t ev_info;
+        ev_info.payload_size = 1024;
+        rc = event_get(engine->self_econtext->event_channels, &ev_info, &self_ev);
+        assert(self_ev);
+        assert(rc == DO_SUCCESS);
+
+        rc = event_channel_emit(&self_ev, 0, MY_TEST_MANY_NOTIFS_ID, engine->self_ep, NULL);
+        if (rc != EVENT_DONE && rc != EVENT_INPROGRESS)
+        {
+            fprintf(stderr, "[ERROR] event_channel_emit() failed\n");
+            goto error_out;
+        }
+        if (rc == EVENT_INPROGRESS)
+            ucs_list_add_tail(&(engine->self_econtext->ongoing_events), &(self_ev->item));
+    }
 
     /* Notification to self to terminate the test */
     dpu_offload_event_t *self_ev;
