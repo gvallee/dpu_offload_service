@@ -377,15 +377,6 @@ int tag_send_event_msg(dpu_offload_event_t **event)
         WARN_MSG("Event %p already completed, not sending", (*event));
     }
 
-    struct ucx_context *addr_request = NULL;
-    ucp_request_param_t hdr_send_param;
-    hdr_send_param.op_attr_mask = UCP_OP_ATTR_FIELD_CALLBACK |
-                                  UCP_OP_ATTR_FIELD_DATATYPE |
-                                  UCP_OP_ATTR_FIELD_USER_DATA;
-    hdr_send_param.cb.send = notif_hdr_send_cb;
-    hdr_send_param.datatype = ucp_dt_make_contig(1);
-    hdr_send_param.user_data = (void *)(*event);
-
     assert((*event)->event_system);
     assert((*event)->event_system->econtext);
     execution_context_t *econtext = (*event)->event_system->econtext;
@@ -396,6 +387,14 @@ int tag_send_event_msg(dpu_offload_event_t **event)
     if (!((*event)->ctx.hdr_completed))
     {
         ucp_tag_t hdr_ucp_tag = MAKE_SEND_TAG(AM_EVENT_MSG_HDR_ID, myid, 0, (*event)->scope_id, 0);
+        ucp_request_param_t hdr_send_param;
+        hdr_send_param.op_attr_mask = UCP_OP_ATTR_FIELD_CALLBACK |
+                                      UCP_OP_ATTR_FIELD_DATATYPE |
+                                      UCP_OP_ATTR_FIELD_USER_DATA;
+        hdr_send_param.cb.send = notif_hdr_send_cb;
+        hdr_send_param.datatype = ucp_dt_make_contig(1);
+        hdr_send_param.user_data = (void *)(*event);
+
         assert((*event)->dest_ep);
         (*event)->hdr_request = NULL;
         (*event)->payload_request = NULL;
