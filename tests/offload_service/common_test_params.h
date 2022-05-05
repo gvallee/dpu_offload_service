@@ -9,7 +9,8 @@
 
 #include <unistd.h>
 
-#define NUM_TEST_EVTS (100)
+#define NUM_FLOOD_TEST_EVTS (1000)
+#define NUM_TEST_EVTS (10000)
 #define PINGPONG_NOTIF_ID (5000)
 
 #define GET_DEST_EP(_econtext) ({                 \
@@ -47,155 +48,188 @@
         }                                                                                                                    \
     } while (0)
 
-#define EMIT_MANY_EVTS_AND_USE_ONGOING_LIST(_econtext)                                                                    \
-    do                                                                                                                    \
-    {                                                                                                                     \
-        dpu_offload_status_t _rc;                                                                                         \
-        dpu_offload_event_t **evts = (dpu_offload_event_t **)calloc(NUM_TEST_EVTS + 1, sizeof(dpu_offload_event_t *));    \
-        if (evts == NULL)                                                                                                 \
-        {                                                                                                                 \
-            fprintf(stderr, "unable to allocate events\n");                                                               \
-            return EXIT_FAILURE;                                                                                          \
-        }                                                                                                                 \
-                                                                                                                          \
-        uint64_t *data = malloc((NUM_TEST_EVTS + 1) * sizeof(uint64_t));                                                  \
-        if (data == NULL)                                                                                                 \
-        {                                                                                                                 \
-            fprintf(stderr, "unable to allocate data buffer\n");                                                          \
-            return EXIT_FAILURE;                                                                                          \
-        }                                                                                                                 \
-        size_t i;                                                                                                         \
-        for (i = 0; i <= NUM_TEST_EVTS; i++)                                                                              \
-        {                                                                                                                 \
-            data[i] = i;                                                                                                  \
-        }                                                                                                                 \
-                                                                                                                          \
-        for (i = 0; i <= NUM_TEST_EVTS; i++)                                                                              \
-        {                                                                                                                 \
-            _rc = event_get(_econtext->event_channels, NULL, &(evts[i]));                                                 \
-            if (_rc)                                                                                                      \
-            {                                                                                                             \
-                fprintf(stderr, "event_get() failed\n");                                                                  \
-                return EXIT_FAILURE;                                                                                      \
-            }                                                                                                             \
-                                                                                                                          \
-            _rc = event_channel_emit_with_payload(&(evts[i]),                                                             \
-                                                  ECONTEXT_ID(_econtext),                                                 \
-                                                  AM_TEST_MSG_ID,                                                         \
-                                                  GET_DEST_EP(_econtext),                                                 \
-                                                  NULL,                                                                   \
-                                                  &(data[i]),                                                             \
-                                                  sizeof(uint64_t));                                                      \
-            if (_rc != EVENT_DONE && _rc != EVENT_INPROGRESS)                                                             \
-            {                                                                                                             \
-                fprintf(stderr, "event_channel_emit_with_payload() failed\n");                                            \
-                return EXIT_FAILURE;                                                                                      \
-            }                                                                                                             \
-            if (_rc == EVENT_INPROGRESS)                                                                                  \
-                ucs_list_add_tail(&(_econtext->ongoing_events), &(evts[i]->item));                                        \
-            fprintf(stderr, "Ev #%ld = %p (EMIT_MANY_EVTS_AND_USE_ONGOING_LIST)\n", i, evts[i]);                                                                \
-        }                                                                                                                 \
-                                                                                                                          \
-        while (!ucs_list_is_empty(&(_econtext->ongoing_events)) != 0)                                                     \
-        {                                                                                                                 \
-            _econtext->progress(_econtext);                                                                               \
-            fprintf(stderr, "%ld events are still on the ongoing list\n", ucs_list_length(&(_econtext->ongoing_events))); \
-        }                                                                                                                 \
-                                                                                                                          \
-        free(data);                                                                                                       \
-        data = NULL;                                                                                                      \
-        free(evts);                                                                                                       \
-        evts = NULL;                                                                                                      \
-        fprintf(stderr, "EMIT_MANY_EVTS_AND_USE_ONGOING_LIST done\n");                                                    \
+#define EMIT_MANY_EVTS_AND_USE_ONGOING_LIST(_econtext)                                                  \
+    do                                                                                                  \
+    {                                                                                                   \
+        dpu_offload_status_t _rc;                                                                       \
+        dpu_offload_event_t **evts = (dpu_offload_event_t **)calloc(NUM_FLOOD_TEST_EVTS + 1,            \
+                                                                    sizeof(dpu_offload_event_t *));     \
+        if (evts == NULL)                                                                               \
+        {                                                                                               \
+            fprintf(stderr, "unable to allocate events\n");                                             \
+            return EXIT_FAILURE;                                                                        \
+        }                                                                                               \
+                                                                                                        \
+        uint64_t *data = malloc((NUM_FLOOD_TEST_EVTS + 1) * sizeof(uint64_t));                          \
+        if (data == NULL)                                                                               \
+        {                                                                                               \
+            fprintf(stderr, "unable to allocate data buffer\n");                                        \
+            return EXIT_FAILURE;                                                                        \
+        }                                                                                               \
+        size_t i;                                                                                       \
+        for (i = 0; i <= NUM_FLOOD_TEST_EVTS; i++)                                                      \
+        {                                                                                               \
+            data[i] = i + NUM_FLOOD_TEST_EVTS + 10;                                                     \
+        }                                                                                               \
+                                                                                                        \
+        for (i = 0; i <= NUM_FLOOD_TEST_EVTS; i++)                                                      \
+        {                                                                                               \
+            _rc = event_get(_econtext->event_channels, NULL, &(evts[i]));                               \
+            if (_rc)                                                                                    \
+            {                                                                                           \
+                fprintf(stderr, "event_get() failed\n");                                                \
+                return EXIT_FAILURE;                                                                    \
+            }                                                                                           \
+                                                                                                        \
+            _rc = event_channel_emit_with_payload(&(evts[i]),                                           \
+                                                  ECONTEXT_ID(_econtext),                               \
+                                                  AM_TEST_MSG_ID,                                       \
+                                                  GET_DEST_EP(_econtext),                               \
+                                                  NULL,                                                 \
+                                                  &(data[i]),                                           \
+                                                  sizeof(uint64_t));                                    \
+            if (_rc != EVENT_DONE && _rc != EVENT_INPROGRESS)                                           \
+            {                                                                                           \
+                fprintf(stderr, "event_channel_emit_with_payload() failed\n");                          \
+                return EXIT_FAILURE;                                                                    \
+            }                                                                                           \
+            if (_rc == EVENT_INPROGRESS)                                                                \
+            {                                                                                           \
+                fprintf(stderr, "[INFO] add event %ld to the ongoing list\n", evts[i]->seq_num);        \
+                ucs_list_add_tail(&(_econtext->ongoing_events), &(evts[i]->item));                      \
+            }                                                                                           \
+            fprintf(stderr, "Ev #%ld = %p, msg: %ld (EMIT_MANY_EVTS_AND_USE_ONGOING_LIST)\n", \
+                    i, evts[i], data[i]);        \
+            /* Progress once to let notification progress */                                            \
+            _econtext->progress(_econtext);                                                             \
+        }                                                                                               \
+                                                                                                        \
+        while (!ucs_list_is_empty(&(_econtext->ongoing_events)) != 0)                                   \
+        {                                                                                               \
+            size_t initial_list_len = ucs_list_length(&(_econtext->ongoing_events));                    \
+            _econtext->progress(_econtext);                                                             \
+            size_t new_list_len = ucs_list_length(&(_econtext->ongoing_events));                        \
+            if (initial_list_len == new_list_len)                                                       \
+            {                                                                                           \
+                fprintf(stderr, "%s l.%d - No progress - %ld events are still on the ongoing list: \n", \
+                        __FILE__, __LINE__, ucs_list_length(&(_econtext->ongoing_events)));             \
+                dpu_offload_event_t *cur_ev, *next_ev;                                                  \
+                ucs_list_for_each_safe(cur_ev, next_ev, &(_econtext->ongoing_events), item)             \
+                {                                                                                       \
+                    fprintf(stderr, "%ld ", cur_ev->seq_num);                                           \
+                }                                                                                       \
+                fprintf(stderr, "\n\n\n");                                                              \
+                assert(0);                                                                              \
+            }                                                                                           \
+        }                                                                                               \
+                                                                                                        \
+        free(data);                                                                                     \
+        data = NULL;                                                                                    \
+        free(evts);                                                                                     \
+        evts = NULL;                                                                                    \
+        fprintf(stderr, "EMIT_MANY_EVTS_AND_USE_ONGOING_LIST done\n");                                  \
     } while (0)
 
-#define EMIT_MANY_EVS_WITH_EXPLICIT_MGT(_econtext)                                                                     \
-    do                                                                                                                 \
-    {                                                                                                                  \
-        fprintf(stderr, "Sending %d notifications...\n", NUM_TEST_EVTS);                                               \
-        size_t i;                                                                                                      \
-        dpu_offload_event_t **evts = (dpu_offload_event_t **)calloc(NUM_TEST_EVTS + 1, sizeof(dpu_offload_event_t *)); \
-        if (evts == NULL)                                                                                              \
-        {                                                                                                              \
-            fprintf(stderr, "unable to allocate events\n");                                                            \
-            return EXIT_FAILURE;                                                                                       \
-        }                                                                                                              \
-        uint64_t *data = malloc((NUM_TEST_EVTS + 1) * sizeof(uint64_t));                                               \
-        if (data == NULL)                                                                                              \
-        {                                                                                                              \
-            fprintf(stderr, "unable to allocate data buffer\n");                                                       \
-            return EXIT_FAILURE;                                                                                       \
-        }                                                                                                              \
-        for (i = 0; i <= NUM_TEST_EVTS; i++)                                                                           \
-        {                                                                                                              \
-            data[i] = i;                                                                                               \
-        }                                                                                                              \
-                                                                                                                       \
-        for (i = 0; i <= NUM_TEST_EVTS; i++)                                                                           \
-        {                                                                                                              \
-            rc = event_get(_econtext->event_channels, NULL, &(evts[i]));                                               \
-            if (rc)                                                                                                    \
-            {                                                                                                          \
-                fprintf(stderr, "event_get() failed\n");                                                               \
-                return EXIT_FAILURE;                                                                                   \
-            }                                                                                                          \
-                                                                                                                       \
-            rc = event_channel_emit_with_payload(&(evts[i]),                                                           \
-                                                 _econtext->client->id,                                                \
-                                                 AM_TEST_MSG_ID,                                                       \
-                                                 GET_DEST_EP(_econtext),                                               \
-                                                 NULL,                                                                 \
-                                                 &(data[i]),                                                           \
-                                                 sizeof(uint64_t));                                                    \
-            if (rc != EVENT_DONE && rc != EVENT_INPROGRESS)                                                            \
-            {                                                                                                          \
-                fprintf(stderr, "event_channel_emit_with_payload() failed\n");                                         \
-                return EXIT_FAILURE;                                                                                   \
-            }                                                                                                          \
-            if (rc == EVENT_DONE)                                                                                      \
-                fprintf(stderr, "event_channel_emit_with_payload() completed immediately\n");                          \
-            else                                                                                                       \
-                fprintf(stderr, "event_channel_emit_with_payload() is in progress\n");                                 \
-            fprintf(stderr, "Ev #%ld = %p (EMIT_MANY_EVS_WITH_EXPLICIT_MGT)\n", i, evts[i]);                                                             \
-        }                                                                                                              \
-                                                                                                                       \
-        /* All the events have been emitted, now waiting for them to complete */                                       \
-        for (i = 0; i <= NUM_TEST_EVTS; i++)                                                                           \
-        {                                                                                                              \
-            while (evts[i] != NULL && !evts[i]->ctx.complete)                                                          \
-            {                                                                                                          \
-                /*fprintf(stderr, "%s l.%d Waiting for event #%ld (%p) to complete\n", __FILE__, __LINE__, i, evts[i]);*/  \
-                _econtext->progress(_econtext);                                                                        \
-            }                                                                                                          \
-            fprintf(stderr, "Evt #%ld completed\n", i);                                                                \
-        }                                                                                                              \
-                                                                                                                       \
-        /* All events completed, we can safely return them */                                                          \
-        for (i = 0; i <= NUM_TEST_EVTS; i++)                                                                           \
-        {                                                                                                              \
-            if (evts[i] == NULL)                                                                                       \
-                continue;                                                                                              \
-            rc = event_return(&(evts[i]));                                                                             \
-            if (rc)                                                                                                    \
-            {                                                                                                          \
-                fprintf(stderr, "event_return() failed\n");                                                            \
-                return EXIT_FAILURE;                                                                                   \
-            }                                                                                                          \
-        }                                                                                                              \
-                                                                                                                       \
-        free(evts);                                                                                                    \
-        evts = NULL;                                                                                                   \
-        free(data);                                                                                                    \
-        data = NULL;                                                                                                   \
+#define EMIT_MANY_EVS_WITH_EXPLICIT_MGT(_econtext)                                                  \
+    do                                                                                              \
+    {                                                                                               \
+        fprintf(stderr, "Sending %d notifications...\n", NUM_FLOOD_TEST_EVTS);                      \
+        size_t i;                                                                                   \
+        dpu_offload_event_t **evts = (dpu_offload_event_t **)calloc(NUM_FLOOD_TEST_EVTS + 1,        \
+                                                                    sizeof(dpu_offload_event_t *)); \
+        if (evts == NULL)                                                                           \
+        {                                                                                           \
+            fprintf(stderr, "unable to allocate events\n");                                         \
+            return EXIT_FAILURE;                                                                    \
+        }                                                                                           \
+        uint64_t *data = malloc((NUM_FLOOD_TEST_EVTS + 1) * sizeof(uint64_t));                      \
+        if (data == NULL)                                                                           \
+        {                                                                                           \
+            fprintf(stderr, "unable to allocate data buffer\n");                                    \
+            return EXIT_FAILURE;                                                                    \
+        }                                                                                           \
+        for (i = 0; i <= NUM_FLOOD_TEST_EVTS; i++)                                                  \
+        {                                                                                           \
+            data[i] = i;                                                                            \
+        }                                                                                           \
+                                                                                                    \
+        for (i = 0; i <= NUM_FLOOD_TEST_EVTS; i++)                                                  \
+        {                                                                                           \
+            rc = event_get(_econtext->event_channels, NULL, &(evts[i]));                            \
+            if (rc)                                                                                 \
+            {                                                                                       \
+                fprintf(stderr, "event_get() failed\n");                                            \
+                return EXIT_FAILURE;                                                                \
+            }                                                                                       \
+                                                                                                    \
+            rc = event_channel_emit_with_payload(&(evts[i]),                                        \
+                                                 _econtext->client->id,                             \
+                                                 AM_TEST_MSG_ID,                                    \
+                                                 GET_DEST_EP(_econtext),                            \
+                                                 NULL,                                              \
+                                                 &(data[i]),                                        \
+                                                 sizeof(uint64_t));                                 \
+            if (rc != EVENT_DONE && rc != EVENT_INPROGRESS)                                         \
+            {                                                                                       \
+                fprintf(stderr, "event_channel_emit_with_payload() failed\n");                      \
+                return EXIT_FAILURE;                                                                \
+            }                                                                                       \
+            if (rc == EVENT_DONE)                                                                   \
+                fprintf(stderr, "event_channel_emit_with_payload() completed immediately\n");       \
+            else                                                                                    \
+                fprintf(stderr, "event_channel_emit_with_payload() is in progress\n");              \
+            fprintf(stderr, "Ev #%ld = %p (EMIT_MANY_EVS_WITH_EXPLICIT_MGT)\n", i, evts[i]);        \
+            /* Progress once to let notification progress */                                        \
+            _econtext->progress(_econtext);                                                         \
+        }                                                                                           \
+                                                                                                    \
+        /* All the events have been emitted, now waiting for them to complete */                    \
+        for (i = 0; i <= NUM_FLOOD_TEST_EVTS; i++)                                                  \
+        {                                                                                           \
+            while (evts[i] != NULL && !event_completed(evts[i]))                                    \
+            {                                                                                       \
+                /*fprintf(stderr, "%s l.%d Waiting for event #%ld (%p) to complete\n", */           \
+                /*        __FILE__, __LINE__, i, evts[i]);*/                                        \
+                _econtext->progress(_econtext);                                                     \
+            }                                                                                       \
+            fprintf(stderr, "Evt #%ld completed\n", i);                                             \
+        }                                                                                           \
+                                                                                                    \
+        /* All events completed, we can safely return them */                                       \
+        for (i = 0; i <= NUM_FLOOD_TEST_EVTS; i++)                                                  \
+        {                                                                                           \
+            if (evts[i] == NULL)                                                                    \
+                continue;                                                                           \
+            rc = event_return(&(evts[i]));                                                          \
+            if (rc)                                                                                 \
+            {                                                                                       \
+                fprintf(stderr, "event_return() failed\n");                                         \
+                return EXIT_FAILURE;                                                                \
+            }                                                                                       \
+        }                                                                                           \
+                                                                                                    \
+        free(evts);                                                                                 \
+        evts = NULL;                                                                                \
+        free(data);                                                                                 \
+        data = NULL;                                                                                \
     } while (0)
 
-#define WAIT_FOR_ALL_EVENTS(_econtext)      \
-    do                                      \
-    {                                       \
-        while (!second_notification_recvd)  \
-        {                                   \
-            _econtext->progress(_econtext); \
-        }                                   \
+#define WAIT_FOR_ALL_EVENTS_WITH_EXPLICIT_MGT(_econtext) \
+    do                                                   \
+    {                                                    \
+        while (!first_notification_recvd)                \
+        {                                                \
+            _econtext->progress(_econtext);              \
+        }                                                \
+    } while (0)
+
+#define WAIT_FOR_ALL_EVENTS_WITH_ONGOING_LIST(_econtext) \
+    do                                                   \
+    {                                                    \
+        while (!second_notification_recvd)               \
+        {                                                \
+            _econtext->progress(_econtext);              \
+        }                                                \
     } while (0)
 
 static bool first_notification_recvd = false;
@@ -205,19 +239,18 @@ static int basic_notification_cb(struct dpu_offload_ev_sys *ev_sys, execution_co
     assert(data);
     int *msg = (int *)data;
     fprintf(stderr, "Notification successfully received. Msg = %d\n", *msg);
-    if (*msg == NUM_TEST_EVTS)
-    {
-        if (!first_notification_recvd)
-            first_notification_recvd = true;
-        else if (!second_notification_recvd)
-            second_notification_recvd = true;
-    }
+    if (*msg == NUM_FLOOD_TEST_EVTS)
+        first_notification_recvd = true;
+    if (*msg == NUM_FLOOD_TEST_EVTS + 10 + NUM_FLOOD_TEST_EVTS)
+        second_notification_recvd = true;
+
     return 0;
 }
 
 static bool ping_pong_done = false;
 static uint64_t expected_value = 0;
 static bool expected_value_set = false;
+static size_t current_data_size = 8;
 static int pingpong_notification_cb(struct dpu_offload_ev_sys *ev_sys, execution_context_t *econtext, am_header_t *hdr, size_t hdr_len, void *data, size_t data_len)
 {
     assert(data);
@@ -225,6 +258,8 @@ static int pingpong_notification_cb(struct dpu_offload_ev_sys *ev_sys, execution
     uint64_t *msg = (uint64_t *)data;
     uint64_t val = *msg;
     fprintf(stderr, "Ping-pong notification successfully received. Msg = %" PRIu64 "\n", val);
+
+    assert(data_len == current_data_size);
 
     if (expected_value_set == false)
     {

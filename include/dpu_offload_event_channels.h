@@ -16,16 +16,33 @@
 // Set to 1 to use the AM implementaton; 0 to use tag send/recv implementation
 #define USE_AM_IMPLEM (0)
 
-#define COMPLETE_EVENT(__ev) do {                                 \
-    (__ev)->ctx.complete = true;                                  \
-    if ((__ev)->ctx.completion_cb != NULL)                        \
-    {                                                             \
-        (__ev)->ctx.completion_cb((__ev)->ctx.completion_cb_ctx); \
-        (__ev)->ctx.completion_cb = NULL;                         \
-    }                                                             \
-} while(0)
+#if USE_AM_IMPLEM
+#define COMPLETE_EVENT(__ev)                                          \
+    do                                                                \
+    {                                                                 \
+        (__ev)->ctx.complete = true;                                  \
+        (__ev)->payload_ctx.complete = true;                          \
+        if ((__ev)->ctx.completion_cb != NULL)                        \
+        {                                                             \
+            (__ev)->ctx.completion_cb((__ev)->ctx.completion_cb_ctx); \
+            (__ev)->ctx.completion_cb = NULL;                         \
+        }                                                             \
+    } while (0)
+#else
+#define COMPLETE_EVENT(__ev)                                          \
+    do                                                                \
+    {                                                                 \
+        (__ev)->ctx.hdr_completed = true;                             \
+        (__ev)->ctx.payload_completed = true;                         \
+        if ((__ev)->ctx.completion_cb != NULL)                        \
+        {                                                             \
+            (__ev)->ctx.completion_cb((__ev)->ctx.completion_cb_ctx); \
+            (__ev)->ctx.completion_cb = NULL;                         \
+        }                                                             \
+    } while (0)
+#endif
 
-dpu_offload_status_t event_channels_init(execution_context_t *);
+    dpu_offload_status_t event_channels_init(execution_context_t *);
 dpu_offload_status_t ev_channels_init(dpu_offload_ev_sys_t **ev_channels);
 dpu_offload_status_t event_channels_fini(dpu_offload_ev_sys_t **);
 
@@ -36,17 +53,17 @@ dpu_offload_status_t event_channel_deregister(dpu_offload_ev_sys_t *ev_sys, uint
  * @brief Registers a default handler at the engine level. After the registration, the handler will be
  * automatically added to all execution context that will be created. It is not applied to execution
  * contexts that were already previously created. The default handlers cannot be deregistered.
- * 
+ *
  * @param engine Engine to which the default handler applies.
  * @param type Event type, i.e., identifier of the callback to invoke when the event is delivered at destination.
  * @param cb Callback to invoke upon reception of the notification.
- * @return dpu_offload_status_t 
+ * @return dpu_offload_status_t
  */
 dpu_offload_status_t engine_register_default_notification_handler(offloading_engine_t *engine, uint64_t type, notification_cb cb);
 
 /**
  * @brief event_channel_emit triggers the communication associated to a previously locally defined event.
- * 
+ *
  * @param ev Event to be emitted. The object needs to be fully initialized prior the invokation of the function (see 'event_get()' and 'event_return()').
  * @param my_id The unique identifier to be used to send the event. It is used to identify the source of the event.
  * @param type Event type, i.e., identifier of the callback to invoke when the event is delivered at destination.
@@ -56,13 +73,12 @@ dpu_offload_status_t engine_register_default_notification_handler(offloading_eng
  */
 int event_channel_emit(dpu_offload_event_t **ev, uint64_t my_id, uint64_t type, ucp_ep_h dest_ep, void *ctx);
 
-
 /**
  * @brief event_channel_emit_with_payload triggers the communication associated to a previously
  * locally defined event, specifying a payload to be sent during the emit.
  * This function assumes the caller is responsible for the management of the payload buffer, which
  * must remain available until the event completes.
- * 
+ *
  * @param ev Event to be emitted. The object needs to be fully initialized prior the invokation of the function (see 'event_get()' and 'event_return()').
  * @param my_id The unique identifier to be used to send the event. It is used to identify the source of the event.
  * @param type Event type, i.e., identifier of the callback to invoke when the event is delivered at destination.
@@ -74,7 +90,7 @@ int event_channel_emit(dpu_offload_event_t **ev, uint64_t my_id, uint64_t type, 
  * @return DO_ERROR in case of an error during the library's handling of the event.
  * @return EVENT_DONE if the emittion completed right away, the library returns the event.
  * @return EVENT_INPROGRESS if emitting the event is still in progress (e.g., communication not completed). One can check on completion using event_completed().
- * 
+ *
  * Example: the user uses the ongoing events list so that the event is implicitly returned when completed, with an event payload managed outside of the offloading library.
  *      dpu_offload_event_t *my_ev;
  *      event_get(ev_sys, NULL, &my_ev);
@@ -94,7 +110,7 @@ int event_channel_emit_with_payload(dpu_offload_event_t **ev, uint64_t my_id, ui
 
 /**
  * @brief Get an event from a pool of event. Using a pool of events prevents dynamic allocations.
- * 
+ *
  * @param ev_sys The event system from which the event must come from.
  * @param info Information about the event. For instance, it is possible to ask the library to allocate/free the memory for a payload. See examples for details.
  * @param ev Returned event.
@@ -102,7 +118,7 @@ int event_channel_emit_with_payload(dpu_offload_event_t **ev, uint64_t my_id, ui
  * @return DO_ERROR in case of an error during the library's handling of the event.
  * @return EVENT_DONE if the emittion completed right away, the library returns the event.
  * @return EVENT_INPROGRESS if emitting the event is still in progress (e.g., communication not completed). One can check on completion using event_completed().
- * 
+ *
  * Examples:
  *  - get an event that does not require a payload.
  *      event_get(ev_sys, NULL, &myev);
@@ -143,10 +159,10 @@ dpu_offload_status_t event_return(dpu_offload_event_t **ev);
 /**
  * @brief event_completed checks whether an event is completed or not. If the event is completed,
  * it is also implicitly returned.
- * 
+ *
  * @param ev Event to check
- * @return true 
- * @return false 
+ * @return true
+ * @return false
  */
 bool event_completed(dpu_offload_event_t *ev);
 

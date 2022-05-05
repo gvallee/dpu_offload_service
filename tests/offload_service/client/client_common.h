@@ -161,7 +161,8 @@ static inline int run_client_test(ucp_worker_h worker, ucp_context_h ucp_context
     EMIT_MANY_EVTS_AND_USE_ONGOING_LIST(client);
 
     /* Then we become the receiving side for the same tests */
-    WAIT_FOR_ALL_EVENTS(client);
+    WAIT_FOR_ALL_EVENTS_WITH_EXPLICIT_MGT(client);
+    WAIT_FOR_ALL_EVENTS_WITH_ONGOING_LIST(client);
 
     /* Finally we do a notification-based ping-pong that we initiate */
     INITIATE_PING_PONG_TEST(client);

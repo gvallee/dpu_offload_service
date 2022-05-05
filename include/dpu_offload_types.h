@@ -405,7 +405,7 @@ typedef struct am_req
     // An example of a notification that does not complete right away
     // is a notification requiring the exchange of a RDV message under
     // the cover.
-    int complete; // fixme: segfault if changed to bool
+    bool complete;
 
     // Callback to invoke upon completion
     request_compl_cb_t completion_cb;
@@ -413,6 +413,21 @@ typedef struct am_req
     // Context to be passed in the completion callback
     void *completion_cb_ctx;
 } am_req_t; // todo: rename, nothing to do with AM
+
+typedef struct event_req
+{
+    // Header associated to the notification.
+    am_header_t hdr;
+
+    bool hdr_completed;
+    bool payload_completed;
+
+    // Callback to invoke upon completion
+    request_compl_cb_t completion_cb;
+
+    // Context to be passed in the completion callback
+    void *completion_cb_ctx;
+} event_req_t;
 
 #if !USE_AM_IMPLEM
 // Forward declaration
@@ -695,14 +710,14 @@ typedef struct init_params
     do                                             \
     {                                              \
         pthread_mutex_lock(&((_econtext)->mutex)); \
-        switch((_econtext)->type)                  \
+        switch ((_econtext)->type)                 \
         {                                          \
-            case CONTEXT_CLIENT:                   \
-                CLIENT_LOCK((_econtext)->client);  \
-                break;                             \
-            case CONTEXT_SERVER:                   \
-                SERVER_LOCK((_econtext)->server);  \
-                break;                             \
+        case CONTEXT_CLIENT:                       \
+            CLIENT_LOCK((_econtext)->client);      \
+            break;                                 \
+        case CONTEXT_SERVER:                       \
+            SERVER_LOCK((_econtext)->server);      \
+            break;                                 \
         }                                          \
     } while (0)
 
@@ -710,14 +725,14 @@ typedef struct init_params
     do                                               \
     {                                                \
         pthread_mutex_unlock(&((_econtext)->mutex)); \
-        switch((_econtext)->type)                    \
+        switch ((_econtext)->type)                   \
         {                                            \
-            case CONTEXT_CLIENT:                     \
-                CLIENT_UNLOCK((_econtext)->client);  \
-                break;                               \
-            case CONTEXT_SERVER:                     \
-                SERVER_UNLOCK((_econtext)->server);  \
-                break;                               \
+        case CONTEXT_CLIENT:                         \
+            CLIENT_UNLOCK((_econtext)->client);      \
+            break;                                   \
+        case CONTEXT_SERVER:                         \
+            SERVER_UNLOCK((_econtext)->server);      \
+            break;                                   \
         }                                            \
     } while (0)
 
@@ -925,7 +940,13 @@ typedef struct dpu_offload_event
     // item is used to be able to add/remove the event to lists, e.g., the list for ongoing events and the pool of free event objects.
     ucs_list_link_t item;
 
-#if !USE_AM_IMPLEM
+    uint64_t seq_num;
+
+#if USE_AM_IMPLEM
+    // ctx is the communication context associated to the event, used to track the status of the potential underlying UCX AM communication
+    am_req_t ctx;
+#else
+    event_req_t ctx;
     struct ucx_context *hdr_request;
     struct ucx_context *payload_request;
     int scope_id;
@@ -938,9 +959,6 @@ typedef struct dpu_offload_event
 
     // sub_events_initialized tracks whether the sub-event list has been initialized.
     bool sub_events_initialized;
-
-    // ctx is the communication context associated to the event, used to track the status of the potential underlying UCX AM communication
-    am_req_t ctx;
 
     // req is the opaque request object used to track any potential underlying communication associated to the event.
     // If more than one communication operation is required, please use sub-events.
@@ -978,6 +996,7 @@ typedef struct dpu_offload_event
  * only once and reuse as events are reused. However, it is initialized when the
  * dynamic list is initialized
  */
+#if USE_AM_IMPLEM
 #define RESET_EVENT(__ev)                     \
     do                                        \
     {                                         \
@@ -996,7 +1015,29 @@ typedef struct dpu_offload_event
         (__ev)->was_pending = false;          \
         (__ev)->scope_id = SCOPE_HOST_DPU;    \
     } while (0)
+#else
+#define RESET_EVENT(__ev)                     \
+    do                                        \
+    {                                         \
+        (__ev)->context = NULL;               \
+        (__ev)->payload = NULL;               \
+        (__ev)->event_system = NULL;          \
+        (__ev)->req = NULL;                   \
+        (__ev)->ctx.hdr_completed = 0;        \
+        (__ev)->ctx.payload_completed = 0;    \
+        (__ev)->ctx.completion_cb = NULL;     \
+        (__ev)->ctx.completion_cb_ctx = NULL; \
+        (__ev)->ctx.hdr.type = 0;             \
+        (__ev)->ctx.hdr.id = 0;               \
+        (__ev)->ctx.hdr.payload_size = 0;     \
+        (__ev)->manage_payload_buf = false;   \
+        (__ev)->dest_ep = NULL;               \
+        (__ev)->was_pending = false;          \
+        (__ev)->scope_id = SCOPE_HOST_DPU;    \
+    } while (0)
+#endif
 
+#if USE_AM_IMPLEM
 #define CHECK_EVENT(__ev)                                     \
     do                                                        \
     {                                                         \
@@ -1012,6 +1053,24 @@ typedef struct dpu_offload_event
             assert(ucs_list_is_empty(&((__ev)->sub_events))); \
         }                                                     \
     } while (0)
+#else
+#define CHECK_EVENT(__ev)                                     \
+    do                                                        \
+    {                                                         \
+        assert((__ev)->ctx.hdr_completed == 0);               \
+        assert((__ev)->ctx.payload_completed == 0);           \
+        assert((__ev)->ctx.hdr.payload_size == 0);            \
+        assert((__ev)->ctx.hdr.type == 0);                    \
+        assert((__ev)->ctx.hdr.id == 0);                      \
+        assert((__ev)->manage_payload_buf == false);          \
+        assert((__ev)->dest_ep == NULL);                      \
+        assert((__ev)->was_pending == false);                 \
+        if ((__ev)->sub_events_initialized)                   \
+        {                                                     \
+            assert(ucs_list_is_empty(&((__ev)->sub_events))); \
+        }                                                     \
+    } while (0)
+#endif
 
 typedef struct dpu_offload_event_info
 {

@@ -260,7 +260,8 @@ static inline dpu_offload_status_t oob_server_ucx_client_connection_step3(execut
                                                                &recv_param);
     if (UCS_PTR_IS_ERR(client_info->bootstrapping.rank_request))
     {
-        ERR_MSG("ucp_tag_recv_nbx() failed");
+        ucs_status_t send_status = UCS_PTR_STATUS(client_info->bootstrapping.rank_request);
+        ERR_MSG("ucp_tag_recv_nbx() failed: %s", ucs_status_string(send_status));
         goto error_out;
     }
     DBG("Receiving rank info (len=%ld, req=%p)", sizeof(rank_info_t), client_info->bootstrapping.rank_request);
@@ -1537,7 +1538,7 @@ static void execution_context_progress(execution_context_t *ctx)
         if (event_completed(ev))
         {
             ucs_list_del(&(ev->item));
-            // DBG("event %p completed and removed from ongoing events list", ev);
+            DBG("event %p completed and removed from ongoing events list, %ld elements on list", ev, ucs_list_length(&(ctx->ongoing_events)));
             if (ev->req)
             {
                 ucp_request_free(ev->req);
@@ -1560,6 +1561,9 @@ static void execution_context_progress(execution_context_t *ctx)
         if (rc != EVENT_DONE && rc != EVENT_INPROGRESS)
             ucs_list_add_tail(&(ctx->event_channels->pending_emits), &(event->item));
     }
+    size_t pending_emits = ucs_list_length(&(ctx->event_channels->pending_emits));
+    if (pending_emits > 0)
+        fprintf(stderr, "Pending emits: %ld\n", pending_emits);
 
     // Progress all active operations
     dpu_offload_status_t rc = progress_active_ops(ctx);
