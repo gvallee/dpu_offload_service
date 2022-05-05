@@ -93,3 +93,6 @@ configure~
 
 # VScode files
 .vscode/settings.json
+
+# Vi/vim stuff
+*.swp
