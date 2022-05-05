@@ -675,7 +675,11 @@ bool event_completed(dpu_offload_event_t *ev)
         dpu_offload_event_t *subevt, *next;
         ucs_list_for_each_safe(subevt, next, &(ev->sub_events), item)
         {
+#if USE_AM_IMPLEM
+            if (subevt->ctx.complete)
+#else
             if (subevt->ctx.hdr_completed && subevt->ctx.payload_completed)
+#endif
             {
                 ucs_list_del(&(subevt->item));
                 DBG("returning sub event %p of main event %p", subevt, ev);
