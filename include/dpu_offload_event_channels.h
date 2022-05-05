@@ -42,7 +42,7 @@
     } while (0)
 #endif
 
-    dpu_offload_status_t event_channels_init(execution_context_t *);
+dpu_offload_status_t event_channels_init(execution_context_t *);
 dpu_offload_status_t ev_channels_init(dpu_offload_ev_sys_t **ev_channels);
 dpu_offload_status_t event_channels_fini(dpu_offload_ev_sys_t **);
 
