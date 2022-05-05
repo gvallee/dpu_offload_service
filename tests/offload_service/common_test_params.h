@@ -9,8 +9,8 @@
 
 #include <unistd.h>
 
-#define NUM_FLOOD_TEST_EVTS (1000)
-#define NUM_TEST_EVTS (10000)
+#define NUM_FLOOD_TEST_EVTS (10000)
+#define NUM_TEST_EVTS (100000)
 #define PINGPONG_NOTIF_ID (5000)
 
 #define GET_DEST_EP(_econtext) ({                 \
