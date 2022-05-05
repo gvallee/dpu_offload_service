@@ -1561,9 +1561,6 @@ static void execution_context_progress(execution_context_t *ctx)
         if (rc != EVENT_DONE && rc != EVENT_INPROGRESS)
             ucs_list_add_tail(&(ctx->event_channels->pending_emits), &(event->item));
     }
-    size_t pending_emits = ucs_list_length(&(ctx->event_channels->pending_emits));
-    if (pending_emits > 0)
-        fprintf(stderr, "Pending emits: %ld\n", pending_emits);
 
     // Progress all active operations
     dpu_offload_status_t rc = progress_active_ops(ctx);
