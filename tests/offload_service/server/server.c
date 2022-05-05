@@ -103,7 +103,8 @@ int main(int argc, char **argv)
     fprintf(stderr, "STARTING TEST OF THE NOTIFICATION SYSTEM\n");
 
     /* First we are the receiving side of a bunch of events */
-    WAIT_FOR_ALL_EVENTS(server);
+    WAIT_FOR_ALL_EVENTS_WITH_EXPLICIT_MGT(server);
+    WAIT_FOR_ALL_EVENTS_WITH_ONGOING_LIST(server);
 
     /* Then we become the sending side */
 
