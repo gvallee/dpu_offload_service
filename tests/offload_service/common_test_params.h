@@ -100,27 +100,13 @@
             }                                                                                           \
             fprintf(stderr, "Ev #%ld = %p, msg: %ld (EMIT_MANY_EVTS_AND_USE_ONGOING_LIST)\n", \
                     i, evts[i], data[i]);        \
-            /* Progress once to let notification progress */                                            \
+            /* Progress once to let notifications progress */                                            \
             _econtext->progress(_econtext);                                                             \
         }                                                                                               \
                                                                                                         \
         while (!ucs_list_is_empty(&(_econtext->ongoing_events)) != 0)                                   \
         {                                                                                               \
-            size_t initial_list_len = ucs_list_length(&(_econtext->ongoing_events));                    \
             _econtext->progress(_econtext);                                                             \
-            size_t new_list_len = ucs_list_length(&(_econtext->ongoing_events));                        \
-            if (initial_list_len == new_list_len)                                                       \
-            {                                                                                           \
-                fprintf(stderr, "%s l.%d - No progress - %ld events are still on the ongoing list: \n", \
-                        __FILE__, __LINE__, ucs_list_length(&(_econtext->ongoing_events)));             \
-                dpu_offload_event_t *cur_ev, *next_ev;                                                  \
-                ucs_list_for_each_safe(cur_ev, next_ev, &(_econtext->ongoing_events), item)             \
-                {                                                                                       \
-                    fprintf(stderr, "%ld ", cur_ev->seq_num);                                           \
-                }                                                                                       \
-                fprintf(stderr, "\n\n\n");                                                              \
-                assert(0);                                                                              \
-            }                                                                                           \
         }                                                                                               \
                                                                                                         \
         free(data);                                                                                     \

@@ -536,15 +536,6 @@ typedef struct dpu_offload_ev_sys
     // Array of callback functions, i.e., array of pointers, organized based on the notification type, a.k.a. notification ID
     dyn_array_t notification_callbacks;
 
-    // Number of remote events sent but not completed yet
-    size_t num_pending_sends;
-
-    // Maximum number of pending emit operations (in progress emits)
-    size_t max_pending_emits;
-
-    // List of pending emits
-    ucs_list_link_t pending_emits;
-
     // Execution context the event system is associated with.
     struct execution_context *econtext;
 
@@ -984,9 +975,6 @@ typedef struct dpu_offload_event
     // Destination endpoint for remote events
     ucp_ep_h dest_ep;
 
-    // Specifies whether the event was pending or not
-    bool was_pending;
-
     // event_system is the event system the event was initially from
     dpu_offload_ev_sys_t *event_system;
 } dpu_offload_event_t;
@@ -1012,7 +1000,6 @@ typedef struct dpu_offload_event
         (__ev)->ctx.hdr.payload_size = 0;     \
         (__ev)->manage_payload_buf = false;   \
         (__ev)->dest_ep = NULL;               \
-        (__ev)->was_pending = false;          \
         (__ev)->scope_id = SCOPE_HOST_DPU;    \
     } while (0)
 #else
@@ -1032,7 +1019,6 @@ typedef struct dpu_offload_event
         (__ev)->ctx.hdr.payload_size = 0;     \
         (__ev)->manage_payload_buf = false;   \
         (__ev)->dest_ep = NULL;               \
-        (__ev)->was_pending = false;          \
         (__ev)->scope_id = SCOPE_HOST_DPU;    \
     } while (0)
 #endif
@@ -1047,7 +1033,6 @@ typedef struct dpu_offload_event
         assert((__ev)->ctx.hdr.id == 0);                      \
         assert((__ev)->manage_payload_buf == false);          \
         assert((__ev)->dest_ep == NULL);                      \
-        assert((__ev)->was_pending == false);                 \
         if ((__ev)->sub_events_initialized)                   \
         {                                                     \
             assert(ucs_list_is_empty(&((__ev)->sub_events))); \
@@ -1064,7 +1049,6 @@ typedef struct dpu_offload_event
         assert((__ev)->ctx.hdr.id == 0);                      \
         assert((__ev)->manage_payload_buf == false);          \
         assert((__ev)->dest_ep == NULL);                      \
-        assert((__ev)->was_pending == false);                 \
         if ((__ev)->sub_events_initialized)                   \
         {                                                     \
             assert(ucs_list_is_empty(&((__ev)->sub_events))); \

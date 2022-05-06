@@ -20,7 +20,6 @@
 
 #define DEFAULT_NUM_EVTS (32)
 #define DEFAULT_NUM_NOTIFICATION_CALLBACKS (5000)
-#define DEFAULT_MAX_PENDING_EMITS (10)
 
 #if USE_AM_IMPLEM
 /**
@@ -147,10 +146,7 @@ dpu_offload_status_t ev_channels_init(dpu_offload_ev_sys_t **ev_channels)
     DYN_LIST_ALLOC(event_channels->free_pending_notifications, num_free_pending_notifications, pending_notification_t, item);
     assert(event_channels->free_pending_notifications);
     ucs_list_head_init(&(event_channels->pending_notifications));
-    ucs_list_head_init(&(event_channels->pending_emits));
-    event_channels->max_pending_emits = DEFAULT_MAX_PENDING_EMITS;
     event_channels->num_used_evs = 0;
-    event_channels->num_pending_sends = 0;
     DYN_ARRAY_ALLOC(&(event_channels->notification_callbacks), DEFAULT_NUM_NOTIFICATION_CALLBACKS, notification_callback_entry_t);
     CHECK_ERR_RETURN((event_channels->notification_callbacks.base == NULL), DO_ERROR, "Resource allocation failed");
     int ret = pthread_mutex_init(&(event_channels->mutex), NULL);
@@ -323,13 +319,12 @@ static void notif_hdr_send_cb(void *request, ucs_status_t status, void *user_dat
 static void notif_payload_send_cb(void *request, ucs_status_t status, void *user_data)
 {
     dpu_offload_event_t *ev = (dpu_offload_event_t *)user_data;
-    DBG("Payload for event #%ld successfully sent", ev->seq_num);
     ev->ctx.payload_completed = true;
+    DBG("Payload for event #%ld successfully sent (hdr completed: %d)", ev->seq_num, ev->ctx.hdr_completed);
 }
 
-uint64_t num_ev_sent = 0;
-
 #if USE_AM_IMPLEM
+uint64_t num_ev_sent = 0;
 int am_send_event_msg(dpu_offload_event_t **event)
 {
     ucp_request_param_t params;
@@ -369,12 +364,12 @@ int am_send_event_msg(dpu_offload_event_t **event)
     return EVENT_INPROGRESS;
 }
 #else
-// FIXME: do not block here, blocking only for initial debugging
 int tag_send_event_msg(dpu_offload_event_t **event)
 {
     if ((*event)->ctx.hdr_completed && (*event)->ctx.payload_completed)
     {
         WARN_MSG("Event %p already completed, not sending", (*event));
+        return EVENT_DONE;
     }
 
     assert((*event)->event_system);
@@ -405,6 +400,8 @@ int tag_send_event_msg(dpu_offload_event_t **event)
             ERR_MSG("ucp_tag_send_nbx() failed: %s", ucs_status_string(send_status));
             return send_status;
         }
+        if ((*event)->hdr_request == NULL)
+            (*event)->ctx.hdr_completed = true;
         DBG("event %p (%ld) send posted (hdr) - scope_id: %d, id: %" PRIu64 ", req: %p",
             (*event), (*event)->seq_num, (*event)->scope_id, myid, (*event)->hdr_request);
     }
@@ -412,6 +409,7 @@ int tag_send_event_msg(dpu_offload_event_t **event)
     /* 2. Send the payload */
     if ((*event)->ctx.hdr.payload_size > 0 && !((*event)->ctx.payload_completed))
     {
+        DBG("Sending payload - tag: %d, id: % "PRIu64", scope_id: %d, size: %ld", AM_EVENT_MSG_ID, myid, (*event)->scope_id, (*event)->ctx.hdr.payload_size);
         ucp_tag_t payload_ucp_tag = MAKE_SEND_TAG(AM_EVENT_MSG_ID, myid, 0, (*event)->scope_id, 0);
         struct ucx_context *payload_request = NULL;
         ucp_request_param_t payload_send_param;
@@ -438,7 +436,6 @@ int tag_send_event_msg(dpu_offload_event_t **event)
     {
         DBG("event %p send immediately completed", (*event));
         COMPLETE_EVENT(*event);
-        (*event)->was_pending = false;
         dpu_offload_status_t rc = event_return(event);
         CHECK_ERR_RETURN((rc), DO_ERROR, "event_return() failed");
         return EVENT_DONE;
@@ -468,16 +465,6 @@ int event_channel_emit_with_payload(dpu_offload_event_t **event, uint64_t my_id,
     (*event)->payload = payload;
     (*event)->dest_ep = dest_ep;
 
-    if ((*event)->event_system->num_pending_sends >= (*event)->event_system->max_pending_emits)
-    {
-        DBG("Queuing event for later emission");
-        assert((*event)->manage_payload_buf == false);
-        SYS_EVENT_LOCK((*event)->event_system);
-        ucs_list_add_tail(&((*event)->event_system->pending_emits), &((*event)->item));
-        SYS_EVENT_UNLOCK((*event)->event_system);
-        return EVENT_INPROGRESS;
-    }
-
 #if USE_AM_IMPLEM
     return am_send_event_msg(event);
 #else
@@ -500,16 +487,6 @@ int event_channel_emit(dpu_offload_event_t **event, uint64_t my_id, uint64_t typ
     ev->user_context = ctx;
     ev->dest_ep = dest_ep;
 
-    SYS_EVENT_LOCK(ev->event_system);
-    if (ev->event_system->num_pending_sends >= ev->event_system->max_pending_emits)
-    {
-        DBG("Queuing event for later emission");
-        assert(ev->manage_payload_buf == false);
-        ucs_list_add_tail(&(ev->event_system->pending_emits), &(ev->item));
-        SYS_EVENT_UNLOCK(ev->event_system);
-        return EVENT_INPROGRESS;
-    }
-    SYS_EVENT_UNLOCK(ev->event_system);
 #if USE_AM_IMPLEM
     return am_send_event_msg(event);
 #else
@@ -596,12 +573,6 @@ static dpu_offload_status_t do_event_return(dpu_offload_event_t *ev)
     }
 
     assert(ev->event_system);
-    if (ev->was_pending)
-    {
-        SYS_EVENT_LOCK(ev->event_system);
-        ev->event_system->num_pending_sends--;
-        SYS_EVENT_UNLOCK(ev->event_system);
-    }
 
     // If the event has a payload buffer that the library is managing, free that buffer
     if (ev->manage_payload_buf && ev->payload != NULL)

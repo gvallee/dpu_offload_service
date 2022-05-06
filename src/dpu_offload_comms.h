@@ -282,6 +282,13 @@ static void post_recv_for_notif_payload(hdr_notif_req_t *ctx, execution_context_
                 ctx->payload_ctx.req = NULL;
             }
         }
+
+        if (UCS_PTR_IS_ERR(ctx->payload_ctx.req))
+        {
+            ucs_status_t recv_status = UCS_PTR_STATUS(ctx->payload_ctx.req);
+            ERR_MSG("ucp_tag_recv_nbx() failed: %s", ucs_status_string(recv_status));
+        }
+
     }
     else
     {

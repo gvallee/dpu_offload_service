@@ -1538,7 +1538,8 @@ static void execution_context_progress(execution_context_t *ctx)
         if (event_completed(ev))
         {
             ucs_list_del(&(ev->item));
-            DBG("event %p completed and removed from ongoing events list, %ld elements on list", ev, ucs_list_length(&(ctx->ongoing_events)));
+            DBG("event %p (%ld) completed and removed from ongoing events list, %ld elements on list",
+                ev, ev->seq_num, ucs_list_length(&(ctx->ongoing_events)));
             if (ev->req)
             {
                 ucp_request_free(ev->req);
@@ -1546,20 +1547,6 @@ static void execution_context_progress(execution_context_t *ctx)
             }
             event_return(&ev);
         }
-    }
-
-    // Progress pending emits
-    while (!ucs_list_is_empty(&(ctx->event_channels->pending_emits)) &&
-           ucs_list_length(&(ctx->event_channels->pending_emits)) < ctx->event_channels->max_pending_emits)
-    {
-        dpu_offload_event_t *event = ucs_list_extract_head(&(ctx->event_channels->pending_emits), dpu_offload_event_t, item);
-#if USE_AM_IMPLEM
-        int rc = am_send_event_msg(&event);
-#else
-        int rc = tag_send_event_msg(&event);
-#endif // USE_AM_IMPLEM
-        if (rc != EVENT_DONE && rc != EVENT_INPROGRESS)
-            ucs_list_add_tail(&(ctx->event_channels->pending_emits), &(event->item));
     }
 
     // Progress all active operations
