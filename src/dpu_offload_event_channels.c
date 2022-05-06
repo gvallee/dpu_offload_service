@@ -139,6 +139,7 @@ dpu_offload_status_t ev_channels_init(dpu_offload_ev_sys_t **ev_channels)
 {
     dpu_offload_ev_sys_t *event_channels = MALLOC(sizeof(dpu_offload_ev_sys_t));
     CHECK_ERR_RETURN((event_channels == NULL), DO_ERROR, "Resource allocation failed");
+    RESET_EV_SYS(event_channels);
     size_t num_evts = DEFAULT_NUM_EVTS;
     size_t num_free_pending_notifications = DEFAULT_NUM_NOTIFICATION_CALLBACKS;
     DYN_LIST_ALLOC_WITH_INIT_CALLBACK(event_channels->free_evs, num_evts, dpu_offload_event_t, item, init_event);
@@ -146,14 +147,10 @@ dpu_offload_status_t ev_channels_init(dpu_offload_ev_sys_t **ev_channels)
     DYN_LIST_ALLOC(event_channels->free_pending_notifications, num_free_pending_notifications, pending_notification_t, item);
     assert(event_channels->free_pending_notifications);
     ucs_list_head_init(&(event_channels->pending_notifications));
-    event_channels->num_used_evs = 0;
     DYN_ARRAY_ALLOC(&(event_channels->notification_callbacks), DEFAULT_NUM_NOTIFICATION_CALLBACKS, notification_callback_entry_t);
     CHECK_ERR_RETURN((event_channels->notification_callbacks.base == NULL), DO_ERROR, "Resource allocation failed");
     int ret = pthread_mutex_init(&(event_channels->mutex), NULL);
     CHECK_ERR_RETURN((ret), DO_ERROR, "pthread_mutex_init() failed: %s", strerror(errno));
-#if !USE_AM_IMPLEM
-    event_channels->notif_recv.initialized = false;
-#endif
     *ev_channels = event_channels;
     return DO_SUCCESS;
 }
