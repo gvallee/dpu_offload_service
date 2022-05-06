@@ -385,8 +385,6 @@ error_out:
     return DO_ERROR;
 }
 
-#define MAX_RETRY (300) // Never try to connect for more than 5 minutes
-
 // This function assumes the associated execution context is properly locked before it is invoked
 dpu_offload_status_t oob_client_connect(dpu_offload_client_t *client, sa_family_t af)
 {
@@ -409,7 +407,6 @@ dpu_offload_status_t oob_client_connect(dpu_offload_client_t *client, sa_family_
     CHECK_ERR_RETURN((ret < 0), DO_ERROR, "getaddrinfo() failed");
 
     bool connected = false;
-    int retry = 1;
     for (t = res; t != NULL; t = t->ai_next)
     {
         client->conn_data.oob.sock = socket(t->ai_family, t->ai_socktype, t->ai_protocol);
@@ -435,17 +432,7 @@ dpu_offload_status_t oob_client_connect(dpu_offload_client_t *client, sa_family_
                 DBG("Connection established, fd = %d, addr=%s:%d", client->conn_data.oob.sock, conn_ip, conn_port);
                 break;
             }
-            else
-            {
-                retry *= 2;
-                DBG("Connection to %s:%d failed (%s), retrying in %d seconds...",
-                    client->conn_params.addr_str,
-                    client->conn_params.port,
-                    strerror(errno),
-                    retry);
-                sleep(retry);
-            }
-        } while (rc != 0 && retry < MAX_RETRY);
+        } while (rc != 0);
         CHECK_ERR_GOTO((rc != 0), err_close_sockfd, "Connection failed (rc: %d)", rc);
     }
 

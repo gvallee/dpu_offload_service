@@ -35,20 +35,7 @@ int main(int argc, char **argv)
     strcpy(dpu_cfg.local_dpu.hostname, argv[3]);
     dpu_offload_parse_list_dpus(engine, &dpu_cfg, &my_dpu_id);
     dpu_cfg.local_dpu.id = my_dpu_id;
-    //DYN_ARRAY_ALLOC(&(dpu_cfg.dpus_config), 2, dpu_config_data_t);
     find_dpu_config_from_platform_configfile(argv[1], &dpu_cfg);
-
-    return EXIT_SUCCESS;
-
-    offloading_config_t host_cfg;
-    INIT_DPU_CONFIG_DATA(&host_cfg);
-    DYN_ARRAY_ALLOC(&(host_cfg.dpus_config), 2, dpu_config_data_t);
-    find_config_from_platform_configfile(argv[1], "toto", &host_cfg);
-
-    DYN_ARRAY_FREE(&(host_cfg.dpus_config));
-    //DYN_ARRAY_FREE(&(dpu_cfg.dpus_config));
-
-    offload_engine_fini(&engine);
-
+    fprintf(stderr, "%s: test succeeded\n", argv[0]);
     return EXIT_SUCCESS;
 }

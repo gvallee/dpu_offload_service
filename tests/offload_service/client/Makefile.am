@@ -10,7 +10,7 @@
 #
 AM_CPPFLAGS = -I@top_srcdir@/include
 
-bin_PROGRAMS = client client_external_worker simple
+bin_PROGRAMS = client client_external_worker simple fake_mpi_rank
 
 # Flags used by all the tests
 AM_LDFLAGS = -ldpuoffloaddaemon
@@ -21,3 +21,5 @@ client_SOURCES = client.c ../common_test_params.h client_common.h
 client_external_worker_SOURCES = client_external_worker.c ../common_test_params.h client_common.h
 
 simple_SOURCES = simple.c
+
+fake_mpi_rank_SOURCES = fake_mpi_rank.c
