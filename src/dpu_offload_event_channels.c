@@ -409,7 +409,7 @@ int tag_send_event_msg(dpu_offload_event_t **event)
     /* 2. Send the payload */
     if ((*event)->ctx.hdr.payload_size > 0 && !((*event)->ctx.payload_completed))
     {
-        DBG("Sending payload - tag: %d, id: % "PRIu64", scope_id: %d, size: %ld", AM_EVENT_MSG_ID, myid, (*event)->scope_id, (*event)->ctx.hdr.payload_size);
+        DBG("Sending payload - tag: %d, id: %" PRIu64 ", scope_id: %d, size: %ld", AM_EVENT_MSG_ID, myid, (*event)->scope_id, (*event)->ctx.hdr.payload_size);
         ucp_tag_t payload_ucp_tag = MAKE_SEND_TAG(AM_EVENT_MSG_ID, myid, 0, (*event)->scope_id, 0);
         struct ucx_context *payload_request = NULL;
         ucp_request_param_t payload_send_param;
