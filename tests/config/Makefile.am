@@ -13,4 +13,4 @@ bin_PROGRAMS = config_file
 
 config_file_SOURCES = config_file.c
 AM_LDFLAGS = -ldpuoffloaddaemon -lucp
-AM_CFLAGS = -I@top_srcdir@/include -L@top_srcdir@/src/.libs
+AM_CFLAGS = -I@top_srcdir@/include -L@top_builddir@/src/.libs
