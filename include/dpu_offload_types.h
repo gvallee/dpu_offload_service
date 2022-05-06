@@ -11,6 +11,7 @@
 #define DPU_OFFLOAD_TYPES_H
 
 #include <ucs/datastruct/list.h>
+#include <limits.h>
 
 #include "dynamic_structs.h"
 #include "dpu_offload_common.h"
@@ -23,7 +24,8 @@ _EXTERN_C_BEGIN
 
 typedef enum
 {
-    CONTEXT_CLIENT = 0,
+    CONTEXT_UNKOWN = 0,
+    CONTEXT_CLIENT,
     CONTEXT_SERVER,
     CONTEXT_SELF,
 } daemon_type_t;
@@ -292,6 +294,15 @@ typedef struct rank_info
     int64_t n_local_ranks;
 } rank_info_t;
 
+#define RESET_RANK_INFO(_r)              \
+    do                                   \
+    {                                    \
+        (_r)->group_id = INVALID_GROUP;  \
+        (_r)->group_rank = INVALID_RANK; \
+        (_r)->group_size = 0;            \
+        (_r)->n_local_ranks = 0;         \
+    } while (0)
+
 // fixme: long term, we do not want to have a limit on the length of the address
 // but this will require a new smart way to manage the memory used by cache entries
 // and avoid expensive copies when exchanging cache entries between DPUs and
@@ -391,6 +402,14 @@ typedef struct am_header
     uint64_t payload_size;
 } am_header_t; // todo: rename, nothing to do with AM
 
+#define RESET_AM_HDR(_h)        \
+    do                          \
+    {                           \
+        (_h)->id = 0;           \
+        (_h)->type = 0;         \
+        (_h)->payload_size = 0; \
+    } while (0)
+
 typedef void (*request_compl_cb_t)(void *);
 
 /**
@@ -414,6 +433,15 @@ typedef struct am_req
     void *completion_cb_ctx;
 } am_req_t; // todo: rename, nothing to do with AM
 
+#define RESET_AM_REQ(_r)                \
+    do                                  \
+    {                                   \
+        RESET_AM_HDR(&((_r)->hdr));     \
+        (_r)->complete = false;         \
+        (_r)->completion_cb = NULL;     \
+        (_r)->completion_cb_ctx = NULL; \
+    } while (0)
+
 typedef struct event_req
 {
     // Header associated to the notification.
@@ -429,6 +457,16 @@ typedef struct event_req
     void *completion_cb_ctx;
 } event_req_t;
 
+#define RESET_EVENT_REQ(_r)              \
+    do                                   \
+    {                                    \
+        RESET_AM_HDR(&((_r)->hdr));      \
+        (_r)->hdr_completed = false;     \
+        (_r)->payload_completed = false; \
+        (_r)->completion_cb = NULL;      \
+        (_r)->completion_cb_ctx = NULL;  \
+    } while (0)
+
 #if !USE_AM_IMPLEM
 // Forward declaration
 struct execution_context;
@@ -441,6 +479,14 @@ typedef struct payload_notif_req
     struct ucx_context *req;
 } payload_notif_req_t;
 
+#define RESET_PAYLOAD_NOTIF_REQ(_r) \
+    do                              \
+    {                               \
+        (_r)->complete = false;     \
+        (_r)->buffer = NULL;        \
+        (_r)->req = NULL;           \
+    } while (0)
+
 typedef struct hdr_notif_req
 {
     bool complete;
@@ -451,6 +497,17 @@ typedef struct hdr_notif_req
     payload_notif_req_t payload_ctx;
 } hdr_notif_req_t;
 
+#define RESET_HDR_NOTIF_REQ(_r)                        \
+    do                                                 \
+    {                                                  \
+        (_r)->complete = false;                        \
+        RESET_AM_HDR(&((_r)->hdr));                    \
+        (_r)->req = NULL;                              \
+        (_r)->recv_peer_id = 0;                        \
+        (_r)->econtext = NULL;                         \
+        RESET_PAYLOAD_NOTIF_REQ(&((_r)->payload_ctx)); \
+    } while (0)
+
 typedef struct notif_reception
 {
     bool initialized;
@@ -460,6 +517,14 @@ typedef struct notif_reception
     ucp_tag_t hdr_ucp_tag_mask;
     struct ucx_context *req;
 } notif_reception_t;
+
+#define RESET_NOTIF_RECEPTION(_n)          \
+    do                                     \
+    {                                      \
+        (_n)->initialized = false;         \
+        RESET_HDR_NOTIF_REQ(&((_n)->ctx)); \
+        (_n)->req = NULL;                  \
+    } while (0)
 #endif
 
 typedef struct boostrapping
@@ -472,6 +537,18 @@ typedef struct boostrapping
     struct ucx_context *rank_request;
     am_req_t rank_ctx;
 } bootstrapping_t;
+
+#define RESET_BOOTSTRAPPING(_b)                \
+    do                                         \
+    {                                          \
+        (_b)->phase = BOOTSTRAP_NOT_INITIATED; \
+        (_b)->addr_size_request = NULL;        \
+        RESET_AM_REQ(&((_b)->addr_size_ctx));  \
+        (_b)->addr_request = NULL;             \
+        RESET_AM_REQ(&((_b)->addr_ctx));       \
+        (_b)->rank_request = NULL;             \
+        RESET_AM_REQ(&((_b)->rank_ctx));       \
+    } while (0)
 
 typedef struct peer_info
 {
@@ -544,6 +621,27 @@ typedef struct dpu_offload_ev_sys
 #endif
 } dpu_offload_ev_sys_t;
 
+#if !USE_AM_IMPLEM
+#define RESET_EV_SYS(_s)                            \
+    do                                              \
+    {                                               \
+        (_s)->free_evs = NULL;                      \
+        (_s)->num_used_evs = 0;                     \
+        (_s)->free_pending_notifications = NULL;    \
+        (_s)->econtext = 0;                         \
+        RESET_NOTIF_RECEPTION(&((_s)->notif_recv)); \
+    } while (0)
+#else
+#define RESET_EV_SYS(_s)                         \
+    do                                           \
+    {                                            \
+        (_s)->free_evs = NULL;                   \
+        (_s)->num_used_evs = 0;                  \
+        (_s)->free_pending_notifications = NULL; \
+        (_s)->econtext = 0;                      \
+    } while (0)
+#endif
+
 typedef struct connected_clients
 {
     // Number of clients that connected over time
@@ -558,6 +656,14 @@ typedef struct connected_clients
     // Dynamic array of structures to track connected clients (type: peer_info_t)
     dyn_array_t clients;
 } connected_clients_t;
+
+#define RESET_CONNECTED_CLIENTS(_c)            \
+    do                                         \
+    {                                          \
+        (_c)->num_total_connected_clients = 0; \
+        (_c)->num_connected_clients = 0;       \
+        (_c)->num_ongoing_connections = 0;     \
+    } while (0)
 
 /**
  * @brief connected_peer_data is the data that can be passed to a connection completion
@@ -781,6 +887,18 @@ typedef struct dpu_offload_server_t
     } conn_data;
 } dpu_offload_server_t;
 
+#define RESET_SERVER(_server)                                     \
+    do                                                            \
+    {                                                             \
+        (_server)->econtext = 0;                                  \
+        (_server)->done = false;                                  \
+        (_server)->mode = -1;                                     \
+        RESET_CONN_PARAMS(&((_server)->conn_params));             \
+        RESET_CONNECTED_CLIENTS(&((_server)->connected_clients)); \
+        (_server)->connected_cb = NULL;                           \
+        (_server)->event_channels = NULL;                         \
+    } while (0)
+
 typedef struct dpu_offload_client_t
 {
     bootstrapping_t bootstrapping;
@@ -824,6 +942,21 @@ typedef struct dpu_offload_client_t
     } conn_data;
 } dpu_offload_client_t;
 
+#define RESET_CLIENT(_c)                             \
+    do                                               \
+    {                                                \
+        RESET_BOOTSTRAPPING(&((_c)->bootstrapping)); \
+        (_c)->id = UINT64_MAX;                       \
+        (_c)->server_id = UINT64_MAX;                \
+        (_c)->econtext = NULL;                       \
+        (_c)->mode = INT_MAX;                        \
+        RESET_CONN_PARAMS(&((_c)->conn_params));     \
+        (_c)->done = false;                          \
+        (_c)->connected_cb = NULL;                   \
+        (_c)->server_ep = NULL;                      \
+        (_c)->event_channels = NULL;                 \
+    } while (0)
+
 typedef void (*execution_context_progress_fn)(struct execution_context *);
 
 struct offloading_engine; // forward declaration
@@ -849,7 +982,7 @@ typedef struct execution_context
     pthread_mutex_t mutex;
 
     // type specifies if the execution context is a server or a client during the bootstrapping process
-    int type;
+    daemon_type_t type;
 
     // Identifier to know the context, i.e., between DPUs or host-DPU.
     // This is for instance used to differentiate communications between DPUs
@@ -897,6 +1030,18 @@ typedef struct execution_context
     };
 
 } execution_context_t;
+
+#define RESET_ECONTEXT(_e)                  \
+    do                                      \
+    {                                       \
+        (_e)->type = CONTEXT_UNKOWN;        \
+        (_e)->scope_id = SCOPE_HOST_DPU;    \
+        (_e)->engine = NULL;                \
+        (_e)->event_channels = NULL;        \
+        (_e)->progress = NULL;              \
+        RESET_RANK_INFO(&((_e)->rank));     \
+        (_e)->free_pending_rdv_recv = NULL; \
+    } while (0)
 
 typedef struct pending_am_rdv_recv
 {
@@ -1284,7 +1429,7 @@ typedef struct offloading_engine
     size_t num_default_notifications;
 } offloading_engine_t;
 
-#define ENGINE_RESET(_engine)                        \
+#define RESET_ENGINE(_engine)                        \
     do                                               \
     {                                                \
         (_engine)->done = false;                     \

@@ -8,9 +8,10 @@
 #
 # $HEADER$
 #
+AM_CPPFLAGS = -I@top_srcdir@/include
 
 bin_PROGRAMS = server
 
 server_SOURCES = server.c ../common_test_params.h
 AM_LDFLAGS = -ldpuoffloaddaemon
-AM_CFLAGS = -I@top_srcdir@/include -L@top_srcdir@/src/.libs
+AM_CFLAGS = -I@top_srcdir@/include -L@top_builddir@/src/.libs

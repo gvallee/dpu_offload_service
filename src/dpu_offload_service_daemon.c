@@ -374,8 +374,6 @@ error_out:
     return DO_ERROR;
 }
 
-#define MAX_RETRY (300) // Never try to connect for more than 5 minutes
-
 // This function assumes the associated execution context is properly locked before it is invoked
 dpu_offload_status_t oob_client_connect(dpu_offload_client_t *client, sa_family_t af)
 {
@@ -395,7 +393,7 @@ dpu_offload_status_t oob_client_connect(dpu_offload_client_t *client, sa_family_
     ret = getaddrinfo(client->conn_params.addr_str, service, &hints, &res);
     CHECK_ERR_RETURN((ret < 0), DO_ERROR, "getaddrinfo() failed");
 
-    int retry = 1;
+    bool connected = false;
     for (t = res; t != NULL; t = t->ai_next)
     {
         client->conn_data.oob.sock = socket(t->ai_family, t->ai_socktype, t->ai_protocol);
@@ -419,17 +417,7 @@ dpu_offload_status_t oob_client_connect(dpu_offload_client_t *client, sa_family_
                 DBG("Connection established, fd = %d, addr=%s:%d", client->conn_data.oob.sock, conn_ip, ntohs(conn_addr.sin_port));
                 break;
             }
-            else
-            {
-                retry *= 2;
-                DBG("Connection to %s:%d failed (%s), retrying in %d seconds...",
-                    client->conn_params.addr_str,
-                    client->conn_params.port,
-                    strerror(errno),
-                    retry);
-                sleep(retry);
-            }
-        } while (rc != 0 && retry < MAX_RETRY);
+        } while (rc != 0);
         CHECK_ERR_GOTO((rc != 0), err_close_sockfd, "Connection failed (rc: %d)", rc);
     }
 
@@ -546,9 +534,8 @@ dpu_offload_status_t client_init_context(execution_context_t *econtext, init_par
     econtext->type = CONTEXT_CLIENT;
     econtext->client = MALLOC(sizeof(dpu_offload_client_t));
     CHECK_ERR_RETURN((econtext->client == NULL), DO_ERROR, "Unable to allocate client handle\n");
+    RESET_CLIENT(econtext->client);
     econtext->client->econtext = (struct execution_context *)econtext;
-    econtext->client->connected_cb = NULL;
-    econtext->client->bootstrapping.phase = BOOTSTRAP_NOT_INITIATED;
     ret = pthread_mutex_init(&(econtext->client->mutex), NULL);
     CHECK_ERR_RETURN((ret), DO_ERROR, "pthread_mutex_init() failed: %s", strerror(errno));
 
@@ -799,7 +786,7 @@ static dpu_offload_status_t oob_connect(execution_context_t *econtext)
     size_recvd = recv(client->conn_data.oob.sock, client->conn_data.oob.peer_addr, client->conn_data.oob.peer_addr_len, MSG_WAITALL);
     DBG("Received the address (size: %ld)", size_recvd);
     size_recvd = recv(client->conn_data.oob.sock, &(client->server_id), sizeof(client->server_id), MSG_WAITALL);
-    DBG("Received the server ID (size: %ld)", size_recvd);
+    DBG("Received the server ID (size: %ld, id: %" PRIu64 ")", size_recvd, client->server_id);
     size_recvd = recv(client->conn_data.oob.sock, &(client->id), sizeof(client->id), MSG_WAITALL);
     DBG("Received the client ID (size: %ld)", size_recvd);
     econtext->client->bootstrapping.phase = OOB_CONNECT_DONE;
@@ -937,11 +924,12 @@ dpu_offload_status_t offload_engine_init(offloading_engine_t **engine)
 {
     offloading_engine_t *d = MALLOC(sizeof(offloading_engine_t));
     CHECK_ERR_GOTO((d == NULL), error_out, "Unable to allocate resources");
+    RESET_ENGINE(d);
     int ret = pthread_mutex_init(&(d->mutex), NULL);
     CHECK_ERR_GOTO((ret), error_out, "pthread_mutex_init() failed: %s", strerror(errno));
-    ENGINE_RESET(d);
     d->num_max_servers = DEFAULT_MAX_NUM_SERVERS;
-    d->servers = MALLOC(d->num_max_servers * sizeof(dpu_offload_server_t));
+    d->servers = MALLOC(d->num_max_servers * sizeof(dpu_offload_server_t *));
+    CHECK_ERR_GOTO((d->servers == NULL), error_out, "unable to allocate memory to track servers");
     d->num_max_inter_dpus_clients = DEFAULT_MAX_NUM_SERVERS;
     d->inter_dpus_clients = MALLOC(d->num_max_inter_dpus_clients * sizeof(remote_dpu_connect_tracker_t));
     CHECK_ERR_GOTO((d->servers == NULL), error_out, "unable to allocate resources");
@@ -1017,16 +1005,17 @@ static void progress_server_event_recv(execution_context_t *econtext)
         {
             // Note: tag and tag mask are calculated by the macro to match the client
             // i.e., only messages from that client will be received.
-            DBG("Preparing reception of notification from client #%ld (econtext: %p, scope_id: %d)",
+            DBG("Preparing reception of notification from client #%ld (econtext: %p, scope_id: %d, peer_id: %ld)",
                 idx,
                 econtext,
-                econtext->scope_id);
+                econtext->scope_id,
+                client_info->id);
             PREP_NOTIF_RECV(client_info->notif_recv.ctx,
                             client_info->notif_recv.hdr_recv_params,
                             client_info->notif_recv.hdr_ucp_tag,
                             client_info->notif_recv.hdr_ucp_tag_mask,
                             worker,
-                            idx,
+                            client_info->id,
                             econtext->scope_id);
             client_info->notif_recv.initialized = true;
         }
@@ -1053,6 +1042,10 @@ static void progress_client_event_recv(execution_context_t *econtext)
     {
         // Note: tag and tag mask are calculated by the macro to match the client
         // i.e., only messages from the sever will be received.
+        DBG("Preparing reception of notification from server (econtext: %p, scope_id: %d, peer_id: %ld)",
+            econtext,
+            econtext->scope_id,
+            econtext->client->server_id);
         PREP_NOTIF_RECV(econtext->event_channels->notif_recv.ctx,
                         econtext->event_channels->notif_recv.hdr_recv_params,
                         econtext->event_channels->notif_recv.hdr_ucp_tag,
@@ -1101,26 +1094,25 @@ static void progress_self_event_recv(execution_context_t *econtext)
                         &(econtext->event_channels->notif_recv.hdr_recv_params));
 }
 
-
 static void progress_event_recv(execution_context_t *econtext)
 {
 #if USE_AM_IMPLEM
     /* Nothing to do */
 #else
     // Progress the ongoing communications
-    switch(econtext->type)
+    switch (econtext->type)
     {
-        case CONTEXT_SERVER:
-            progress_server_event_recv(econtext);
-            break;
-        case CONTEXT_CLIENT:
-            progress_client_event_recv(econtext);
-            break;
-        case CONTEXT_SELF:
-            progress_self_event_recv(econtext);
-            break;
-        default:
-            ERR_MSG("invalid execution context type (%d)", econtext->type);
+    case CONTEXT_SERVER:
+        progress_server_event_recv(econtext);
+        break;
+    case CONTEXT_CLIENT:
+        progress_client_event_recv(econtext);
+        break;
+    case CONTEXT_SELF:
+        progress_self_event_recv(econtext);
+        break;
+    default:
+        ERR_MSG("invalid execution context type (%d)", econtext->type);
     }
 #endif
 }
@@ -1298,7 +1290,8 @@ static void progress_server_econtext(execution_context_t *ctx)
                                                                                      client_info->rank_data.group_size,
                                                                                      client_info->rank_data.n_local_ranks);
                         group_cache_t *gp_cache = GET_GROUP_CACHE(&(ctx->engine->procs_cache), client_info->rank_data.group_id);
-                        if (cache_entry == NULL){
+                        if (cache_entry == NULL)
+                        {
                             ERR_MSG("undefined cache entry");
                             ECONTEXT_UNLOCK(ctx);
                             return;
@@ -1478,8 +1471,11 @@ static void progress_client_econtext(execution_context_t *ctx)
             ctx->client->bootstrapping.phase = BOOTSTRAP_DONE;
             if (ctx->client->connected_cb != NULL)
             {
-                DBG("Successfully connected, invoking connected callback");
+                DBG("Successfully connected, invoking connected callback (econtext: %p, client: %p, cb: %p",
+                    ctx, ctx->client, ctx->client->connected_cb);
                 connected_peer_data_t cb_data;
+                assert(ctx->client);
+                assert(ctx->client->conn_params.addr_str);
                 cb_data.peer_addr = ctx->client->conn_params.addr_str;
                 cb_data.econtext = ctx;
                 ctx->client->connected_cb(&cb_data);
@@ -1542,6 +1538,7 @@ static dpu_offload_status_t execution_context_init(offloading_engine_t *offload_
 {
     execution_context_t *ctx = MALLOC(sizeof(execution_context_t));
     CHECK_ERR_GOTO((ctx == NULL), error_out, "unable to allocate execution context");
+    RESET_ECONTEXT(ctx);
     int ret = pthread_mutex_init(&(ctx->mutex), NULL);
     CHECK_ERR_GOTO((ret), error_out, "pthread_mutex_init() failed: %s", strerror(errno));
     ctx->type = type;
@@ -1918,7 +1915,7 @@ static dpu_offload_status_t oob_server_listen(execution_context_t *econtext)
     size_sent = send(econtext->server->conn_data.oob.sock, econtext->server->conn_data.oob.local_addr, econtext->server->conn_data.oob.local_addr_len, 0);
     DBG("Address sent (len: %ld)", size_sent);
     size_sent = send(econtext->server->conn_data.oob.sock, &(econtext->server->id), sizeof(econtext->server->id), 0);
-    DBG("Server ID sent (len: %ld)", size_sent);
+    DBG("Server ID sent (len: %ld, id: %" PRIu64 ")", size_sent, econtext->server->id);
     uint64_t client_id = generate_unique_client_id(econtext);
     size_sent = send(econtext->server->conn_data.oob.sock, &client_id, sizeof(uint64_t), 0);
     DBG("Client ID sent (len: %ld, value: %" PRIu64 ")", size_sent, client_id);
@@ -2023,13 +2020,10 @@ dpu_offload_status_t server_init_context(execution_context_t *econtext, init_par
     econtext->type = CONTEXT_SERVER;
     econtext->server = MALLOC(sizeof(dpu_offload_server_t));
     CHECK_ERR_RETURN((econtext->server == NULL), DO_ERROR, "Unable to allocate server handle");
+    RESET_SERVER(econtext->server);
     econtext->server->econtext = (struct execution_context *)econtext;
     econtext->server->mode = OOB; // By default, we connect with the OOB mode
     DYN_ARRAY_ALLOC(&(econtext->server->connected_clients.clients), DEFAULT_MAX_NUM_CLIENTS, peer_info_t);
-    econtext->server->connected_clients.num_connected_clients = 0;
-    econtext->server->connected_clients.num_total_connected_clients = 0;
-    econtext->server->connected_clients.num_ongoing_connections = 0;
-    econtext->server->connected_cb = NULL;
     for (i = 0; i < DEFAULT_MAX_NUM_CLIENTS; i++)
     {
         peer_info_t *peer_info = DYN_ARRAY_GET_ELT(&(econtext->server->connected_clients.clients), i, peer_info_t);
@@ -2152,6 +2146,7 @@ execution_context_t *server_init(offloading_engine_t *offloading_engine, init_pa
         GET_WORKER(execution_context),
         execution_context,
         execution_context->scope_id);
+    execution_context->server->id = offloading_engine->num_servers;
     offloading_engine->servers[offloading_engine->num_servers] = execution_context;
     offloading_engine->num_servers++;
 

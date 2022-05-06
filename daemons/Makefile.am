@@ -9,4 +9,4 @@
 # $HEADER$
 #
 
-SUBDIRS = default job_persistent
+SUBDIRS = default job_persistent single

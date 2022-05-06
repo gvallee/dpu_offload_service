@@ -187,7 +187,7 @@ static void notif_payload_recv_handler(void *request, ucs_status_t status, const
     assert(ctx);
     assert(ctx->econtext);
     DBG("Notification payload received, ctx=%p econtext=%p type=%ld\n", ctx, ctx->econtext, ctx->hdr.type);
-    ctx->payload_ctx.complete = 1;
+    ctx->payload_ctx.complete = true;
 
     // Invoke the associated callback
     handle_notif_msg(ctx->econtext, &(ctx->hdr), sizeof(am_header_t), ctx->payload_ctx.buffer, ctx->hdr.payload_size);
@@ -264,7 +264,7 @@ static void post_recv_for_notif_payload(hdr_notif_req_t *ctx, execution_context_
         {
             // Recv completed immediately, the callback is not invoked
             DBG("Recv of the payload completed right away");
-            ctx->payload_ctx.complete = 1;
+            ctx->payload_ctx.complete = true;
             handle_notif_msg(ctx->econtext, &(ctx->hdr), sizeof(am_header_t), ctx->payload_ctx.buffer, ctx->hdr.payload_size);
             if (ctx->hdr.payload_size)
             {

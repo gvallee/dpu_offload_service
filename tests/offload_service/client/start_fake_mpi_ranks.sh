@@ -1,3 +1,6 @@
+#!/bin/sh
+#
+
 # -*- shell-script -*-
 #
 # Copyright 2022 NVIDIA CORPORATIONS. All rights reserved.
@@ -9,8 +12,8 @@
 # $HEADER$
 #
 
-bin_PROGRAMS = config_file
-
-config_file_SOURCES = config_file.c
-AM_LDFLAGS = -ldpuoffloaddaemon -lucp
-AM_CFLAGS = -I@top_srcdir@/include -L@top_builddir@/src/.libs
+for i in 0 1 2 3 4 5 6 7
+do
+    echo "./fake_mpi_rank 127.0.0.1 8888 1 8 $i &"
+    ./fake_mpi_rank 127.0.0.1 8888 1 8 $i &
+done

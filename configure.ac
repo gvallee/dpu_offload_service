@@ -168,6 +168,7 @@ AC_CONFIG_FILES([Makefile
                  daemons/Makefile
                  daemons/default/Makefile
                  daemons/job_persistent/Makefile
+                 daemons/single/Makefile
                  tests/Makefile
                  tests/cache/Makefile
                  tests/process_spawn/Makefile

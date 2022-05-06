@@ -62,7 +62,10 @@ bool group_cache_populated(offloading_engine_t *engine, int64_t gp_id)
 {
     group_cache_t *gp_cache = GET_GROUP_CACHE(&(engine->procs_cache), gp_id);
     if (gp_cache->group_size == gp_cache->num_local_entries)
+    {
+        DBG("Group cache fully populated");
         return true;
+    }
     return false;
 }
 
@@ -235,6 +238,12 @@ dpu_offload_status_t broadcast_group_cache(offloading_engine_t *engine, int64_t 
     {
         ERR_MSG("Not on a DPU, not allowed to broadcast group cache");
         return DO_ERROR;
+    }
+
+    if (engine->num_dpus == 1)
+    {
+        // It is only the current DPU, nothing to do
+        return DO_SUCCESS;
     }
 
     if (!all_dpus_connected(engine))
