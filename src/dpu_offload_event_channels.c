@@ -43,7 +43,7 @@ static void am_rdv_recv_cb(void *request, ucs_status_t status, size_t length, vo
 
 static ucs_status_t am_notification_recv_rdv_msg(execution_context_t *econtext, am_header_t *hdr, size_t hdr_len, size_t payload_size, void *desc)
 {
-    ucp_request_param_t am_rndv_recv_request_params;
+    ucp_request_param_t am_rndv_recv_request_params = {0};
     pending_am_rdv_recv_t *pending_recv;
     ECONTEXT_LOCK(econtext);
     DYN_LIST_GET(econtext->free_pending_rdv_recv, pending_am_rdv_recv_t, item, pending_recv);
@@ -165,7 +165,7 @@ dpu_offload_status_t event_channels_init(execution_context_t *econtext)
 #if USE_AM_IMPLEM
     // Register the UCX AM handler
     CHECK_ERR_RETURN((GET_WORKER(econtext) == NULL), DO_ERROR, "Undefined worker");
-    ucp_am_handler_param_t am_param;
+    ucp_am_handler_param_t am_param = {0};
     am_param.field_mask = UCP_AM_HANDLER_PARAM_FIELD_ID |
                           UCP_AM_HANDLER_PARAM_FIELD_CB |
                           UCP_AM_HANDLER_PARAM_FIELD_ARG |
@@ -250,7 +250,6 @@ dpu_offload_status_t engine_register_default_notification_handler(offloading_eng
     CHECK_ERR_RETURN((cb == NULL), DO_ERROR, "Undefined callback");
     CHECK_ERR_RETURN((engine == NULL), DO_ERROR, "Undefine engine");
 
-    notification_callback_entry_t *list_callbacks = (notification_callback_entry_t *)engine->default_notifications->notification_callbacks.base;
     ENGINE_LOCK(engine);
     notification_callback_entry_t *entry = DYN_ARRAY_GET_ELT(&(engine->default_notifications->notification_callbacks), type, notification_callback_entry_t);
     ENGINE_UNLOCK(engine);
@@ -286,7 +285,6 @@ static size_t num_completed_emit = 0;
 static void notification_emit_cb(void *user_data, const char *type_str)
 {
     dpu_offload_event_t *ev;
-    am_req_t *ctx;
     num_completed_emit++;
     DBG("New completion, %ld emit have now completed", num_completed_emit);
     if (user_data == NULL)
@@ -379,7 +377,7 @@ int tag_send_event_msg(dpu_offload_event_t **event)
     if (!((*event)->ctx.hdr_completed))
     {
         ucp_tag_t hdr_ucp_tag = MAKE_SEND_TAG(AM_EVENT_MSG_HDR_ID, myid, 0, (*event)->scope_id, 0);
-        ucp_request_param_t hdr_send_param;
+        ucp_request_param_t hdr_send_param = {0};
         hdr_send_param.op_attr_mask = UCP_OP_ATTR_FIELD_CALLBACK |
                                       UCP_OP_ATTR_FIELD_DATATYPE |
                                       UCP_OP_ATTR_FIELD_USER_DATA;
@@ -409,7 +407,7 @@ int tag_send_event_msg(dpu_offload_event_t **event)
         DBG("Sending payload - tag: %d, id: %" PRIu64 ", scope_id: %d, size: %ld", AM_EVENT_MSG_ID, myid, (*event)->scope_id, (*event)->ctx.hdr.payload_size);
         ucp_tag_t payload_ucp_tag = MAKE_SEND_TAG(AM_EVENT_MSG_ID, myid, 0, (*event)->scope_id, 0);
         struct ucx_context *payload_request = NULL;
-        ucp_request_param_t payload_send_param;
+        ucp_request_param_t payload_send_param = {0};
         payload_send_param.op_attr_mask = UCP_OP_ATTR_FIELD_CALLBACK |
                                           UCP_OP_ATTR_FIELD_DATATYPE |
                                           UCP_OP_ATTR_FIELD_USER_DATA;
@@ -491,7 +489,7 @@ int event_channel_emit(dpu_offload_event_t **event, uint64_t my_id, uint64_t typ
 #endif // USE_AM_IMPLEM
 }
 
-dpu_offload_status_t event_channels_fini(dpu_offload_ev_sys_t **ev_sys)
+void event_channels_fini(dpu_offload_ev_sys_t **ev_sys)
 {
     SYS_EVENT_LOCK(*ev_sys);
     if ((*ev_sys)->num_used_evs > 0)
@@ -501,7 +499,7 @@ dpu_offload_status_t event_channels_fini(dpu_offload_ev_sys_t **ev_sys)
 
 #if USE_AM_IMPLEM
     // Deregister the UCX AM handler
-    ucp_am_handler_param_t am_param;
+    ucp_am_handler_param_t am_param = {0};
     am_param.field_mask = UCP_AM_HANDLER_PARAM_FIELD_ID |
                           UCP_AM_HANDLER_PARAM_FIELD_CB;
     am_param.id = AM_EVENT_MSG_ID;
@@ -711,7 +709,6 @@ static dpu_offload_status_t op_start_cb(struct dpu_offload_ev_sys *ev_sys, execu
     assert(data);
     execution_context_t *econtext = (execution_context_t *)context;
     uint64_t *_data = (uint64_t *)data;
-    uint64_t op_idx = _data[0];
 
     // Find the operation and add it to the local list of registered operations
     offload_op_t *op_cfg = NULL;
@@ -768,14 +765,12 @@ static dpu_offload_status_t peer_cache_entries_request_recv_cb(struct dpu_offloa
         // We send the cache back to the sender
         dpu_offload_status_t rc;
         ucp_ep_h dest;
-        group_cache_t *gp_caches;
         dpu_offload_event_t *send_cache_ev;
         peer_info_t *peer_info = DYN_ARRAY_GET_ELT(&(econtext->server->connected_clients.clients), hdr->id, peer_info_t);
         assert(peer_info);
         event_get(econtext->event_channels, NULL, &send_cache_ev);
         assert(econtext->type == CONTEXT_SERVER);
         dest = peer_info->ep;
-        gp_caches = (group_cache_t *)econtext->engine->procs_cache.data.base;
         DBG("Sending group cache to DPU #%" PRIu64 ": event=%p", hdr->id, send_cache_ev);
         rc = send_group_cache(econtext, dest, rank_info->group_id, send_cache_ev);
         CHECK_ERR_RETURN((rc), DO_ERROR, "send_group_cache() failed");
@@ -823,7 +818,7 @@ static dpu_offload_status_t peer_cache_entries_recv_cb(struct dpu_offload_ev_sys
     size_t cur_size = 0;
     size_t idx = 0;
     int64_t group_id = INVALID_GROUP;
-    int64_t group_rank, group_size, n_local_ranks;
+    int64_t group_rank, group_size;
     while (cur_size < data_len)
     {
         cache_t *cache = &(engine->procs_cache);
@@ -834,14 +829,12 @@ static dpu_offload_status_t peer_cache_entries_recv_cb(struct dpu_offload_ev_sys
         // Now that we know for sure we have the group ID, we can move the received data into the local cache
         group_size = entries[idx].peer.proc_info.group_size;
         group_rank = entries[idx].peer.proc_info.group_rank;
-        n_local_ranks = entries[idx].peer.proc_info.n_local_ranks;
         DBG("Received a cache entry for rank:%ld, group:%ld, group size:%ld, number of local rank: %ld from DPU %" PRId64 " (msg size=%ld, peer addr len=%ld)",
-            group_rank, group_id, group_size, n_local_ranks, hdr->id, data_len, entries[idx].peer.addr_len);
+            group_rank, group_id, group_size, entries[idx].peer.proc_info.n_local_ranks, hdr->id, data_len, entries[idx].peer.addr_len);
 
         if (!is_in_cache(cache, group_id, group_rank, group_size))
         {
             peer_cache_entry_t *cache_entry = SET_PEER_CACHE_ENTRY(cache, &(entries[idx]));
-            group_cache_t *gp_caches = (group_cache_t *)cache->data.base;
 
             DBG("Adding received entry to cache...");
 
@@ -927,7 +920,6 @@ static dpu_offload_status_t add_group_rank_recv_cb(struct dpu_offload_ev_sys *ev
     assert(econtext);
     assert(data);
 
-    offloading_engine_t *engine = (offloading_engine_t *)econtext->engine;
     rank_info_t *rank_info = (rank_info_t *)data;
 
     if (!is_in_cache(&(econtext->engine->procs_cache), rank_info->group_id, rank_info->group_rank, rank_info->group_size))

@@ -312,8 +312,6 @@ static dpu_offload_status_t do_get_cache_entry_by_group_rank(offloading_engine_t
     if (is_in_cache(&(engine->procs_cache), gp_id, rank, -1))
     {
         // The cache has the data
-        dyn_array_t *gps_data = &(engine->procs_cache.data);
-        dyn_array_t *gp_data = DYN_ARRAY_GET_ELT(gps_data, gp_id, dyn_array_t);
         peer_cache_entry_t *cache_entry = GET_GROUP_RANK_CACHE_ENTRY(&(engine->procs_cache), gp_id, rank, GROUP_SIZE_UNKNOWN);
         DBG("%" PRId64 "/%" PRId64 " is in the cache, DPU ID = %" PRId64, rank, gp_id, cache_entry->shadow_dpus[dpu_idx]);
         if (ev != NULL)
@@ -443,7 +441,6 @@ dpu_offload_status_t get_dpu_id_by_group_rank(offloading_engine_t *engine, int64
 
 dpu_offload_status_t get_dpu_ep_by_id(offloading_engine_t *engine, uint64_t id, ucp_ep_h *dpu_ep, execution_context_t **econtext_comm)
 {
-    ucp_ep_h ep;
     remote_dpu_info_t **list_dpus;
     CHECK_ERR_RETURN((engine == NULL), DO_ERROR, "engine is undefined");
     CHECK_ERR_RETURN((id >= engine->num_dpus), DO_ERROR, "request DPU #%ld but only %ld DPUs are known", id, engine->num_dpus);
@@ -578,7 +575,6 @@ bool parse_line_dpu_version_1(offloading_config_t *data, char *line)
 {
     int idx = 0;
     bool rc = false;
-    uint64_t num_dpus = 0;
     char *rest_line = line;
     dpu_config_data_t *target_entry = NULL;
 
@@ -588,7 +584,6 @@ bool parse_line_dpu_version_1(offloading_config_t *data, char *line)
     while (line[idx] == ' ')
         idx++;
 
-    char *ptr = &(line[idx]);
     char *token = strtok_r(rest_line, ",", &rest_line);
 
     // The host's name does not really matter here, moving to the DPU(s) configuration
@@ -624,12 +619,12 @@ bool parse_line_dpu_version_1(offloading_config_t *data, char *line)
             bool parsing_okay = parse_dpu_cfg(token, target_entry);
             CHECK_ERR_RETURN((parsing_okay == false), false, "unable to parse config file entry");
             // fixme: support ranks dealing with multiple daemons on a single DPU (issue #98)
-            int *displayed_interdpu_port = DYN_ARRAY_GET_ELT(&(target_entry->version_1.interdpu_ports), 0, int);
-            int *displayed_host_port = DYN_ARRAY_GET_ELT(&(target_entry->version_1.host_ports), 0, int);
-            DBG("-> DPU %s found (%s:%d:%d)", target_entry->version_1.hostname,
-                target_entry->version_1.addr,
-                *displayed_interdpu_port,
-                *displayed_host_port);
+            //int *displayed_interdpu_port = DYN_ARRAY_GET_ELT(&(target_entry->version_1.interdpu_ports), 0, int);
+            //int *displayed_host_port = DYN_ARRAY_GET_ELT(&(target_entry->version_1.host_ports), 0, int);
+            //DBG("-> DPU %s found (%s:%d:%d)", target_entry->version_1.hostname,
+            //    target_entry->version_1.addr,
+            //    *displayed_interdpu_port,
+            //    *displayed_host_port);
 
             /* Save the configuration details */
             remote_dpu_info_t **list_dpus = LIST_DPUS_FROM_ENGINE(data->offloading_engine);
@@ -729,7 +724,6 @@ bool parse_line_version_1(char *target_hostname, offloading_config_t *data, char
     while (line[idx] == ' ')
         idx++;
 
-    char *ptr = &(line[idx]);
     char *token = strtok_r(rest, ",", &rest);
     DBG("Checking entry for %s", token);
     if (strncmp(token, target_hostname, strlen(token)) == 0)
@@ -738,7 +732,6 @@ bool parse_line_version_1(char *target_hostname, offloading_config_t *data, char
 
         // Next tokens are the local DPUs' data
         // We get the DPUs configuration one-by-one.
-        size_t dpu_idx = 0;
         token = strtok_r(rest, ",", &rest);
         while (token != NULL)
         {
@@ -811,10 +804,8 @@ bool parse_line_for_dpu_cfg(offloading_config_t *data, char *line)
 dpu_offload_status_t find_dpu_config_from_platform_configfile(char *filepath, offloading_config_t *config_data)
 {
     size_t len = 0;
-    ssize_t read;
     dpu_offload_status_t rc = DO_ERROR;
-    bool first_line = true;
-    bool found_self = false;
+    //bool found_self = false;
 
     // Read the entire file so we can go over the content quickly. Configure files are not expected to get huge
     FILE *file = fopen(filepath, "rb");
@@ -849,8 +840,8 @@ dpu_offload_status_t find_dpu_config_from_platform_configfile(char *filepath, of
         }
 
         DBG("Looking at %s", line);
-        if (parse_line_for_dpu_cfg(config_data, line) == true)
-            found_self = true;
+        //if (parse_line_for_dpu_cfg(config_data, line) == true)
+        //    found_self = true;
 
         line = strtok_r(rest_content, "\n", &rest_content);
     }
@@ -882,7 +873,6 @@ dpu_offload_status_t find_config_from_platform_configfile(char *filepath, char *
     ssize_t read;
     dpu_offload_status_t rc = DO_ERROR;
     bool first_line = true;
-    int version = 0;
 
     file = fopen(filepath, "r");
 

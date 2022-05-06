@@ -74,7 +74,7 @@ struct oob_msg
                 if (_list_callbacks[_i].set)                                                                                                                 \
                 {                                                                                                                                            \
                     dpu_offload_status_t _rc = event_channel_register((_econtext)->event_channels, _i, _list_callbacks[_i].cb);                              \
-                    CHECK_ERR_GOTO((rc), error_out, "unable to register engine's default notification to new execution context (type: %ld)", _i);            \
+                    CHECK_ERR_GOTO((_rc), error_out, "unable to register engine's default notification to new execution context (type: %ld)", _i);           \
                     _n++;                                                                                                                                    \
                 }                                                                                                                                            \
                 if (_n == (_engine)->num_default_notifications)                                                                                              \
@@ -111,15 +111,6 @@ static void oob_recv_addr_handler_2(void *request, ucs_status_t status, const uc
  */
 static inline dpu_offload_status_t oob_server_ucx_client_connection_step1(execution_context_t *econtext, peer_info_t *client_info)
 {
-    struct oob_msg *msg = NULL;
-
-    size_t msg_len = 0;
-    ucp_request_param_t send_param;
-    ucp_tag_recv_info_t info_tag;
-    ucs_status_t status;
-    ucp_tag_message_h msg_tag;
-    int ret;
-
     CHECK_ERR_RETURN((econtext == NULL), DO_ERROR, "undefined execution context");
     ECONTEXT_LOCK(econtext);
 
@@ -127,14 +118,13 @@ static inline dpu_offload_status_t oob_server_ucx_client_connection_step1(execut
     CHECK_ERR_GOTO((server == NULL), error_out, "server handle is undefined");
 
     /* 1. Receive the address size */
-    size_t client_addr_size = 0;
     ucp_tag_t ucp_tag, ucp_tag_mask;
     DBG("Posting recv - Tag: %d, scope_id: %d, econtext: %p, peer_id: %ld\n",
         econtext->server->conn_data.oob.tag,
         econtext->scope_id,
         econtext, client_info->id);
     MAKE_RECV_TAG(ucp_tag, ucp_tag_mask, econtext->server->conn_data.oob.tag, client_info->id, 0, econtext->scope_id, 0);
-    ucp_request_param_t recv_param;
+    ucp_request_param_t recv_param = {0};
     recv_param.op_attr_mask = UCP_OP_ATTR_FIELD_CALLBACK |
                               UCP_OP_ATTR_FIELD_DATATYPE |
                               UCP_OP_ATTR_FIELD_USER_DATA;
@@ -181,7 +171,7 @@ static inline dpu_offload_status_t oob_server_ucx_client_connection_step2(execut
 
     // Get the buffer ready for the receive
     ucp_tag_t ucp_tag, ucp_tag_mask;
-    ucp_request_param_t recv_param;
+    ucp_request_param_t recv_param = {0};
     client_info->peer_addr = MALLOC(client_info->peer_addr_len);
     CHECK_ERR_GOTO((client_info->peer_addr == NULL),
                    error_out,
@@ -222,7 +212,7 @@ error_out:
 static inline dpu_offload_status_t oob_server_ucx_client_connection_step3(execution_context_t *econtext, peer_info_t *client_info)
 {
     /* 3. Create the endpoint using the address we just received */
-    ucp_ep_params_t ep_params;
+    ucp_ep_params_t ep_params = {0};
     ep_params.field_mask = UCP_EP_PARAM_FIELD_REMOTE_ADDRESS |
                            UCP_EP_PARAM_FIELD_ERR_HANDLING_MODE |
                            UCP_EP_PARAM_FIELD_ERR_HANDLER |
@@ -243,7 +233,7 @@ static inline dpu_offload_status_t oob_server_ucx_client_connection_step3(execut
     // receive the rank/group data
     DBG("Ready to receive peer data\n");
     ucp_tag_t ucp_tag, ucp_tag_mask;
-    ucp_request_param_t recv_param;
+    ucp_request_param_t recv_param = {0};
     recv_param.op_attr_mask = UCP_OP_ATTR_FIELD_CALLBACK |
                               UCP_OP_ATTR_FIELD_DATATYPE |
                               UCP_OP_ATTR_FIELD_USER_DATA;
@@ -336,13 +326,12 @@ dpu_offload_status_t set_sock_addr(char *addr, uint16_t port, struct sockaddr_st
  */
 static dpu_offload_status_t oob_server_accept(execution_context_t *econtext, char *client_addr)
 {
-    int connfd;
     struct sockaddr_in servaddr;
     int optval = 1;
     int rc;
     int accept_sock;
     struct sockaddr_in addr;
-    int addr_len = sizeof(client_addr);
+    socklen_t addr_len = sizeof(client_addr);
 
     ECONTEXT_LOCK(econtext);
     uint16_t server_port = econtext->server->conn_params.port;
@@ -388,8 +377,6 @@ error_out:
 // This function assumes the associated execution context is properly locked before it is invoked
 dpu_offload_status_t oob_client_connect(dpu_offload_client_t *client, sa_family_t af)
 {
-    int listenfd = -1;
-    int optval = 1;
     char service[8];
     struct addrinfo hints, *res, *t;
     int ret;
@@ -406,7 +393,6 @@ dpu_offload_status_t oob_client_connect(dpu_offload_client_t *client, sa_family_
     ret = getaddrinfo(client->conn_params.addr_str, service, &hints, &res);
     CHECK_ERR_RETURN((ret < 0), DO_ERROR, "getaddrinfo() failed");
 
-    bool connected = false;
     for (t = res; t != NULL; t = t->ai_next)
     {
         client->conn_data.oob.sock = socket(t->ai_family, t->ai_socktype, t->ai_protocol);
@@ -427,9 +413,7 @@ dpu_offload_status_t oob_client_connect(dpu_offload_client_t *client, sa_family_
                 getsockname(client->conn_data.oob.sock, (struct sockaddr *)&conn_addr, &conn_addr_len);
                 char conn_ip[16];
                 inet_ntop(AF_INET, &(conn_addr.sin_addr), conn_ip, sizeof(conn_ip));
-                int conn_port;
-                conn_port = ntohs(conn_addr.sin_port);
-                DBG("Connection established, fd = %d, addr=%s:%d", client->conn_data.oob.sock, conn_ip, conn_port);
+                DBG("Connection established, fd = %d, addr=%s:%d", client->conn_data.oob.sock, conn_ip, ntohs(conn_addr.sin_port));
                 break;
             }
         } while (rc != 0);
@@ -440,7 +424,6 @@ dpu_offload_status_t oob_client_connect(dpu_offload_client_t *client, sa_family_
 
 out_free_res:
     freeaddrinfo(res);
-out:
     return rc;
 err_close_sockfd:
     close(client->conn_data.oob.sock);
@@ -450,7 +433,7 @@ err_close_sockfd:
 
 static void ep_close(ucp_worker_h ucp_worker, ucp_ep_h ep)
 {
-    ucp_request_param_t param;
+    ucp_request_param_t param = {0};
     ucs_status_t status;
     void *close_req;
     param.op_attr_mask = UCP_OP_ATTR_FIELD_FLAGS;
@@ -479,7 +462,6 @@ static dpu_offload_status_t init_context(ucp_context_h *ucp_context, ucp_worker_
     return DO_SUCCESS;
 err_cleanup:
     ucp_cleanup(*ucp_context);
-err:
     return DO_ERROR;
 }
 
@@ -632,7 +614,7 @@ static dpu_offload_status_t ucx_listener_client_connect(dpu_offload_client_t *cl
      *                                        removed, the error handling mode
      *                                        will be removed.
      */
-    ucp_ep_params_t ep_params;
+    ucp_ep_params_t ep_params = {0};
     ep_params.field_mask = UCP_EP_PARAM_FIELD_FLAGS |
                            UCP_EP_PARAM_FIELD_SOCK_ADDR |
                            UCP_EP_PARAM_FIELD_ERR_HANDLER |
@@ -652,15 +634,16 @@ static dpu_offload_status_t ucx_listener_client_connect(dpu_offload_client_t *cl
     return DO_SUCCESS;
 }
 
+#if 0
 static void oob_send_cb(void *request, ucs_status_t status, void *ctx)
 {
     struct ucx_context *context = (struct ucx_context *)request;
-    const char *str = (const char *)ctx;
 
     context->completed = 1;
 
-    DBG("send handler called for \"%s\" with status %d (%s)", str, status, ucs_status_string(status));
+    DBG("send handler called for \"%s\" with status %d (%s)", (const char *)ctx, status, ucs_status_string(status));
 }
+#endif
 
 static void ucx_client_boostrap_send_cb(void *request, ucs_status_t status, void *user_data)
 {
@@ -674,8 +657,7 @@ static dpu_offload_status_t client_ucx_boostrap_step3(execution_context_t *econt
     DBG("Sent addr to server");
     // We send our "rank", i.e., unique application ID
     DBG("Sending my group/rank info (%" PRId64 "/%" PRId64 "), len=%ld", econtext->rank.group_id, econtext->rank.group_rank, sizeof(econtext->rank));
-    struct ucx_context *rank_request = NULL;
-    ucp_request_param_t send_param;
+    ucp_request_param_t send_param = {0};
     send_param.op_attr_mask = UCP_OP_ATTR_FIELD_CALLBACK |
                               UCP_OP_ATTR_FIELD_DATATYPE |
                               UCP_OP_ATTR_FIELD_USER_DATA;
@@ -709,7 +691,7 @@ static dpu_offload_state_t client_ucx_bootstrap_step2(execution_context_t *econt
     ECONTEXT_LOCK(econtext);
     DBG("Sent addr size to server: %ld\n", econtext->client->conn_data.oob.local_addr_len);
     /* 2. Send the address itself */
-    ucp_request_param_t send_param;
+    ucp_request_param_t send_param = {0};
     send_param.op_attr_mask = UCP_OP_ATTR_FIELD_CALLBACK |
                               UCP_OP_ATTR_FIELD_DATATYPE |
                               UCP_OP_ATTR_FIELD_USER_DATA;
@@ -741,7 +723,7 @@ static dpu_offload_status_t client_ucx_bootstrap_step1(execution_context_t *econ
 {
     /* Establish the UCX level connection */
     ECONTEXT_LOCK(econtext);
-    ucp_ep_params_t ep_params;
+    ucp_ep_params_t ep_params = {0};
     ep_params.field_mask = UCP_EP_PARAM_FIELD_REMOTE_ADDRESS |
                            UCP_EP_PARAM_FIELD_ERR_HANDLING_MODE |
                            UCP_EP_PARAM_FIELD_ERR_HANDLER |
@@ -755,9 +737,7 @@ static dpu_offload_status_t client_ucx_bootstrap_step1(execution_context_t *econ
     ucs_status_t status = ucp_ep_create(GET_WORKER(econtext), &ep_params, &econtext->client->server_ep);
     CHECK_ERR_GOTO((status != UCS_OK), error_out, "ucp_ep_create() failed");
 
-    struct ucx_context *addr_size_request = NULL;
-    struct ucx_context *addr_request = NULL;
-    ucp_request_param_t send_param;
+    ucp_request_param_t send_param = {0};
     send_param.op_attr_mask = UCP_OP_ATTR_FIELD_CALLBACK |
                               UCP_OP_ATTR_FIELD_DATATYPE |
                               UCP_OP_ATTR_FIELD_USER_DATA;
@@ -874,7 +854,7 @@ dpu_offload_status_t offload_engine_progress(offloading_engine_t *engine)
     if (on_dpu)
     {
         // Progress connections between DPUs when necessary
-        size_t c, s, num_inter_dpus_clients;
+        size_t c, num_inter_dpus_clients;
         ENGINE_LOCK(engine);
         num_inter_dpus_clients = engine->num_inter_dpus_clients;
         ENGINE_UNLOCK(engine);
@@ -894,7 +874,6 @@ dpu_offload_status_t offload_engine_progress(offloading_engine_t *engine)
             int new_state = c_econtext->client->bootstrapping.phase;
             if (initial_state != BOOTSTRAP_DONE && new_state == BOOTSTRAP_DONE)
             {
-                remote_dpu_info_t *remote_dpu_info = NULL;
                 DBG("DPU client #%ld just finished its connection to a server, updating data", c);
                 ECONTEXT_UNLOCK(c_econtext);
                 dpu_offload_status_t rc = finalize_connection_to_remote_dpu(engine, engine->inter_dpus_clients[c].remote_dpu_info, engine->inter_dpus_clients[c].client_econtext);
@@ -1520,6 +1499,8 @@ static void execution_context_progress(execution_context_t *ctx)
     case CONTEXT_CLIENT:
         progress_client_econtext(ctx);
         break;
+    default:
+        break;
     }
 
     // Progress reception of events
@@ -1642,7 +1623,6 @@ execution_context_t *client_init(offloading_engine_t *offload_engine, init_param
     }
     DBG("execution context successfully initialized");
 
-    ucs_status_t status;
     rc = client_init_context(ctx, init_params);
     CHECK_ERR_GOTO((rc), error_out, "init_client_context() failed");
     CHECK_ERR_GOTO((ctx->client == NULL), error_out, "client handle is undefined");
@@ -1760,9 +1740,9 @@ void client_fini(execution_context_t **exec_ctx)
     }
 
     DBG("Sending termination message to associated server...");
-    void *term_msg;
+    void *term_msg = NULL;
     size_t msg_length = 0;
-    ucp_request_param_t params;
+    ucp_request_param_t params = {0};
     am_req_t ctx;
     ctx.complete = 0;
     params.op_attr_mask = UCP_OP_ATTR_FIELD_CALLBACK |
@@ -1772,8 +1752,15 @@ void client_fini(execution_context_t **exec_ctx)
     params.user_data = &ctx;
     params.cb.send = (ucp_send_nbx_callback_t)send_cb;
     dpu_offload_client_t *client = context->client;
-    void *request = ucp_am_send_nbx(client->server_ep, AM_TERM_MSG_ID, NULL, 0ul, term_msg,
-                                    msg_length, &params);
+    ucs_status_ptr_t request = ucp_am_send_nbx(client->server_ep, AM_TERM_MSG_ID, NULL, 0ul, term_msg,
+                                               msg_length, &params);
+    if (request == NULL) {
+        DBG("ucp_am_send_nbx() completed immediately");
+    } else if (UCS_PTR_IS_ERR(request)) {
+        ERR_MSG("ucp_am_send_nbx() failed with %d", UCS_PTR_STATUS(request));
+    } else {
+        DBG("ucp_am_send_nbx() in progress");
+    }
     // request_finalize(GET_WORKER(*exec_ctx), request, &ctx);
     DBG("Termination message successfully sent");
 
@@ -1817,15 +1804,15 @@ static void server_conn_handle_cb(ucp_conn_request_h conn_request, void *arg)
 {
     ucx_server_ctx_t *context = arg;
     ucp_conn_request_attr_t attr;
-    char ip_str[IP_STRING_LEN];
-    char port_str[PORT_STRING_LEN];
+    //char ip_str[IP_STRING_LEN];
+    //char port_str[PORT_STRING_LEN];
     ucs_status_t status;
     DBG("Connection handler invoked");
     attr.field_mask = UCP_CONN_REQUEST_ATTR_FIELD_CLIENT_ADDR;
     status = ucp_conn_request_query(conn_request, &attr);
     if (status == UCS_OK)
     {
-        DBG("Server received a connection request from client at address %s:%s", ip_str, port_str);
+        //DBG("Server received a connection request from client at address %s:%s", ip_str, port_str);
     }
     else if (status != UCS_ERR_UNSUPPORTED)
     {
@@ -1850,11 +1837,10 @@ static void server_conn_handle_cb(ucp_conn_request_h conn_request, void *arg)
 
 static dpu_offload_status_t ucx_listener_server(dpu_offload_server_t *server)
 {
-    struct sockaddr_storage listen_addr;
-    ucp_listener_params_t params;
+    ucp_listener_params_t params = {0};
     ucp_listener_attr_t attr;
     ucs_status_t status;
-    char *port_str;
+    //char *port_str;
     set_sock_addr(server->conn_params.addr_str, server->conn_params.port, &(server->conn_params.saddr));
     params.field_mask = UCP_LISTENER_PARAM_FIELD_SOCK_ADDR |
                         UCP_LISTENER_PARAM_FIELD_CONN_HANDLER;
@@ -1863,7 +1849,7 @@ static dpu_offload_status_t ucx_listener_server(dpu_offload_server_t *server)
     params.conn_handler.cb = server_conn_handle_cb;
     params.conn_handler.arg = &(server->conn_data.ucx_listener.context);
     /* Create a listener on the server side to listen on the given address.*/
-    DBG("Creating listener on %s:%s", server->conn_params.addr_str, port_str);
+    //DBG("Creating listener on %s:%s", server->conn_params.addr_str, port_str);
     status = ucp_listener_create(GET_WORKER(server->econtext), &params, &(server->conn_data.ucx_listener.context.listener));
     CHECK_ERR_RETURN((status != UCS_OK), DO_ERROR, "failed to listen (%s)", ucs_status_string(status));
 
@@ -1876,10 +1862,11 @@ static dpu_offload_status_t ucx_listener_server(dpu_offload_server_t *server)
         ucp_listener_destroy(server->conn_data.ucx_listener.context.listener);
         return DO_ERROR;
     }
-    DBG("server is listening on IP %s port %s", server->conn_params.addr_str, port_str);
+    //DBG("server is listening on IP %s port %s", server->conn_params.addr_str, port_str);
     return DO_SUCCESS;
 }
 
+#if 0
 static void oob_recv_addr_handler(void *request, ucs_status_t status,
                                   ucp_tag_recv_info_t *info)
 {
@@ -1889,7 +1876,9 @@ static void oob_recv_addr_handler(void *request, ucs_status_t status,
     DBG("receive handler for addr called with status %d (%s), length %lu",
         status, ucs_status_string(status), info->length);
 }
+#endif
 
+#if 0
 static void oob_recv_rank_handler(void *request, ucs_status_t status,
                                   ucp_tag_recv_info_t *info)
 {
@@ -1899,6 +1888,7 @@ static void oob_recv_rank_handler(void *request, ucs_status_t status,
     DBG("receive handler for rank called with status %d (%s), length %lu",
         status, ucs_status_string(status), info->length);
 }
+#endif
 
 // This function assumes the execution context is properly locked before it is invoked
 static inline uint64_t generate_unique_client_id(execution_context_t *econtext)
@@ -1942,9 +1932,6 @@ static dpu_offload_status_t oob_server_listen(execution_context_t *econtext)
     DBG("Total number of ongoing connections: %ld\n", econtext->server->connected_clients.num_ongoing_connections);
     ECONTEXT_UNLOCK(econtext);
     return DO_SUCCESS;
-error_out:
-    ECONTEXT_UNLOCK(econtext);
-    return DO_ERROR;
 }
 
 static void *connect_thread(void *arg)
@@ -2111,11 +2098,12 @@ dpu_offload_status_t server_init_context(execution_context_t *econtext, init_par
     return DO_SUCCESS;
 }
 
+#if 0
 static ucs_status_t server_create_ep(ucp_worker_h data_worker,
                                      ucp_conn_request_h conn_request,
                                      ucp_ep_h *server_ep)
 {
-    ucp_ep_params_t ep_params;
+    ucp_ep_params_t ep_params = {0};
     ucs_status_t status;
     /* Server creates an ep to the client on the data worker.
      * This is not the worker the listener was created on.
@@ -2131,6 +2119,7 @@ static ucs_status_t server_create_ep(ucp_worker_h data_worker,
                      ucs_status_string(status));
     return status;
 }
+#endif
 
 /**
  * @brief Initialize a connection server.
