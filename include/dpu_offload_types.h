@@ -1454,6 +1454,9 @@ typedef struct pending_notification
                 ucs_status_t status = ucp_ep_create((_engine)->ucp_worker,    \
                                                     &_ep_params,              \
                                                     &(_list_dpus[_idx]->ep)); \
+                CHECK_ERR_RETURN((status != UCS_OK), DO_ERROR,                \
+                                 "ucp_ep_create() failed: %s",                \
+                                 ucs_status_string(status));                  \
                 assert(_list_dpus[_idx]->ep);                                 \
                 __ep = _list_dpus[_idx]->ep;                                  \
             }                                                                 \

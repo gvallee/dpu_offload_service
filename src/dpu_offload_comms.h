@@ -239,13 +239,13 @@ static void post_recv_for_notif_payload(hdr_notif_req_t *ctx, execution_context_
         ucp_worker_h worker;
 
         ucp_tag_t payload_ucp_tag, payload_ucp_tag_mask;
-        ucp_request_param_t payload_recv_param;
         ctx->payload_ctx.buffer = MALLOC(ctx->hdr.payload_size);
         assert(ctx->payload_ctx.buffer);
         worker = GET_WORKER(econtext);
         assert(worker);
         // Post the receive for the payload
         ctx->payload_ctx.complete = false;
+        memset(&ctx->payload_ctx.recv_params, 0, sizeof(ctx->payload_ctx.recv_params));
         ctx->payload_ctx.recv_params.op_attr_mask = UCP_OP_ATTR_FIELD_CALLBACK |
                                                     UCP_OP_ATTR_FIELD_DATATYPE |
                                                     UCP_OP_ATTR_FIELD_USER_DATA;

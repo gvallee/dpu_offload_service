@@ -29,7 +29,7 @@
     void *_ptr = malloc((_size)); \
     if (_ptr != NULL)             \
     {                             \
-        memset(_ptr, 0, _size);   \
+        memset(_ptr, 0xef, _size);   \
     }                             \
     _ptr;                         \
 })

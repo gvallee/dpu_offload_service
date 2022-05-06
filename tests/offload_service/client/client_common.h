@@ -169,7 +169,6 @@ static inline int run_client_test(ucp_worker_h worker, ucp_context_h ucp_context
 
     fprintf(stderr, "ALL TESTS COMPLETED\n");
 
-end_test:
     client_fini(&client);
     offload_engine_fini(&offload_engine);
     fprintf(stderr, "client all done, exiting successfully\n");

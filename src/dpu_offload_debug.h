@@ -12,6 +12,7 @@
 
 #if !NDEBUG
 extern char *my_hostname;
+#if 0
 #define DBG(_dbg_fmt, ...)                                         \
     do                                                             \
     {                                                              \
@@ -25,6 +26,12 @@ extern char *my_hostname;
                 __FILE__, __LINE__, __func__, my_hostname,         \
                 getpid() __VA_OPT__(, ) __VA_ARGS__);              \
     } while (0)
+#else
+#define DBG(_dbg_fmt, ...)                                         \
+    do           \
+    {            \
+    } while (0)
+#endif
 #else
 #define DBG(...) \
     do           \
