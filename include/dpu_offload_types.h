@@ -161,6 +161,8 @@ typedef enum
     case CONTEXT_SELF:                              \
         _sys = (_exec_ctx)->event_channels;         \
         break;                                      \
+    default:                                        \
+        break;                                      \
     }                                               \
     _sys;                                           \
 })
@@ -815,6 +817,8 @@ typedef struct init_params
         case CONTEXT_SERVER:                       \
             SERVER_LOCK((_econtext)->server);      \
             break;                                 \
+        default:                                   \
+            break;                                 \
         }                                          \
     } while (0)
 
@@ -830,6 +834,8 @@ typedef struct init_params
         case CONTEXT_SERVER:                         \
             SERVER_UNLOCK((_econtext)->server);      \
             break;                                   \
+        default:                                   \
+            break;                                 \
         }                                            \
     } while (0)
 

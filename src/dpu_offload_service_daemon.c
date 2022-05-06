@@ -393,7 +393,6 @@ dpu_offload_status_t oob_client_connect(dpu_offload_client_t *client, sa_family_
     ret = getaddrinfo(client->conn_params.addr_str, service, &hints, &res);
     CHECK_ERR_RETURN((ret < 0), DO_ERROR, "getaddrinfo() failed");
 
-    bool connected = false;
     for (t = res; t != NULL; t = t->ai_next)
     {
         client->conn_data.oob.sock = socket(t->ai_family, t->ai_socktype, t->ai_protocol);
@@ -1499,6 +1498,8 @@ static void execution_context_progress(execution_context_t *ctx)
         break;
     case CONTEXT_CLIENT:
         progress_client_econtext(ctx);
+        break;
+    default:
         break;
     }
 
