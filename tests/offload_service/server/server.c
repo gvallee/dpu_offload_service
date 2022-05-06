@@ -102,20 +102,41 @@ int main(int argc, char **argv)
     // NOTIFICATIONS TEST
     fprintf(stderr, "STARTING TEST OF THE NOTIFICATION SYSTEM\n");
 
-    /* First we are the receiving side of a bunch of events */
-    WAIT_FOR_ALL_EVENTS_WITH_EXPLICIT_MGT(server);
-    WAIT_FOR_ALL_EVENTS_WITH_ONGOING_LIST(server);
+    for (current_data_size = sizeof(uint64_t); current_data_size <= 1024; current_data_size *= 2)
+    {
+        /* First we are the receiving side of a bunch of events */
+        ping_pong_done = false;
+        expected_value = 0;
+        payload_explicit_mgt_notif_expected_value = 0;
+        use_ongoing_list_notif_expected_value = NUM_FLOOD_TEST_EVTS + 10;
+        first_notification_recvd = false;
+        second_notification_recvd = false;
 
-    /* Then we become the sending side */
+        WAIT_FOR_ALL_EVENTS_WITH_EXPLICIT_MGT(server);
+        WAIT_FOR_ALL_EVENTS_WITH_ONGOING_LIST(server);
 
-    /* First with emitting a bunch of events and manually managing all of them */
-    EMIT_MANY_EVS_WITH_EXPLICIT_MGT(server);
+        /* Then we become the sending side */
+        expected_value = 0;
+        payload_explicit_mgt_notif_expected_value = 0;
+        use_ongoing_list_notif_expected_value = NUM_FLOOD_TEST_EVTS + 10;
+        first_notification_recvd = false;
+        second_notification_recvd = false;
 
-    /* Similar test but using the ongoing events queue, i.e, with implicit return of the event objects */
-    EMIT_MANY_EVTS_AND_USE_ONGOING_LIST(server);
+        /* First with emitting a bunch of events and manually managing all of them */
+        EMIT_MANY_EVS_WITH_EXPLICIT_MGT(server);
 
-    /* Finally we do a notification-based ping-pong that we initiate */
-    INITIATE_PING_PONG_TEST(server);
+        /* Similar test but using the ongoing events queue, i.e, with implicit return of the event objects */
+        EMIT_MANY_EVTS_AND_USE_ONGOING_LIST(server);
+
+        /* Finally we do a notification-based ping-pong that we initiate */
+        expected_value = 0;
+        payload_explicit_mgt_notif_expected_value = 0;
+        use_ongoing_list_notif_expected_value = NUM_FLOOD_TEST_EVTS + 10;
+        first_notification_recvd = false;
+        second_notification_recvd = false;
+        pingpong_test_initiated = false;
+        INITIATE_PING_PONG_TEST(server);
+    }
 
     fprintf(stderr, "ALL TESTS COMPLETED\n");
 

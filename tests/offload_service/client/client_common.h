@@ -66,7 +66,7 @@ static inline int run_client_test(ucp_worker_h worker, ucp_context_h ucp_context
     }
     else
         rc = offload_engine_init(&offload_engine);
-     
+
     if (rc || offload_engine == NULL)
     {
         fprintf(stderr, "offload_engine_init() failed\n");
@@ -93,7 +93,6 @@ static inline int run_client_test(ucp_worker_h worker, ucp_context_h ucp_context
     {
         client->progress(client);
     } while (client->client->bootstrapping.phase != BOOTSTRAP_DONE);
-    
 
     fprintf(stderr, "Client initialization all done\n");
 
@@ -154,18 +153,40 @@ static inline int run_client_test(ucp_worker_h worker, ucp_context_h ucp_context
     // NOTIFICATIONS TEST
     fprintf(stderr, "STARTING TEST OF THE NOTIFICATION SYSTEM\n");
 
-    /* First with emitting a bunch of events and manually managing all of them */
-    EMIT_MANY_EVS_WITH_EXPLICIT_MGT(client);
+    for (current_data_size = sizeof(uint64_t); current_data_size <= 1024; current_data_size *= 2)
+    {
+        ping_pong_done = false;
+        expected_value = 0;
+        payload_explicit_mgt_notif_expected_value = 0;
+        use_ongoing_list_notif_expected_value = NUM_FLOOD_TEST_EVTS + 10;
+        first_notification_recvd = false;
+        second_notification_recvd = false;
 
-    /* Similar test but using the ongoing events queue, i.e, with implicit return of the event objects */
-    EMIT_MANY_EVTS_AND_USE_ONGOING_LIST(client);
+        /* First with emitting a bunch of events and manually managing all of them */
+        EMIT_MANY_EVS_WITH_EXPLICIT_MGT(client);
 
-    /* Then we become the receiving side for the same tests */
-    WAIT_FOR_ALL_EVENTS_WITH_EXPLICIT_MGT(client);
-    WAIT_FOR_ALL_EVENTS_WITH_ONGOING_LIST(client);
+        /* Similar test but using the ongoing events queue, i.e, with implicit return of the event objects */
+        EMIT_MANY_EVTS_AND_USE_ONGOING_LIST(client);
 
-    /* Finally we do a notification-based ping-pong that we initiate */
-    INITIATE_PING_PONG_TEST(client);
+        expected_value = 0;
+        payload_explicit_mgt_notif_expected_value = 0;
+        use_ongoing_list_notif_expected_value = NUM_FLOOD_TEST_EVTS + 10;
+        first_notification_recvd = false;
+        second_notification_recvd = false;
+
+        /* Then we become the receiving side for the same tests */
+        WAIT_FOR_ALL_EVENTS_WITH_EXPLICIT_MGT(client);
+        WAIT_FOR_ALL_EVENTS_WITH_ONGOING_LIST(client);
+
+        /* Finally we do a notification-based ping-pong that we initiate */
+        expected_value = 0;
+        payload_explicit_mgt_notif_expected_value = 0;
+        use_ongoing_list_notif_expected_value = NUM_FLOOD_TEST_EVTS + 10;
+        first_notification_recvd = false;
+        second_notification_recvd = false;
+        pingpong_test_initiated = false;
+        INITIATE_PING_PONG_TEST(client);
+    }
 
     fprintf(stderr, "ALL TESTS COMPLETED\n");
 
