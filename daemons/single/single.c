@@ -12,7 +12,7 @@
 /* This daemon simulate the execution of a single daemon on a single DPU.
    This is mainly used for testing purposes. */
 
-// single <path_to_config_file> <ip> <port>
+// single <ip> <port>
 int main(int argc, char **argv)
 {
     ucp_params_t ucp_params;
