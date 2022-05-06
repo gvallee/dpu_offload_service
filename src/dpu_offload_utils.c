@@ -805,7 +805,7 @@ dpu_offload_status_t find_dpu_config_from_platform_configfile(char *filepath, of
 {
     size_t len = 0;
     dpu_offload_status_t rc = DO_ERROR;
-    //bool found_self = false;
+    bool found_self = false;
 
     // Read the entire file so we can go over the content quickly. Configure files are not expected to get huge
     FILE *file = fopen(filepath, "rb");
@@ -840,8 +840,8 @@ dpu_offload_status_t find_dpu_config_from_platform_configfile(char *filepath, of
         }
 
         DBG("Looking at %s", line);
-        //if (parse_line_for_dpu_cfg(config_data, line) == true)
-        //    found_self = true;
+        if (parse_line_for_dpu_cfg(config_data, line) == true)
+            found_self = true;
 
         line = strtok_r(rest_content, "\n", &rest_content);
     }
