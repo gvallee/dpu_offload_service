@@ -163,10 +163,10 @@ static inline int run_client_test(ucp_worker_h worker, ucp_context_h ucp_context
         second_notification_recvd = false;
 
         /* First with emitting a bunch of events and manually managing all of them */
-        EMIT_MANY_EVS_WITH_EXPLICIT_MGT(client);
+        EMIT_MANY_EVS_WITH_EXPLICIT_MGT(client, client->client->server_id);
 
         /* Similar test but using the ongoing events queue, i.e, with implicit return of the event objects */
-        EMIT_MANY_EVTS_AND_USE_ONGOING_LIST(client);
+        EMIT_MANY_EVTS_AND_USE_ONGOING_LIST(client, client->client->server_id);
 
         expected_value = 0;
         payload_explicit_mgt_notif_expected_value = 0;
@@ -185,7 +185,7 @@ static inline int run_client_test(ucp_worker_h worker, ucp_context_h ucp_context
         first_notification_recvd = false;
         second_notification_recvd = false;
         pingpong_test_initiated = false;
-        INITIATE_PING_PONG_TEST(client);
+        INITIATE_PING_PONG_TEST(client, client->client->server_id);
     }
 
     fprintf(stderr, "ALL TESTS COMPLETED\n");

@@ -45,7 +45,7 @@ offloading_config_t config_data; // TODO: find a way to avoid having a global va
     _dest_ep;                                     \
 })
 
-static int send_test_successful_message(execution_context_t *econtext)
+static int send_test_successful_message(execution_context_t *econtext, uint64_t dest_id)
 {
     dpu_offload_event_t *evt;
     dpu_offload_status_t rc = event_get(econtext->event_channels, NULL, &evt);
@@ -55,7 +55,7 @@ static int send_test_successful_message(execution_context_t *econtext)
         return -1;
     }
 
-    rc = event_channel_emit_with_payload(&evt, ECONTEXT_ID(econtext), TEST_COMPLETED_NOTIF_ID, GET_DEST_EP(econtext), econtext, NULL, 0);
+    rc = event_channel_emit_with_payload(&evt, TEST_COMPLETED_NOTIF_ID, GET_DEST_EP(econtext), dest_id, econtext, NULL, 0);
     if (rc != EVENT_DONE && rc != EVENT_INPROGRESS)
     {
         fprintf(stderr, "[ERROR] event_channel_emit_with_payload() failed\n");
@@ -114,7 +114,7 @@ void cache_entry_cb(void *data)
         fprintf(stderr, "l.%d: [ERROR] event_get() failed\n", __LINE__);
         return;
     }
-    rc = event_channel_emit(&end_test_cb_ev, config_data.local_dpu.id, END_TEST_FROM_CALLBACK, list_dpus[1]->ep, NULL);
+    rc = event_channel_emit(&end_test_cb_ev, END_TEST_FROM_CALLBACK, list_dpus[1]->ep, 1, NULL);
     if (rc != EVENT_DONE && rc != EVENT_INPROGRESS)
     {
         fprintf(stderr, "l.%d: [ERROR] event_channel_emit() failed\n", __LINE__);
@@ -437,7 +437,7 @@ int main(int argc, char **argv)
         // in the worst case, we had all the data required to generate the endpoint.
         assert(list_dpus[0]->ep);
         assert(remote_dpu_ep);
-        rc = event_channel_emit(&start_test_cb_ev, config_data.local_dpu.id, START_TEST_FROM_CALLBACK, list_dpus[0]->ep, NULL);
+        rc = event_channel_emit(&start_test_cb_ev, START_TEST_FROM_CALLBACK, list_dpus[0]->ep, 0, NULL);
         if (rc != EVENT_DONE && rc != EVENT_INPROGRESS)
         {
             fprintf(stderr, "l.%d: [ERROR] event_channel_emit() failed (rc: %d - %s)\n", __LINE__, rc, ucs_status_string(rc));
@@ -475,13 +475,13 @@ int main(int argc, char **argv)
 
         fprintf(stderr, "All done with first test, notify DPU #1...\n");
         execution_context_t *econtext = ECONTEXT_FOR_DPU_COMMUNICATION(offload_engine, 1);
-        send_test_successful_message(econtext);
+        send_test_successful_message(econtext, 1);
 
         while (!endpoint_success)
             offload_engine_progress(offload_engine);
 
         fprintf(stderr, "All done with second test, notify DPU #1...\n");
-        send_test_successful_message(econtext);
+        send_test_successful_message(econtext, 1);
     }
 
     fprintf(stderr, "Finalizing...\n");

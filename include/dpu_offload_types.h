@@ -494,7 +494,8 @@ typedef struct hdr_notif_req
     bool complete;
     am_header_t hdr;
     struct ucx_context *req;
-    uint64_t recv_peer_id;
+    uint64_t client_id;
+    uint64_t server_id;
     struct execution_context *econtext;
     payload_notif_req_t payload_ctx;
 } hdr_notif_req_t;
@@ -505,7 +506,8 @@ typedef struct hdr_notif_req
         (_r)->complete = false;                        \
         RESET_AM_HDR(&((_r)->hdr));                    \
         (_r)->req = NULL;                              \
-        (_r)->recv_peer_id = 0;                        \
+        (_r)->client_id = UINT64_MAX;                  \
+        (_r)->server_id = UINT64_MAX;                  \
         (_r)->econtext = NULL;                         \
         RESET_PAYLOAD_NOTIF_REQ(&((_r)->payload_ctx)); \
     } while (0)
@@ -896,7 +898,8 @@ typedef struct dpu_offload_server_t
 #define RESET_SERVER(_server)                                     \
     do                                                            \
     {                                                             \
-        (_server)->econtext = 0;                                  \
+        (_server)->id = UINT64_MAX;                               \
+        (_server)->econtext = NULL;                               \
         (_server)->done = false;                                  \
         (_server)->mode = -1;                                     \
         RESET_CONN_PARAMS(&((_server)->conn_params));             \
@@ -1124,7 +1127,10 @@ typedef struct dpu_offload_event
     void *payload;
 
     // Destination endpoint for remote events
-    ucp_ep_h dest_ep;
+    struct {
+        ucp_ep_h ep;
+        uint64_t id;
+    } dest;
 
     // event_system is the event system the event was initially from
     dpu_offload_ev_sys_t *event_system;
@@ -1150,7 +1156,8 @@ typedef struct dpu_offload_event
         (__ev)->ctx.hdr.id = 0;               \
         (__ev)->ctx.hdr.payload_size = 0;     \
         (__ev)->manage_payload_buf = false;   \
-        (__ev)->dest_ep = NULL;               \
+        (__ev)->dest.ep = NULL;               \
+        (__ev)->dest.id = UINT64_MAX;         \
         (__ev)->scope_id = SCOPE_HOST_DPU;    \
     } while (0)
 #else
@@ -1169,7 +1176,8 @@ typedef struct dpu_offload_event
         (__ev)->ctx.hdr.id = 0;               \
         (__ev)->ctx.hdr.payload_size = 0;     \
         (__ev)->manage_payload_buf = false;   \
-        (__ev)->dest_ep = NULL;               \
+        (__ev)->dest.ep = NULL;               \
+        (__ev)->dest.id = UINT64_MAX;         \
         (__ev)->scope_id = SCOPE_HOST_DPU;    \
     } while (0)
 #endif
@@ -1183,7 +1191,8 @@ typedef struct dpu_offload_event
         assert((__ev)->ctx.hdr.type == 0);                    \
         assert((__ev)->ctx.hdr.id == 0);                      \
         assert((__ev)->manage_payload_buf == false);          \
-        assert((__ev)->dest_ep == NULL);                      \
+        assert((__ev)->dest.ep == NULL);                      \
+        assert((__ev)->dest.id == UINT64_MAX);                \
         if ((__ev)->sub_events_initialized)                   \
         {                                                     \
             assert(ucs_list_is_empty(&((__ev)->sub_events))); \
@@ -1199,7 +1208,8 @@ typedef struct dpu_offload_event
         assert((__ev)->ctx.hdr.type == 0);                    \
         assert((__ev)->ctx.hdr.id == 0);                      \
         assert((__ev)->manage_payload_buf == false);          \
-        assert((__ev)->dest_ep == NULL);                      \
+        assert((__ev)->dest.ep == NULL);                      \
+        assert((__ev)->dest.id == UINT64_MAX);                \
         if ((__ev)->sub_events_initialized)                   \
         {                                                     \
             assert(ucs_list_is_empty(&((__ev)->sub_events))); \

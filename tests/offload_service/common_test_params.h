@@ -95,7 +95,7 @@ static uint64_t payload_explicit_mgt_notif_expected_value = 0;
         }                                                                                                      \
     } while (0)
 
-#define EMIT_MANY_EVTS_AND_USE_ONGOING_LIST(_econtext)                                                                \
+#define EMIT_MANY_EVTS_AND_USE_ONGOING_LIST(_econtext, _dest_id)                                                      \
     do                                                                                                                \
     {                                                                                                                 \
         dpu_offload_status_t _rc;                                                                                     \
@@ -131,9 +131,9 @@ static uint64_t payload_explicit_mgt_notif_expected_value = 0;
                                                                                                                       \
             char *ptr = (char *)((ptrdiff_t)data + (i * current_data_size));                                          \
             _rc = event_channel_emit_with_payload(&(evts[i]),                                                         \
-                                                  ECONTEXT_ID(_econtext),                                             \
                                                   USE_ONGOING_LIST_NOTIF_ID,                                          \
                                                   GET_DEST_EP(_econtext),                                             \
+                                                  _dest_id,                                                           \
                                                   NULL,                                                               \
                                                   ptr,                                                                \
                                                   current_data_size);                                                 \
@@ -166,7 +166,7 @@ static uint64_t payload_explicit_mgt_notif_expected_value = 0;
         fprintf(stderr, "EMIT_MANY_EVTS_AND_USE_ONGOING_LIST done\n");                                                \
     } while (0)
 
-#define EMIT_MANY_EVS_WITH_EXPLICIT_MGT(_econtext)                                                  \
+#define EMIT_MANY_EVS_WITH_EXPLICIT_MGT(_econtext, _dest_id)                                        \
     do                                                                                              \
     {                                                                                               \
         fprintf(stderr, "Sending %d notifications...\n", NUM_FLOOD_TEST_EVTS);                      \
@@ -201,9 +201,9 @@ static uint64_t payload_explicit_mgt_notif_expected_value = 0;
                                                                                                     \
             char *ptr = (char *)((ptrdiff_t)data + (i * current_data_size));                        \
             rc = event_channel_emit_with_payload(&(evts[i]),                                        \
-                                                 _econtext->client->id,                             \
                                                  PAYLOAD_EXPLICIT_MGT_NOTIF_ID,                     \
                                                  GET_DEST_EP(_econtext),                            \
+                                                 _dest_id,                                          \
                                                  NULL,                                              \
                                                  ptr,                                               \
                                                  current_data_size);                                \
@@ -362,9 +362,9 @@ static int pingpong_notification_cb(struct dpu_offload_ev_sys *ev_sys, execution
 
         fprintf(stderr, "Sending msg back with value %" PRIu64 "\n", val);
         _rc = event_channel_emit(&cur_evt,
-                                 ECONTEXT_ID(econtext),
                                  PINGPONG_NOTIF_ID,
                                  GET_DEST_EP(econtext),
+                                 hdr->id,
                                  econtext);
         if (_rc != EVENT_DONE && _rc != EVENT_INPROGRESS)
         {
@@ -384,7 +384,7 @@ static int pingpong_notification_cb(struct dpu_offload_ev_sys *ev_sys, execution
 
 // The client initiate the ping-pong; only the server increases the value. The test stop with the threshold value is reached
 static bool pingpong_test_initiated = false;
-#define INITIATE_PING_PONG_TEST(_econtext)                                                        \
+#define INITIATE_PING_PONG_TEST(_econtext, _dest_id)                                              \
     do                                                                                            \
     {                                                                                             \
         fprintf(stderr, "Starting INITIATE_PING_PONG_TEST (data size: %ld)...\n",                 \
@@ -406,9 +406,9 @@ static bool pingpong_test_initiated = false;
             INIT_DATA(data, expected_value);                                                      \
             fprintf(stderr, "sending initial ping...\n");                                         \
             _rc = event_channel_emit(&cur_evt,                                                    \
-                                     ECONTEXT_ID(_econtext),                                      \
                                      PINGPONG_NOTIF_ID,                                           \
                                      GET_DEST_EP(_econtext),                                      \
+                                     (_dest_id),                                                  \
                                      _econtext);                                                  \
             if (_rc != EVENT_DONE && _rc != EVENT_INPROGRESS)                                     \
             {                                                                                     \

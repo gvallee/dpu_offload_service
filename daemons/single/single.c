@@ -15,12 +15,6 @@
 // single <ip> <port>
 int main(int argc, char **argv)
 {
-    ucp_params_t ucp_params;
-    ucp_worker_params_t worker_params;
-    ucs_status_t status;
-    ucp_config_t *config;
-    uint64_t my_dpu_id;
-    offloading_config_t dpu_cfg;
     offloading_engine_t *engine = NULL;
     execution_context_t *service_server = NULL;
     init_params_t service_server_init_params;
@@ -59,7 +53,7 @@ int main(int argc, char **argv)
     if (service_server == NULL)
     {
         fprintf(stderr, "service_server is undefined\n");
-        return EXIT_FAILURE;
+        goto error_out;
     }
     ADD_SERVER_TO_ENGINE(service_server, engine);
     fprintf(stderr, "server for application processes to connect has been successfully created\n");

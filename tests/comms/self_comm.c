@@ -180,7 +180,7 @@ int main(int argc, char **argv)
         assert(self_ev);
         assert(rc == DO_SUCCESS);
 
-        rc = event_channel_emit(&self_ev, 0, MY_TEST_MANY_NOTIFS_ID, engine->self_ep, NULL);
+        rc = event_channel_emit(&self_ev, MY_TEST_MANY_NOTIFS_ID, engine->self_ep, 0, NULL);
         if (rc != EVENT_DONE && rc != EVENT_INPROGRESS)
         {
             fprintf(stderr, "[ERROR] event_channel_emit() failed\n");
@@ -203,7 +203,7 @@ int main(int argc, char **argv)
         assert(self_ev);
         assert(rc == DO_SUCCESS);
 
-        rc = event_channel_emit(&self_ev, 0, MY_TEST_MANY_NOTIFS_ID, engine->self_ep, NULL);
+        rc = event_channel_emit(&self_ev, MY_TEST_MANY_NOTIFS_ID, engine->self_ep, 0, NULL);
         if (rc != EVENT_DONE && rc != EVENT_INPROGRESS)
         {
             fprintf(stderr, "[ERROR] event_channel_emit() failed\n");
@@ -219,7 +219,7 @@ int main(int argc, char **argv)
     assert(self_ev);
     assert(rc == DO_SUCCESS);
 
-    rc = event_channel_emit(&self_ev, 0, MY_TEST_NOTIF_ID, engine->self_ep, NULL);
+    rc = event_channel_emit(&self_ev, MY_TEST_NOTIF_ID, engine->self_ep, 0, NULL);
     if (rc != EVENT_DONE && rc != EVENT_INPROGRESS)
     {
         fprintf(stderr, "[ERROR] event_channel_emit() failed\n");
