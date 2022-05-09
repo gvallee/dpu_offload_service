@@ -406,7 +406,7 @@ int tag_send_event_msg(dpu_offload_event_t **event)
         hdr_send_param.datatype = ucp_dt_make_contig(1);
         hdr_send_param.user_data = (void *)(*event);
 
-        assert((*event)->dest_ep);
+        assert((*event)->dest.ep);
         (*event)->hdr_request = NULL;
         (*event)->payload_request = NULL;
         (*event)->hdr_request = ucp_tag_send_nbx((*event)->dest.ep, &((*event)->ctx.hdr), sizeof(am_header_t), hdr_ucp_tag, &hdr_send_param);
@@ -420,8 +420,8 @@ int tag_send_event_msg(dpu_offload_event_t **event)
         {
             (*event)->ctx.hdr_completed = true;
         }
-        DBG("event %p (%ld) send posted (hdr) - scope_id: %d, id: %" PRIu64 ", req: %p",
-            (*event), (*event)->seq_num, (*event)->scope_id, myid, (*event)->hdr_request);
+        DBG("event %p (%ld) send posted (hdr) - scope_id: %d, req: %p",
+            (*event), (*event)->seq_num, (*event)->scope_id, (*event)->hdr_request);
     }
 
     /* 2. Send the payload */
@@ -480,7 +480,7 @@ int event_channel_emit_with_payload(dpu_offload_event_t **event, uint64_t type, 
     assert((*event));
     // This function can only be used when the user is managing the payload
     assert((*event)->manage_payload_buf == false);
-    DBG("Sending notification of type %" PRIu64 " (my_id=%" PRIu64 ")", type, my_id);
+    DBG("Sending notification of type %" PRIu64, type);
 #if USE_AM_IMPLEM
     (*event)->ctx.complete = false;
 #else
@@ -505,7 +505,7 @@ int event_channel_emit_with_payload(dpu_offload_event_t **event, uint64_t type, 
 int event_channel_emit(dpu_offload_event_t **event, uint64_t type, ucp_ep_h dest_ep, uint64_t dest_id, void *ctx)
 {
     dpu_offload_event_t *ev = *event;
-    DBG("Sending notification of type %" PRIu64 " (client_id=%" PRIu64 ")", type, my_id);
+    DBG("Sending notification of type %" PRIu64, type);
 #if USE_AM_IMPLEM
     ev->ctx.complete = false;
 #else

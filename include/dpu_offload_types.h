@@ -1190,7 +1190,8 @@ typedef struct dpu_offload_event
         assert((__ev)->ctx.hdr.type == 0);                    \
         assert((__ev)->ctx.hdr.id == 0);                      \
         assert((__ev)->manage_payload_buf == false);          \
-        assert((__ev)->dest_ep == NULL);                      \
+        assert((__ev)->dest.ep == NULL);                      \
+        assert((__ev)->dest.id == UINT64_MAX);                \
         if ((__ev)->sub_events_initialized)                   \
         {                                                     \
             assert(ucs_list_is_empty(&((__ev)->sub_events))); \
@@ -1206,7 +1207,8 @@ typedef struct dpu_offload_event
         assert((__ev)->ctx.hdr.type == 0);                    \
         assert((__ev)->ctx.hdr.id == 0);                      \
         assert((__ev)->manage_payload_buf == false);          \
-        assert((__ev)->dest_ep == NULL);                      \
+        assert((__ev)->dest.ep == NULL);                      \
+        assert((__ev)->dest.id == UINT64_MAX);                \
         if ((__ev)->sub_events_initialized)                   \
         {                                                     \
             assert(ucs_list_is_empty(&((__ev)->sub_events))); \
