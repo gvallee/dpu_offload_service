@@ -76,44 +76,45 @@
     } while (0)
 
 // PREP_NOTIF_RECV assumes the execution context is locked before being invoked
-#define PREP_NOTIF_RECV(_ctx, _hdr_recv_param, _hdr_ucp_tag, _hdr_ucp_tag_mask, _worker, _client_id, _server_id, _scope_id) \
-    do                                                                                                                      \
-    {                                                                                                                       \
-        /* Always have a recv posted so we are ready to get a header from the other side. */                                \
-        /* Remember we are using one thread per bootstrap client/server. */                                                 \
-        /* Just to make sure the initial receive will post, we mark the two receives for */                                 \
-        /* any notifications as completed */                                                                                \
-        (_ctx).complete = true;                                                                                             \
-        (_ctx).payload_ctx.complete = true;                                                                                 \
-        (_ctx).client_id = (_client_id);                                                                                    \
-        (_ctx).server_id = (_server_id);                                                                                    \
-        (_hdr_recv_param).op_attr_mask = UCP_OP_ATTR_FIELD_CALLBACK |                                                       \
-                                         UCP_OP_ATTR_FIELD_DATATYPE |                                                       \
-                                         UCP_OP_ATTR_FIELD_USER_DATA;                                                       \
-        (_hdr_recv_param).datatype = ucp_dt_make_contig(1);                                                                 \
-        (_hdr_recv_param).user_data = &(_ctx);                                                                              \
-        (_hdr_recv_param).cb.recv = notif_hdr_recv_handler;                                                                 \
-        MAKE_RECV_TAG((_hdr_ucp_tag),                                                                                       \
-                      (_hdr_ucp_tag_mask),                                                                                  \
-                      AM_EVENT_MSG_HDR_ID,                                                                                  \
-                      (_client_id),                                                                                         \
-                      (_server_id),                                                                                         \
-                      (_scope_id),                                                                                          \
-                      0);                                                                                                   \
-        worker = GET_WORKER(econtext);                                                                                      \
-        DBG(" -> Reception of notification on econtext %p and scope_id %d is now all set",                                  \
-            econtext,                                                                                                       \
-            (_scope_id));                                                                                                   \
-        if ((_scope_id) == SCOPE_INTER_DPU)                                                                                 \
-        {                                                                                                                   \
-            char h[1024];                                                                                                   \
-            h[1023] = '\0';                                                                                                 \
-            gethostname(h, 1023);                                                                                           \
-            fprintf(stderr, " -> %s: Reception of notification on econtext %p and scope_id %d is now all set\n",            \
-                    h,                                                                                                      \
-                    econtext,                                                                                               \
-                    (_scope_id));                                                                                           \
-        }                                                                                                                   \
+#define PREP_NOTIF_RECV(_ctx, _hdr_recv_param, _hdr_ucp_tag, _hdr_ucp_tag_mask, _worker, _client_id, _server_id, _scope_id)                \
+    do                                                                                                                                     \
+    {                                                                                                                                      \
+        /* Always have a recv posted so we are ready to get a header from the other side. */                                               \
+        /* Remember we are using one thread per bootstrap client/server. */                                                                \
+        /* Just to make sure the initial receive will post, we mark the two receives for */                                                \
+        /* any notifications as completed */                                                                                               \
+        (_ctx).complete = true;                                                                                                            \
+        (_ctx).payload_ctx.complete = true;                                                                                                \
+        (_ctx).client_id = (_client_id);                                                                                                   \
+        (_ctx).server_id = (_server_id);                                                                                                   \
+        (_hdr_recv_param).op_attr_mask = UCP_OP_ATTR_FIELD_CALLBACK |                                                                      \
+                                         UCP_OP_ATTR_FIELD_DATATYPE |                                                                      \
+                                         UCP_OP_ATTR_FIELD_USER_DATA;                                                                      \
+        (_hdr_recv_param).datatype = ucp_dt_make_contig(1);                                                                                \
+        (_hdr_recv_param).user_data = &(_ctx);                                                                                             \
+        (_hdr_recv_param).cb.recv = notif_hdr_recv_handler;                                                                                \
+        MAKE_RECV_TAG((_hdr_ucp_tag),                                                                                                      \
+                      (_hdr_ucp_tag_mask),                                                                                                 \
+                      AM_EVENT_MSG_HDR_ID,                                                                                                 \
+                      (_client_id),                                                                                                        \
+                      (_server_id),                                                                                                        \
+                      (_scope_id),                                                                                                         \
+                      0);                                                                                                                  \
+        worker = GET_WORKER(econtext);                                                                                                     \
+        DBG(" -> Reception of notification on econtext %p, client_id: %" PRIu64 ", server_id: %" PRIu64 " and scope_id %d is now all set", \
+            econtext,                                                                                                                      \
+            (_client_id), (_server_id),                                                                                                    \
+            (_scope_id));                                                                                                                  \
+        if ((_scope_id) == SCOPE_INTER_DPU)                                                                                                \
+        {                                                                                                                                  \
+            char h[1024];                                                                                                                  \
+            h[1023] = '\0';                                                                                                                \
+            gethostname(h, 1023);                                                                                                          \
+            fprintf(stderr, " -> %s: Reception of notification on econtext %p and scope_id %d is now all set\n",                           \
+                    h,                                                                                                                     \
+                    econtext,                                                                                                              \
+                    (_scope_id));                                                                                                          \
+        }                                                                                                                                  \
     } while (0)
 
 /**
