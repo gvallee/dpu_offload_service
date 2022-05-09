@@ -400,7 +400,6 @@ int tag_send_event_msg(dpu_offload_event_t **event)
                                               server_id,
                                               (*event)->scope_id,
                                               0);
-        ucp_request_param_t hdr_send_param;
         hdr_send_param.op_attr_mask = UCP_OP_ATTR_FIELD_CALLBACK |
                                       UCP_OP_ATTR_FIELD_DATATYPE |
                                       UCP_OP_ATTR_FIELD_USER_DATA;
