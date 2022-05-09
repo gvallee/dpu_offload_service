@@ -76,28 +76,44 @@
     } while (0)
 
 // PREP_NOTIF_RECV assumes the execution context is locked before being invoked
-#define PREP_NOTIF_RECV(ctx, hdr_recv_param, hdr_ucp_tag, hdr_ucp_tag_mask, worker, peer_id, scope_id)  \
-    do                                                                                                  \
-    {                                                                                                   \
-        /* Always have a recv posted so we are ready to get a header from the other side. */            \
-        /* Remember we are using one thread per bootstrap client/server. */                             \
-        /* Just to make sure the initial receive will post, we mark the two receives for */             \
-        /* any notifications as completed */                                                            \
-        ctx.complete = true;                                                                            \
-        ctx.payload_ctx.complete = true;                                                                \
-        ctx.recv_peer_id = peer_id;                                                                     \
-        hdr_recv_param.op_attr_mask = UCP_OP_ATTR_FIELD_CALLBACK |                                      \
-                                      UCP_OP_ATTR_FIELD_DATATYPE |                                      \
-                                      UCP_OP_ATTR_FIELD_USER_DATA;                                      \
-        hdr_recv_param.datatype = ucp_dt_make_contig(1);                                                \
-        hdr_recv_param.user_data = &ctx;                                                                \
-        hdr_recv_param.cb.recv = notif_hdr_recv_handler;                                                \
-        MAKE_RECV_TAG(hdr_ucp_tag, hdr_ucp_tag_mask, AM_EVENT_MSG_HDR_ID, peer_id, 0, scope_id, 0);     \
-        worker = GET_WORKER(econtext);                                                                  \
-        DBG(" -> Reception of notification for peer %ld on econtext %p and scope_id %d is now all set", \
-            peer_id,                                                                                    \
-            econtext,                                                                                   \
-            scope_id);                                                                                  \
+#define PREP_NOTIF_RECV(_ctx, _hdr_recv_param, _hdr_ucp_tag, _hdr_ucp_tag_mask, _worker, _client_id, _server_id, _scope_id) \
+    do                                                                                                                      \
+    {                                                                                                                       \
+        /* Always have a recv posted so we are ready to get a header from the other side. */                                \
+        /* Remember we are using one thread per bootstrap client/server. */                                                 \
+        /* Just to make sure the initial receive will post, we mark the two receives for */                                 \
+        /* any notifications as completed */                                                                                \
+        (_ctx).complete = true;                                                                                             \
+        (_ctx).payload_ctx.complete = true;                                                                                 \
+        (_ctx).client_id = (_client_id);                                                                                    \
+        (_ctx).server_id = (_server_id);                                                                                    \
+        (_hdr_recv_param).op_attr_mask = UCP_OP_ATTR_FIELD_CALLBACK |                                                       \
+                                         UCP_OP_ATTR_FIELD_DATATYPE |                                                       \
+                                         UCP_OP_ATTR_FIELD_USER_DATA;                                                       \
+        (_hdr_recv_param).datatype = ucp_dt_make_contig(1);                                                                 \
+        (_hdr_recv_param).user_data = &(_ctx);                                                                              \
+        (_hdr_recv_param).cb.recv = notif_hdr_recv_handler;                                                                 \
+        MAKE_RECV_TAG((_hdr_ucp_tag),                                                                                       \
+                      (_hdr_ucp_tag_mask),                                                                                  \
+                      AM_EVENT_MSG_HDR_ID,                                                                                  \
+                      (_client_id),                                                                                         \
+                      (_server_id),                                                                                         \
+                      (_scope_id),                                                                                          \
+                      0);                                                                                                   \
+        worker = GET_WORKER(econtext);                                                                                      \
+        DBG(" -> Reception of notification on econtext %p and scope_id %d is now all set",                                  \
+            econtext,                                                                                                       \
+            (_scope_id));                                                                                                   \
+        if ((_scope_id) == SCOPE_INTER_DPU)                                                                                 \
+        {                                                                                                                   \
+            char h[1024];                                                                                                   \
+            h[1023] = '\0';                                                                                                 \
+            gethostname(h, 1023);                                                                                           \
+            fprintf(stderr, " -> %s: Reception of notification on econtext %p and scope_id %d is now all set\n",            \
+                    h,                                                                                                      \
+                    econtext,                                                                                               \
+                    (_scope_id));                                                                                           \
+        }                                                                                                                   \
     } while (0)
 
 /**
@@ -175,11 +191,11 @@ error_out:
 
 /**
  * @brief Note that the function assumes the execution context is not locked before it is invoked.
- * 
- * @param request 
- * @param status 
- * @param tag_info 
- * @param user_data 
+ *
+ * @param request
+ * @param status
+ * @param tag_info
+ * @param user_data
  */
 static void notif_payload_recv_handler(void *request, ucs_status_t status, const ucp_tag_recv_info_t *tag_info, void *user_data)
 {
@@ -187,6 +203,10 @@ static void notif_payload_recv_handler(void *request, ucs_status_t status, const
     assert(ctx);
     assert(ctx->econtext);
     DBG("Notification payload received, ctx=%p econtext=%p type=%ld\n", ctx, ctx->econtext, ctx->hdr.type);
+    char h[1024];
+    h[1023] = '\0';
+    gethostname(h, 1023);
+    fprintf(stderr, "%s: Notification payload received, ctx=%p econtext=%p type=%ld\n", h, ctx, ctx->econtext, ctx->hdr.type);
     ctx->payload_ctx.complete = true;
 
     // Invoke the associated callback
@@ -210,10 +230,10 @@ static void notif_payload_recv_handler(void *request, ucs_status_t status, const
 
 /**
  * @brief Note that the function assumes the execution context is not locked before it is invoked.
- * 
- * @param ctx 
- * @param econtext 
- * @param peer_id 
+ *
+ * @param ctx
+ * @param econtext
+ * @param peer_id
  */
 static void post_recv_for_notif_payload(hdr_notif_req_t *ctx, execution_context_t *econtext, uint64_t peer_id)
 {
@@ -264,6 +284,7 @@ static void post_recv_for_notif_payload(hdr_notif_req_t *ctx, execution_context_
         {
             // Recv completed immediately, the callback is not invoked
             DBG("Recv of the payload completed right away");
+            fprintf(stderr, "Recv of the payload completed right away\n");
             ctx->payload_ctx.complete = true;
             handle_notif_msg(ctx->econtext, &(ctx->hdr), sizeof(am_header_t), ctx->payload_ctx.buffer, ctx->hdr.payload_size);
             if (ctx->hdr.payload_size)
@@ -288,7 +309,6 @@ static void post_recv_for_notif_payload(hdr_notif_req_t *ctx, execution_context_
             ucs_status_t recv_status = UCS_PTR_STATUS(ctx->payload_ctx.req);
             ERR_MSG("ucp_tag_recv_nbx() failed: %s", ucs_status_string(recv_status));
         }
-
     }
     else
     {
@@ -308,13 +328,13 @@ static void post_recv_for_notif_payload(hdr_notif_req_t *ctx, execution_context_
 
 /**
  * @brief Note that the function assumes that the execution context is not locked before it is invoked.
- * 
- * @param worker 
- * @param ctx 
- * @param econtext 
- * @param hdr_ucp_tag 
- * @param hdr_ucp_tag_mask 
- * @param hdr_recv_param 
+ *
+ * @param worker
+ * @param ctx
+ * @param econtext
+ * @param hdr_ucp_tag
+ * @param hdr_ucp_tag_mask
+ * @param hdr_recv_param
  */
 static void post_new_notif_recv(ucp_worker_h worker, hdr_notif_req_t *ctx, execution_context_t *econtext, ucp_tag_t hdr_ucp_tag, ucp_tag_t hdr_ucp_tag_mask, ucp_request_param_t *hdr_recv_param)
 {
@@ -331,26 +351,28 @@ static void post_new_notif_recv(ucp_worker_h worker, hdr_notif_req_t *ctx, execu
         {
             // Receive completed immediately, callback is not called
             DBG("Recv of notification header completed right away, notif type: %ld", ctx->hdr.type);
+            fprintf(stderr, "Recv of notification header completed right away, notif type: %ld\n", ctx->hdr.type);
             ctx->complete = true;
-            post_recv_for_notif_payload(ctx, (execution_context_t *)ctx->econtext, ctx->recv_peer_id);
+            post_recv_for_notif_payload(ctx, (execution_context_t *)ctx->econtext, ctx->hdr.id);
         }
     }
 }
 
 /**
  * @brief Note that the function assumes that the execution context is not locked before it is invoked.
- * 
- * @param request 
- * @param status 
- * @param tag_info 
- * @param user_data 
+ *
+ * @param request
+ * @param status
+ * @param tag_info
+ * @param user_data
  */
 static void notif_hdr_recv_handler(void *request, ucs_status_t status, const ucp_tag_recv_info_t *tag_info, void *user_data)
 {
     hdr_notif_req_t *ctx = (hdr_notif_req_t *)user_data;
-    DBG("Notification header received from peer #%ld, type: %ld\n", ctx->recv_peer_id, ctx->hdr.type);
+    DBG("Notification header received from peer #%ld, type: %ld\n", ctx->hdr.id, ctx->hdr.type);
+    fprintf(stderr, "Notification header received from peer #%ld, type: %ld\n", ctx->hdr.id, ctx->hdr.type);
     ctx->complete = true;
-    post_recv_for_notif_payload(ctx, (execution_context_t *)ctx->econtext, ctx->recv_peer_id);
+    post_recv_for_notif_payload(ctx, (execution_context_t *)ctx->econtext, ctx->hdr.id);
 }
 
 #endif // DPU_OFFLOAD_COMMS_H_

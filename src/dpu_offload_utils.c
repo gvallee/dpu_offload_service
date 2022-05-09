@@ -30,7 +30,7 @@ const char *config_file_version_token = "Format version:";
 /* FUNCTIONS RELATED TO GROUPS/RANKS */
 /*************************************/
 
-dpu_offload_status_t send_add_group_rank_request(execution_context_t *econtext, ucp_ep_h ep, int64_t group_id, int64_t rank, int64_t group_size, dpu_offload_event_t **e)
+dpu_offload_status_t send_add_group_rank_request(execution_context_t *econtext, ucp_ep_h ep, uint64_t dest_id, int64_t group_id, int64_t rank, int64_t group_size, dpu_offload_event_t **e)
 {
     dpu_offload_event_t *ev;
     dpu_offload_event_info_t ev_info;
@@ -45,9 +45,9 @@ dpu_offload_status_t send_add_group_rank_request(execution_context_t *econtext, 
     rank_info->group_size = group_size;
 
     rc = event_channel_emit(&ev,
-                            ECONTEXT_ID(econtext),
                             AM_ADD_GP_RANK_MSG_ID,
                             ep,
+                            dest_id,
                             NULL);
     CHECK_ERR_RETURN((rc != EVENT_DONE && rc != EVENT_INPROGRESS), DO_ERROR, "event_channel_emit_with_payload() failed");
     *e = ev;
@@ -69,7 +69,7 @@ bool group_cache_populated(offloading_engine_t *engine, int64_t gp_id)
     return false;
 }
 
-dpu_offload_status_t send_cache_entry_request(execution_context_t *econtext, ucp_ep_h ep, rank_info_t *requested_peer, dpu_offload_event_t **ev)
+dpu_offload_status_t send_cache_entry_request(execution_context_t *econtext, ucp_ep_h ep, uint64_t dest_id, rank_info_t *requested_peer, dpu_offload_event_t **ev)
 {
     dpu_offload_event_t *cache_entry_request_ev;
     dpu_offload_status_t rc;
@@ -82,9 +82,9 @@ dpu_offload_status_t send_cache_entry_request(execution_context_t *econtext, ucp
         econtext,
         econtext->scope_id);
     rc = event_channel_emit_with_payload(&cache_entry_request_ev,
-                                         ECONTEXT_ID(econtext),
                                          AM_PEER_CACHE_ENTRIES_REQUEST_MSG_ID,
                                          ep,
+                                         dest_id,
                                          NULL,
                                          requested_peer,
                                          sizeof(rank_info_t));
@@ -94,7 +94,7 @@ dpu_offload_status_t send_cache_entry_request(execution_context_t *econtext, ucp
     return DO_SUCCESS;
 }
 
-dpu_offload_status_t send_cache_entry(execution_context_t *econtext, ucp_ep_h ep, peer_cache_entry_t *cache_entry, dpu_offload_event_t **ev)
+dpu_offload_status_t send_cache_entry(execution_context_t *econtext, ucp_ep_h ep, uint64_t dest_id, peer_cache_entry_t *cache_entry, dpu_offload_event_t **ev)
 {
     dpu_offload_event_t *send_cache_entry_ev;
     dpu_offload_status_t rc = event_get(econtext->event_channels, NULL, &send_cache_entry_ev);
@@ -106,34 +106,57 @@ dpu_offload_status_t send_cache_entry(execution_context_t *econtext, ucp_ep_h ep
         sizeof(peer_cache_entry_t),
         AM_PEER_CACHE_ENTRIES_MSG_ID);
     rc = event_channel_emit_with_payload(&send_cache_entry_ev,
-                                         ECONTEXT_ID(econtext),
                                          AM_PEER_CACHE_ENTRIES_MSG_ID,
                                          ep,
+                                         dest_id,
                                          NULL,
                                          cache_entry,
                                          sizeof(peer_cache_entry_t));
+    if (rc != EVENT_DONE && rc != EVENT_INPROGRESS)
+        fprintf(stderr, "failure while sending cache entry\n");
     CHECK_ERR_RETURN((rc != EVENT_DONE && rc != EVENT_INPROGRESS), DO_ERROR, "event_channel_emit_with_payload() failed");
     // Never ever put the event on the ongoing list since it is also used to exchange the entire cache,
     // in which case the event is put on the list of sub-events and an event can only be on a single list at a time.
     // In other words, the caller is in charge of dealing with the event.
 
+    char h[1024];
+    h[1023] = '\0';                              
+    gethostname(h, 1023);
+    if (rc == EVENT_DONE)
+    {
+        fprintf(stderr, "%s: cache entry send completed right away\n", h);
+    }
+    if (rc == EVENT_INPROGRESS)
+    {
+        fprintf(stderr, "%s: cache entry send posted (ev: %p)\n", h, send_cache_entry_ev);
+    }
 #if !NDEBUG
     if (rc == EVENT_DONE)
+    {
         DBG("event completed right away, cahce entry sent");
+    }
     if (rc == EVENT_INPROGRESS)
+    {
         DBG("cache entry send posted");
+    }
 #endif
 
     *ev = send_cache_entry_ev;
     return DO_SUCCESS;
 }
 
-dpu_offload_status_t send_group_cache(execution_context_t *econtext, ucp_ep_h dest, int64_t gp_id, dpu_offload_event_t *metaev)
+dpu_offload_status_t send_group_cache(execution_context_t *econtext, ucp_ep_h dest_ep, uint64_t dest_id, int64_t gp_id, dpu_offload_event_t *metaev)
 {
     size_t i;
     group_cache_t *gp_cache = (group_cache_t *)econtext->engine->procs_cache.data.base;
+    char h[1024];
+    h[1023] = '\0';                              
+    gethostname(h, 1023);
     if (!gp_cache[gp_id].initialized)
+    {
+        fprintf(stderr, "FUCKME\n");
         return DO_SUCCESS;
+    }
 
     assert(gp_cache[gp_id].group_size > 0);
     for (i = 0; i < gp_cache[gp_id].ranks.num_elts; i++)
@@ -148,8 +171,9 @@ dpu_offload_status_t send_group_cache(execution_context_t *econtext, ucp_ep_h de
                 cache_entry->peer.proc_info.n_local_ranks,
                 metaev,
                 econtext->scope_id);
+            fprintf(stderr, "%s: Sending cache entry for rank %ld (ep: %p)\n", h, cache_entry->peer.proc_info.group_rank, dest_ep);
             dpu_offload_event_t *e;
-            dpu_offload_status_t rc = send_cache_entry(econtext, dest, cache_entry, &e);
+            dpu_offload_status_t rc = send_cache_entry(econtext, dest_ep, dest_id, cache_entry, &e);
             CHECK_ERR_RETURN((rc), DO_ERROR, "send_cache_entry() failed");
             if (e != NULL)
             {
@@ -171,7 +195,7 @@ dpu_offload_status_t send_group_cache(execution_context_t *econtext, ucp_ep_h de
     return DO_SUCCESS;
 }
 
-dpu_offload_status_t send_cache(execution_context_t *econtext, cache_t *cache, ucp_ep_h dest, dpu_offload_event_t *metaevt)
+dpu_offload_status_t send_cache(execution_context_t *econtext, cache_t *cache, ucp_ep_h dest_ep, uint64_t dest_id, dpu_offload_event_t *metaevt)
 {
     // Note: it is all done using the notification channels so there is not
     // need to post receives. Simply send the data if anything needs to be sent
@@ -184,7 +208,7 @@ dpu_offload_status_t send_cache(execution_context_t *econtext, cache_t *cache, u
         if (groups_cache[i].initialized)
         {
 
-            rc = send_group_cache(econtext, dest, i, metaevt);
+            rc = send_group_cache(econtext, dest_ep, dest_id, i, metaevt);
             CHECK_ERR_RETURN((rc), DO_ERROR, "exchange_group_cache() failed\n");
         }
     }
@@ -211,7 +235,7 @@ dpu_offload_status_t exchange_cache(execution_context_t *econtext, cache_t *cach
         ucp_ep_h dest_ep = GET_REMOTE_DPU_EP(offload_engine, i);
         if (dest_ep)
         {
-            rc = send_cache(econtext, &(offload_engine->procs_cache), dest_ep, meta_evt);
+            rc = send_cache(econtext, &(offload_engine->procs_cache), dest_ep, i, meta_evt);
             CHECK_ERR_RETURN((rc), DO_ERROR, "send_cache() failed");
         }
     }
@@ -252,6 +276,7 @@ dpu_offload_status_t broadcast_group_cache(offloading_engine_t *engine, int64_t 
         WARN_MSG("Not all DPUs are connected, unable to broadcast group cache (num DPUS: %ld, connected DPUs: %ld)",
                  engine->num_dpus,
                  engine->num_connected_dpus);
+        fprintf(stderr, "Not all DPUs are connected\n");
         return DO_ERROR;
     }
 
@@ -280,7 +305,13 @@ dpu_offload_status_t broadcast_group_cache(offloading_engine_t *engine, int64_t 
         assert(ev);
         dest_ep = GET_REMOTE_DPU_EP(engine, i);
         DBG("Sending group cache to DPU #%ld", i);
-        rc = send_group_cache(list_dpus[i]->econtext, dest_ep, group_id, ev);
+#if 1
+        char h[1024];
+        h[1023] = '\0';                              
+        gethostname(h, 1023);
+        fprintf(stderr, "%s: Sending group cache to DPU #%ld (ep: %p)\n", h, i, dest_ep);
+#endif
+        rc = send_group_cache(list_dpus[i]->econtext, dest_ep, i, group_id, ev);
         CHECK_ERR_RETURN((rc), DO_ERROR, "exchange_cache() failed");
         // We do not want to explicitly deal with the event so we put it
         // on the list of ongoing events
@@ -399,7 +430,7 @@ static dpu_offload_status_t do_get_cache_entry_by_group_rank(offloading_engine_t
 
                 ucp_ep_h dpu_ep = list_dpus[i]->ep;
                 dpu_offload_event_t *subev;
-                rc = send_cache_entry_request(econtext, dpu_ep, &rank_data, &subev);
+                rc = send_cache_entry_request(econtext, dpu_ep, i, &rank_data, &subev);
                 CHECK_ERR_RETURN((rc), DO_ERROR, "send_cache_entry_request() failed");
                 DBG("Sub-event for sending cache to DPU %ld: %p", i, subev);
                 if (subev != NULL)
@@ -426,7 +457,7 @@ static dpu_offload_status_t do_get_cache_entry_by_group_rank(offloading_engine_t
         // If we are on the host, we need to send a request to our first shadow DPU
         DBG("Sending request for cache entry...");
         execution_context_t *econtext = engine->client;
-        return send_cache_entry_request(econtext, GET_SERVER_EP(econtext), &rank_data, ev);
+        return send_cache_entry_request(econtext, GET_SERVER_EP(econtext), econtext->client->server_id, &rank_data, ev);
     }
     return DO_SUCCESS;
 }

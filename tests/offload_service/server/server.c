@@ -99,6 +99,9 @@ int main(int argc, char **argv)
         send_req = NULL;
     }
 
+    peer_info_t *client = DYN_ARRAY_GET_ELT(&(server->server->connected_clients.clients), 0, peer_info_t);
+    assert(client);
+
     // NOTIFICATIONS TEST
     fprintf(stderr, "STARTING TEST OF THE NOTIFICATION SYSTEM\n");
 
@@ -123,10 +126,10 @@ int main(int argc, char **argv)
         second_notification_recvd = false;
 
         /* First with emitting a bunch of events and manually managing all of them */
-        EMIT_MANY_EVS_WITH_EXPLICIT_MGT(server);
+        EMIT_MANY_EVS_WITH_EXPLICIT_MGT(server, client->id);
 
         /* Similar test but using the ongoing events queue, i.e, with implicit return of the event objects */
-        EMIT_MANY_EVTS_AND_USE_ONGOING_LIST(server);
+        EMIT_MANY_EVTS_AND_USE_ONGOING_LIST(server, client->id);
 
         /* Finally we do a notification-based ping-pong that we initiate */
         expected_value = 0;
@@ -135,7 +138,7 @@ int main(int argc, char **argv)
         first_notification_recvd = false;
         second_notification_recvd = false;
         pingpong_test_initiated = false;
-        INITIATE_PING_PONG_TEST(server);
+        INITIATE_PING_PONG_TEST(server, client->id);
     }
 
     fprintf(stderr, "ALL TESTS COMPLETED\n");

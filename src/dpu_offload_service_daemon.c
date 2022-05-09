@@ -133,7 +133,13 @@ static inline dpu_offload_status_t oob_server_ucx_client_connection_step1(execut
         econtext->server->conn_data.oob.tag,
         econtext->scope_id,
         econtext, client_info->id);
-    MAKE_RECV_TAG(ucp_tag, ucp_tag_mask, econtext->server->conn_data.oob.tag, client_info->id, 0, econtext->scope_id, 0);
+    MAKE_RECV_TAG(ucp_tag,
+                  ucp_tag_mask,
+                  econtext->server->conn_data.oob.tag,
+                  client_info->id,
+                  econtext->server->id,
+                  econtext->scope_id,
+                  0);
     ucp_request_param_t recv_param;
     recv_param.op_attr_mask = UCP_OP_ATTR_FIELD_CALLBACK |
                               UCP_OP_ATTR_FIELD_DATATYPE |
@@ -194,7 +200,13 @@ static inline dpu_offload_status_t oob_server_ucx_client_connection_step2(execut
     recv_param.user_data = &(client_info->bootstrapping.addr_ctx);
     recv_param.cb.recv = oob_recv_addr_handler_2;
     DBG("Tag: %d; scope_id: %d\n", econtext->server->conn_data.oob.tag, econtext->scope_id);
-    MAKE_RECV_TAG(ucp_tag, ucp_tag_mask, econtext->server->conn_data.oob.tag, client_info->id, 0, econtext->scope_id, 0);
+    MAKE_RECV_TAG(ucp_tag,
+                  ucp_tag_mask,
+                  econtext->server->conn_data.oob.tag,
+                  client_info->id,
+                  econtext->server->id,
+                  econtext->scope_id,
+                  0);
     client_info->bootstrapping.addr_request = ucp_tag_recv_nbx(GET_WORKER(econtext),
                                                                client_info->peer_addr,
                                                                client_info->peer_addr_len,
@@ -251,7 +263,13 @@ static inline dpu_offload_status_t oob_server_ucx_client_connection_step3(execut
     recv_param.user_data = &(client_info->bootstrapping.rank_ctx);
     recv_param.cb.recv = oob_recv_addr_handler_2;
     DBG("Tag: %d; scope_id: %d\n", econtext->server->conn_data.oob.tag, econtext->scope_id);
-    MAKE_RECV_TAG(ucp_tag, ucp_tag_mask, econtext->server->conn_data.oob.tag, client_info->id, 0, econtext->scope_id, 0);
+    MAKE_RECV_TAG(ucp_tag,
+                  ucp_tag_mask,
+                  econtext->server->conn_data.oob.tag,
+                  client_info->id,
+                  econtext->server->id,
+                  econtext->scope_id,
+                  0);
     client_info->bootstrapping.rank_request = ucp_tag_recv_nbx(GET_WORKER(econtext),
                                                                &(client_info->rank_data),
                                                                sizeof(rank_info_t),
@@ -683,7 +701,10 @@ static dpu_offload_status_t client_ucx_boostrap_step3(execution_context_t *econt
     send_param.datatype = ucp_dt_make_contig(1);
     send_param.user_data = &(econtext->client->bootstrapping.rank_ctx);
     DBG("Tag: %d; scope_id: %d", econtext->client->conn_data.oob.tag, econtext->scope_id);
-    ucp_tag_t ucp_tag = MAKE_SEND_TAG(econtext->client->conn_data.oob.tag, econtext->client->id, 0, econtext->scope_id, 0);
+    ucp_tag_t ucp_tag = MAKE_SEND_TAG(econtext->client->conn_data.oob.tag,
+                                      econtext->client->id,
+                                      econtext->client->server_id,
+                                      econtext->scope_id, 0);
     econtext->client->bootstrapping.rank_request = ucp_tag_send_nbx(econtext->client->server_ep,
                                                                     &(econtext->rank),
                                                                     sizeof(rank_info_t),
@@ -717,7 +738,11 @@ static dpu_offload_state_t client_ucx_bootstrap_step2(execution_context_t *econt
     send_param.datatype = ucp_dt_make_contig(1);
     send_param.user_data = &(econtext->client->bootstrapping.addr_ctx);
     DBG("Tag: %d; scope_id: %d\n", econtext->client->conn_data.oob.tag, econtext->scope_id);
-    ucp_tag_t ucp_tag = MAKE_SEND_TAG(econtext->client->conn_data.oob.tag, econtext->client->id, 0, econtext->scope_id, 0);
+    ucp_tag_t ucp_tag = MAKE_SEND_TAG(econtext->client->conn_data.oob.tag,
+                                      econtext->client->id,
+                                      econtext->client->server_id,
+                                      econtext->scope_id,
+                                      0);
     econtext->client->bootstrapping.addr_request = ucp_tag_send_nbx(econtext->client->server_ep,
                                                                     econtext->client->conn_data.oob.local_addr,
                                                                     econtext->client->conn_data.oob.local_addr_len,
@@ -766,7 +791,11 @@ static dpu_offload_status_t client_ucx_bootstrap_step1(execution_context_t *econ
     send_param.user_data = &(econtext->client->bootstrapping.addr_size_ctx);
 
     /* 1. Send the address size */
-    ucp_tag_t ucp_tag = MAKE_SEND_TAG(econtext->client->conn_data.oob.tag, econtext->client->id, 0, econtext->scope_id, 0);
+    ucp_tag_t ucp_tag = MAKE_SEND_TAG(econtext->client->conn_data.oob.tag,
+                                      econtext->client->id,
+                                      econtext->client->server_id,
+                                      econtext->scope_id,
+                                      0);
     DBG("Tag: %d; scope_id: %d\n", econtext->client->conn_data.oob.tag, econtext->scope_id);
     econtext->client->bootstrapping.addr_size_request = ucp_tag_send_nbx(econtext->client->server_ep, &(econtext->client->conn_data.oob.local_addr_len), sizeof(size_t), ucp_tag, &send_param);
     if (UCS_PTR_IS_ERR(econtext->client->bootstrapping.addr_size_request))
@@ -1010,6 +1039,9 @@ static void progress_server_event_recv(execution_context_t *econtext)
 {
     size_t n_client = 0;
     size_t idx = 0;
+    char h[1024];
+    h[1023] = '\0';   
+    gethostname(h, 1023);
     ECONTEXT_LOCK(econtext);
     while (n_client < econtext->server->connected_clients.num_connected_clients)
     {
@@ -1017,6 +1049,7 @@ static void progress_server_event_recv(execution_context_t *econtext)
         if (client_info == NULL || client_info->bootstrapping.phase != BOOTSTRAP_DONE)
         {
             idx++;
+            fprintf(stderr, "%s: Skipping client that is not fully bootstrapped\n", h);
             continue;
         }
 
@@ -1025,17 +1058,29 @@ static void progress_server_event_recv(execution_context_t *econtext)
         {
             // Note: tag and tag mask are calculated by the macro to match the client
             // i.e., only messages from that client will be received.
-            DBG("Preparing reception of notification from client #%ld (econtext: %p, scope_id: %d, peer_id: %ld)",
+            DBG("Preparing reception of notification from client #%ld (econtext: %p, scope_id: %d, peer_id: %ld, rank ID: %ld)",
                 idx,
                 econtext,
                 econtext->scope_id,
-                client_info->id);
+                client_info->id,
+                client_info->rank_data.group_rank);
+            fprintf(stderr, "%s: Preparing reception of notification from client #%ld (econtext: %p, scope_id: %d, peer_id: %ld, rank ID: %ld\n)",
+                h,
+                idx,
+                econtext,
+                econtext->scope_id,
+                client_info->id,
+                client_info->rank_data.group_rank);
+            // Always use the unique DPU ID from the list otherwise we can have a server and a client with the same ID
+            // and receives would not work as expected since they are posted on the same worker with ultimately the same
+            // tag
             PREP_NOTIF_RECV(client_info->notif_recv.ctx,
                             client_info->notif_recv.hdr_recv_params,
                             client_info->notif_recv.hdr_ucp_tag,
                             client_info->notif_recv.hdr_ucp_tag_mask,
                             worker,
                             client_info->id,
+                            econtext->server->id,
                             econtext->scope_id);
             client_info->notif_recv.initialized = true;
         }
@@ -1048,6 +1093,12 @@ static void progress_server_event_recv(execution_context_t *econtext)
                             client_info->notif_recv.hdr_ucp_tag_mask,
                             &(client_info->notif_recv.hdr_recv_params));
         ECONTEXT_LOCK(econtext);
+#if 0
+        if (econtext->scope_id == SCOPE_INTER_DPU)
+        {
+            fprintf(stderr, "Ready to receive from DPU #%ld\n", client_info->id);
+        }
+#endif
         idx++;
         n_client++;
     }
@@ -1071,6 +1122,7 @@ static void progress_client_event_recv(execution_context_t *econtext)
                         econtext->event_channels->notif_recv.hdr_ucp_tag,
                         econtext->event_channels->notif_recv.hdr_ucp_tag_mask,
                         worker,
+                        econtext->client->id,
                         econtext->client->server_id,
                         econtext->scope_id);
         econtext->event_channels->notif_recv.initialized = true;
@@ -1099,6 +1151,7 @@ static void progress_self_event_recv(execution_context_t *econtext)
                         econtext->event_channels->notif_recv.hdr_ucp_tag,
                         econtext->event_channels->notif_recv.hdr_ucp_tag_mask,
                         worker,
+                        0UL, // context ID is always 0 for self notifications (a.k.a. local notifications)
                         0UL, // context ID is always 0 for self notifications (a.k.a. local notifications)
                         econtext->scope_id);
         econtext->event_channels->notif_recv.initialized = true;
@@ -2158,7 +2211,13 @@ execution_context_t *server_init(offloading_engine_t *offloading_engine, init_pa
         GET_WORKER(execution_context),
         execution_context,
         execution_context->scope_id);
-    execution_context->server->id = offloading_engine->num_servers;
+    // Note: on DPUs, for inter-DPUs communications, we want the server to have the unique DPU ID based on
+    // the configuration, the same for client DPUs. So when a client DPU sends a message to a server DPU,
+    // we can create a unique tag that identify the server-client connection. 
+    if (offloading_engine->on_dpu && init_params != NULL && init_params->scope_id == SCOPE_INTER_DPU)
+        execution_context->server->id = offloading_engine->config->local_dpu.id;
+    else
+        execution_context->server->id = offloading_engine->num_servers;
     offloading_engine->servers[offloading_engine->num_servers] = execution_context;
     offloading_engine->num_servers++;
 

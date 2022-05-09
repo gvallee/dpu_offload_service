@@ -65,13 +65,13 @@ dpu_offload_status_t engine_register_default_notification_handler(offloading_eng
  * @brief event_channel_emit triggers the communication associated to a previously locally defined event.
  *
  * @param ev Event to be emitted. The object needs to be fully initialized prior the invokation of the function (see 'event_get()' and 'event_return()').
- * @param my_id The unique identifier to be used to send the event. It is used to identify the source of the event.
  * @param type Event type, i.e., identifier of the callback to invoke when the event is delivered at destination.
+ * @param dest_id The unique identifier to be used to send the event. It is used to identify the source of the event.
  * @param dest_ep Endpoint of the target of the event.
  * @param ctx User-defined context to help identify the context of the event upon local completion.
  * @return result of UCS_PTR_STATUS in the context of errors, EVENT_DONE if the emittion completed right away, EVENT_INPROGRESS if emitting the event is still in progress (e.g., communication not completed). One can check on completion using ev->req.
  */
-int event_channel_emit(dpu_offload_event_t **ev, uint64_t my_id, uint64_t type, ucp_ep_h dest_ep, void *ctx);
+int event_channel_emit(dpu_offload_event_t **ev, uint64_t type, ucp_ep_h dest_ep, uint64_t dest_id, void *ctx);
 
 /**
  * @brief event_channel_emit_with_payload triggers the communication associated to a previously
@@ -80,9 +80,9 @@ int event_channel_emit(dpu_offload_event_t **ev, uint64_t my_id, uint64_t type, 
  * must remain available until the event completes.
  *
  * @param ev Event to be emitted. The object needs to be fully initialized prior the invokation of the function (see 'event_get()' and 'event_return()').
- * @param my_id The unique identifier to be used to send the event. It is used to identify the source of the event.
  * @param type Event type, i.e., identifier of the callback to invoke when the event is delivered at destination.
  * @param dest_ep Endpoint of the target of the event.
+ * @param dest_id The unique identifier to be used to send the event. It is used to identify the source of the event.
  * @param ctx User-defined context to help identify the context of the event upon local completion.
  * @param payload User-defined payload associated to the event.
  * @param payload_size Size of the user-defined payload.
@@ -94,7 +94,7 @@ int event_channel_emit(dpu_offload_event_t **ev, uint64_t my_id, uint64_t type, 
  * Example: the user uses the ongoing events list so that the event is implicitly returned when completed, with an event payload managed outside of the offloading library.
  *      dpu_offload_event_t *my_ev;
  *      event_get(ev_sys, NULL, &my_ev);
- *      int rc = event_channel_emit_with_payload(my_ev, my_id, my_notification_type, dest_ep, NULL, &my_global_static_object, object_size);
+ *      int rc = event_channel_emit_with_payload(my_ev, my_notification_type, dest_ep, dest_id, NULL, &my_global_static_object, object_size);
  *      if (rc == EVENT_DONE)
  *      {
  *          // Event completed right away. Nothing else to do.
@@ -106,7 +106,7 @@ int event_channel_emit(dpu_offload_event_t **ev, uint64_t my_id, uint64_t type, 
  *          return -1;
  *      }
  */
-int event_channel_emit_with_payload(dpu_offload_event_t **ev, uint64_t my_id, uint64_t type, ucp_ep_h dest_ep, void *ctx, void *payload, size_t payload_size);
+int event_channel_emit_with_payload(dpu_offload_event_t **ev, uint64_t type, ucp_ep_h dest_ep, uint64_t dest_id, void *ctx, void *payload, size_t payload_size);
 
 /**
  * @brief Get an event from a pool of event. Using a pool of events prevents dynamic allocations.
@@ -124,7 +124,7 @@ int event_channel_emit_with_payload(dpu_offload_event_t **ev, uint64_t my_id, ui
  *      event_get(ev_sys, NULL, &myev);
  *  - get and emit an event with a payload that the caller entirely control.
  *      event_get(ev_sys, NULL, &myev);
- *      int rc = event_channel_emit_with_payload(myev, econtext_id, dest_ep, NULL, my_payload, my_payload_size);
+ *      int rc = event_channel_emit_with_payload(myev, dest_ep, dest_id, NULL, my_payload, my_payload_size);
  *      if (rc == EVENT_DONE)
  *      {
  *          // Event completed right away
@@ -141,7 +141,7 @@ int event_channel_emit_with_payload(dpu_offload_event_t **ev, uint64_t my_id, ui
  *      };
  *      event_get(ev_sys, &ev_info, &myev);
  *      memcpy(myev->payload, my_data, sizeof(my_payload_size));
- *      int rc = event_channel_emit(myev, econtext_id, dest_ep, NULL);
+ *      int rc = event_channel_emit(myev, dest_ep, dest_id, NULL);
  *      if (rc == EVENT_DONE)
  *      {
  *          // Event completed right away. Nothing else to do.
