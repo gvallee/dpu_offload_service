@@ -108,8 +108,15 @@ typedef enum
     _ep;                                                                                        \
 })
 
-#define GET_CLIENT_EP_BY_RANK(_exec_ctx, _gp_id, _rank) ({                                              \
-    ucp_ep_h _ep = NULL;                                                                                \
+typedef struct dest_client {
+    ucp_ep_h ep;
+    uint64_t id;
+} dest_client_t;
+
+#define GET_CLIENT_BY_RANK(_exec_ctx, _gp_id, _rank) ({                                                 \
+    dest_client_t _c;                                                                                   \
+    _c.ep = NULL;                                                                                       \
+    _c.id = UINT64_MAX;                                                                                 \
     size_t _idx = 0;                                                                                    \
     size_t _n = 0;                                                                                      \
     if ((_exec_ctx)->type == CONTEXT_SERVER)                                                            \
@@ -127,14 +134,15 @@ typedef enum
             /* FIXME: support more than one group */                                                    \
             if (_p_info->rank_data.group_id == _gp_id && _p_info->rank_data.group_rank == _rank)        \
             {                                                                                           \
-                _ep = _p_info->ep;                                                                      \
+                _c.ep = _p_info->ep;                                                                    \
+                _c.id = _p_info->id;                                                                    \
                 break;                                                                                  \
             }                                                                                           \
             _n++;                                                                                       \
             _idx++;                                                                                     \
         }                                                                                               \
     }                                                                                                   \
-    _ep;                                                                                                \
+    _c;                                                                                                 \
 })
 
 #define GET_WORKER(_exec_ctx) ({                       \
