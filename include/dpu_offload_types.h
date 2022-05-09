@@ -898,7 +898,8 @@ typedef struct dpu_offload_server_t
 #define RESET_SERVER(_server)                                     \
     do                                                            \
     {                                                             \
-        (_server)->econtext = 0;                                  \
+        (_server)->id = UINT64_MAX;                               \
+        (_server)->econtext = NULL;                               \
         (_server)->done = false;                                  \
         (_server)->mode = -1;                                     \
         RESET_CONN_PARAMS(&((_server)->conn_params));             \
