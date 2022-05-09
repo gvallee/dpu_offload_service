@@ -1444,7 +1444,7 @@ typedef struct offloading_engine
 
     // dpus is a vector of remote_dpu_info_t structures used on the DPUs
     // to easily track all the DPUs the execution context is connected to.
-    // This is at the moment not used on the host.
+    // This is at the moment not used on the host. Type: remote_dpu_info_t
     dyn_array_t dpus;
 
     // Number of DPUs defined in dpus

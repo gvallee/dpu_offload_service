@@ -830,11 +830,13 @@ error_out:
 
 dpu_offload_status_t finalize_connection_to_remote_dpu(offloading_engine_t *offload_engine, remote_dpu_info_t *remote_dpu_info, execution_context_t *client)
 {
-    DBG("Connection successfully established (num DPUs: %ld, number of connection with other DPUs: %ld)",
+    DBG("Connection successfully established to DPU #%" PRIu64 " (num DPUs: %ld, number of connection with other DPUs: %ld)",
+        remote_dpu_info->idx,
         offload_engine->num_dpus,
         offload_engine->num_connected_dpus);
     ENGINE_LOCK(offload_engine);
-    remote_dpu_info_t **list_dpus = (remote_dpu_info_t **)offload_engine->dpus.base;
+    remote_dpu_info_t **list_dpus = LIST_DPUS_FROM_ENGINE(offload_engine);
+    assert(list_dpus);
     list_dpus[remote_dpu_info->idx]->ep = client->client->server_ep;
     list_dpus[remote_dpu_info->idx]->econtext = client;
     list_dpus[remote_dpu_info->idx]->peer_addr = client->client->conn_data.oob.peer_addr;
@@ -976,7 +978,7 @@ dpu_offload_status_t offload_engine_init(offloading_engine_t **engine)
     CHECK_ERR_GOTO((d->pool_conn_params == NULL), error_out, "Allocation of pool of connection parameter descriptors failed");
     // Note that engine->dpus is a vector of remote_dpu_info_t pointers.
     // The actual object are from a dynamic array when parsing the configuration file
-    DYN_ARRAY_ALLOC(&(d->dpus), 32, remote_dpu_info_t *);
+    DYN_ARRAY_ALLOC(&(d->dpus), 32, remote_dpu_info_t*);
     GROUPS_CACHE_INIT(&(d->procs_cache));
     dpu_offload_status_t rc = ev_channels_init(&(d->default_notifications));
     CHECK_ERR_GOTO((rc), error_out, "ev_channels_init() failed");
@@ -1510,7 +1512,7 @@ static void progress_client_econtext(execution_context_t *ctx)
             ctx->client->bootstrapping.phase = BOOTSTRAP_DONE;
             if (ctx->client->connected_cb != NULL)
             {
-                DBG("Successfully connected, invoking connected callback (econtext: %p, client: %p, cb: %p",
+                DBG("Successfully connected, invoking connected callback (econtext: %p, client: %p, cb: %p)",
                     ctx, ctx->client, ctx->client->connected_cb);
                 connected_peer_data_t cb_data;
                 assert(ctx->client);

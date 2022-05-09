@@ -287,7 +287,7 @@ dpu_offload_status_t broadcast_group_cache(offloading_engine_t *engine, int64_t 
         event_get(list_dpus[i]->econtext->event_channels, NULL, &ev);
         assert(ev);
         dest_ep = GET_REMOTE_DPU_EP(engine, i);
-        DBG("Sending group cache to DPU #%ld", i);
+        DBG("Sending group cache to DPU #%ld (econtext: %p)", i, list_dpus[i]->econtext);
         rc = send_group_cache(list_dpus[i]->econtext, dest_ep, i, group_id, ev);
         CHECK_ERR_RETURN((rc), DO_ERROR, "exchange_cache() failed");
         // We do not want to explicitly deal with the event so we put it

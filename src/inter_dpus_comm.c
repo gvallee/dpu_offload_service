@@ -201,7 +201,7 @@ static void sync_group_caches(execution_context_t *econtext)
 
 /**
  * @brief Callback invoked when a connection to a remote server DPU completes.
- * This is set on clients on DPUs that are used to connect to servers on other DPUs.
+ * This is executed in the context of clients on DPUs that are used to connect to servers on other DPUs.
  * In other words, client->connected_cb is set to this pointer.
  *
  * @param data Generic pointer to pass callback data
@@ -211,25 +211,13 @@ void connected_to_server_dpu(void *data)
     assert(data);
     bool can_exchange_cache = false;
     connected_peer_data_t *connected_peer = (connected_peer_data_t *)data;
-    DBG("Successfully connected to server DPU at %s\n", connected_peer->peer_addr);
+
+    DBG("Successfully connected to server DPU #%" PRIu64 " at %s (econtext: %p)\n",
+        connected_peer->peer_id, connected_peer->peer_addr, connected_peer->econtext);
     set_default_econtext(connected_peer);
 
-    /* Update data in the list of DPUs */
     assert(connected_peer->econtext);
     assert(connected_peer->econtext->engine);
-    remote_dpu_info_t **list_dpus = LIST_DPUS_FROM_ECONTEXT(connected_peer->econtext);
-    size_t i;
-    for (i = 0; i < connected_peer->econtext->engine->num_dpus; i++)
-    {
-        if (list_dpus[i]->init_params.conn_params != NULL)
-        {
-            if (strncmp(connected_peer->peer_addr, list_dpus[i]->init_params.conn_params->addr_str, strlen(connected_peer->peer_addr)))
-            {
-                list_dpus[i]->econtext = connected_peer->econtext;
-                break;
-            }
-        }
-    }
     if (connected_peer->econtext->engine->num_connected_dpus + 1 == connected_peer->econtext->engine->num_dpus)
         can_exchange_cache = true;
     connected_peer->econtext->engine->num_connected_dpus++;
