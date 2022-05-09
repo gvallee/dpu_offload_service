@@ -49,7 +49,7 @@ int main(int argc, char **argv)
         return EXIT_FAILURE;
     }
 
-    fprintf(stderr, "Server initialization all done\n");
+    fprintf(stderr, "Server initialization all done (ID: %" PRIu64 ")\n", server->server->id);
 
     // REGISTER SOME EVENTS FOR TESTING
     REGISTER_NOTIF_CALLBACKS(server);
