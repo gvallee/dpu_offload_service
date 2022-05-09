@@ -135,7 +135,11 @@ dpu_offload_status_t send_cache_entry(execution_context_t *econtext, ucp_ep_h ep
 dpu_offload_status_t send_group_cache(execution_context_t *econtext, ucp_ep_h dest_ep, uint64_t dest_id, int64_t gp_id, dpu_offload_event_t *metaev)
 {
     size_t i;
-    group_cache_t *gp_cache = (group_cache_t *)econtext->engine->procs_cache.data.base;
+    group_cache_t *gp_cache;
+    assert(econtext);
+    assert(econtext->engine);
+    gp_cache = (group_cache_t *)econtext->engine->procs_cache.data.base;
+    assert(gp_cache);
     if (!gp_cache[gp_id].initialized)
         return DO_SUCCESS;
 
@@ -983,8 +987,7 @@ execution_context_t *get_server_servicing_host(offloading_engine_t *engine)
     for (i = engine->num_servers - 1; i >= 0; i--)
     {
         if (engine->servers[i] == NULL)
-            ERR_MSG("Server #%ld is not defined", i);
-        assert(engine->servers[i]);
+            continue;
         if (engine->servers[i]->scope_id == SCOPE_HOST_DPU)
             return (engine->servers[i]);
     }

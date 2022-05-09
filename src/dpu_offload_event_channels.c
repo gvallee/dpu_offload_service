@@ -375,7 +375,7 @@ int tag_send_event_msg(dpu_offload_event_t **event)
     {
     case CONTEXT_CLIENT:
         client_id = econtext->client->id;
-        server_id = econtext->server->id;
+        server_id = econtext->client->server_id;
         break;
     case CONTEXT_SERVER:
         server_id = econtext->server->id;
@@ -406,7 +406,8 @@ int tag_send_event_msg(dpu_offload_event_t **event)
         hdr_send_param.datatype = ucp_dt_make_contig(1);
         hdr_send_param.user_data = (void *)(*event);
 
-        DBG("Sending notification header - client_id: %" PRIu64", server_id: %" PRIu64, client_id, server_id);
+        DBG("Sending notification header - scope_id: %d, client_id: %" PRIu64", server_id: %" PRIu64,
+            (*event)->scope_id, client_id, server_id);
 
         assert((*event)->dest.ep);
         (*event)->hdr_request = NULL;
@@ -804,15 +805,13 @@ static dpu_offload_status_t peer_cache_entries_request_recv_cb(struct dpu_offloa
     {
         // We send the cache back to the sender
         dpu_offload_status_t rc;
-        ucp_ep_h dest;
         dpu_offload_event_t *send_cache_ev;
         peer_info_t *peer_info = DYN_ARRAY_GET_ELT(&(econtext->server->connected_clients.clients), hdr->id, peer_info_t);
         assert(peer_info);
         event_get(econtext->event_channels, NULL, &send_cache_ev);
         assert(econtext->type == CONTEXT_SERVER);
-        dest = peer_info->ep;
         DBG("Sending group cache to DPU #%" PRIu64 ": event=%p", hdr->id, send_cache_ev);
-        rc = send_group_cache(econtext, dest, rank_info->group_id, send_cache_ev);
+        rc = send_group_cache(econtext, peer_info->ep, peer_info->id, rank_info->group_id, send_cache_ev);
         CHECK_ERR_RETURN((rc), DO_ERROR, "send_group_cache() failed");
 
         // Add the event to the list of pending events so it completed implicitely
@@ -835,7 +834,7 @@ static dpu_offload_status_t peer_cache_entries_request_recv_cb(struct dpu_offloa
             dpu_offload_event_t *req_fwd_ev;
             remote_dpu_info_t **list_dpus = (remote_dpu_info_t **)econtext->engine->dpus.base;
             rc = send_cache_entry_request(econtext, list_dpus[i]->ep, rank_info, &req_fwd_ev);
-            CHECK_ERR_RETURN((rc), DO_ERROR, "send_group_cache() failed");
+            CHECK_ERR_RETURN((rc), DO_ERROR, "send_cache_entry_request() failed");
 
             // Add the event to the list of pending events so it completed implicitely
             if (req_fwd_ev != NULL && !event_completed(req_fwd_ev))
@@ -915,8 +914,9 @@ static dpu_offload_status_t peer_cache_entries_recv_cb(struct dpu_offload_ev_sys
                         rc = event_get(server->server->event_channels, NULL, &metaev);
                         if (rc != DO_SUCCESS || metaev == NULL)
                             ERR_MSG("event_get() failed"); // todo: better handle errors
-                        DBG("Sending cache to client #%ld (econtext: %p, ep: %p, scope_id: %d)", idx, server, client_info->ep, server->scope_id);
-                        rc = send_group_cache(server, client_info->ep, group_id, metaev);
+                        DBG("Sending cache to client #%ld (group: %ld, econtext: %p, ep: %p, scope_id: %d)",
+                            idx, group_id, server, client_info->ep, server->scope_id);
+                        rc = send_group_cache(server, client_info->ep, client_info->id, group_id, metaev);
                         if (rc != DO_SUCCESS)
                             ERR_MSG("send_group_cache() failed"); // todo: better handle errors
                         n++;

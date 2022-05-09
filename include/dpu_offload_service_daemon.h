@@ -93,7 +93,7 @@ void local_rank_connect_default_callback(void *data);
  * @param metaev
  * @return dpu_offload_status_t
  */
-dpu_offload_status_t send_group_cache(execution_context_t *econtext, ucp_ep_h dest, int64_t gp_id, dpu_offload_event_t *metaev);
+dpu_offload_status_t send_group_cache(execution_context_t *econtext, ucp_ep_h dest, uint64_t dest_id, int64_t gp_id, dpu_offload_event_t *metaev);
 
 /**
  * @brief send_cache sends the content of the local endpoint cache to a specific remote endpoint.

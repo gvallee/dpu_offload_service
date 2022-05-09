@@ -692,6 +692,8 @@ typedef struct connected_peer_data
 
     // Peer's ID
     uint64_t peer_id;
+
+    rank_info_t rank_info;
 } connected_peer_data_t;
 
 typedef struct conn_params
@@ -920,9 +922,14 @@ typedef struct dpu_offload_client_t
 {
     bootstrapping_t bootstrapping;
 
-    uint64_t id; // Identifier assigned by server
+    // Index in the list of clietns
+    int64_t idx;
 
-    uint64_t server_id; // Unique identifier of the server
+    // Identifier assigned by server
+    uint64_t id; 
+
+    // Unique identifier of the server
+    uint64_t server_id; 
 
     // Execution context the server is associated to
     struct execution_context *econtext;

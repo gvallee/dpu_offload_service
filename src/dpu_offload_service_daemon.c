@@ -371,7 +371,8 @@ static dpu_offload_status_t oob_server_accept(execution_context_t *econtext, cha
         CHECK_ERR_GOTO((rc), error_out, "listen() failed: %s", strerror(errno));
 
         // fixme: debug when multi-connections are required
-        DBG("Listening for connections on port %" PRIu16 "...", server_port);
+        DBG("Listening for connections on port %" PRIu16 "... (server: %" PRIu64 ")",
+            server_port, econtext->server->id);
     }
     else
     {
@@ -816,7 +817,7 @@ static dpu_offload_status_t oob_connect(execution_context_t *econtext)
     size_recvd = recv(client->conn_data.oob.sock, &(client->server_id), sizeof(client->server_id), MSG_WAITALL);
     DBG("Received the server ID (size: %ld, id: %" PRIu64 ")", size_recvd, client->server_id);
     size_recvd = recv(client->conn_data.oob.sock, &(client->id), sizeof(client->id), MSG_WAITALL);
-    DBG("Received the client ID (size: %ld)", size_recvd);
+    DBG("Received the client ID: %" PRIu64 " (size: %ld)", client->id, size_recvd);
     econtext->client->bootstrapping.phase = OOB_CONNECT_DONE;
     ECONTEXT_UNLOCK(econtext);
     DBG("%s() done", __func__);
@@ -903,7 +904,8 @@ dpu_offload_status_t offload_engine_progress(offloading_engine_t *engine)
             int new_state = c_econtext->client->bootstrapping.phase;
             if (initial_state != BOOTSTRAP_DONE && new_state == BOOTSTRAP_DONE)
             {
-                DBG("DPU client #%ld just finished its connection to a server, updating data", c);
+                DBG("DPU client #%ld just finished its connection to server #%" PRIu64 ", updating data",
+                    c, c_econtext->client->server_id);
                 ECONTEXT_UNLOCK(c_econtext);
                 dpu_offload_status_t rc = finalize_connection_to_remote_dpu(engine, engine->inter_dpus_clients[c].remote_dpu_info, engine->inter_dpus_clients[c].client_econtext);
                 CHECK_ERR_RETURN((rc), DO_ERROR, "finalize_connection_to_remote_dpu() failed");
@@ -958,6 +960,7 @@ dpu_offload_status_t offload_engine_init(offloading_engine_t **engine)
     d->num_max_servers = DEFAULT_MAX_NUM_SERVERS;
     d->servers = MALLOC(d->num_max_servers * sizeof(dpu_offload_server_t *));
     CHECK_ERR_GOTO((d->servers == NULL), error_out, "unable to allocate memory to track servers");
+    memset(d->servers, 0, d->num_max_servers * sizeof(dpu_offload_server_t *));
     d->num_max_inter_dpus_clients = DEFAULT_MAX_NUM_SERVERS;
     d->inter_dpus_clients = MALLOC(d->num_max_inter_dpus_clients * sizeof(remote_dpu_connect_tracker_t));
     CHECK_ERR_GOTO((d->servers == NULL), error_out, "unable to allocate resources");
@@ -1166,11 +1169,11 @@ static dpu_offload_status_t send_group_cache_to_local_ranks(execution_context_t 
             idx++;
             continue;
         }
-        DBG("Send cache to client #%ld", idx);
+        DBG("Send cache to client #%ld (id: %"PRIu64")", idx, c->id);
         dpu_offload_status_t rc = event_get(econtext->event_channels, NULL, &metaev);
         if (rc != DO_SUCCESS)
             ERR_MSG("event_get() failed"); // todo: better handle errors
-        rc = send_group_cache(econtext, c->ep, group_id, metaev);
+        rc = send_group_cache(econtext, c->ep, c->id, group_id, metaev);
         if (rc != DO_SUCCESS)
             ERR_MSG("send_group_cache() failed"); // todo: better handler errors
         // We do not have to manage the event so we put it on the list of ongoing events
@@ -1423,6 +1426,7 @@ static void progress_server_econtext(execution_context_t *ctx)
                             .peer_addr = client_info->peer_addr,
                             .econtext = ctx,
                             .peer_id = i,
+                            .rank_info = client_info->rank_data,
                         };
                         ctx->server->connected_cb(&cb_data);
                     }
@@ -2188,6 +2192,8 @@ execution_context_t *server_init(offloading_engine_t *offloading_engine, init_pa
     // we can create a unique tag that identify the server-client connection. 
     if (offloading_engine->on_dpu && init_params != NULL && init_params->scope_id == SCOPE_INTER_DPU)
         execution_context->server->id = offloading_engine->config->local_dpu.id;
+    else if (init_params->id_set)
+        execution_context->server->id = init_params->id;
     else
         execution_context->server->id = offloading_engine->num_servers;
     offloading_engine->servers[offloading_engine->num_servers] = execution_context;

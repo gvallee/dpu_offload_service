@@ -306,15 +306,17 @@ void client_dpu_connected(void *data)
     assert(econtext->type == CONTEXT_SERVER);
     assert(econtext->engine);
 
+    DBG("DPU #%" PRIu64 " (client %" PRIu64 ") is now fully connected",
+        connected_peer->rank_info.group_rank, connected_peer->peer_id);
+
     // Lookup the DPU client data
     list_dpus = LIST_DPUS_FROM_ENGINE(connected_peer->econtext->engine);
     assert(list_dpus);
     dpu_info = DYN_ARRAY_GET_ELT(&(econtext->server->connected_clients.clients),
-                                 connected_peer->peer_id,
+                                 connected_peer->rank_info.group_rank,
                                  peer_info_t);
     assert(dpu_info);
-    DBG("DPU #%" PRIu64 " is now fully connected", connected_peer->peer_id);
-    dpu_id = connected_peer->peer_id;
+    dpu_id = connected_peer->rank_info.group_rank;
     assert(dpu_id < econtext->engine->num_dpus);
 
     // Set the default econtext if necessary, the function will figure out what to do

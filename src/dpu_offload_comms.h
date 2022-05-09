@@ -256,7 +256,8 @@ static void post_recv_for_notif_payload(hdr_notif_req_t *ctx, execution_context_
 
     if (ctx->hdr.payload_size > 0 && ctx->payload_ctx.req == NULL)
     {
-        DBG("Posting recv for notif payload of size %ld for peer %ld", ctx->hdr.payload_size, peer_id);
+        DBG("Posting recv for notif payload of size %ld for peer %ld (client_id: %" PRIu64 ", server_id: %" PRIu64 ")",
+            ctx->hdr.payload_size, peer_id, ctx->client_id, ctx->server_id);
         ucp_worker_h worker;
 
         ucp_tag_t payload_ucp_tag, payload_ucp_tag_mask;
@@ -273,7 +274,7 @@ static void post_recv_for_notif_payload(hdr_notif_req_t *ctx, execution_context_
         ctx->payload_ctx.recv_params.datatype = ucp_dt_make_contig(1);
         ctx->payload_ctx.recv_params.user_data = ctx;
         ctx->payload_ctx.recv_params.cb.recv = notif_payload_recv_handler;
-        MAKE_RECV_TAG(payload_ucp_tag, payload_ucp_tag_mask, AM_EVENT_MSG_ID, peer_id, 0, econtext->scope_id, 0);
+        MAKE_RECV_TAG(payload_ucp_tag, payload_ucp_tag_mask, AM_EVENT_MSG_ID, ctx->client_id, ctx->server_id, econtext->scope_id, 0);
         DBG("Tag: %d; scope_id: %u", AM_EVENT_MSG_ID, econtext->scope_id);
         ctx->payload_ctx.req = ucp_tag_recv_nbx(worker,
                                                 ctx->payload_ctx.buffer,
@@ -346,7 +347,8 @@ static void post_new_notif_recv(ucp_worker_h worker, hdr_notif_req_t *ctx, execu
         // Post the receive for the header
         ctx->complete = false;
         ctx->econtext = (struct execution_context *)econtext;
-        DBG("-------------> Posting recv for notif header (econtext: %p, scope_id: %d, worker: %p)", econtext, econtext->scope_id, worker);
+        DBG("-------------> Posting recv for notif header (econtext: %p, scope_id: %d, worker: %p, client_id: %" PRIu64 ", server_id: %" PRIu64 ")",
+            econtext, econtext->scope_id, worker, ctx->client_id, ctx->server_id);
         ctx->req = ucp_tag_recv_nbx(worker, &(ctx->hdr), sizeof(am_header_t), hdr_ucp_tag, hdr_ucp_tag_mask, hdr_recv_param);
         if (ctx->req == NULL)
         {
@@ -370,8 +372,8 @@ static void post_new_notif_recv(ucp_worker_h worker, hdr_notif_req_t *ctx, execu
 static void notif_hdr_recv_handler(void *request, ucs_status_t status, const ucp_tag_recv_info_t *tag_info, void *user_data)
 {
     hdr_notif_req_t *ctx = (hdr_notif_req_t *)user_data;
-    DBG("Notification header received from peer #%ld, type: %ld\n", ctx->hdr.id, ctx->hdr.type);
-    fprintf(stderr, "Notification header received from peer #%ld, type: %ld\n", ctx->hdr.id, ctx->hdr.type);
+    DBG("Notification header received from peer #%ld, type: %ld (client_id: %" PRIu64 ", server_id: %" PRIu64 ")",
+        ctx->hdr.id, ctx->hdr.type, ctx->client_id, ctx->server_id);
     ctx->complete = true;
     post_recv_for_notif_payload(ctx, (execution_context_t *)ctx->econtext, ctx->hdr.id);
 }
