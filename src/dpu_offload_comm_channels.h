@@ -71,6 +71,7 @@ static dpu_offload_status_t dpu_offload_set_am_recv_handlers(execution_context_t
     return DO_SUCCESS;
 }
 
+#if 0
 static dpu_offload_status_t dpu_offload_reset_am_recv_handlers(execution_context_t *ctx)
 {
     CHECK_ERR_RETURN((ctx == NULL), DO_ERROR, "undefined context");
@@ -92,5 +93,6 @@ static dpu_offload_status_t dpu_offload_reset_am_recv_handlers(execution_context
 
     return DO_SUCCESS;
 }
+#endif
 
 #endif // _DPU_OFFLOAD_COMM_CHANNELS_H

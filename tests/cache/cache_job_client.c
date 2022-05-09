@@ -85,7 +85,7 @@ int main(int argc, char **argv)
         target = 0;
 
     dpu_offload_event_t *ev;
-    uint64_t shadow_dpu_id;
+    int64_t shadow_dpu_id;
     rc = get_dpu_id_by_group_rank(offload_engine, 0, target, 0, &shadow_dpu_id, &ev);
     if (rc != DO_SUCCESS)
     {

@@ -62,7 +62,7 @@ AC_ARG_ENABLE(debug,
                              [debug=false])
 if test "x$enable_debug" = xyes; then
     AC_MSG_RESULT([yes])
-    CFLAGS="-g"
+    CFLAGS="-g -Wall -Wno-enum-compare -Wno-unused-but-set-variable -Wno-unused-function"
 else
     AC_MSG_RESULT([no])
     AC_DEFINE([NDEBUG], [1], [NDEBUG set to 1 (debug disabled)])    

@@ -22,6 +22,7 @@ static bool self_notif_received = false;
 static int self_notification_cb(struct dpu_offload_ev_sys *ev_sys, execution_context_t *econtext, am_header_t *hdr, size_t hdr_len, void *data, size_t data_len)
 {
     self_notif_received = true;
+    return 0;
 }
 
 static size_t count = 0;
@@ -29,6 +30,7 @@ static int self_many_notifs_cb(struct dpu_offload_ev_sys *ev_sys, execution_cont
 {
     fprintf(stdout, "notifications #%ld received\n", count);
     count++;
+    return 0;
 }
 
 static inline bool req_completed(struct ucx_context *req)

@@ -95,7 +95,7 @@ dpu_offload_status_t op_desc_return(offloading_engine_t *engine, op_desc_t **des
 dpu_offload_status_t progress_active_ops(execution_context_t *econtext)
 {
     CHECK_ERR_RETURN((econtext == NULL), DO_ERROR, "undefined execution context");
-    op_desc_t *cur_op, *next_op, *op = NULL;
+    op_desc_t *cur_op, *next_op;
     ucs_list_for_each_safe(cur_op, next_op, &(econtext->active_ops), item)
     {
         if (cur_op->op_definition->op_progress != NULL)

@@ -71,10 +71,8 @@ dpu_offload_parse_list_dpus(offloading_engine_t *engine, offloading_config_t *co
 {
     size_t dpu_idx = 0;
     bool pre = true;
-    bool list_connect_to_set = false;
     char *token;
     size_t n_connecting_from = 0;
-    size_t n_connecting_to = 0;
     remote_dpu_info_t **dpu_info = (remote_dpu_info_t **)engine->dpus.base;
 
     if (config_data->offloading_engine == NULL)
@@ -146,12 +144,11 @@ dpu_offload_parse_list_dpus(offloading_engine_t *engine, offloading_config_t *co
     return DO_SUCCESS;
 }
 
-static int set_default_econtext(connected_peer_data_t *connected_peer_data)
+static void set_default_econtext(connected_peer_data_t *connected_peer_data)
 {
     assert(connected_peer_data);
     assert(connected_peer_data->econtext);
     assert(connected_peer_data->econtext->engine);
-    offloading_engine_t *engine = connected_peer_data->econtext->engine;
 }
 
 static void sync_group_caches(execution_context_t *econtext)
@@ -297,8 +294,6 @@ void client_dpu_connected(void *data)
 {
     connected_peer_data_t *connected_peer;
     remote_dpu_info_t **list_dpus;
-    dpu_offload_status_t rc;
-    dpu_offload_event_t *exchange_ev;
     execution_context_t *econtext;
     bool can_exchange_cache = false;
     uint64_t dpu_id;

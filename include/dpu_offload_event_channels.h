@@ -44,7 +44,7 @@
 
 dpu_offload_status_t event_channels_init(execution_context_t *);
 dpu_offload_status_t ev_channels_init(dpu_offload_ev_sys_t **ev_channels);
-dpu_offload_status_t event_channels_fini(dpu_offload_ev_sys_t **);
+void event_channels_fini(dpu_offload_ev_sys_t **);
 
 dpu_offload_status_t event_channel_register(dpu_offload_ev_sys_t *ev_sys, uint64_t type, notification_cb cb);
 dpu_offload_status_t event_channel_deregister(dpu_offload_ev_sys_t *ev_sys, uint64_t type);

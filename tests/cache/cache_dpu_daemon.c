@@ -22,6 +22,7 @@
 
 #include "dpu_offload_service_daemon.h"
 #include "dpu_offload_envvars.h"
+#include "../../src/dpu_offload_debug.h"
 
 uint64_t group_size = 2;
 
@@ -226,12 +227,14 @@ static bool test_done = false;
 static int test_complete_notification_cb(struct dpu_offload_ev_sys *ev_sys, execution_context_t *econtext, am_header_t *hdr, size_t hdr_len, void *data, size_t data_len)
 {
     test_done = true;
+    return 0;
 }
 
 static bool cb_test_done = false;
 static int end_test_cb(struct dpu_offload_ev_sys *ev_sys, execution_context_t *econtext, am_header_t *hdr, size_t hdr_len, void *data, size_t data_len)
 {
     cb_test_done = true;
+    return 0;
 }
 
 /**
@@ -251,14 +254,11 @@ static int test_cb(struct dpu_offload_ev_sys *ev_sys, execution_context_t *econt
     // to find and we notify the server once the look up completes. All that from
     // handler.
     offloading_engine_t *engine = (offloading_engine_t *)econtext->engine;
-    remote_dpu_info_t **list_dpus = LIST_DPUS_FROM_ENGINE(engine);
     fprintf(stderr, "-> Starting test from a callback...\n");
     int ret = do_lookup_from_callback(engine, 42, 52, 1);
     assert(ret == 0);
     cb_test_done = true;
     return 0;
-error_out:
-    return -1;
 }
 
 #define ADD_TO_CACHE(_rank, _gp, _engine, _config_data)                                         \
@@ -354,7 +354,7 @@ int main(int argc, char **argv)
     fprintf(stderr, "I am DPU #%ld, starting the test\n", config_data.local_dpu.id);
 
     remote_dpu_info_t **list_dpus = LIST_DPUS_FROM_ENGINE(offload_engine);
-    uint64_t remote_dpu_id;
+    int64_t remote_dpu_id;
     if (config_data.local_dpu.id == 1)
     {
         /* DPU #1 */

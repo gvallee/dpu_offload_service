@@ -22,10 +22,12 @@ static inline bool req_completed(struct ucx_context *req)
     return true;
 }
 
+#if 0
 static void recv_cb(void *request, ucs_status_t status, ucp_tag_recv_info_t *info)
 {
     fprintf(stderr, "pong successfully received\n");
 }
+#endif
 
 void send_cb(void *request, ucs_status_t status)
 {
