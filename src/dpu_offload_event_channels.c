@@ -406,6 +406,8 @@ int tag_send_event_msg(dpu_offload_event_t **event)
         hdr_send_param.datatype = ucp_dt_make_contig(1);
         hdr_send_param.user_data = (void *)(*event);
 
+        DBG("Sending notification header - client_id: %" PRIu64", server_id: %" PRIu64, client_id, server_id);
+
         assert((*event)->dest.ep);
         (*event)->hdr_request = NULL;
         (*event)->payload_request = NULL;
@@ -427,10 +429,12 @@ int tag_send_event_msg(dpu_offload_event_t **event)
     /* 2. Send the payload */
     if ((*event)->ctx.hdr.payload_size > 0 && !((*event)->ctx.payload_completed))
     {
-        DBG("Sending payload - tag: %d, scope_id: %d, size: %ld",
+        DBG("Sending payload - tag: %d, scope_id: %d, size: %ld, client_id: %" PRIu64 ", server_id: %" PRIu64,
             AM_EVENT_MSG_ID,
             (*event)->scope_id, 
-            (*event)->ctx.hdr.payload_size);
+            (*event)->ctx.hdr.payload_size,
+            client_id,
+            server_id);
         ucp_tag_t payload_ucp_tag = MAKE_SEND_TAG(AM_EVENT_MSG_ID,
                                                   client_id,
                                                   server_id,
