@@ -316,7 +316,6 @@ static void notif_payload_send_cb(void *request, ucs_status_t status, void *user
     dpu_offload_event_t *ev = (dpu_offload_event_t *)user_data;
     ev->ctx.payload_completed = true;
     DBG("Payload for event #%ld successfully sent (hdr completed: %d)", ev->seq_num, ev->ctx.hdr_completed);
-    fprintf(stderr, "Payload for event #%ld (%p) successfully sent (hdr completed: %d)\n", ev->seq_num, ev, ev->ctx.hdr_completed);
 }
 
 #if USE_AM_IMPLEM
@@ -420,7 +419,6 @@ int tag_send_event_msg(dpu_offload_event_t **event)
         if ((*event)->hdr_request == NULL)
         {
             (*event)->ctx.hdr_completed = true;
-            fprintf(stderr, "ev %p: hdr send completed right away\n", (*event));
         }
         DBG("event %p (%ld) send posted (hdr) - scope_id: %d, id: %" PRIu64 ", req: %p",
             (*event), (*event)->seq_num, (*event)->scope_id, myid, (*event)->hdr_request);
@@ -460,8 +458,6 @@ int tag_send_event_msg(dpu_offload_event_t **event)
         if (payload_request != NULL)
             (*event)->payload_request = payload_request;
         DBG("event %p (%ld) send posted (payload) - scope_id: %d, req: %p",
-            (*event), (*event)->seq_num, (*event)->scope_id, payload_request);
-        fprintf(stderr, "event %p (%ld) send posted (payload) - scope_id: %d, req: %p\n",
             (*event), (*event)->seq_num, (*event)->scope_id, payload_request);
     }
 
@@ -853,11 +849,6 @@ static dpu_offload_status_t peer_cache_entries_recv_cb(struct dpu_offload_ev_sys
     assert(econtext);
     assert(data);
 
-    char h[1024];
-    h[1023] = '\0';                              
-    gethostname(h, 1023);
-    //fprintf(stderr, "%s: %s\n", h, __func__);
-
     offloading_engine_t *engine = (offloading_engine_t *)econtext->engine;
     peer_cache_entry_t *entries = (peer_cache_entry_t *)data;
     size_t cur_size = 0;
@@ -882,7 +873,6 @@ static dpu_offload_status_t peer_cache_entries_recv_cb(struct dpu_offload_ev_sys
             peer_cache_entry_t *cache_entry = SET_PEER_CACHE_ENTRY(cache, &(entries[idx]));
 
             DBG("Adding received entry to cache...");
-            fprintf(stderr, "%s: adding rank %ld to the cache\n", h, group_rank);
 
             // If any event is associated to the cache entry, handle them
             if (cache_entry->events_initialized)
@@ -922,7 +912,6 @@ static dpu_offload_status_t peer_cache_entries_recv_cb(struct dpu_offload_ev_sys
                         if (rc != DO_SUCCESS || metaev == NULL)
                             ERR_MSG("event_get() failed"); // todo: better handle errors
                         DBG("Sending cache to client #%ld (econtext: %p, ep: %p, scope_id: %d)", idx, server, client_info->ep, server->scope_id);
-                        //fprintf(stderr, "Sending cache to rank %ld (ep: %p)\n", client_info->rank_data.group_rank, client_info->ep);
                         rc = send_group_cache(server, client_info->ep, group_id, metaev);
                         if (rc != DO_SUCCESS)
                             ERR_MSG("send_group_cache() failed"); // todo: better handle errors
@@ -940,7 +929,6 @@ static dpu_offload_status_t peer_cache_entries_recv_cb(struct dpu_offload_ev_sys
         else
         {
             DBG("Entry already in cache");
-            fprintf(stderr, "%s: rank %ld already in the cache\n", h, group_rank);
         }
 
         cur_size += sizeof(peer_cache_entry_t);

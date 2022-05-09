@@ -90,7 +90,7 @@ extern dpu_offload_status_t get_env_config(conn_params_t *params);
 
 static void err_cb(void *arg, ucp_ep_h ep, ucs_status_t status)
 {
-    fprintf(stderr, "error handling callback was invoked with status %d (%s)\n",
+    ERR_MSG("error callback was invoked with status %d (%s)\n",
             status, ucs_status_string(status));
 }
 
@@ -302,9 +302,9 @@ dpu_offload_status_t set_sock_addr(char *addr, uint16_t port, struct sockaddr_st
             if (rc <= 0)
             {
                 if (rc == 0)
-                    fprintf(stderr, "Not in presentation format\n");
+                    ERR_MSG("Not in presentation format\n");
                 else
-                    fprintf(stderr, "inet_pton() failed\n");
+                    ERR_MSG("inet_pton() failed\n");
             }
         }
         else
@@ -328,7 +328,7 @@ dpu_offload_status_t set_sock_addr(char *addr, uint16_t port, struct sockaddr_st
         sa_in6->sin6_port = htons(port);
         break;
     default:
-        fprintf(stderr, "Invalid address family");
+        ERR_MSG("Invalid address family");
         break;
     }
 
@@ -1018,9 +1018,6 @@ static void progress_server_event_recv(execution_context_t *econtext)
 {
     size_t n_client = 0;
     size_t idx = 0;
-    char h[1024];
-    h[1023] = '\0';   
-    gethostname(h, 1023);
     ECONTEXT_LOCK(econtext);
     while (n_client < econtext->server->connected_clients.num_connected_clients)
     {
@@ -1028,7 +1025,6 @@ static void progress_server_event_recv(execution_context_t *econtext)
         if (client_info == NULL || client_info->bootstrapping.phase != BOOTSTRAP_DONE)
         {
             idx++;
-            fprintf(stderr, "%s: Skipping client that is not fully bootstrapped\n", h);
             continue;
         }
 
@@ -1038,13 +1034,6 @@ static void progress_server_event_recv(execution_context_t *econtext)
             // Note: tag and tag mask are calculated by the macro to match the client
             // i.e., only messages from that client will be received.
             DBG("Preparing reception of notification from client #%ld (econtext: %p, scope_id: %d, peer_id: %ld, rank ID: %ld)",
-                idx,
-                econtext,
-                econtext->scope_id,
-                client_info->id,
-                client_info->rank_data.group_rank);
-            fprintf(stderr, "%s: Preparing reception of notification from client #%ld (econtext: %p, scope_id: %d, peer_id: %ld, rank ID: %ld\n)",
-                h,
                 idx,
                 econtext,
                 econtext->scope_id,
@@ -1072,12 +1061,6 @@ static void progress_server_event_recv(execution_context_t *econtext)
                             client_info->notif_recv.hdr_ucp_tag_mask,
                             &(client_info->notif_recv.hdr_recv_params));
         ECONTEXT_LOCK(econtext);
-#if 0
-        if (econtext->scope_id == SCOPE_INTER_DPU)
-        {
-            fprintf(stderr, "Ready to receive from DPU #%ld\n", client_info->id);
-        }
-#endif
         idx++;
         n_client++;
     }
