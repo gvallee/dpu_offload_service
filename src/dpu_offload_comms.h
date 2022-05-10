@@ -126,7 +126,7 @@ static int handle_notif_msg(execution_context_t *econtext, am_header_t *hdr, siz
     assert(econtext->event_channels);
     SYS_EVENT_LOCK(econtext->event_channels);
     notification_callback_entry_t *entry = DYN_ARRAY_GET_ELT(&(econtext->event_channels->notification_callbacks), hdr->type, notification_callback_entry_t);
-    DBG("Notification of type %" PRIu64 " received (econtext: %p), dispatching...", hdr->type, econtext);
+    DBG("Notification of type %" PRIu64 " received from %" PRIu64 " (econtext: %p), dispatching...", hdr->type, hdr->id, econtext);
     if (entry->set == false)
     {
         pending_notification_t *pending_notif;
@@ -193,7 +193,7 @@ static void notif_payload_recv_handler(void *request, ucs_status_t status, const
     hdr_notif_req_t *ctx = (hdr_notif_req_t *)user_data;
     assert(ctx);
     assert(ctx->econtext);
-    DBG("Notification payload received, ctx=%p econtext=%p type=%ld\n", ctx, ctx->econtext, ctx->hdr.type);
+    DBG("Notification payload received, ctx=%p econtext=%p type=%ld", ctx, ctx->econtext, ctx->hdr.type);
     ctx->payload_ctx.complete = true;
 
     // Invoke the associated callback

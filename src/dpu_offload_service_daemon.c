@@ -90,8 +90,8 @@ extern dpu_offload_status_t get_env_config(conn_params_t *params);
 
 static void err_cb(void *arg, ucp_ep_h ep, ucs_status_t status)
 {
-    ERR_MSG("error callback was invoked with status %d (%s)\n",
-            status, ucs_status_string(status));
+    ERR_MSG("error callback was invoked with status %d (%s) on ep %p\n",
+            status, ucs_status_string(status), ep);
 }
 
 static void oob_recv_addr_handler_2(void *request, ucs_status_t status, const ucp_tag_recv_info_t *tag_info, void *user_data)
@@ -844,13 +844,14 @@ dpu_offload_status_t finalize_connection_to_remote_dpu(offloading_engine_t *offl
     list_dpus[remote_dpu_info->idx]->peer_addr = client->client->conn_data.oob.peer_addr;
     list_dpus[remote_dpu_info->idx]->ucp_worker = GET_WORKER(client);
     assert(list_dpus[remote_dpu_info->idx]->peer_addr);
-    DBG("-> DPU #%ld: addr=%s, port=%d, ep=%p, econtext=%p",
+    DBG("-> DPU #%ld: addr=%s, port=%d, ep=%p, econtext=%p, client_id=%" PRIu64 ", server_id=%" PRIu64,
         remote_dpu_info->idx,
         list_dpus[remote_dpu_info->idx]->init_params.conn_params->addr_str,
         list_dpus[remote_dpu_info->idx]->init_params.conn_params->port,
         list_dpus[remote_dpu_info->idx]->ep,
-        list_dpus[remote_dpu_info->idx]->econtext);
-
+        list_dpus[remote_dpu_info->idx]->econtext,
+        client->client->id,
+        client->client->server_id);
     // Do not increment num_connected_dpus, it is already done in the callback invoked when the connection goes through
     DBG("we now have %ld connections with other DPUs", offload_engine->num_connected_dpus);
     ENGINE_UNLOCK(offload_engine);
@@ -1407,11 +1408,13 @@ static void progress_server_econtext(execution_context_t *ctx)
                         list_dpus[dpu]->ep = client_info->ep;
                         // Set the pointer to the execution context in the list of know DPUs. Used for notifications with the remote DPU.
                         list_dpus[dpu]->econtext = ctx;
-                        DBG("-> DPU #%ld: addr=%s, port=%d, ep=%p, econtext=%p", dpu,
+                        DBG("-> DPU #%ld: addr=%s, port=%d, ep=%p, econtext=%p, client_id=%" PRIu64", server_id=%" PRIu64"", dpu,
                             list_dpus[dpu]->init_params.conn_params->addr_str,
                             list_dpus[dpu]->init_params.conn_params->port,
                             list_dpus[dpu]->ep,
-                            ctx);
+                            ctx,
+                            client_info->id,
+                            ctx->server->id);
                     }
 
                     client_info->bootstrapping.phase = BOOTSTRAP_DONE;

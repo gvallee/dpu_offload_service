@@ -120,7 +120,8 @@ int main(int argc, char **argv)
 
     ucp_ep_h target_dpu_ep;
     execution_context_t *comm_econtext;
-    rc = get_dpu_ep_by_id(offload_engine, shadow_dpu_id, &target_dpu_ep, &comm_econtext);
+    uint64_t notif_dest_id;
+    rc = get_dpu_ep_by_id(offload_engine, shadow_dpu_id, &target_dpu_ep, &comm_econtext, &notif_dest_id);
     if (rc)
     {
         fprintf(stderr, "get_dpu_ep_by_id() failed\n");

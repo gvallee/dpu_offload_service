@@ -452,7 +452,7 @@ dpu_offload_status_t get_dpu_id_by_group_rank(offloading_engine_t *engine, int64
     return do_get_cache_entry_by_group_rank(engine, gp_id, rank, dpu_idx, NULL, dpu_id, ev);
 }
 
-dpu_offload_status_t get_dpu_ep_by_id(offloading_engine_t *engine, uint64_t id, ucp_ep_h *dpu_ep, execution_context_t **econtext_comm)
+dpu_offload_status_t get_dpu_ep_by_id(offloading_engine_t *engine, uint64_t id, ucp_ep_h *dpu_ep, execution_context_t **econtext_comm, uint64_t *comm_id)
 {
     remote_dpu_info_t **list_dpus;
     CHECK_ERR_RETURN((engine == NULL), DO_ERROR, "engine is undefined");
@@ -469,7 +469,17 @@ dpu_offload_status_t get_dpu_ep_by_id(offloading_engine_t *engine, uint64_t id, 
     }
     *dpu_ep = GET_REMOTE_DPU_EP(engine, id);
     *econtext_comm = GET_REMOTE_DPU_ECONTEXT(engine, id);
-    DBG("Details to communicate with DPU #%" PRIu64": econtext=%p ep=%p", id, *econtext_comm, *dpu_ep);
+    if ((*econtext_comm)->type == CONTEXT_SERVER)
+    {
+        // If the DPU is a local client, we cannot use the global DPU ID,
+        // we have to look up the local ID that can be used to send notifications.
+        remote_dpu_info_t **list_dpus = LIST_DPUS_FROM_ENGINE(engine);
+        assert(list_dpus);
+        *comm_id = list_dpus[id]->client_id;
+    }
+    else
+        *comm_id = id;
+    DBG("Details to communicate with DPU #%" PRIu64": econtext=%p ep=%p comm_id=%" PRIu64, id, *econtext_comm, *dpu_ep, *comm_id);
     return DO_SUCCESS;
 }
 
