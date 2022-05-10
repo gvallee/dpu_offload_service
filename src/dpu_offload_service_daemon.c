@@ -816,6 +816,8 @@ static dpu_offload_status_t oob_connect(execution_context_t *econtext)
     DBG("Received the address (size: %ld)", size_recvd);
     size_recvd = recv(client->conn_data.oob.sock, &(client->server_id), sizeof(client->server_id), MSG_WAITALL);
     DBG("Received the server ID (size: %ld, id: %" PRIu64 ")", size_recvd, client->server_id);
+    size_recvd = recv(client->conn_data.oob.sock, &(client->server_global_id), sizeof(client->server_id), MSG_WAITALL);
+    DBG("Received the server global ID (size: %ld, id: %" PRIu64 ")", size_recvd, client->server_global_id);
     size_recvd = recv(client->conn_data.oob.sock, &(client->id), sizeof(client->id), MSG_WAITALL);
     DBG("Received the client ID: %" PRIu64 " (size: %ld)", client->id, size_recvd);
     econtext->client->bootstrapping.phase = OOB_CONNECT_DONE;
@@ -1716,7 +1718,7 @@ execution_context_t *client_init(offloading_engine_t *offload_engine, init_param
         group_cache_t *gp_cache = GET_GROUP_CACHE(&(offload_engine->procs_cache), ctx->rank.group_id);
         assert(cache_entry);
         assert(gp_cache);
-        cache_entry->shadow_dpus[cache_entry->num_shadow_dpus] = ctx->client->server_id;
+        cache_entry->shadow_dpus[cache_entry->num_shadow_dpus] = ctx->client->server_global_id;
         cache_entry->peer.proc_info.group_id = ctx->rank.group_id;
         cache_entry->peer.proc_info.group_rank = ctx->rank.group_rank;
         cache_entry->peer.proc_info.group_size = ctx->rank.group_size;
@@ -1953,12 +1955,35 @@ static dpu_offload_status_t oob_server_listen(execution_context_t *econtext)
     CHECK_ERR_RETURN((rc), DO_ERROR, "oob_server_accept() failed");
     ECONTEXT_LOCK(econtext);
     DBG("Sending my worker's data...\n");
-    ssize_t size_sent = send(econtext->server->conn_data.oob.sock, &(econtext->server->conn_data.oob.local_addr_len), sizeof(econtext->server->conn_data.oob.local_addr_len), 0);
+    ssize_t size_sent = send(econtext->server->conn_data.oob.sock,
+                             &(econtext->server->conn_data.oob.local_addr_len),
+                             sizeof(econtext->server->conn_data.oob.local_addr_len),
+                             0);
     DBG("Addr length send (len: %ld)", size_sent);
-    size_sent = send(econtext->server->conn_data.oob.sock, econtext->server->conn_data.oob.local_addr, econtext->server->conn_data.oob.local_addr_len, 0);
+    size_sent = send(econtext->server->conn_data.oob.sock,
+                     econtext->server->conn_data.oob.local_addr,
+                     econtext->server->conn_data.oob.local_addr_len,
+                     0);
     DBG("Address sent (len: %ld)", size_sent);
-    size_sent = send(econtext->server->conn_data.oob.sock, &(econtext->server->id), sizeof(econtext->server->id), 0);
+    size_sent = send(econtext->server->conn_data.oob.sock,
+                     &(econtext->server->id),
+                     sizeof(econtext->server->id),
+                     0);
     DBG("Server ID sent (len: %ld, id: %" PRIu64 ")", size_sent, econtext->server->id);
+    if (econtext->engine->on_dpu)
+        size_sent = send(econtext->server->conn_data.oob.sock,
+                         &(econtext->engine->config->local_dpu.id),
+                         sizeof(econtext->engine->config->local_dpu.id),
+                         0);
+    else
+    {
+        uint64_t val = UINT64_MAX;
+        size_sent = send(econtext->server->conn_data.oob.sock,
+                         &val,
+                         sizeof(econtext->engine->config->local_dpu.id),
+                         0);
+    }
+    DBG("Global ID sent (len: %ld)", size_sent);
     uint64_t client_id = generate_unique_client_id(econtext);
     size_sent = send(econtext->server->conn_data.oob.sock, &client_id, sizeof(uint64_t), 0);
     DBG("Client ID sent (len: %ld, value: %" PRIu64 ")", size_sent, client_id);

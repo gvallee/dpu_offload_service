@@ -870,12 +870,15 @@ static dpu_offload_status_t peer_cache_entries_recv_cb(struct dpu_offload_ev_sys
         group_rank = entries[idx].peer.proc_info.group_rank;
         DBG("Received a cache entry for rank:%ld, group:%ld, group size:%ld, number of local rank: %ld from DPU %" PRId64 " (msg size=%ld, peer addr len=%ld)",
             group_rank, group_id, group_size, entries[idx].peer.proc_info.n_local_ranks, hdr->id, data_len, entries[idx].peer.addr_len);
+        fprintf(stderr, "Received a cache entry for rank:%ld, group:%ld, group size:%ld, number of local rank: %ld from DPU %" PRId64 " (msg size=%ld, peer addr len=%ld, first shadow DPU: %" PRIu64 ")\n",
+            group_rank, group_id, group_size, entries[idx].peer.proc_info.n_local_ranks, hdr->id, data_len, entries[idx].peer.addr_len, entries[idx].shadow_dpus[0]);
 
         if (!is_in_cache(cache, group_id, group_rank, group_size))
         {
-            peer_cache_entry_t *cache_entry = SET_PEER_CACHE_ENTRY(cache, &(entries[idx]));
-
             DBG("Adding received entry to cache...");
+            peer_cache_entry_t *cache_entry = SET_PEER_CACHE_ENTRY(cache, &(entries[idx]));
+            //cache_entry->shadow_dpus[cache_entry->num_shadow_dpus] = hdr->id;
+            //cache_entry->num_shadow_dpus++;
 
             // If any event is associated to the cache entry, handle them
             if (cache_entry->events_initialized)
