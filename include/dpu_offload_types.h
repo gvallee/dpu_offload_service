@@ -1207,8 +1207,8 @@ typedef struct dpu_offload_event
     {                                                         \
         assert((__ev)->ctx.complete == 0);                    \
         assert((__ev)->ctx.hdr.payload_size == 0);            \
-        assert((__ev)->ctx.hdr.type == 0);                    \
-        assert((__ev)->ctx.hdr.id == 0);                      \
+        assert((__ev)->ctx.hdr.type == UINT64_MAX);           \
+        assert((__ev)->ctx.hdr.id == UINT64_MAX);             \
         assert((__ev)->manage_payload_buf == false);          \
         assert((__ev)->dest.ep == NULL);                      \
         assert((__ev)->dest.id == UINT64_MAX);                \
