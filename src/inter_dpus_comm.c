@@ -313,6 +313,7 @@ void client_dpu_connected(void *data)
     // Update data in the list of DPUs
     list_dpus[dpu_id]->peer_addr = connected_peer->peer_addr;
     list_dpus[dpu_id]->econtext = connected_peer->econtext;
+    list_dpus[dpu_id]->client_id = connected_peer->peer_id;
     ENGINE_LOCK(connected_peer->econtext->engine);
     if (connected_peer->econtext->engine->num_connected_dpus + 1 == connected_peer->econtext->engine->num_dpus)
         can_exchange_cache = true;

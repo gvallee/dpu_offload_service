@@ -204,10 +204,6 @@ static void notif_payload_recv_handler(void *request, ucs_status_t status, const
     assert(ctx);
     assert(ctx->econtext);
     DBG("Notification payload received, ctx=%p econtext=%p type=%ld\n", ctx, ctx->econtext, ctx->hdr.type);
-    char h[1024];
-    h[1023] = '\0';
-    gethostname(h, 1023);
-    fprintf(stderr, "%s: Notification payload received, ctx=%p econtext=%p type=%ld\n", h, ctx, ctx->econtext, ctx->hdr.type);
     ctx->payload_ctx.complete = true;
 
     // Invoke the associated callback

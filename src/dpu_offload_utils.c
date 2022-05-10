@@ -191,7 +191,6 @@ dpu_offload_status_t send_cache(execution_context_t *econtext, cache_t *cache, u
     {
         if (groups_cache[i].initialized)
         {
-
             rc = send_group_cache(econtext, dest_ep, dest_id, i, metaevt);
             CHECK_ERR_RETURN((rc), DO_ERROR, "exchange_group_cache() failed\n");
         }
@@ -273,6 +272,7 @@ dpu_offload_status_t broadcast_group_cache(offloading_engine_t *engine, int64_t 
         dpu_offload_status_t rc;
         dpu_offload_event_t *ev;
         ucp_ep_h dest_ep;
+        uint64_t dest_id = i;
 
         // Do not send to self
         offloading_config_t *cfg = (offloading_config_t *)engine->config;
@@ -288,7 +288,11 @@ dpu_offload_status_t broadcast_group_cache(offloading_engine_t *engine, int64_t 
         assert(ev);
         dest_ep = GET_REMOTE_DPU_EP(engine, i);
         DBG("Sending group cache to DPU #%ld (econtext: %p)", i, list_dpus[i]->econtext);
-        rc = send_group_cache(list_dpus[i]->econtext, dest_ep, i, group_id, ev);
+        // If the econtext is a client to connect to a server, the dest_id is the index;
+        // otherwise we need to find the client ID based on the index
+        if (list_dpus[i]->econtext->type == CONTEXT_SERVER)
+            dest_id = list_dpus[i]->client_id;
+        rc = send_group_cache(list_dpus[i]->econtext, dest_ep, dest_id, group_id, ev);
         CHECK_ERR_RETURN((rc), DO_ERROR, "exchange_cache() failed");
         // We do not want to explicitly deal with the event so we put it
         // on the list of ongoing events

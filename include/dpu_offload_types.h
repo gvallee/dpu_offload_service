@@ -1658,6 +1658,9 @@ typedef struct remote_dpu_info
     // idx is the index in the engine's list of known DPUs
     size_t idx;
 
+    // Associated client_id when applicable
+    uint64_t client_id;
+
     // DPU's hostname
     char *hostname;
 
@@ -1698,6 +1701,7 @@ typedef struct remote_dpu_info
         (_info)->econtext = NULL;                           \
         (_info)->ucp_worker = NULL;                         \
         (_info)->ep = NULL;                                 \
+        (_info)->client_id = UINT64_MAX;                    \
     } while (0)
 
 /**

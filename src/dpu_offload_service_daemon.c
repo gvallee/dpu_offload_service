@@ -1427,7 +1427,7 @@ static void progress_server_econtext(execution_context_t *ctx)
                         connected_peer_data_t cb_data = {
                             .peer_addr = client_info->peer_addr,
                             .econtext = ctx,
-                            .peer_id = i,
+                            .peer_id = idx,
                             .rank_info = client_info->rank_data,
                         };
                         ctx->server->connected_cb(&cb_data);
