@@ -931,6 +931,8 @@ typedef struct dpu_offload_client_t
     // Unique identifier of the server
     uint64_t server_id; 
 
+    uint64_t server_global_id;
+
     // Execution context the server is associated to
     struct execution_context *econtext;
 
