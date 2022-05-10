@@ -105,16 +105,6 @@
             econtext,                                                                                                                      \
             (_client_id), (_server_id),                                                                                                    \
             (_scope_id));                                                                                                                  \
-        if ((_scope_id) == SCOPE_INTER_DPU)                                                                                                \
-        {                                                                                                                                  \
-            char h[1024];                                                                                                                  \
-            h[1023] = '\0';                                                                                                                \
-            gethostname(h, 1023);                                                                                                          \
-            fprintf(stderr, " -> %s: Reception of notification on econtext %p and scope_id %d is now all set\n",                           \
-                    h,                                                                                                                     \
-                    econtext,                                                                                                              \
-                    (_scope_id));                                                                                                          \
-        }                                                                                                                                  \
     } while (0)
 
 /**
@@ -282,7 +272,6 @@ static void post_recv_for_notif_payload(hdr_notif_req_t *ctx, execution_context_
         {
             // Recv completed immediately, the callback is not invoked
             DBG("Recv of the payload completed right away");
-            fprintf(stderr, "Recv of the payload completed right away\n");
             ctx->payload_ctx.complete = true;
             handle_notif_msg(ctx->econtext, &(ctx->hdr), sizeof(am_header_t), ctx->payload_ctx.buffer, ctx->hdr.payload_size);
             if (ctx->hdr.payload_size)
@@ -350,7 +339,6 @@ static void post_new_notif_recv(ucp_worker_h worker, hdr_notif_req_t *ctx, execu
         {
             // Receive completed immediately, callback is not called
             DBG("Recv of notification header completed right away, notif type: %ld", ctx->hdr.type);
-            fprintf(stderr, "Recv of notification header completed right away, notif type: %ld\n", ctx->hdr.type);
             ctx->complete = true;
             post_recv_for_notif_payload(ctx, (execution_context_t *)ctx->econtext, ctx->hdr.id);
         }
