@@ -406,8 +406,8 @@ int tag_send_event_msg(dpu_offload_event_t **event)
         hdr_send_param.datatype = ucp_dt_make_contig(1);
         hdr_send_param.user_data = (void *)(*event);
 
-        DBG("Sending notification header - econtext: %p, scope_id: %d, client_id: %" PRIu64", server_id: %" PRIu64,
-            (*event)->event_system->econtext, (*event)->scope_id, client_id, server_id);
+        DBG("Sending notification header - type: %" PRIu64 ", econtext: %p, scope_id: %d, client_id: %" PRIu64", server_id: %" PRIu64,
+            (*event)->ctx.hdr.type, (*event)->event_system->econtext, (*event)->scope_id, client_id, server_id);
 
         assert((*event)->dest.ep);
         (*event)->hdr_request = NULL;

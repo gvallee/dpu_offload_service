@@ -86,7 +86,8 @@ void cache_entry_cb(void *data)
     offloading_engine_t *engine = (offloading_engine_t *)cache_entry_req->offload_engine;
     ucp_ep_h target_dpu_ep;
     execution_context_t *econtext_comm;
-    dpu_offload_status_t rc = get_dpu_ep_by_id(engine, cache_entry_req->target_dpu_idx, &target_dpu_ep, &econtext_comm);
+    uint64_t notif_dest_id;
+    dpu_offload_status_t rc = get_dpu_ep_by_id(engine, cache_entry_req->target_dpu_idx, &target_dpu_ep, &econtext_comm, &notif_dest_id);
     if (rc)
     {
         fprintf(stderr, "l.%d - [ERROR] get_dpu_ep_by_id() failed\n", __LINE__);
@@ -201,7 +202,8 @@ static int do_lookup(offloading_engine_t *offload_engine, int64_t gp_id, int64_t
 
     ucp_ep_h target_dpu_ep;
     execution_context_t *econtext_comm;
-    rc = get_dpu_ep_by_id(offload_engine, remote_dpu_id, &target_dpu_ep, &econtext_comm);
+    uint64_t notif_dest_id;
+    rc = get_dpu_ep_by_id(offload_engine, remote_dpu_id, &target_dpu_ep, &econtext_comm, &notif_dest_id);
     if (rc)
     {
         fprintf(stderr, "l.%d - [ERROR] get_dpu_ep_by_id\n", __LINE__);
@@ -387,7 +389,8 @@ int main(int argc, char **argv)
 
         ucp_ep_h target_dpu_ep;
         execution_context_t *econtext_comm;
-        rc = get_dpu_ep_by_id(offload_engine, remote_dpu_id, &target_dpu_ep, &econtext_comm);
+        uint64_t notif_dest_id;
+        rc = get_dpu_ep_by_id(offload_engine, remote_dpu_id, &target_dpu_ep, &econtext_comm, &notif_dest_id);
         if (rc)
         {
             fprintf(stderr, "[ERROR] get_dpu_ep_by_id() failed\n");
