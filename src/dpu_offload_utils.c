@@ -326,7 +326,6 @@ static dpu_offload_status_t do_get_cache_entry_by_group_rank(offloading_engine_t
         // The cache has the data
         peer_cache_entry_t *cache_entry = GET_GROUP_RANK_CACHE_ENTRY(&(engine->procs_cache), gp_id, rank, GROUP_SIZE_UNKNOWN);
         DBG("%" PRId64 "/%" PRId64 " is in the cache, DPU ID = %" PRId64, rank, gp_id, cache_entry->shadow_dpus[dpu_idx]);
-        fprintf(stderr, "%" PRId64 "/%" PRId64 " is in the cache, DPU ID = %" PRId64 "\n", rank, gp_id, cache_entry->shadow_dpus[dpu_idx]);
         if (ev != NULL)
         {
             *ev = NULL;
