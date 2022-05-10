@@ -1979,7 +1979,7 @@ static dpu_offload_status_t oob_server_listen(execution_context_t *econtext)
     {
         uint64_t val = UINT64_MAX;
         size_sent = send(econtext->server->conn_data.oob.sock,
-                         &(econtext->engine->config->local_dpu.id),
+                         &val,
                          sizeof(econtext->engine->config->local_dpu.id),
                          0);
     }
