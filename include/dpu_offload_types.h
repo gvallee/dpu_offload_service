@@ -1166,11 +1166,11 @@ typedef struct dpu_offload_event
         (__ev)->payload = NULL;               \
         (__ev)->event_system = NULL;          \
         (__ev)->req = NULL;                   \
-        (__ev)->ctx.complete = 0;             \
+        (__ev)->ctx.complete = false;         \
         (__ev)->ctx.completion_cb = NULL;     \
         (__ev)->ctx.completion_cb_ctx = NULL; \
-        (__ev)->ctx.hdr.type = 0;             \
-        (__ev)->ctx.hdr.id = 0;               \
+        (__ev)->ctx.hdr.type = UINT64_MAX;    \
+        (__ev)->ctx.hdr.id = UINT64_MAX;      \
         (__ev)->ctx.hdr.payload_size = 0;     \
         (__ev)->manage_payload_buf = false;   \
         (__ev)->dest.ep = NULL;               \
@@ -1178,24 +1178,26 @@ typedef struct dpu_offload_event
         (__ev)->scope_id = SCOPE_HOST_DPU;    \
     } while (0)
 #else
-#define RESET_EVENT(__ev)                     \
-    do                                        \
-    {                                         \
-        (__ev)->context = NULL;               \
-        (__ev)->payload = NULL;               \
-        (__ev)->event_system = NULL;          \
-        (__ev)->req = NULL;                   \
-        (__ev)->ctx.hdr_completed = 0;        \
-        (__ev)->ctx.payload_completed = 0;    \
-        (__ev)->ctx.completion_cb = NULL;     \
-        (__ev)->ctx.completion_cb_ctx = NULL; \
-        (__ev)->ctx.hdr.type = 0;             \
-        (__ev)->ctx.hdr.id = 0;               \
-        (__ev)->ctx.hdr.payload_size = 0;     \
-        (__ev)->manage_payload_buf = false;   \
-        (__ev)->dest.ep = NULL;               \
-        (__ev)->dest.id = UINT64_MAX;         \
-        (__ev)->scope_id = SCOPE_HOST_DPU;    \
+#define RESET_EVENT(__ev)                      \
+    do                                         \
+    {                                          \
+        (__ev)->context = NULL;                \
+        (__ev)->payload = NULL;                \
+        (__ev)->event_system = NULL;           \
+        (__ev)->req = NULL;                    \
+        (__ev)->ctx.hdr_completed = false;     \
+        (__ev)->ctx.payload_completed = false; \
+        (__ev)->ctx.completion_cb = NULL;      \
+        (__ev)->ctx.completion_cb_ctx = NULL;  \
+        (__ev)->ctx.hdr.type = UINT64_MAX;     \
+        (__ev)->ctx.hdr.id = UINT64_MAX;       \
+        (__ev)->ctx.hdr.payload_size = 0;      \
+        (__ev)->manage_payload_buf = false;    \
+        (__ev)->dest.ep = NULL;                \
+        (__ev)->dest.id = UINT64_MAX;          \
+        (__ev)->scope_id = SCOPE_HOST_DPU;     \
+        (__ev)->hdr_request = NULL;            \
+        (__ev)->payload_request = NULL;        \
     } while (0)
 #endif
 
