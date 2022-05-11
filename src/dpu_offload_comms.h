@@ -124,6 +124,11 @@ static int handle_notif_msg(execution_context_t *econtext, am_header_t *hdr, siz
     assert(econtext);
     assert(hdr);
     assert(econtext->event_channels);
+    if (hdr->payload_size > 0 && data == NULL)
+    {
+        ERR_MSG("the payload is %" PRIu64 " but the buffer is NULL", hdr->payload_size);
+        return UCS_ERR_NO_MESSAGE;
+    }
     SYS_EVENT_LOCK(econtext->event_channels);
     notification_callback_entry_t *entry = DYN_ARRAY_GET_ELT(&(econtext->event_channels->notification_callbacks), hdr->type, notification_callback_entry_t);
     DBG("Notification of type %" PRIu64 " received from %" PRIu64 " (econtext: %p), dispatching...", hdr->type, hdr->id, econtext);
@@ -190,6 +195,7 @@ error_out:
  */
 static void notif_payload_recv_handler(void *request, ucs_status_t status, const ucp_tag_recv_info_t *tag_info, void *user_data)
 {
+    int rc;
     hdr_notif_req_t *ctx = (hdr_notif_req_t *)user_data;
     assert(ctx);
     assert(ctx->econtext);
@@ -197,7 +203,15 @@ static void notif_payload_recv_handler(void *request, ucs_status_t status, const
     ctx->payload_ctx.complete = true;
 
     // Invoke the associated callback
-    handle_notif_msg(ctx->econtext, &(ctx->hdr), sizeof(am_header_t), ctx->payload_ctx.buffer, ctx->hdr.payload_size);
+    rc = handle_notif_msg(ctx->econtext, &(ctx->hdr), sizeof(am_header_t), ctx->payload_ctx.buffer, ctx->hdr.payload_size);
+    if (rc != UCS_OK)
+    {
+        ERR_MSG("handle_notif_msg() failed");
+        assert(0); // fail when in debug mode
+        return;
+    }
+
+    // Once the callback invoked, we can safely free the payload
     if (ctx->hdr.payload_size)
     {
         free(ctx->payload_ctx.buffer);
@@ -233,6 +247,9 @@ static void post_recv_for_notif_payload(hdr_notif_req_t *ctx, execution_context_
         econtext,
         ctx);
     assert(econtext == ctx->econtext);
+    assert(ctx->true == false); // The header should be completed
+    assert(ctx->payload_ctx.complete == false);
+    assert(ctx->hdr.payload_size > 0);
 
     if (ctx->hdr.payload_size > 0 && ctx->payload_ctx.req != NULL)
     {
@@ -270,10 +287,18 @@ static void post_recv_for_notif_payload(hdr_notif_req_t *ctx, execution_context_
                                                 &(ctx->payload_ctx.recv_params));
         if (ctx->payload_ctx.req == NULL)
         {
+            int rc;
             // Recv completed immediately, the callback is not invoked
             DBG("Recv of the payload completed right away");
             ctx->payload_ctx.complete = true;
-            handle_notif_msg(ctx->econtext, &(ctx->hdr), sizeof(am_header_t), ctx->payload_ctx.buffer, ctx->hdr.payload_size);
+            rc = handle_notif_msg(ctx->econtext, &(ctx->hdr), sizeof(am_header_t), ctx->payload_ctx.buffer, ctx->hdr.payload_size);
+            if (rc != UCS_OK)
+            {
+                ERR_MSG("handle_notif_msg() failed");
+                assert(0); // fail when in debug mode
+                return;
+            }
+
             if (ctx->hdr.payload_size)
             {
                 free(ctx->payload_ctx.buffer);
@@ -299,7 +324,14 @@ static void post_recv_for_notif_payload(hdr_notif_req_t *ctx, execution_context_
     }
     else
     {
-        handle_notif_msg(econtext, &(ctx->hdr), sizeof(am_header_t), NULL, 0);
+        int rc = handle_notif_msg(econtext, &(ctx->hdr), sizeof(am_header_t), NULL, 0);
+        if (rc != UCS_OK)
+        {
+            ERR_MSG("handle_notif_msg() failed\n");
+            assert(0);
+            return;
+        }
+
         if (ctx->req != NULL)
         {
             ucp_request_free(ctx->req);
