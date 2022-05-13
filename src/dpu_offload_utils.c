@@ -241,6 +241,8 @@ dpu_offload_status_t broadcast_group_cache(offloading_engine_t *engine, int64_t 
     assert(engine);
     assert(group_id >= 0);
 
+    return DO_SUCCESS; // DBG
+
     if (!engine->on_dpu)
     {
         ERR_MSG("Not on a DPU, not allowed to broadcast group cache");

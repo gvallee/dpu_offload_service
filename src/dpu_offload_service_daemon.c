@@ -650,17 +650,6 @@ static dpu_offload_status_t ucx_listener_client_connect(dpu_offload_client_t *cl
     return DO_SUCCESS;
 }
 
-#if 0
-static void oob_send_cb(void *request, ucs_status_t status, void *ctx)
-{
-    struct ucx_context *context = (struct ucx_context *)request;
-
-    context->completed = 1;
-
-    DBG("send handler called for \"%s\" with status %d (%s)", (const char *)ctx, status, ucs_status_string(status));
-}
-#endif
-
 static void ucx_client_boostrap_send_cb(void *request, ucs_status_t status, void *user_data)
 {
     am_req_t *ctx = (am_req_t *)user_data;
@@ -1013,6 +1002,40 @@ error_out:
     return DO_ERROR;
 }
 
+uint64_t ctx0, ctx1;
+bool ctx0_set = false;
+bool ctx1_set = false;
+void print_all_recv_ctx(execution_context_t *econtext)
+{
+    size_t n_client = 0;
+    size_t idx = 0;
+    while (n_client < econtext->server->connected_clients.num_connected_clients)
+    {
+        peer_info_t *client_info = DYN_ARRAY_GET_ELT(&(econtext->server->connected_clients.clients), idx, peer_info_t);
+        if (client_info == NULL || client_info->bootstrapping.phase != BOOTSTRAP_DONE)
+        {
+            idx++;
+            continue;
+        }
+
+        if (client_info->notif_recv.initialized == true)
+        {
+            if (n_client == 0 && ctx0_set && ctx0 != (uint64_t)&(client_info->notif_recv.ctx))
+            {
+                ERR_MSG("$$$$$$$$$$$$$$$$$$$$$$$$$$ ctx 0 corrupted");
+                abort();
+            }
+            if (n_client == 1 && ctx1_set && ctx1 != (uint64_t)&(client_info->notif_recv.ctx))
+            {
+                ERR_MSG("$$$$$$$$$$$$$$$$$$$$$$$$$$ ctx 1 corrupted");
+                abort();
+            }
+        }
+        idx++;
+        n_client++;
+    }
+}
+
 static void progress_server_event_recv(execution_context_t *econtext)
 {
     size_t n_client = 0;
@@ -1027,7 +1050,6 @@ static void progress_server_event_recv(execution_context_t *econtext)
             continue;
         }
 
-        ucp_worker_h worker = GET_WORKER(econtext);
         if (client_info->notif_recv.initialized == false)
         {
             // Note: tag and tag mask are calculated by the macro to match the client
@@ -1055,31 +1077,44 @@ static void progress_server_event_recv(execution_context_t *econtext)
                             client_info->notif_recv.hdr_recv_params,
                             client_info->notif_recv.hdr_ucp_tag,
                             client_info->notif_recv.hdr_ucp_tag_mask,
-                            worker,
                             client_info->id,
                             econtext->server->id,
                             econtext->scope_id);
             client_info->notif_recv.initialized = true;
+            if (n_client == 0)
+            {
+                ctx0 = (uint64_t)&(client_info->notif_recv.ctx);
+                ctx0_set = true;
+            }
+            if (n_client == 1)
+            {
+                ctx1 = (uint64_t)&(client_info->notif_recv.ctx);
+                ctx1_set = true;
+            }
+
+            print_all_recv_ctx(econtext);
         }
         // The function will handle whether a new receive is required to be posted or not
         ECONTEXT_UNLOCK(econtext);
-        post_new_notif_recv(worker,
-                            &(client_info->notif_recv.ctx),
+        print_all_recv_ctx(econtext);
+        post_new_notif_recv(&(client_info->notif_recv.ctx),
                             econtext,
                             client_info->notif_recv.hdr_ucp_tag,
                             client_info->notif_recv.hdr_ucp_tag_mask,
                             &(client_info->notif_recv.hdr_recv_params));
+        print_all_recv_ctx(econtext);
         ECONTEXT_LOCK(econtext);
         idx++;
         n_client++;
     }
     ECONTEXT_UNLOCK(econtext);
+
+    print_all_recv_ctx(econtext);
 }
 
 static void progress_client_event_recv(execution_context_t *econtext)
 {
     ECONTEXT_LOCK(econtext);
-    ucp_worker_h worker = GET_WORKER(econtext);
     if (econtext->event_channels->notif_recv.initialized == false)
     {
         // Note: tag and tag mask are calculated by the macro to match the client
@@ -1102,7 +1137,6 @@ static void progress_client_event_recv(execution_context_t *econtext)
                         econtext->event_channels->notif_recv.hdr_recv_params,
                         econtext->event_channels->notif_recv.hdr_ucp_tag,
                         econtext->event_channels->notif_recv.hdr_ucp_tag_mask,
-                        worker,
                         econtext->client->id,
                         econtext->client->server_id,
                         econtext->scope_id);
@@ -1111,8 +1145,7 @@ static void progress_client_event_recv(execution_context_t *econtext)
     ECONTEXT_UNLOCK(econtext);
 
     // The function will handle whether a new receive is required to be posted or not
-    post_new_notif_recv(worker,
-                        &(econtext->event_channels->notif_recv.ctx),
+    post_new_notif_recv(&(econtext->event_channels->notif_recv.ctx),
                         econtext,
                         econtext->event_channels->notif_recv.hdr_ucp_tag,
                         econtext->event_channels->notif_recv.hdr_ucp_tag_mask,
@@ -1122,7 +1155,6 @@ static void progress_client_event_recv(execution_context_t *econtext)
 static void progress_self_event_recv(execution_context_t *econtext)
 {
     ECONTEXT_LOCK(econtext);
-    ucp_worker_h worker = GET_WORKER(econtext);
     if (econtext->event_channels->notif_recv.initialized == false)
     {
         // Note: tag and tag mask are calculated by the macro to match the client
@@ -1131,7 +1163,6 @@ static void progress_self_event_recv(execution_context_t *econtext)
                         econtext->event_channels->notif_recv.hdr_recv_params,
                         econtext->event_channels->notif_recv.hdr_ucp_tag,
                         econtext->event_channels->notif_recv.hdr_ucp_tag_mask,
-                        worker,
                         0UL, // context ID is always 0 for self notifications (a.k.a. local notifications)
                         0UL, // context ID is always 0 for self notifications (a.k.a. local notifications)
                         econtext->scope_id);
@@ -1140,8 +1171,7 @@ static void progress_self_event_recv(execution_context_t *econtext)
     ECONTEXT_UNLOCK(econtext);
 
     // The function will handle whether a new receive is required to be posted or not
-    post_new_notif_recv(worker,
-                        &(econtext->event_channels->notif_recv.ctx),
+    post_new_notif_recv(&(econtext->event_channels->notif_recv.ctx),
                         econtext,
                         econtext->event_channels->notif_recv.hdr_ucp_tag,
                         econtext->event_channels->notif_recv.hdr_ucp_tag_mask,

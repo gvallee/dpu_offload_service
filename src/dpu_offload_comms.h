@@ -76,7 +76,14 @@
     } while (0)
 
 // PREP_NOTIF_RECV assumes the execution context is locked before being invoked
-#define PREP_NOTIF_RECV(_ctx, _hdr_recv_param, _hdr_ucp_tag, _hdr_ucp_tag_mask, _worker, _client_id, _server_id, _scope_id)                \
+// ctx: hdr_notif_req_t
+// _hdr_recv_param: ucp_request_param_t
+// _hdr_ucp_tag: ucp_tag_t
+// _hdr_ucp_tag_mask: ucp_tag_t
+// _client_id: uint64_t
+// _server_id: uint64_t
+// _scope_id: execution_scope_t (enum)
+#define PREP_NOTIF_RECV(_ctx, _hdr_recv_param, _hdr_ucp_tag, _hdr_ucp_tag_mask, _client_id, _server_id, _scope_id)                \
     do                                                                                                                                     \
     {                                                                                                                                      \
         /* Always have a recv posted so we are ready to get a header from the other side. */                                               \
@@ -100,8 +107,9 @@
                       (_server_id),                                                                                                        \
                       (_scope_id),                                                                                                         \
                       0);                                                                                                                  \
-        worker = GET_WORKER(econtext);                                                                                                     \
-        DBG(" -> Reception of notification on econtext %p, client_id: %" PRIu64 ", server_id: %" PRIu64 " and scope_id %d is now all set", \
+        DBG(" -> Reception of notification (ctx: %p) on econtext %p, client_id: %" PRIu64 ", server_id: %" PRIu64 \
+            " and scope_id %d is now all set", \
+            &(_ctx), \
             econtext,                                                                                                                      \
             (_client_id), (_server_id),                                                                                                    \
             (_scope_id));                                                                                                                  \
@@ -277,6 +285,7 @@ static void post_recv_for_notif_payload(hdr_notif_req_t *ctx, execution_context_
                                                     UCP_OP_ATTR_FIELD_USER_DATA;
         ctx->payload_ctx.recv_params.datatype = ucp_dt_make_contig(1);
         ctx->payload_ctx.recv_params.user_data = ctx;
+        fprintf(stderr, "DBG: posting payload recv with ctx %p\n", ctx);
         ctx->payload_ctx.recv_params.cb.recv = notif_payload_recv_handler;
         MAKE_RECV_TAG(payload_ucp_tag, payload_ucp_tag_mask, AM_EVENT_MSG_ID, ctx->client_id, ctx->server_id, econtext->scope_id, 0);
         DBG("Tag: %d; scope_id: %u", AM_EVENT_MSG_ID, econtext->scope_id);
@@ -357,7 +366,7 @@ static void post_recv_for_notif_payload(hdr_notif_req_t *ctx, execution_context_
  * @param hdr_ucp_tag_mask
  * @param hdr_recv_param
  */
-static void post_new_notif_recv(ucp_worker_h worker, hdr_notif_req_t *ctx, execution_context_t *econtext, ucp_tag_t hdr_ucp_tag, ucp_tag_t hdr_ucp_tag_mask, ucp_request_param_t *hdr_recv_param)
+static void post_new_notif_recv(hdr_notif_req_t *ctx, execution_context_t *econtext, ucp_tag_t hdr_ucp_tag, ucp_tag_t hdr_ucp_tag_mask, ucp_request_param_t *hdr_recv_param)
 {
 #if !NDEBUG
     if (econtext->engine->on_dpu && econtext->scope_id == SCOPE_INTER_DPU)
@@ -374,10 +383,11 @@ static void post_new_notif_recv(ucp_worker_h worker, hdr_notif_req_t *ctx, execu
     if (ctx->complete == true && ctx->payload_ctx.complete == true)
     {
         // Post the receive for the header
+        ucp_worker_h worker = GET_WORKER(econtext);
         ctx->complete = false;
         ctx->econtext = (struct execution_context *)econtext;
-        DBG("-------------> Posting recv for notif header (econtext: %p, scope_id: %d, worker: %p, client_id: %" PRIu64 ", server_id: %" PRIu64 ", size: %ld)",
-            econtext, econtext->scope_id, worker, ctx->client_id, ctx->server_id, sizeof(am_header_t));
+        DBG("-------------> Posting recv for notif header (econtext: %p, scope_id: %d, worker: %p, client_id: %" PRIu64 ", server_id: %" PRIu64 ", size: %ld, ctx: %p)",
+            econtext, econtext->scope_id, worker, ctx->client_id, ctx->server_id, sizeof(am_header_t), ctx);
         struct ucx_context *req = ucp_tag_recv_nbx(worker, &(ctx->hdr), sizeof(am_header_t), hdr_ucp_tag, hdr_ucp_tag_mask, hdr_recv_param);
         if (req == NULL)
         {
@@ -413,12 +423,7 @@ static void notif_hdr_recv_handler(void *request, ucs_status_t status, const ucp
     if (ctx->client_id != ctx->hdr.client_id)
     {
         ERR_MSG("expecting a message from client_id: %" PRIu64 " but received %" PRIu64 " scope_id: %d, etype: %d, ctx: %p, hdr type: %" PRIu64 ", event ID: %" PRIu64,
-                ctx->client_id, ctx->hdr.client_id, ctx->econtext->scope_id, ctx->econtext->type, ctx, ctx->hdr.type, ctx->hdr.event_id);
-        abort();
-    }
-    if (ctx->server_id != ctx->hdr.server_id)
-    {
-        ERR_MSG("expecting a message from server_id: %" PRIu64 " but received %" PRIu64 " ctx: %p", ctx->server_id, ctx->hdr.server_id, ctx);
+                ctx->client_id, ctx->hdr.client_id, ctx->econtext->scope_id, ctx->econtext->type, ctx, ctx->hdr.type, ctx->hdr.server_id);
         abort();
     }
 #endif
