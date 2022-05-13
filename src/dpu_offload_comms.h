@@ -416,6 +416,7 @@ static void notif_hdr_recv_handler(void *request, ucs_status_t status, const ucp
                 ctx->client_id, ctx->hdr.client_id, ctx->econtext->scope_id, ctx->econtext->type, ctx, ctx->hdr.type, ctx->hdr.event_id);
         abort();
     }
+
     if (ctx->server_id != ctx->hdr.server_id)
     {
         ERR_MSG("expecting a message from server_id: %" PRIu64 " but received %" PRIu64 " ctx: %p", ctx->server_id, ctx->hdr.server_id, ctx);
@@ -425,7 +426,6 @@ static void notif_hdr_recv_handler(void *request, ucs_status_t status, const ucp
 
     assert(ctx->client_id == ctx->hdr.client_id);
     assert(ctx->server_id == ctx->hdr.server_id);
-    assert(ctx->client_id == ctx->hdr.id);
     DBG("Notification header received from peer #%ld, type: %ld (client_id: %" PRIu64 ", server_id: %" PRIu64 ")",
         ctx->hdr.id, ctx->hdr.type, ctx->client_id, ctx->server_id);
     ctx->complete = true;
