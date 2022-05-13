@@ -409,6 +409,7 @@ static void notif_hdr_recv_handler(void *request, ucs_status_t status, const ucp
     hdr_notif_req_t *ctx = (hdr_notif_req_t *)user_data;
     assert(status == UCS_OK);
     assert(tag_info->length == sizeof(am_header_t));
+#if !NDEBUG
     if (ctx->client_id != ctx->hdr.client_id)
     {
         ERR_MSG("expecting a message from client_id: %" PRIu64 " but received %" PRIu64 " scope_id: %d, etype: %d, ctx: %p, hdr type: %" PRIu64 ", event ID: %" PRIu64,
@@ -417,9 +418,10 @@ static void notif_hdr_recv_handler(void *request, ucs_status_t status, const ucp
     }
     if (ctx->server_id != ctx->hdr.server_id)
     {
-        ERR_MSG("expecting a message from server_id: %" PRIu64 " but received %" PRIu64 "ctx: %p", ctx->server_id, ctx->hdr.server_id, ctx);
+        ERR_MSG("expecting a message from server_id: %" PRIu64 " but received %" PRIu64 " ctx: %p", ctx->server_id, ctx->hdr.server_id, ctx);
         abort();
     }
+#endif
 
     assert(ctx->client_id == ctx->hdr.client_id);
     assert(ctx->server_id == ctx->hdr.server_id);
