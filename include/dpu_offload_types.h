@@ -435,7 +435,7 @@ typedef struct am_header
     // used to know the size to expect when we post the receive for the payload.
     uint64_t payload_size;
 
-#if !NDEBG
+#if !NDEBUG
     uint64_t event_id;
     uint64_t client_id;
     uint64_t server_id;
