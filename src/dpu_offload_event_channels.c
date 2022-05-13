@@ -423,6 +423,8 @@ int tag_send_event_msg(dpu_offload_event_t **event)
         (*event)->payload_request = NULL;
 #if !NDEBUG
         (*event)->ctx.hdr.event_id = (*event)->seq_num;
+        (*event)->ctx.hdr.client_id = (*event)->client_id;
+        (*event)->ctx.hdr.server_id = (*event)->server_id;
 #endif
         (*event)->hdr_request = ucp_tag_send_nbx((*event)->dest.ep, &((*event)->ctx.hdr), sizeof(am_header_t), hdr_ucp_tag, &hdr_send_param);
         if (UCS_PTR_IS_ERR((*event)->hdr_request))
