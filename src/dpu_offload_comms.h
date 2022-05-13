@@ -412,20 +412,23 @@ static void notif_hdr_recv_handler(void *request, ucs_status_t status, const ucp
 #if !NDEBUG
     if (ctx->client_id != ctx->hdr.client_id)
     {
-        ERR_MSG("expecting a message from client_id: %" PRIu64 " but received %" PRIu64 " scope_id: %d, etype: %d, ctx: %p, hdr type: %" PRIu64 ", event ID: %" PRIu64,
-                ctx->client_id, ctx->hdr.client_id, ctx->econtext->scope_id, ctx->econtext->type, ctx, ctx->hdr.type, ctx->hdr.event_id);
+        ERR_MSG("!!!  expecting a message from client_id: %" PRIu64 " but received %" PRIu64 " econtext: %p scope_id: %d etype: %d ctx: %p hdr type: %" PRIu64 ", event ID: %" PRIu64,
+                ctx->client_id, ctx->hdr.client_id, ctx->econtext, ctx->econtext->scope_id, ctx->econtext->type, ctx, ctx->hdr.type, ctx->hdr.event_id);
         abort();
     }
     if (ctx->server_id != ctx->hdr.server_id)
     {
         ERR_MSG("expecting a message from server_id: %" PRIu64 " but received %" PRIu64 " ctx: %p", ctx->server_id, ctx->hdr.server_id, ctx);
+        if (!ctx->econtext->engine->on_dpu && ctx->econtext->type == CONTEXT_CLIENT)
+        {
+            WARN_MSG("My client ID is %" PRId64, ctx->econtext->rank.group_rank);
+        }
         abort();
     }
 #endif
 
     assert(ctx->client_id == ctx->hdr.client_id);
     assert(ctx->server_id == ctx->hdr.server_id);
-    assert(ctx->client_id == ctx->hdr.id);
     DBG("Notification header received from peer #%ld, type: %ld (client_id: %" PRIu64 ", server_id: %" PRIu64 ")",
         ctx->hdr.id, ctx->hdr.type, ctx->client_id, ctx->server_id);
     ctx->complete = true;
