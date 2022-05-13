@@ -315,7 +315,7 @@ static void notif_payload_send_cb(void *request, ucs_status_t status, void *user
 {
     dpu_offload_event_t *ev = (dpu_offload_event_t *)user_data;
     ev->ctx.payload_completed = true;
-    DBG("Payload for event #%ld successfully sent (hdr completed: %d)", ev->seq_num, ev->ctx.hdr_completed);
+    DBG("Payload for event #%ld (%p) successfully sent (hdr completed: %d)", ev->seq_num, ev, ev->ctx.hdr_completed);
 }
 
 #if USE_AM_IMPLEM
@@ -389,6 +389,17 @@ int tag_send_event_msg(dpu_offload_event_t **event)
         return DO_ERROR;
     }
 
+#if !NDEBUG
+    (*event)->client_id = client_id;
+    (*event)->server_id = server_id;
+    if (econtext->type == CONTEXT_CLIENT && econtext->scope_id == SCOPE_HOST_DPU && econtext->rank.n_local_ranks > 0 && econtext->rank.n_local_ranks != UINT64_MAX)
+    {
+        assert(client_id < econtext->rank.n_local_ranks);
+        if (client_id == 0)
+            WARN_MSG("My client ID is 0");
+    }
+#endif
+
     /* 1. Send the hdr, we can be in the middle of a send, meaning the HDR went
        through but the payload */
     if (!((*event)->ctx.hdr_completed))
@@ -405,13 +416,14 @@ int tag_send_event_msg(dpu_offload_event_t **event)
         hdr_send_param.cb.send = notif_hdr_send_cb;
         hdr_send_param.datatype = ucp_dt_make_contig(1);
         hdr_send_param.user_data = (void *)(*event);
-
-        DBG("Sending notification header - type: %" PRIu64 ", econtext: %p, scope_id: %d, client_id: %" PRIu64", server_id: %" PRIu64,
-            (*event)->ctx.hdr.type, (*event)->event_system->econtext, (*event)->scope_id, client_id, server_id);
-
+        DBG("Sending notification header - ev: %" PRIu64 ", type: %" PRIu64 ", econtext: %p, scope_id: %d, client_id: %" PRIu64", server_id: %" PRIu64,
+            (*event)->seq_num, (*event)->ctx.hdr.type, (*event)->event_system->econtext, (*event)->scope_id, client_id, server_id);
         assert((*event)->dest.ep);
         (*event)->hdr_request = NULL;
         (*event)->payload_request = NULL;
+#if !NDEBUG
+        (*event)->ctx.hdr.event_id = (*event)->seq_num;
+#endif
         (*event)->hdr_request = ucp_tag_send_nbx((*event)->dest.ep, &((*event)->ctx.hdr), sizeof(am_header_t), hdr_ucp_tag, &hdr_send_param);
         if (UCS_PTR_IS_ERR((*event)->hdr_request))
         {
@@ -462,14 +474,15 @@ int tag_send_event_msg(dpu_offload_event_t **event)
         }
         if (payload_request != NULL)
             (*event)->payload_request = payload_request;
-        DBG("event %p (%ld) send posted (payload) - scope_id: %d, req: %p",
-            (*event), (*event)->seq_num, (*event)->scope_id, payload_request);
+
+        DBG("event %p (%ld) send posted (payload) - scope_id: %d, req: %p, complete: %d",
+            (*event), (*event)->seq_num, (*event)->scope_id, payload_request, (*event)->ctx.payload_completed);
     }
 
     if ((*event)->hdr_request == NULL && (*event)->payload_request == NULL)
     {
-        DBG("event %p send immediately completed", (*event));
         COMPLETE_EVENT(*event);
+        DBG("event %p send immediately completed", (*event));
         dpu_offload_status_t rc = event_return(event);
         CHECK_ERR_RETURN((rc), DO_ERROR, "event_return() failed");
         return EVENT_DONE;
@@ -594,7 +607,8 @@ dpu_offload_status_t event_get(dpu_offload_ev_sys_t *ev_sys, dpu_offload_event_i
     }
 
 out:
-    DBG("Got event %p from list %p (scope_id: %d)", _ev, ev_sys->free_evs, _ev->scope_id);
+    DBG("Got event #%" PRIu64 " (%p) from list %p (scope_id: %d)", _ev->seq_num, _ev, ev_sys->free_evs, _ev->scope_id);
+
     *ev = _ev;
     return DO_SUCCESS;
 }
@@ -602,13 +616,12 @@ out:
 static dpu_offload_status_t do_event_return(dpu_offload_event_t *ev)
 {
     assert(ev);
+    assert(ev->event_system);
     if (ev->req)
     {
         WARN_MSG("returning event %p but it is still in progress", ev);
         return EVENT_INPROGRESS;
     }
-
-    assert(ev->event_system);
 
     // If the event has a payload buffer that the library is managing, free that buffer
     if (ev->manage_payload_buf && ev->payload != NULL)
@@ -667,10 +680,10 @@ dpu_offload_status_t event_return(dpu_offload_event_t **ev)
 bool event_completed(dpu_offload_event_t *ev)
 {
 #if USE_AM_IMPLEM
-    if (ev->ctx.complete)
+    if (!ev->sub_events_initialized && ev->ctx.complete)
         return true;
 #else
-    if (ev->ctx.hdr_completed && ev->ctx.payload_completed)
+    if (!ev->sub_events_initialized && ev->ctx.hdr_completed && ev->ctx.payload_completed)
         return true;
 #endif
 
@@ -689,7 +702,7 @@ bool event_completed(dpu_offload_event_t *ev)
 #endif
             {
                 ucs_list_del(&(subevt->item));
-                DBG("returning sub event %p of main event %p", subevt, ev);
+                DBG("returning sub event %" PRIu64 " %p of main event %p", subevt->seq_num, subevt, ev);
                 dpu_offload_status_t rc = do_event_return(subevt);
                 CHECK_ERR_RETURN((rc), DO_ERROR, "event_return() failed");
             }
@@ -874,7 +887,10 @@ static dpu_offload_status_t peer_cache_entries_recv_cb(struct dpu_offload_ev_sys
         if (!is_in_cache(cache, group_id, group_rank, group_size))
         {
             DBG("Adding received entry to cache...");
-            peer_cache_entry_t *cache_entry = SET_PEER_CACHE_ENTRY(cache, &(entries[idx]));
+            peer_cache_entry_t *cache_entry;
+            cache_entry = GET_GROUP_RANK_CACHE_ENTRY(cache, group_id, group_rank, group_size);
+            cache_entry->set = true;
+            COPY_PEER_DATA(&(entries[idx].peer), &(cache_entry->peer));
             //cache_entry->shadow_dpus[cache_entry->num_shadow_dpus] = hdr->id;
             //cache_entry->num_shadow_dpus++;
 
@@ -965,7 +981,14 @@ static dpu_offload_status_t add_group_rank_recv_cb(struct dpu_offload_ev_sys *ev
 
     if (!is_in_cache(&(econtext->engine->procs_cache), rank_info->group_id, rank_info->group_rank, rank_info->group_size))
     {
-        SET_GROUP_RANK_CACHE_ENTRY(econtext, rank_info->group_id, rank_info->group_rank, rank_info->group_size, rank_info->n_local_ranks);
+        peer_cache_entry_t *cache_entry;
+        cache_entry = GET_GROUP_RANK_CACHE_ENTRY(&(econtext->engine->procs_cache),
+                                                 rank_info->group_id,
+                                                 rank_info->group_rank,
+                                                 rank_info->group_size);
+        assert(cache_entry);
+        COPY_RANK_INFO(rank_info, &(cache_entry->peer.proc_info));
+        cache_entry->set = true;
     }
 
     return DO_SUCCESS;

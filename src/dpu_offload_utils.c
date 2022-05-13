@@ -149,7 +149,7 @@ dpu_offload_status_t send_group_cache(execution_context_t *econtext, ucp_ep_h de
         peer_cache_entry_t *cache_entry = GET_GROUP_RANK_CACHE_ENTRY(&(econtext->engine->procs_cache), gp_id, i, gp_cache[gp_id].group_size);
         if (cache_entry->set)
         {
-            DBG("Sending cache entry for rank:%ld/gp:%ld gp_size:%ld local_ranks:%ld (event: %p, scope_id: %d)",
+            DBG("Sending cache entry for rank:%ld/gp:%ld gp_size:%ld local_ranks:%ld (meta event: %p, scope_id: %d)",
                 cache_entry->peer.proc_info.group_rank,
                 cache_entry->peer.proc_info.group_id,
                 cache_entry->peer.proc_info.group_size,

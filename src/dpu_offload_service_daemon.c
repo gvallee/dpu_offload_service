@@ -58,9 +58,6 @@ struct oob_msg
     uint64_t len;
 };
 
-#define GET_PEER_DATA_HANDLE(_pool_free_peer_descs, _peer_data) \
-    DYN_LIST_GET(_pool_free_peer_descs, peer_cache_entry_t, item, _peer_data);
-
 #define ADD_DEFAULT_ENGINE_CALLBACKS(_engine, _econtext)                                                                                                     \
     do                                                                                                                                                       \
     {                                                                                                                                                        \
@@ -971,10 +968,6 @@ dpu_offload_status_t offload_engine_init(offloading_engine_t **engine)
     CHECK_ERR_GOTO((d->servers == NULL), error_out, "unable to allocate resources");
     DYN_LIST_ALLOC(d->free_op_descs, 8, op_desc_t, item);
     CHECK_ERR_GOTO((d->free_op_descs == NULL), error_out, "Allocation of pool of free operation descriptors failed");
-    DYN_LIST_ALLOC(d->free_peer_cache_entries, DEFAULT_NUM_PEERS, peer_cache_entry_t, item);
-    CHECK_ERR_GOTO((d->free_peer_cache_entries == NULL), error_out, "Allocation of pool of free cache entries failed");
-    DYN_LIST_ALLOC(d->free_peer_descs, DEFAULT_NUM_PEERS, peer_data_t, item);
-    CHECK_ERR_GOTO((d->free_peer_descs == NULL), error_out, "Allocation of pool of proc descriptor failed");
     DYN_LIST_ALLOC(d->free_cache_entry_requests, DEFAULT_NUM_PEERS, cache_entry_request_t, item);
     CHECK_ERR_GOTO((d->free_cache_entry_requests == NULL), error_out, "Allocations of pool of descriptions for cache queries failed");
     DYN_LIST_ALLOC(d->pool_conn_params, 32, conn_params_t, item);
@@ -1012,8 +1005,6 @@ error_out:
         free(d->inter_dpus_clients);
     if (d->free_op_descs)
         DYN_LIST_FREE(d->free_op_descs, op_desc_t, item);
-    if (d->free_peer_cache_entries)
-        DYN_LIST_FREE(d->free_peer_cache_entries, peer_cache_entry_t, item);
     if (d->free_cache_entry_requests)
         DYN_LIST_FREE(d->free_cache_entry_requests, cache_entry_request_t, item);
     if (d->self_econtext)
@@ -1047,6 +1038,16 @@ static void progress_server_event_recv(execution_context_t *econtext)
                 econtext->scope_id,
                 client_info->id,
                 client_info->rank_data.group_rank);
+
+#if !NDEBUG
+            if (econtext->engine->on_dpu && econtext->scope_id == SCOPE_INTER_DPU)
+            {
+                if (client_info->id >= econtext->engine->num_dpus)
+                    ERR_MSG("requested client ID is invalid: %" PRIu64, client_info->id);
+                assert(client_info->id < econtext->engine->num_dpus);
+            }
+#endif
+
             // Always use the unique DPU ID from the list otherwise we can have a server and a client with the same ID
             // and receives would not work as expected since they are posted on the same worker with ultimately the same
             // tag
@@ -1087,6 +1088,16 @@ static void progress_client_event_recv(execution_context_t *econtext)
             econtext,
             econtext->scope_id,
             econtext->client->server_id);
+
+#if !NDEBUG
+            if (econtext->engine->on_dpu && econtext->scope_id == SCOPE_INTER_DPU)
+            {
+                if (econtext->client->id >= econtext->engine->num_dpus)
+                    ERR_MSG("requested client ID is invalid: %" PRIu64, econtext->client->id);
+                assert(econtext->client->id < econtext->engine->num_dpus);
+            }
+#endif
+
         PREP_NOTIF_RECV(econtext->event_channels->notif_recv.ctx,
                         econtext->event_channels->notif_recv.hdr_recv_params,
                         econtext->event_channels->notif_recv.hdr_ucp_tag,
@@ -1163,6 +1174,8 @@ static void progress_event_recv(execution_context_t *econtext)
 static dpu_offload_status_t send_group_cache_to_local_ranks(execution_context_t *econtext, int64_t group_id)
 {
     size_t n = 0, idx = 0;
+    assert(econtext->type == CONTEXT_SERVER);
+    assert(econtext->scope_id == SCOPE_HOST_DPU);
     DBG("Cache for group %ld is now complete, sending it to the local ranks (scope_id: %d, num connected clients: %ld)",
         group_id, econtext->scope_id, econtext->server->connected_clients.num_connected_clients);
     while (n < econtext->server->connected_clients.num_connected_clients)
@@ -1327,11 +1340,17 @@ static void progress_server_econtext(execution_context_t *ctx)
                         bool group_cache_now_full = false;
                         // Update the pointer to track cache entries, i.e., groups/ranks, for the peer
                         DBG("Adding gp/rank %" PRId64 "/%" PRId64 " to cache", client_info->rank_data.group_id, client_info->rank_data.group_rank);
-                        peer_cache_entry_t *cache_entry = SET_GROUP_RANK_CACHE_ENTRY(ctx,
-                                                                                     client_info->rank_data.group_id,
-                                                                                     client_info->rank_data.group_rank,
-                                                                                     client_info->rank_data.group_size,
-                                                                                     client_info->rank_data.n_local_ranks);
+                        peer_cache_entry_t *cache_entry;
+                        cache_entry = GET_GROUP_RANK_CACHE_ENTRY(&(ctx->engine->procs_cache), client_info->rank_data.group_id, client_info->rank_data.group_rank, client_info->rank_data.group_size);
+                        assert(cache_entry);
+                        COPY_RANK_INFO(&(client_info->rank_data), &(cache_entry->peer.proc_info));
+                        cache_entry->num_shadow_dpus = 1;
+                        if (ctx->engine->on_dpu)
+                            cache_entry->shadow_dpus[0] = ctx->engine->config->local_dpu.id;
+                        else
+                            cache_entry->shadow_dpus[0] = ECONTEXT_ID(ctx);
+                        cache_entry->set = true;
+
                         group_cache_t *gp_cache = GET_GROUP_CACHE(&(ctx->engine->procs_cache), client_info->rank_data.group_id);
                         if (cache_entry == NULL)
                         {
@@ -1747,10 +1766,7 @@ void offload_engine_fini(offloading_engine_t **offload_engine)
     event_channels_fini(&((*offload_engine)->default_notifications));
     GROUPS_CACHE_FINI(&((*offload_engine)->procs_cache));
     DYN_LIST_FREE((*offload_engine)->free_op_descs, op_desc_t, item);
-    DYN_LIST_FREE((*offload_engine)->free_peer_cache_entries, peer_cache_entry_t, item);
     DYN_LIST_FREE((*offload_engine)->free_cache_entry_requests, cache_entry_request_t, item);
-    DYN_LIST_FREE((*offload_engine)->free_peer_descs, peer_data_t, item);
-
     DYN_ARRAY_FREE(&((*offload_engine)->dpus));
     free((*offload_engine)->client);
     int i;
@@ -1988,6 +2004,12 @@ static dpu_offload_status_t oob_server_listen(execution_context_t *econtext)
     }
     DBG("Global ID sent (len: %ld)", size_sent);
     uint64_t client_id = generate_unique_client_id(econtext);
+#if !NDEBUG
+    if (econtext->engine->on_dpu && econtext->scope_id == SCOPE_INTER_DPU)
+    {
+        assert(client_id < econtext->engine->num_dpus);
+    }
+#endif
     size_sent = send(econtext->server->conn_data.oob.sock, &client_id, sizeof(uint64_t), 0);
     DBG("Client ID sent (len: %ld, value: %" PRIu64 ")", size_sent, client_id);
 

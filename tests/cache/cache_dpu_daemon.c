@@ -266,21 +266,16 @@ static int test_cb(struct dpu_offload_ev_sys *ev_sys, execution_context_t *econt
 #define ADD_TO_CACHE(_rank, _gp, _engine, _config_data)                                         \
     do                                                                                          \
     {                                                                                           \
-        peer_cache_entry_t *_new_entry;                                                         \
-        DYN_LIST_GET((_engine)->free_peer_cache_entries, peer_cache_entry_t, item, _new_entry); \
-        if (_new_entry == NULL)                                                                 \
-        {                                                                                       \
-            fprintf(stderr, "[ERROR] Unable to get cache entry\n");                             \
-            goto error_out;                                                                     \
-        }                                                                                       \
-        _new_entry->peer.proc_info.group_rank = _rank;                                          \
-        _new_entry->peer.proc_info.group_id = _gp;                                              \
-        _new_entry->set = true;                                                                 \
+        peer_cache_entry_t *_entry;                                                             \
+        _entry = GET_GROUP_RANK_CACHE_ENTRY(&((_engine)->procs_cache), _gp, _rank, group_size); \
+        assert(_entry);                                                                         \
+        _entry->peer.proc_info.group_rank = _rank;                                              \
+        _entry->peer.proc_info.group_id = _gp;                                                  \
+        _entry->set = true;                                                                     \
         /* The shadow DPU is myself. */                                                         \
-        _new_entry->num_shadow_dpus = 1;                                                        \
-        _new_entry->shadow_dpus[0] = (_config_data).local_dpu.id;                               \
-        _new_entry->peer.addr_len = 43;                                                         \
-        SET_PEER_CACHE_ENTRY(&((_engine)->procs_cache), _new_entry);                            \
+        _entry->num_shadow_dpus = 1;                                                            \
+        _entry->shadow_dpus[0] = (_config_data).local_dpu.id;                                   \
+        _entry->peer.addr_len = 43;                                                             \
         if (!is_in_cache(&((_engine)->procs_cache), _gp, _rank, group_size))                    \
         {                                                                                       \
             fprintf(stderr, "[ERROR] Cache entry not reported as being in the cache\n");        \

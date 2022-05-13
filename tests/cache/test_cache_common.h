@@ -17,18 +17,11 @@
         size_t i;                                                                                \
         for (i = 0; i < NUM_CACHE_ENTRIES; i++)                                                  \
         {                                                                                        \
-            peer_cache_entry_t *new_entry;                                                       \
-            DYN_LIST_GET(_engine->free_peer_cache_entries, peer_cache_entry_t, item, new_entry); \
-            if (new_entry == NULL)                                                               \
-            {                                                                                    \
-                fprintf(stderr, "Unable to get cache entry #%ld\n", i);                          \
-                goto error_out;                                                                  \
-            }                                                                                    \
-                                                                                                 \
+            peer_cache_entry_t *new_entry = NULL;                                                \
+            new_entry = GET_GROUP_RANK_CACHE_ENTRY(_cache, 42, i, NUM_CACHE_ENTRIES);            \
             new_entry->peer.proc_info.group_rank = i;                                            \
             new_entry->peer.proc_info.group_id = 42;                                             \
             new_entry->set = true;                                                               \
-            SET_PEER_CACHE_ENTRY(_cache, new_entry);                                             \
         }                                                                                        \
                                                                                                  \
         if (_cache->size != 1)                                                                   \
