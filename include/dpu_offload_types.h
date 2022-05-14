@@ -108,7 +108,8 @@ typedef enum
     _ep;                                                                                        \
 })
 
-typedef struct dest_client {
+typedef struct dest_client
+{
     ucp_ep_h ep;
     uint64_t id;
 } dest_client_t;
@@ -361,7 +362,7 @@ typedef struct peer_data
         RESET_RANK_INFO((_d)->proc_info); \
         (_d)->addr_len = 0;               \
         (_d)->addr = NULL;                \
-    } while(0)
+    } while (0)
 
 #define COPY_PEER_DATA(_src, _dst)                                  \
     do                                                              \
@@ -371,7 +372,7 @@ typedef struct peer_data
         (_dst)->addr_len = (_src)->addr_len;                        \
         if ((_src)->addr_len > 0)                                   \
             strncpy((_dst)->addr, (_src)->addr, (_src)->addr_len);  \
-    } while(0)
+    } while (0)
 
 typedef struct shadow_dpu_info
 {
@@ -442,15 +443,20 @@ typedef struct am_header
 #endif
 } am_header_t; // todo: rename, nothing to do with AM
 
-#define RESET_AM_HDR(_h)        \
-    do                          \
-    {                           \
-        (_h)->id = 0;           \
-        (_h)->type = 0;         \
-        (_h)->payload_size = 0; \
+#define RESET_AM_HDR(_h)                 \
+    do                                   \
+    {                                    \
+        (_h)->id = UINT64_MAX;           \
+        (_h)->type = UINT64_MAX;         \
+        (_h)->payload_size = UINT64_MAX; \
     } while (0)
 
 typedef void (*request_compl_cb_t)(void *);
+
+typedef struct notif_req
+{
+    int completed;
+} notif_req_t;
 
 /**
  * @brief am_req_t is the structure used to track completion of a notification.
@@ -497,14 +503,12 @@ typedef struct event_req
     void *completion_cb_ctx;
 } event_req_t;
 
-#define RESET_EVENT_REQ(_r)              \
-    do                                   \
-    {                                    \
-        RESET_AM_HDR(&((_r)->hdr));      \
-        (_r)->hdr_completed = false;     \
-        (_r)->payload_completed = false; \
-        (_r)->completion_cb = NULL;      \
-        (_r)->completion_cb_ctx = NULL;  \
+#define RESET_EVENT_REQ(_r)             \
+    do                                  \
+    {                                   \
+        RESET_AM_HDR(&((_r)->hdr));     \
+        (_r)->completion_cb = NULL;     \
+        (_r)->completion_cb_ctx = NULL; \
     } while (0)
 
 #if !USE_AM_IMPLEM
@@ -513,59 +517,63 @@ struct execution_context;
 
 typedef struct payload_notif_req
 {
-    bool complete;
     ucp_request_param_t recv_params;
-    void *buffer;
+    ucp_tag_t ucp_tag;
+    ucp_tag_t ucp_tag_mask;
     struct ucx_context *req;
+    notif_req_t status;
 } payload_notif_req_t;
 
-#define RESET_PAYLOAD_NOTIF_REQ(_r) \
-    do                              \
-    {                               \
-        (_r)->complete = false;     \
-        (_r)->buffer = NULL;        \
-        (_r)->req = NULL;           \
+#define RESET_PAYLOAD_NOTIF_REQ(_r)     \
+    do                                  \
+    {                                   \
+        (_r)->status.completed = false; \
+        (_r)->req = NULL;               \
     } while (0)
 
 typedef struct hdr_notif_req
 {
-    bool complete;
-    am_header_t hdr;
+    ucp_request_param_t recv_params;
+    ucp_tag_t ucp_tag;
+    ucp_tag_t ucp_tag_mask;
     struct ucx_context *req;
-    uint64_t client_id;
-    uint64_t server_id;
-    struct execution_context *econtext;
-    payload_notif_req_t payload_ctx;
+    notif_req_t status;
 } hdr_notif_req_t;
 
-#define RESET_HDR_NOTIF_REQ(_r)                        \
-    do                                                 \
-    {                                                  \
-        (_r)->complete = false;                        \
-        RESET_AM_HDR(&((_r)->hdr));                    \
-        (_r)->req = NULL;                              \
-        (_r)->client_id = UINT64_MAX;                  \
-        (_r)->server_id = UINT64_MAX;                  \
-        (_r)->econtext = NULL;                         \
-        RESET_PAYLOAD_NOTIF_REQ(&((_r)->payload_ctx)); \
+#define RESET_HDR_NOTIF_REQ(_r)         \
+    do                                  \
+    {                                   \
+        (_r)->status.completed = false; \
+        (_r)->req = NULL;               \
     } while (0)
 
 typedef struct notif_reception
 {
     bool initialized;
-    hdr_notif_req_t ctx;
-    ucp_request_param_t hdr_recv_params;
-    ucp_tag_t hdr_ucp_tag;
-    ucp_tag_t hdr_ucp_tag_mask;
-    struct ucx_context *req;
+    uint64_t client_id;
+    uint64_t server_id;
+    struct execution_context *econtext;
+    hdr_notif_req_t hdr_ctx;
+    payload_notif_req_t payload_ctx;
+    // bool notif_delivered;
+
+    am_header_t header;
+    void *buffer;
 } notif_reception_t;
 
-#define RESET_NOTIF_RECEPTION(_n)          \
-    do                                     \
-    {                                      \
-        (_n)->initialized = false;         \
-        RESET_HDR_NOTIF_REQ(&((_n)->ctx)); \
-        (_n)->req = NULL;                  \
+#define RESET_NOTIF_RECEPTION(_n)                      \
+    do                                                 \
+    {                                                  \
+        (_n)->initialized = false;                     \
+        (_n)->client_id = UINT64_MAX;                  \
+        (_n)->server_id = UINT64_MAX;                  \
+        (_n)->econtext = NULL;                         \
+        RESET_HDR_NOTIF_REQ(&((_n)->hdr_ctx));         \
+        RESET_PAYLOAD_NOTIF_REQ(&((_n)->payload_ctx)); \
+        /*(_n)->notif_delivered = false;*/             \
+                                                       \
+        RESET_AM_HDR(&((_n)->header));                 \
+        (_n)->buffer = NULL;                           \
     } while (0)
 #endif
 
@@ -726,14 +734,14 @@ typedef struct connected_peer_data
     rank_info_t rank_info;
 } connected_peer_data_t;
 
-#define RESET_CONNECTED_PEER_DATA(_d)      \
-    do                                     \
-    {                                      \
-        (_d)->peer_addr = NULL;            \
-        (_d)->econtext = NULL;             \
-        (_d)->peer_id = UINT64_MAX;        \
-        REST_RANK_DATA((_d)->rank_info);   \
-    } while(0)
+#define RESET_CONNECTED_PEER_DATA(_d)    \
+    do                                   \
+    {                                    \
+        (_d)->peer_addr = NULL;          \
+        (_d)->econtext = NULL;           \
+        (_d)->peer_id = UINT64_MAX;      \
+        REST_RANK_DATA((_d)->rank_info); \
+    } while (0)
 
 #define COPY_CONNECTED_PEER_DATA(_src, _dest)                  \
     do                                                         \
@@ -742,7 +750,7 @@ typedef struct connected_peer_data
         (_dest)->econtext = (_src)->econtext;                  \
         (_dest)->peer_id = (_src)->peer_id;                    \
         COPY_RANK_INFO((_dest)->rank_info, (_src)->rank_info); \
-    } while(0)
+    } while (0)
 
 typedef struct conn_params
 {
@@ -894,8 +902,8 @@ typedef struct init_params
         case CONTEXT_SERVER:                         \
             SERVER_UNLOCK((_econtext)->server);      \
             break;                                   \
-        default:                                   \
-            break;                                 \
+        default:                                     \
+            break;                                   \
         }                                            \
     } while (0)
 
@@ -974,10 +982,10 @@ typedef struct dpu_offload_client_t
     int64_t idx;
 
     // Identifier assigned by server
-    uint64_t id; 
+    uint64_t id;
 
     // Unique identifier of the server
-    uint64_t server_id; 
+    uint64_t server_id;
 
     uint64_t server_global_id;
 
@@ -1197,7 +1205,8 @@ typedef struct dpu_offload_event
     void *payload;
 
     // Destination endpoint for remote events
-    struct {
+    struct
+    {
         ucp_ep_h ep;
         uint64_t id;
     } dest;

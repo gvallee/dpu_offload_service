@@ -175,7 +175,9 @@ static inline int run_client_test(ucp_worker_h worker, ucp_context_h ucp_context
         second_notification_recvd = false;
 
         /* Then we become the receiving side for the same tests */
+        fprintf(stderr, "Starting WAIT_FOR_ALL_EVENTS_WITH_EXPLICIT_MGT\n");
         WAIT_FOR_ALL_EVENTS_WITH_EXPLICIT_MGT(client);
+        fprintf(stderr, "Starting WAIT_FOR_ALL_EVENTS_WITH_ONGOING_LIST\n");
         WAIT_FOR_ALL_EVENTS_WITH_ONGOING_LIST(client);
 
         /* Finally we do a notification-based ping-pong that we initiate */

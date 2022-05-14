@@ -974,7 +974,7 @@ dpu_offload_status_t offload_engine_init(offloading_engine_t **engine)
     CHECK_ERR_GOTO((d->pool_conn_params == NULL), error_out, "Allocation of pool of connection parameter descriptors failed");
     // Note that engine->dpus is a vector of remote_dpu_info_t pointers.
     // The actual object are from a dynamic array when parsing the configuration file
-    DYN_ARRAY_ALLOC(&(d->dpus), 32, remote_dpu_info_t*);
+    DYN_ARRAY_ALLOC(&(d->dpus), 32, remote_dpu_info_t *);
     GROUPS_CACHE_INIT(&(d->procs_cache));
     dpu_offload_status_t rc = ev_channels_init(&(d->default_notifications));
     CHECK_ERR_GOTO((rc), error_out, "ev_channels_init() failed");
@@ -1013,10 +1013,152 @@ error_out:
     return DO_ERROR;
 }
 
+static bool need_post_hdr_recv(notif_reception_t *recv_info)
+{
+    if (recv_info->hdr_ctx.status.completed == 0 && recv_info->hdr_ctx.req != NULL)
+    {
+        // in-progress
+        return false;
+    }
+
+    if (recv_info->hdr_ctx.status.completed == 1)
+        return false;
+
+    return true;
+}
+
+static bool need_post_payload_recv(notif_reception_t *recv_info)
+{
+    if (recv_info->hdr_ctx.status.completed == false)
+    {
+        // We do not have the header yet
+        return false;
+    }
+
+    if (recv_info->payload_ctx.status.completed == 1)
+        return false;
+
+    if (recv_info->payload_ctx.status.completed == 0 && recv_info->payload_ctx.req != NULL)
+    {
+        // in-progress
+        return false;
+    }
+
+    return true;
+}
+
+static int prepare_notif_recv(execution_context_t *econtext, notif_reception_t *recv_info, uint64_t client_id, uint64_t server_id)
+{
+    ucp_tag_t hdr_tag, hdr_mask_tag;
+    ucp_tag_t payload_tag, payload_mask_tag;
+    RESET_NOTIF_RECEPTION(recv_info);
+    recv_info->client_id = client_id;
+    recv_info->server_id = server_id;
+    recv_info->econtext = econtext;
+    memset(&(recv_info->hdr_ctx.recv_params), 0, sizeof(recv_info->hdr_ctx.recv_params));
+    memset(&(recv_info->payload_ctx.recv_params), 0, sizeof(recv_info->payload_ctx.recv_params));
+    recv_info->hdr_ctx.recv_params.op_attr_mask = UCP_OP_ATTR_FIELD_CALLBACK |
+                                                  UCP_OP_ATTR_FIELD_DATATYPE |
+                                                  UCP_OP_ATTR_FIELD_USER_DATA;
+    recv_info->hdr_ctx.recv_params.datatype = ucp_dt_make_contig(1);
+    recv_info->hdr_ctx.recv_params.user_data = &(recv_info->hdr_ctx.status);
+    recv_info->hdr_ctx.recv_params.cb.recv = notif_hdr_recv_handler;
+    recv_info->payload_ctx.recv_params.op_attr_mask = UCP_OP_ATTR_FIELD_CALLBACK |
+                                                      UCP_OP_ATTR_FIELD_DATATYPE |
+                                                      UCP_OP_ATTR_FIELD_USER_DATA;
+    recv_info->payload_ctx.recv_params.datatype = ucp_dt_make_contig(1);
+    recv_info->payload_ctx.recv_params.user_data = &(recv_info->payload_ctx.status);
+    recv_info->payload_ctx.recv_params.cb.recv = notif_payload_recv_handler;
+    MAKE_RECV_TAG(hdr_tag, hdr_mask_tag, AM_EVENT_MSG_HDR_ID, recv_info->client_id, recv_info->server_id, econtext->scope_id, 0);
+    MAKE_RECV_TAG(payload_tag, payload_mask_tag, AM_EVENT_MSG_ID, recv_info->client_id, recv_info->server_id, econtext->scope_id, 0);
+    recv_info->hdr_ctx.ucp_tag = hdr_tag;
+    recv_info->hdr_ctx.ucp_tag_mask = hdr_mask_tag;
+    recv_info->payload_ctx.ucp_tag = payload_tag;
+    recv_info->payload_ctx.ucp_tag_mask = payload_mask_tag;
+    DBG("Done preparing receives of notifications: client_id: %"PRIu64 " server_id: %"PRIu64 " scope_id: %d\n",
+        recv_info->client_id, recv_info->server_id, econtext->scope_id);
+    recv_info->initialized = true;
+    return DO_SUCCESS;
+}
+
+static void handle_notif_recvs(execution_context_t *econtext, notif_reception_t *recv_info)
+{
+    if (need_post_hdr_recv(recv_info))
+    {
+        post_hdr_notif_recv(econtext, recv_info);
+    }
+
+    if (need_post_payload_recv(recv_info))
+    {
+#if !NDEBUG
+        assert(econtext == recv_info->econtext);
+        if (recv_info->client_id != recv_info->header.client_id)
+        {
+            ERR_MSG("!!!  expecting a message from client_id: %" PRIu64 " but received %" PRIu64 " econtext: %p scope_id: %d etype: %d ctx: %p hdr type: %" PRIu64 ", event ID: %" PRIu64,
+                    recv_info->client_id, recv_info->header.client_id, econtext, econtext->scope_id, econtext->type, recv_info, recv_info->header.type, recv_info->header.event_id);
+            abort();
+        }
+
+        if (recv_info->server_id != recv_info->header.server_id)
+        {
+            ERR_MSG("expecting a message from server_id: %" PRIu64 " but received %" PRIu64 " ctx: %p",
+                    recv_info->server_id, recv_info->header.server_id, recv_info);
+            if (!econtext->engine->on_dpu && econtext->type == CONTEXT_CLIENT)
+            {
+                WARN_MSG("My client ID is %" PRId64, econtext->rank.group_rank);
+            }
+            abort();
+        }
+#endif
+
+        assert(recv_info->client_id == recv_info->header.client_id);
+        assert(recv_info->server_id == recv_info->header.server_id);
+        DBG("Notification header received from peer #%ld, type: %ld (client_id: %" PRIu64 ", server_id: %" PRIu64 ")",
+            recv_info->header.id, recv_info->header.type, recv_info->client_id, recv_info->server_id);
+        post_payload_notif_recv(econtext, recv_info);
+    }
+
+    if ((recv_info->hdr_ctx.status.completed) && (recv_info->payload_ctx.status.completed))
+    {
+        DBG("Notification payload received, econtext=%p type=%ld", econtext, recv_info->header.type);
+        /* Invoke the associated callback */
+        int rc = handle_notif_msg(econtext, recv_info);
+        if (rc != UCS_OK)
+        {
+            ERR_MSG("handle_notif_msg() failed");
+            assert(0); /* fail when in debug mode */
+            return;
+        }
+
+        /* Once the callback invoked, we can safely free the payload
+           and re-initialise everything to receive the next notification */
+        if (recv_info->header.payload_size)
+        {
+            free(recv_info->buffer);
+            recv_info->buffer = NULL;
+            recv_info->header.payload_size = 0;
+        }
+        if (recv_info->hdr_ctx.req != NULL)
+        {
+            ucp_request_free(recv_info->hdr_ctx.req);
+            recv_info->hdr_ctx.req = NULL;
+        }
+        if (recv_info->payload_ctx.req != NULL)
+        {
+            ucp_request_free(recv_info->payload_ctx.req);
+            recv_info->payload_ctx.req = NULL;
+        }
+        // recv_info->notif_delivered = true;
+        recv_info->hdr_ctx.status.completed = false;
+        recv_info->payload_ctx.status.completed = false;
+    }
+}
+
 static void progress_server_event_recv(execution_context_t *econtext)
 {
     size_t n_client = 0;
     size_t idx = 0;
+    assert(econtext->type == CONTEXT_SERVER);
     ECONTEXT_LOCK(econtext);
     while (n_client < econtext->server->connected_clients.num_connected_clients)
     {
@@ -1027,8 +1169,8 @@ static void progress_server_event_recv(execution_context_t *econtext)
             continue;
         }
 
-        ucp_worker_h worker = GET_WORKER(econtext);
-        if (client_info->notif_recv.initialized == false)
+        notif_reception_t *recv_info = &(client_info->notif_recv);
+        if (recv_info->initialized == false)
         {
             // Note: tag and tag mask are calculated by the macro to match the client
             // i.e., only messages from that client will be received.
@@ -1051,25 +1193,11 @@ static void progress_server_event_recv(execution_context_t *econtext)
             // Always use the unique DPU ID from the list otherwise we can have a server and a client with the same ID
             // and receives would not work as expected since they are posted on the same worker with ultimately the same
             // tag
-            PREP_NOTIF_RECV(client_info->notif_recv.ctx,
-                            client_info->notif_recv.hdr_recv_params,
-                            client_info->notif_recv.hdr_ucp_tag,
-                            client_info->notif_recv.hdr_ucp_tag_mask,
-                            worker,
-                            client_info->id,
-                            econtext->server->id,
-                            econtext->scope_id);
-            client_info->notif_recv.initialized = true;
+            prepare_notif_recv(econtext, recv_info, client_info->id, econtext->server->id);
         }
         // The function will handle whether a new receive is required to be posted or not
         ECONTEXT_UNLOCK(econtext);
-        post_new_notif_recv(worker,
-                            &(client_info->notif_recv.ctx),
-                            econtext,
-                            client_info->notif_recv.hdr_ucp_tag,
-                            client_info->notif_recv.hdr_ucp_tag_mask,
-                            &(client_info->notif_recv.hdr_recv_params));
-        ECONTEXT_LOCK(econtext);
+        handle_notif_recvs(econtext, recv_info);
         idx++;
         n_client++;
     }
@@ -1078,9 +1206,10 @@ static void progress_server_event_recv(execution_context_t *econtext)
 
 static void progress_client_event_recv(execution_context_t *econtext)
 {
+    assert(econtext->type == CONTEXT_CLIENT);
     ECONTEXT_LOCK(econtext);
-    ucp_worker_h worker = GET_WORKER(econtext);
-    if (econtext->event_channels->notif_recv.initialized == false)
+    notif_reception_t *recv_info = &(econtext->event_channels->notif_recv);
+    if (recv_info->initialized == false)
     {
         // Note: tag and tag mask are calculated by the macro to match the client
         // i.e., only messages from the sever will be received.
@@ -1090,62 +1219,32 @@ static void progress_client_event_recv(execution_context_t *econtext)
             econtext->client->server_id);
 
 #if !NDEBUG
-            if (econtext->engine->on_dpu && econtext->scope_id == SCOPE_INTER_DPU)
-            {
-                if (econtext->client->id >= econtext->engine->num_dpus)
-                    ERR_MSG("requested client ID is invalid: %" PRIu64, econtext->client->id);
-                assert(econtext->client->id < econtext->engine->num_dpus);
-            }
+        if (econtext->engine->on_dpu && econtext->scope_id == SCOPE_INTER_DPU)
+        {
+            if (econtext->client->id >= econtext->engine->num_dpus)
+                ERR_MSG("requested client ID is invalid: %" PRIu64, econtext->client->id);
+            assert(econtext->client->id < econtext->engine->num_dpus);
+        }
 #endif
-
-        PREP_NOTIF_RECV(econtext->event_channels->notif_recv.ctx,
-                        econtext->event_channels->notif_recv.hdr_recv_params,
-                        econtext->event_channels->notif_recv.hdr_ucp_tag,
-                        econtext->event_channels->notif_recv.hdr_ucp_tag_mask,
-                        worker,
-                        econtext->client->id,
-                        econtext->client->server_id,
-                        econtext->scope_id);
-        econtext->event_channels->notif_recv.initialized = true;
+        prepare_notif_recv(econtext, recv_info, econtext->client->id, econtext->client->server_id);
     }
     ECONTEXT_UNLOCK(econtext);
-
-    // The function will handle whether a new receive is required to be posted or not
-    post_new_notif_recv(worker,
-                        &(econtext->event_channels->notif_recv.ctx),
-                        econtext,
-                        econtext->event_channels->notif_recv.hdr_ucp_tag,
-                        econtext->event_channels->notif_recv.hdr_ucp_tag_mask,
-                        &(econtext->event_channels->notif_recv.hdr_recv_params));
+    handle_notif_recvs(econtext, recv_info);
 }
 
 static void progress_self_event_recv(execution_context_t *econtext)
 {
+    assert(econtext->type == CONTEXT_SELF);
     ECONTEXT_LOCK(econtext);
-    ucp_worker_h worker = GET_WORKER(econtext);
-    if (econtext->event_channels->notif_recv.initialized == false)
+    notif_reception_t *recv_info = &(econtext->event_channels->notif_recv);
+    if (recv_info->initialized == false)
     {
         // Note: tag and tag mask are calculated by the macro to match the client
         // i.e., only messages from the sever will be received.
-        PREP_NOTIF_RECV(econtext->event_channels->notif_recv.ctx,
-                        econtext->event_channels->notif_recv.hdr_recv_params,
-                        econtext->event_channels->notif_recv.hdr_ucp_tag,
-                        econtext->event_channels->notif_recv.hdr_ucp_tag_mask,
-                        worker,
-                        0UL, // context ID is always 0 for self notifications (a.k.a. local notifications)
-                        0UL, // context ID is always 0 for self notifications (a.k.a. local notifications)
-                        econtext->scope_id);
-        econtext->event_channels->notif_recv.initialized = true;
+        prepare_notif_recv(econtext, recv_info, 0, 0);
     }
     ECONTEXT_UNLOCK(econtext);
-
-    // The function will handle whether a new receive is required to be posted or not
-    post_new_notif_recv(worker,
-                        &(econtext->event_channels->notif_recv.ctx),
-                        econtext,
-                        econtext->event_channels->notif_recv.hdr_ucp_tag,
-                        econtext->event_channels->notif_recv.hdr_ucp_tag_mask,
-                        &(econtext->event_channels->notif_recv.hdr_recv_params));
+    handle_notif_recvs(econtext, recv_info);
 }
 
 static void progress_event_recv(execution_context_t *econtext)
@@ -1187,7 +1286,7 @@ static dpu_offload_status_t send_group_cache_to_local_ranks(execution_context_t 
             idx++;
             continue;
         }
-        DBG("Send cache to client #%ld (id: %"PRIu64")", idx, c->id);
+        DBG("Send cache to client #%ld (id: %" PRIu64 ")", idx, c->id);
         dpu_offload_status_t rc = event_get(econtext->event_channels, NULL, &metaev);
         if (rc != DO_SUCCESS)
             ERR_MSG("event_get() failed"); // todo: better handle errors
@@ -1427,7 +1526,7 @@ static void progress_server_econtext(execution_context_t *ctx)
                         list_dpus[dpu]->ep = client_info->ep;
                         // Set the pointer to the execution context in the list of know DPUs. Used for notifications with the remote DPU.
                         list_dpus[dpu]->econtext = ctx;
-                        DBG("-> DPU #%ld: addr=%s, port=%d, ep=%p, econtext=%p, client_id=%" PRIu64", server_id=%" PRIu64"", dpu,
+                        DBG("-> DPU #%ld: addr=%s, port=%d, ep=%p, econtext=%p, client_id=%" PRIu64 ", server_id=%" PRIu64 "", dpu,
                             list_dpus[dpu]->init_params.conn_params->addr_str,
                             list_dpus[dpu]->init_params.conn_params->port,
                             list_dpus[dpu]->ep,
@@ -1817,11 +1916,16 @@ void client_fini(execution_context_t **exec_ctx)
     dpu_offload_client_t *client = context->client;
     ucs_status_ptr_t request = ucp_am_send_nbx(client->server_ep, AM_TERM_MSG_ID, NULL, 0ul, term_msg,
                                                msg_length, &params);
-    if (request == NULL) {
+    if (request == NULL)
+    {
         DBG("ucp_am_send_nbx() completed immediately");
-    } else if (UCS_PTR_IS_ERR(request)) {
+    }
+    else if (UCS_PTR_IS_ERR(request))
+    {
         ERR_MSG("ucp_am_send_nbx() failed with %d", UCS_PTR_STATUS(request));
-    } else {
+    }
+    else
+    {
         DBG("ucp_am_send_nbx() in progress");
     }
     // request_finalize(GET_WORKER(*exec_ctx), request, &ctx);
@@ -1867,15 +1971,15 @@ static void server_conn_handle_cb(ucp_conn_request_h conn_request, void *arg)
 {
     ucx_server_ctx_t *context = arg;
     ucp_conn_request_attr_t attr;
-    //char ip_str[IP_STRING_LEN];
-    //char port_str[PORT_STRING_LEN];
+    // char ip_str[IP_STRING_LEN];
+    // char port_str[PORT_STRING_LEN];
     ucs_status_t status;
     DBG("Connection handler invoked");
     attr.field_mask = UCP_CONN_REQUEST_ATTR_FIELD_CLIENT_ADDR;
     status = ucp_conn_request_query(conn_request, &attr);
     if (status == UCS_OK)
     {
-        //DBG("Server received a connection request from client at address %s:%s", ip_str, port_str);
+        // DBG("Server received a connection request from client at address %s:%s", ip_str, port_str);
     }
     else if (status != UCS_ERR_UNSUPPORTED)
     {
@@ -1903,7 +2007,7 @@ static dpu_offload_status_t ucx_listener_server(dpu_offload_server_t *server)
     ucp_listener_params_t params = {0};
     ucp_listener_attr_t attr;
     ucs_status_t status;
-    //char *port_str;
+    // char *port_str;
     set_sock_addr(server->conn_params.addr_str, server->conn_params.port, &(server->conn_params.saddr));
     params.field_mask = UCP_LISTENER_PARAM_FIELD_SOCK_ADDR |
                         UCP_LISTENER_PARAM_FIELD_CONN_HANDLER;
@@ -1912,7 +2016,7 @@ static dpu_offload_status_t ucx_listener_server(dpu_offload_server_t *server)
     params.conn_handler.cb = server_conn_handle_cb;
     params.conn_handler.arg = &(server->conn_data.ucx_listener.context);
     /* Create a listener on the server side to listen on the given address.*/
-    //DBG("Creating listener on %s:%s", server->conn_params.addr_str, port_str);
+    // DBG("Creating listener on %s:%s", server->conn_params.addr_str, port_str);
     status = ucp_listener_create(GET_WORKER(server->econtext), &params, &(server->conn_data.ucx_listener.context.listener));
     CHECK_ERR_RETURN((status != UCS_OK), DO_ERROR, "failed to listen (%s)", ucs_status_string(status));
 
@@ -1925,7 +2029,7 @@ static dpu_offload_status_t ucx_listener_server(dpu_offload_server_t *server)
         ucp_listener_destroy(server->conn_data.ucx_listener.context.listener);
         return DO_ERROR;
     }
-    //DBG("server is listening on IP %s port %s", server->conn_params.addr_str, port_str);
+    // DBG("server is listening on IP %s port %s", server->conn_params.addr_str, port_str);
     return DO_SUCCESS;
 }
 
@@ -2125,7 +2229,7 @@ dpu_offload_status_t server_init_context(execution_context_t *econtext, init_par
         peer_info->bootstrapping.addr_ctx.complete = false;
         peer_info->bootstrapping.addr_size_ctx.complete = false;
         peer_info->bootstrapping.rank_ctx.complete = false;
-        peer_info->notif_recv.ctx.complete = true; // to make we can post the initial recv
+        RESET_NOTIF_RECEPTION(&(peer_info->notif_recv));
         DYN_ARRAY_ALLOC(&(peer_info->cache_entries), MAX_CACHE_ENTRIES_PER_PROC, peer_cache_entry_t *);
     }
 
@@ -2241,13 +2345,19 @@ execution_context_t *server_init(offloading_engine_t *offloading_engine, init_pa
         execution_context->scope_id);
     // Note: on DPUs, for inter-DPUs communications, we want the server to have the unique DPU ID based on
     // the configuration, the same for client DPUs. So when a client DPU sends a message to a server DPU,
-    // we can create a unique tag that identify the server-client connection. 
+    // we can create a unique tag that identify the server-client connection.
     if (offloading_engine->on_dpu && init_params != NULL && init_params->scope_id == SCOPE_INTER_DPU)
+    {
         execution_context->server->id = offloading_engine->config->local_dpu.id;
-    else if (init_params->id_set)
+    }
+    else if (init_params != NULL && init_params->id_set)
+    {
         execution_context->server->id = init_params->id;
+    }
     else
+    {
         execution_context->server->id = offloading_engine->num_servers;
+    }
     offloading_engine->servers[offloading_engine->num_servers] = execution_context;
     offloading_engine->num_servers++;
 
