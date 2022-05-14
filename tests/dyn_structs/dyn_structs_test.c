@@ -6,6 +6,8 @@
 
 #include <stdlib.h>
 #include <stdio.h>
+#include <stdbool.h>
+#include <inttypes.h>
 
 #include "dynamic_structs.h"
 
@@ -17,7 +19,48 @@ typedef struct dummy
     char elt[NUM_ELEMENTS];
 } dummy_t;
 
-int main(int argc, char **argv)
+bool check_array(dyn_array_t *a, uint64_t expected_size)
+{
+    if (a->base == NULL)
+    {
+        fprintf(stderr, "The array's base is undefined\n");
+        return false;
+    }
+
+    if (a->num_elts != expected_size)
+    {
+        fprintf(stderr, "Number of elements is %" PRIu64 " instead of the expected %" PRIu64 "\n",
+                a->num_elts, expected_size);
+        return false;
+    }
+
+    return true;
+}
+
+int test_dyn_array(int argc, char **argv)
+{
+    // Create a small array and request an element way behind the end
+    // to see if the array was correctly grown
+    dyn_array_t array;
+    DYN_ARRAY_ALLOC(&array, 8, int);
+    check_array(&array, 8);
+
+    int *dummy = DYN_ARRAY_GET_ELT(&array, 1024, int);
+    if (dummy == NULL)
+    {
+        fprintf(stderr, "unable to get element 1024 from the array\n");
+        goto error_out;
+    }
+    check_array(&array, 1032);
+
+    fprintf(stderr, "\nDYN_ARRAY TEST SUCCESSFULLY COMPLETED\n\n");
+    return EXIT_SUCCESS;
+error_out:
+    fprintf(stderr, "\nDYN_ARRAY TEST FAILED\n\n");
+    return EXIT_FAILURE;
+}
+
+int test_dyn_list(int argc, char **argv)
 {
     dyn_list_t *list_1 = NULL;
     DYN_LIST_ALLOC(list_1, 1, dummy_t, item);
@@ -27,6 +70,7 @@ int main(int argc, char **argv)
         fprintf(stderr, "Number of mem chunks is %ld instead of expected 1\n", list_1->num_mem_chunks);
         goto error_out;
     }
+    // First we check the chunks of memory, which are stored in a dynamic array
     mem_chunk_t *mem_chunk_ptr = DYN_ARRAY_GET_ELT(&(list_1->mem_chunks), 0UL, mem_chunk_t);
     if (mem_chunk_ptr == NULL)
     {
@@ -214,13 +258,33 @@ int main(int argc, char **argv)
     /* Clean up / termination */
     DYN_LIST_FREE(list_1, dummy_t, item);
     free(array_elements);
-    fprintf(stderr, "\nTEST SUCCESSFULLY COMPLETED\n");
+    fprintf(stderr, "\nDYN_LIST TEST SUCCESSFULLY COMPLETED\n\n");
     return EXIT_SUCCESS;
 
 error_out:
     if (list_1 != NULL)
         DYN_LIST_FREE(list_1, dummy_t, item);
     free(array_elements);
-    fprintf(stderr, "\nTEST FAILED\n");
+    fprintf(stderr, "\nDYN_LIST TEST FAILED\n\n");
     return EXIT_FAILURE;
+}
+
+int main(int argc, char **argv)
+{
+    int rc = test_dyn_list(argc, argv);
+    if (rc == EXIT_FAILURE)
+    {
+        fprintf(stderr, "test_dyn_list() failed\n");
+        return EXIT_FAILURE;
+    }
+
+    rc = test_dyn_array(argc, argv);
+    if (rc == EXIT_FAILURE)
+    {
+        fprintf(stderr, "test_dyn_array() failed\n");
+        return EXIT_FAILURE;
+    }
+
+    fprintf(stdout, "%s: test succeeded\n", argv[0]);
+    return EXIT_SUCCESS;
 }
