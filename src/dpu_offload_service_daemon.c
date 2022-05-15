@@ -2244,7 +2244,7 @@ execution_context_t *server_init(offloading_engine_t *offloading_engine, init_pa
     // we can create a unique tag that identify the server-client connection. 
     if (offloading_engine->on_dpu && init_params != NULL && init_params->scope_id == SCOPE_INTER_DPU)
         execution_context->server->id = offloading_engine->config->local_dpu.id;
-    else if (init_params->id_set)
+    else if (init_params != NULL && init_params->id_set)
         execution_context->server->id = init_params->id;
     else
         execution_context->server->id = offloading_engine->num_servers;

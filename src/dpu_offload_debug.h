@@ -11,18 +11,23 @@
 #include <unistd.h>
 
 #if !NDEBUG
-extern char *my_hostname;
+typedef struct debug_config
+{
+    char *my_hostname;
+    int verbose;
+} debug_config_t;
+extern debug_config_t dbg_cfg;
 #define DBG(_dbg_fmt, ...)                                         \
     do                                                             \
     {                                                              \
-        if (my_hostname == NULL)                                   \
+        if (dbg_cfg.my_hostname == NULL)                           \
         {                                                          \
-            my_hostname = malloc(1024);                            \
-            my_hostname[1023] = '\0';                              \
-            gethostname(my_hostname, 1023);                        \
+            dbg_cfg.my_hostname = malloc(1024);                    \
+            dbg_cfg.my_hostname[1023] = '\0';                      \
+            gethostname(dbg_cfg.my_hostname, 1023);                \
         }                                                          \
         fprintf(stdout, "[%s:l.%d:%s():%s:pid=%d] " _dbg_fmt "\n", \
-                __FILE__, __LINE__, __func__, my_hostname,         \
+                __FILE__, __LINE__, __func__, dbg_cfg.my_hostname, \
                 getpid() __VA_OPT__(, ) __VA_ARGS__);              \
     } while (0)
 #else

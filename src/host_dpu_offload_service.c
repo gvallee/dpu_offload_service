@@ -18,8 +18,13 @@
 #include "dpu_offload_types.h"
 #include "dpu_offload_envvars.h"
 
+#include "dpu_offload_debug.h"
+
 #if !NDEBUG
-char *my_hostname = NULL;
+debug_config_t dbg_cfg = {
+    .my_hostname = NULL,
+    .verbose = 1,
+};
 #endif // !NDEBUG
 
 static inline void
@@ -44,9 +49,8 @@ dpu_offload_status_t host_offload_dpu_discover(offload_config_t *cfg)
 
 dpu_offload_status_t host_offload_init(offload_config_t *cfg)
 {
-    int rc;
-
 #ifdef HAVE_PMIX
+    int rc;
     rc = host_offload_dpu_discover(cfg);
     if (rc != DPU_OFFLOAD_SUCCESS) {
         return rc;
@@ -254,10 +258,10 @@ dpu_offload_status_t dpu_offload_service_end(offload_config_t *cfg)
 #if !NDEBUG
 __attribute__((destructor)) void calledLast()
 {
-	if (my_hostname != NULL)
+	if (dbg_cfg.my_hostname != NULL)
     {
-        free(my_hostname);
-        my_hostname = NULL;
+        free(dbg_cfg.my_hostname);
+        dbg_cfg.my_hostname = NULL;
     }
 }
 #endif
