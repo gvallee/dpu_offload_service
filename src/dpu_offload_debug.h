@@ -10,6 +10,8 @@
 #include <sys/types.h>
 #include <unistd.h>
 
+#include "dpu_offload_envvars.h"
+
 #if !NDEBUG
 typedef struct debug_config
 {
@@ -25,6 +27,10 @@ extern debug_config_t dbg_cfg;
             dbg_cfg.my_hostname = malloc(1024);                    \
             dbg_cfg.my_hostname[1023] = '\0';                      \
             gethostname(dbg_cfg.my_hostname, 1023);                \
+            dbg_cfg.verbose = 1;                                   \
+            char *verbose_str = getenv(DPU_OFFLOAD_DBG_VERBOSE);   \
+            if (verbose_str)                                       \
+                dbg_cfg.verbose = atoi(verbose_str);               \
         }                                                          \
         fprintf(stdout, "[%s:l.%d:%s():%s:pid=%d] " _dbg_fmt "\n", \
                 __FILE__, __LINE__, __func__, dbg_cfg.my_hostname, \
