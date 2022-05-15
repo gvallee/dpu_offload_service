@@ -19,7 +19,10 @@
 #include "dpu_offload_envvars.h"
 
 #if !NDEBUG
-char *my_hostname = NULL;
+debug_config_t dbg_cfg = {
+    .my_hostname = NULL,
+    .verbose = 1,
+};
 #endif // !NDEBUG
 
 const char *config_file_version_token = "Format version:";
@@ -1032,10 +1035,10 @@ void offload_config_free(offloading_config_t *cfg)
 #if !NDEBUG
 __attribute__((destructor)) void calledLast()
 {
-    if (my_hostname != NULL)
+    if (dbg_cfg.my_hostname != NULL)
     {
-        free(my_hostname);
-        my_hostname = NULL;
+        free(dbg_cfg.my_hostname);
+        dbg_cfg.my_hostname = NULL;
     }
 }
 #endif
