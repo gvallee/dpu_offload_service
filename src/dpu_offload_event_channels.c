@@ -395,8 +395,6 @@ int tag_send_event_msg(dpu_offload_event_t **event)
     if (econtext->type == CONTEXT_CLIENT && econtext->scope_id == SCOPE_HOST_DPU && econtext->rank.n_local_ranks > 0 && econtext->rank.n_local_ranks != UINT64_MAX)
     {
         assert(client_id < econtext->rank.n_local_ranks);
-        if (client_id == 0)
-            WARN_MSG("My client ID is 0");
     }
 #endif
 
