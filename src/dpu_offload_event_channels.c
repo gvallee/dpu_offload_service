@@ -891,8 +891,8 @@ static dpu_offload_status_t peer_cache_entries_recv_cb(struct dpu_offload_ev_sys
             cache_entry = GET_GROUP_RANK_CACHE_ENTRY(cache, group_id, group_rank, group_size);
             cache_entry->set = true;
             COPY_PEER_DATA(&(entries[idx].peer), &(cache_entry->peer));
-            //cache_entry->shadow_dpus[cache_entry->num_shadow_dpus] = hdr->id;
-            //cache_entry->num_shadow_dpus++;
+            cache_entry->shadow_dpus[cache_entry->num_shadow_dpus] = hdr->id;
+            cache_entry->num_shadow_dpus++;
 
             // If any event is associated to the cache entry, handle them
             if (cache_entry->events_initialized)
