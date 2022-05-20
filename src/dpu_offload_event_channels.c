@@ -373,20 +373,20 @@ int am_send_event_msg(dpu_offload_event_t **event)
     return EVENT_INPROGRESS;
 }
 #else
-int tag_send_event_msg(dpu_offload_event_t **event)
+int do_tag_send_event_msg(dpu_offload_event_t *event)
 {
-    if ((*event)->ctx.hdr_completed && (*event)->ctx.payload_completed)
+    if (event->ctx.hdr_completed && event->ctx.payload_completed)
     {
-        WARN_MSG("Event %p already completed, not sending", (*event));
+        WARN_MSG("Event %p already completed, not sending", event);
         return EVENT_DONE;
     }
 
-    assert((*event)->event_system);
-    assert((*event)->event_system->econtext);
-    execution_context_t *econtext = (*event)->event_system->econtext;
+    assert(event->event_system);
+    assert(event->event_system->econtext);
+    execution_context_t *econtext = event->event_system->econtext;
     uint64_t client_id, server_id;
-    size_t payload_size = EVENT_HDR_PAYLOAD_SIZE(*event);
-    switch ((*event)->event_system->econtext->type)
+    size_t payload_size = EVENT_HDR_PAYLOAD_SIZE(event);
+    switch (event->event_system->econtext->type)
     {
     case CONTEXT_CLIENT:
         client_id = econtext->client->id;
@@ -394,7 +394,7 @@ int tag_send_event_msg(dpu_offload_event_t **event)
         break;
     case CONTEXT_SERVER:
         server_id = econtext->server->id;
-        client_id = (*event)->dest.id;
+        client_id = event->dest.id;
         break;
     case CONTEXT_SELF:
         client_id = 0;
@@ -405,71 +405,78 @@ int tag_send_event_msg(dpu_offload_event_t **event)
     }
 
 #if !NDEBUG
-    (*event)->client_id = client_id;
-    (*event)->server_id = server_id;
+    event->client_id = client_id;
+    event->server_id = server_id;
     if (econtext->type == CONTEXT_CLIENT && econtext->scope_id == SCOPE_HOST_DPU && econtext->rank.n_local_ranks > 0 && econtext->rank.n_local_ranks != UINT64_MAX)
     {
         assert(client_id < econtext->rank.n_local_ranks);
     }
 #endif
 
+    if (send_moderation_on() && ucs_list_length(&(event->event_system->econtext->ongoing_events)) >= MAX_POSTED_SENDS)
+    {
+        // We reached the maximum number of posted sends that are waiting for completion,
+        // we queue the send for later posting
+        return EVENT_INPROGRESS;
+    }
+
     /* 1. Send the hdr, we can be in the middle of a send, meaning the HDR went
        through but the payload */
-    if (!((*event)->ctx.hdr_completed) && (*event)->hdr_request == NULL)
+    if (!(event->ctx.hdr_completed) && event->hdr_request == NULL)
     {
         ucp_request_param_t hdr_send_param = {0};
         ucp_tag_t hdr_ucp_tag = MAKE_SEND_TAG(AM_EVENT_MSG_HDR_ID,
                                               client_id,
                                               server_id,
-                                              (*event)->scope_id,
+                                              event->scope_id,
                                               0);
         hdr_send_param.op_attr_mask = UCP_OP_ATTR_FIELD_CALLBACK |
                                       UCP_OP_ATTR_FIELD_DATATYPE |
                                       UCP_OP_ATTR_FIELD_USER_DATA;
         hdr_send_param.cb.send = notif_hdr_send_cb;
         hdr_send_param.datatype = ucp_dt_make_contig(1);
-        hdr_send_param.user_data = (void *)(*event);
+        hdr_send_param.user_data = (void *)event;
         DBG("Sending notification header - ev: %" PRIu64 ", type: %" PRIu64 ", econtext: %p, scope_id: %d, client_id: %" PRIu64", server_id: %" PRIu64,
-            (*event)->seq_num, EVENT_HDR_TYPE((*event)), (*event)->event_system->econtext, (*event)->scope_id, client_id, server_id);
-        assert((*event)->dest.ep);
-        (*event)->hdr_request = NULL;
-        (*event)->payload_request = NULL;
+            event->seq_num, EVENT_HDR_TYPE(event), event->event_system->econtext, event->scope_id, client_id, server_id);
+        assert(event->dest.ep);
+        event->hdr_request = NULL;
+        event->payload_request = NULL;
 #if !NDEBUG
-        EVENT_HDR_SEQ_NUM(*event) = (*event)->seq_num;
-        EVENT_HDR_CLIENT_ID(*event) = (*event)->client_id;
-        EVENT_HDR_SERVER_ID(*event) = (*event)->server_id;
+        EVENT_HDR_SEQ_NUM(event) = event->seq_num;
+        EVENT_HDR_CLIENT_ID(event) = event->client_id;
+        EVENT_HDR_SERVER_ID(event) = event->server_id;
 #endif
 
-        (*event)->hdr_request = ucp_tag_send_nbx((*event)->dest.ep, EVENT_HDR(*event), sizeof(am_header_t), hdr_ucp_tag, &hdr_send_param);
-        if (UCS_PTR_IS_ERR((*event)->hdr_request))
+        event->hdr_request = ucp_tag_send_nbx(event->dest.ep, EVENT_HDR(event), sizeof(am_header_t), hdr_ucp_tag, &hdr_send_param);
+        if (UCS_PTR_IS_ERR(event->hdr_request))
         {
-            ucs_status_t send_status = UCS_PTR_STATUS((*event)->hdr_request);
+            ucs_status_t send_status = UCS_PTR_STATUS(event->hdr_request);
             ERR_MSG("ucp_tag_send_nbx() failed: %s", ucs_status_string(send_status));
             return send_status;
         }
-        if ((*event)->hdr_request == NULL)
+        if (event->hdr_request == NULL)
         {
-            (*event)->ctx.hdr_completed = true;
+            event->ctx.hdr_completed = true;
         }
         DBG("event %p (%ld) send posted (hdr) - scope_id: %d, req: %p",
-            (*event), (*event)->seq_num, (*event)->scope_id, (*event)->hdr_request);
+            event, event->seq_num, event->scope_id, event->hdr_request);
     }
 
     /* 2. Send the payload */
-    if (EVENT_HDR_PAYLOAD_SIZE(*event) > 0)
+    if (EVENT_HDR_PAYLOAD_SIZE(event) > 0)
     {
-        if (!((*event)->ctx.payload_completed) && (*event)->payload_request == NULL)
+        if (!(event->ctx.payload_completed) && event->payload_request == NULL)
         {
             DBG("Sending payload - tag: %d, scope_id: %d, size: %ld, client_id: %" PRIu64 ", server_id: %" PRIu64,
                 AM_EVENT_MSG_ID,
-                (*event)->scope_id, 
-                EVENT_HDR_PAYLOAD_SIZE(*event),
+                event->scope_id, 
+                EVENT_HDR_PAYLOAD_SIZE(event),
                 client_id,
                 server_id);
             ucp_tag_t payload_ucp_tag = MAKE_SEND_TAG(AM_EVENT_MSG_ID,
                                                       client_id,
                                                       server_id,
-                                                      (*event)->scope_id,
+                                                      event->scope_id,
                                                       0);
             struct ucx_context *payload_request = NULL;
             ucp_request_param_t payload_send_param = {0};
@@ -478,9 +485,9 @@ int tag_send_event_msg(dpu_offload_event_t **event)
                                               UCP_OP_ATTR_FIELD_USER_DATA;
             payload_send_param.cb.send = notif_payload_send_cb;
             payload_send_param.datatype = ucp_dt_make_contig(1);
-            payload_send_param.user_data = (void *)(*event);
-            payload_request = ucp_tag_send_nbx((*event)->dest.ep,
-                                               (*event)->payload,
+            payload_send_param.user_data = (void *)event;
+            payload_request = ucp_tag_send_nbx(event->dest.ep,
+                                               event->payload,
                                                payload_size,
                                                payload_ucp_tag,
                                                &payload_send_param);
@@ -493,25 +500,31 @@ int tag_send_event_msg(dpu_offload_event_t **event)
             if (payload_request != NULL)
             {
                 // The send did not complete right away
-                (*event)->payload_request = payload_request;
+                event->payload_request = payload_request;
             }
             else
             {
                 // The send completed right away
-                (*event)->ctx.payload_completed = true;
+                event->ctx.payload_completed = true;
             }
 
             DBG("event %p (%ld) send posted (payload) - scope_id: %d, req: %p, complete: %d",
-                (*event), (*event)->seq_num, (*event)->scope_id, payload_request, (*event)->ctx.payload_completed);
+                event, event->seq_num, event->scope_id, payload_request, event->ctx.payload_completed);
         }
         else
         {
             // no payload to send
-            assert((*event)->payload_request == NULL);
-            (*event)->ctx.payload_completed = true;
+            assert(event->payload_request == NULL);
+            event->ctx.payload_completed = true;
         }
     }
 
+    return EVENT_INPROGRESS;
+}
+
+int tag_send_event_msg(dpu_offload_event_t **event)
+{
+    do_tag_send_event_msg(*event);
     if ((*event)->hdr_request == NULL && (*event)->payload_request == NULL)
     {
         COMPLETE_EVENT(*event);
@@ -575,6 +588,7 @@ int event_channel_emit_with_payload(dpu_offload_event_t **event, uint64_t type, 
 
 int event_channel_emit(dpu_offload_event_t **event, uint64_t type, ucp_ep_h dest_ep, uint64_t dest_id, void *ctx)
 {
+    int rc = EVENT_INPROGRESS;
     dpu_offload_event_t *ev = *event;
     DBG("Sending notification of type %" PRIu64, type);
 
@@ -609,10 +623,14 @@ int event_channel_emit(dpu_offload_event_t **event, uint64_t type, ucp_ep_h dest
     }
 
 #if USE_AM_IMPLEM
-    return am_send_event_msg(event);
+    rc = am_send_event_msg(event);
 #else
-    return tag_send_event_msg(event);
+    rc = tag_send_event_msg(event);
 #endif // USE_AM_IMPLEM
+
+    if (rc == EVENT_INPROGRESS)
+        ucs_list_add_tail(&((*event)->event_system->econtext->ongoing_events), &((*event)->item));
+    return rc;
 }
 
 void event_channels_fini(dpu_offload_ev_sys_t **ev_sys)
@@ -667,6 +685,11 @@ dpu_offload_status_t event_get(dpu_offload_ev_sys_t *ev_sys, dpu_offload_event_i
         CHECK_EVENT(_ev);
         _ev->event_system = ev_sys;
         _ev->scope_id = _ev->event_system->econtext->scope_id;
+
+        if (info != NULL)
+        {
+            _ev->explicit_return = info->explicit_return;
+        }
 
         if (info == NULL || info->payload_size == 0)
             goto out;
@@ -765,6 +788,8 @@ bool event_completed(dpu_offload_event_t *ev)
 #endif
 
     assert(ev->event_system);
+
+    // XXX handle the case where something needs to be posted (if ongoing_events is not too long)
 
     // Update the list of sub-event by removing the completed ones
     if (ev->sub_events_initialized)

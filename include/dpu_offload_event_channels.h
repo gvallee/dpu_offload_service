@@ -42,6 +42,15 @@
     } while (0)
 #endif
 
+static inline bool send_moderation_on()
+{
+    return false;
+}
+
+#if !USE_AM_IMPLEM
+int do_tag_send_event_msg(dpu_offload_event_t *event);
+#endif
+
 dpu_offload_status_t event_channels_init(execution_context_t *);
 dpu_offload_status_t ev_channels_init(dpu_offload_ev_sys_t **ev_channels);
 void event_channels_fini(dpu_offload_ev_sys_t **);

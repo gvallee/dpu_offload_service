@@ -9,6 +9,8 @@
 #ifndef DPU_OFFLOAD_COMMS_H_
 #define DPU_OFFLOAD_COMMS_H_
 
+#define MAX_POSTED_SENDS (3)
+
 /* All the tag related code has been taken from UCC */
 
 /* Reflects the definition in UCS - The i-th bit */
@@ -107,11 +109,50 @@
             (_scope_id));                                                                                                                  \
     } while (0)
 
+static bool event_posted(dpu_offload_event_t *ev)
+{
+    if (ev->ctx.hdr_completed == false && ev->hdr_request != NULL && EVENT_HDR_PAYLOAD_SIZE(ev) == 0)
+    {
+        // The send for the header is posted (and not completed) and no payload needs to be sent
+        return true;
+    }
+    
+    if (ev->ctx.hdr_completed == true &&
+        ev->hdr_request == NULL &&
+        EVENT_HDR_PAYLOAD_SIZE(ev) > 0 &&
+        ev->ctx.payload_completed == false &&
+        ev->payload_request != NULL)
+    {
+        // The send for the header completed and the send for the payload was posted and not yet completed
+        return true;
+    }
+
+    return false;
+}
+
 static void progress_econtext_sends(execution_context_t *ctx)
 {
     dpu_offload_event_t *ev, *next_ev;
+    size_t num_posted_sends = 0;
     ucs_list_for_each_safe(ev, next_ev, (&(ctx->ongoing_events)), item)
     {
+        if (!event_completed(ev))
+        {
+            if (num_posted_sends < MAX_POSTED_SENDS && !event_posted(ev))
+            {
+                int rc;
+#if USE_AM_IMPLEM
+                rc = do_am_send_event_msg(ev);
+#else
+                rc = do_tag_send_event_msg(ev);
+#endif
+            }
+
+            if (event_posted(ev))
+                num_posted_sends++;
+        }
+
+
         if (event_completed(ev))
         {
             ucs_list_del(&(ev->item));
@@ -125,6 +166,7 @@ static void progress_econtext_sends(execution_context_t *ctx)
             }
             event_return(&ev);
         }
+
 #if !NDEBUG
         // In debug mode, check the status of the requests
         else
@@ -242,6 +284,7 @@ static void notif_payload_recv_handler(void *request, ucs_status_t status, const
     assert(ctx->econtext);
     DBG("Notification payload received, ctx=%p econtext=%p type=%ld", ctx, ctx->econtext, ctx->hdr.type);
     assert(ctx->hdr.payload_size == tag_info->length);
+    ctx->payload_ctx.complete = true;
 
     // Invoke the associated callback
     rc = handle_notif_msg(ctx->econtext, &(ctx->hdr), sizeof(am_header_t), ctx->payload_ctx.buffer, ctx->hdr.payload_size);

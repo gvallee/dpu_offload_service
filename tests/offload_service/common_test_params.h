@@ -145,7 +145,6 @@ static uint64_t payload_explicit_mgt_notif_expected_value = 0;
             if (_rc == EVENT_INPROGRESS)                                                                              \
             {                                                                                                         \
                 fprintf(stderr, "[INFO] add event %ld to the ongoing list\n", evts[i]->seq_num);                      \
-                ucs_list_add_tail(&(_econtext->ongoing_events), &(evts[i]->item));                                    \
             }                                                                                                         \
             uint64_t *vals = (uint64_t *)ptr;                                                                         \
             fprintf(stderr, "Ev #%ld = %p, msg: %" PRIu64 " (EMIT_MANY_EVTS_AND_USE_ONGOING_LIST, data size: %ld)\n", \
@@ -192,7 +191,9 @@ static uint64_t payload_explicit_mgt_notif_expected_value = 0;
                                                                                                     \
         for (i = 0; i <= NUM_FLOOD_TEST_EVTS; i++)                                                  \
         {                                                                                           \
-            rc = event_get(_econtext->event_channels, NULL, &(evts[i]));                            \
+            dpu_offload_event_info_t event_info = {0};                                              \
+            event_info.explicit_return = true;                                                      \
+            rc = event_get(_econtext->event_channels, &event_info, &(evts[i]));                     \
             if (rc)                                                                                 \
             {                                                                                       \
                 fprintf(stderr, "event_get() failed\n");                                            \
@@ -348,7 +349,7 @@ static int pingpong_notification_cb(struct dpu_offload_ev_sys *ev_sys, execution
     {
         // Send it back where it is coming from
         dpu_offload_event_t *cur_evt;
-        dpu_offload_event_info_t evt_info;
+        dpu_offload_event_info_t evt_info = {0};
         evt_info.payload_size = current_data_size;
         fprintf(stderr, "Getting event to send notification back\n");
         dpu_offload_status_t _rc = event_get(econtext->event_channels, &evt_info, &cur_evt);
@@ -371,8 +372,6 @@ static int pingpong_notification_cb(struct dpu_offload_ev_sys *ev_sys, execution
             fprintf(stderr, "event_channel_emit() failed\n");
             _exit(1); // We are in a handler, hard crash when facing an error
         }
-        if (_rc == EVENT_INPROGRESS)
-            ucs_list_add_tail(&(econtext->ongoing_events), &(cur_evt->item));
         if (_rc == EVENT_DONE)
             fprintf(stderr, "event_channel_emit() completed right away ev=%p\n", cur_evt);
 
@@ -392,7 +391,7 @@ static bool pingpong_test_initiated = false;
         if (_econtext->type == CONTEXT_CLIENT && !pingpong_test_initiated)                        \
         {                                                                                         \
             dpu_offload_event_t *cur_evt;                                                         \
-            dpu_offload_event_info_t evt_info;                                                    \
+            dpu_offload_event_info_t evt_info = {0};                                              \
             evt_info.payload_size = current_data_size;                                            \
             fprintf(stderr, "Getting event...\n");                                                \
             dpu_offload_status_t _rc = event_get(_econtext->event_channels, &evt_info, &cur_evt); \
@@ -414,11 +413,6 @@ static bool pingpong_test_initiated = false;
             {                                                                                     \
                 fprintf(stderr, "event_channel_emit() failed\n");                                 \
                 return EXIT_FAILURE;                                                              \
-            }                                                                                     \
-            if (_rc == EVENT_INPROGRESS)                                                          \
-            {                                                                                     \
-                fprintf(stderr, "Adding event to ongoing events list...\n");                      \
-                ucs_list_add_tail(&(_econtext->ongoing_events), &(cur_evt->item));                \
             }                                                                                     \
             pingpong_test_initiated = true;                                                       \
             expected_value++;                                                                     \

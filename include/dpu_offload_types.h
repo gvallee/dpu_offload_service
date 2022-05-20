@@ -1188,6 +1188,9 @@ typedef struct dpu_offload_event
     // user_context is the user-defined context for the event. Can be NULL.
     void *user_context;
 
+    // Specifies whether the user is in charge of explicitly returning the event or not (false by default)
+    bool explicit_return;
+
     // Specifies whether the payload buffer needs to be managed by the library.
     // If so, it uses the payload_size from the infro structure used when getting
     // the event to allocate/get the buffer and associate it to the event.
@@ -1236,6 +1239,7 @@ typedef struct dpu_offload_event
         EVENT_HDR_ID(__ev) = UINT64_MAX;      \
         EVENT_HDR_PAYLOAD_SIZE(__ev) = 0;     \
         (__ev)->manage_payload_buf = false;   \
+        (__ev)->explicit_return = false;      \
         (__ev)->dest.ep = NULL;               \
         (__ev)->dest.id = UINT64_MAX;         \
         (__ev)->scope_id = SCOPE_HOST_DPU;    \
@@ -1256,6 +1260,7 @@ typedef struct dpu_offload_event
         EVENT_HDR_ID(__ev) = UINT64_MAX;       \
         EVENT_HDR_PAYLOAD_SIZE(__ev) = 0;      \
         (__ev)->manage_payload_buf = false;    \
+        (__ev)->explicit_return = false;      \
         (__ev)->dest.ep = NULL;                \
         (__ev)->dest.id = UINT64_MAX;          \
         (__ev)->scope_id = SCOPE_HOST_DPU;     \
@@ -1273,6 +1278,7 @@ typedef struct dpu_offload_event
         assert(EVENT_HDR_TYPE(__ev) == UINT64_MAX);           \
         assert(EVENT_HDR_ID(__ev) == UINT64_MAX);             \
         assert((__ev)->manage_payload_buf == false);          \
+        assert((__ev)->explicit_return == false);             \
         assert((__ev)->dest.ep == NULL);                      \
         assert((__ev)->dest.id == UINT64_MAX);                \
         if ((__ev)->sub_events_initialized)                   \
@@ -1290,6 +1296,7 @@ typedef struct dpu_offload_event
         assert(EVENT_HDR_TYPE(__ev) == UINT64_MAX);           \
         assert(EVENT_HDR_ID(__ev) == UINT64_MAX);             \
         assert((__ev)->manage_payload_buf == false);          \
+        assert((__ev)->explicit_return == false);             \
         assert((__ev)->dest.ep == NULL);                      \
         assert((__ev)->dest.id == UINT64_MAX);                \
         if ((__ev)->sub_events_initialized)                   \
@@ -1303,6 +1310,9 @@ typedef struct dpu_offload_event_info
 {
     // Size of the payload that the library needs to be managing. If 0 not payload needs to be managed
     size_t payload_size;
+
+    // Specify whether the user will explicitely return the event once done or not
+    bool explicit_return;
 } dpu_offload_event_info_t;
 
 typedef enum

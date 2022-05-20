@@ -225,8 +225,6 @@ int main(int argc, char **argv)
         fprintf(stderr, "[ERROR] event_channel_emit() failed\n");
         goto error_out;
     }
-    if (rc == EVENT_INPROGRESS)
-        ucs_list_add_tail(&(engine->self_econtext->ongoing_events), &(self_ev->item));
 
     while (self_notif_received == false)
         offload_engine_progress(engine);
