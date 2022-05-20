@@ -550,6 +550,22 @@ int event_channel_emit_with_payload(dpu_offload_event_t **event, uint64_t type, 
     (*event)->dest.ep = dest_ep;
     (*event)->dest.id = dest_id;
 
+    if ((*event)->event_system->econtext->type == CONTEXT_SELF)
+    {
+        // Do not go through the comm layer (e.g., UCX), just deliver it internally
+        int ret = handle_notif_msg((*event)->event_system->econtext,
+                                   EVENT_HDR(*event),
+                                   sizeof(am_header_t),
+                                   (*event)->payload,
+                                   EVENT_HDR_PAYLOAD_SIZE(*event));
+        if (ret != EVENT_DONE)
+        {
+            ERR_MSG("local delivery of event did not complete");
+            assert(0);
+        }
+        return ret;
+    }
+
 #if USE_AM_IMPLEM
     return am_send_event_msg(event);
 #else
@@ -575,6 +591,22 @@ int event_channel_emit(dpu_offload_event_t **event, uint64_t type, ucp_ep_h dest
     ev->user_context = ctx;
     ev->dest.ep = dest_ep;
     ev->dest.id = dest_id;
+
+    if ((*event)->event_system->econtext->type == CONTEXT_SELF)
+    {
+        // Do not go through the comm layer (e.g., UCX), just deliver it internally
+        int ret = handle_notif_msg((*event)->event_system->econtext,
+                                   EVENT_HDR(*event),
+                                   sizeof(am_header_t),
+                                   (*event)->payload,
+                                   EVENT_HDR_PAYLOAD_SIZE(*event));
+        if (ret != EVENT_DONE)
+        {
+            ERR_MSG("local delivery of event did not complete");
+            assert(0);
+        }
+        return ret;
+    }
 
 #if USE_AM_IMPLEM
     return am_send_event_msg(event);
