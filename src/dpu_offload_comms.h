@@ -241,8 +241,6 @@ static void notif_payload_recv_handler(void *request, ucs_status_t status, const
     assert(ctx);
     assert(ctx->econtext);
     DBG("Notification payload received, ctx=%p econtext=%p type=%ld", ctx, ctx->econtext, ctx->hdr.type);
-    ctx->payload_ctx.complete = true;
-
     assert(ctx->hdr.payload_size == tag_info->length);
 
     // Invoke the associated callback
@@ -267,6 +265,7 @@ static void notif_payload_recv_handler(void *request, ucs_status_t status, const
         ucp_request_free(ctx->payload_ctx.req);
         ctx->payload_ctx.req = NULL;
     }
+    ctx->payload_ctx.complete = true;
 }
 
 /**
@@ -275,9 +274,11 @@ static void notif_payload_recv_handler(void *request, ucs_status_t status, const
  * @param ctx
  * @param econtext
  * @param peer_id
+ * @return EVENT_DONE if the receive completed right away; EVENT_INPROGRESS otherwise
  */
-static void post_recv_for_notif_payload(hdr_notif_req_t *ctx, execution_context_t *econtext, uint64_t peer_id)
+static int post_recv_for_notif_payload(hdr_notif_req_t *ctx, execution_context_t *econtext, uint64_t peer_id)
 {
+    int rc = EVENT_INPROGRESS;
     assert(ctx);
     assert(econtext);
     DBG("Notification header received, payload size = %ld, type = %ld, econtext = %p-%p, ctx = %p",
@@ -292,7 +293,7 @@ static void post_recv_for_notif_payload(hdr_notif_req_t *ctx, execution_context_
     if (ctx->hdr.payload_size > 0 && ctx->payload_ctx.req != NULL)
     {
         WARN_MSG("We got a new header but still waiting for a previous notification payload");
-        return;
+        return EVENT_INPROGRESS;
     }
 
     if (ctx->hdr.payload_size > 0)
@@ -333,8 +334,7 @@ static void post_recv_for_notif_payload(hdr_notif_req_t *ctx, execution_context_
             if (rc != UCS_OK)
             {
                 ERR_MSG("handle_notif_msg() failed");
-                assert(0); // fail when in debug mode
-                return;
+                return -1;
             }
 
             // Payload is freed when the event is returned
@@ -350,12 +350,16 @@ static void post_recv_for_notif_payload(hdr_notif_req_t *ctx, execution_context_
                 ucp_request_free(ctx->payload_ctx.req);
                 ctx->payload_ctx.req = NULL;
             }
+            rc = EVENT_DONE;
         }
+        else
+            rc = EVENT_INPROGRESS;
 
         if (UCS_PTR_IS_ERR(ctx->payload_ctx.req))
         {
             ucs_status_t recv_status = UCS_PTR_STATUS(ctx->payload_ctx.req);
             ERR_MSG("ucp_tag_recv_nbx() failed: %s", ucs_status_string(recv_status));
+            return -1;
         }
     }
     else
@@ -366,8 +370,7 @@ static void post_recv_for_notif_payload(hdr_notif_req_t *ctx, execution_context_
         if (rc != UCS_OK)
         {
             ERR_MSG("handle_notif_msg() failed\n");
-            assert(0);
-            return;
+            return -1;
         }
 
         // Payload is freed when the event is returned
@@ -381,7 +384,10 @@ static void post_recv_for_notif_payload(hdr_notif_req_t *ctx, execution_context_
             ucp_request_free(ctx->payload_ctx.req);
             ctx->payload_ctx.req = NULL;
         }
+
+        rc = EVENT_DONE;
     }
+    return rc;
 }
 
 /**
@@ -393,9 +399,11 @@ static void post_recv_for_notif_payload(hdr_notif_req_t *ctx, execution_context_
  * @param hdr_ucp_tag
  * @param hdr_ucp_tag_mask
  * @param hdr_recv_param
+ * @return EVENT_DONE if the receive completed right away; EVENT_INPROGRESS otherwise
  */
-static void post_new_notif_recv(ucp_worker_h worker, hdr_notif_req_t *ctx, execution_context_t *econtext, ucp_tag_t hdr_ucp_tag, ucp_tag_t hdr_ucp_tag_mask, ucp_request_param_t *hdr_recv_param)
+static int post_new_notif_recv(ucp_worker_h worker, hdr_notif_req_t *ctx, execution_context_t *econtext, ucp_tag_t hdr_ucp_tag, ucp_tag_t hdr_ucp_tag_mask, ucp_request_param_t *hdr_recv_param)
 {
+    int rc = EVENT_INPROGRESS;
 #if !NDEBUG
     if (econtext->engine->on_dpu && econtext->scope_id == SCOPE_INTER_DPU)
     {
@@ -424,13 +432,15 @@ static void post_new_notif_recv(ucp_worker_h worker, hdr_notif_req_t *ctx, execu
             // Receive completed immediately, callback is not called
             DBG("Recv of notification header completed right away, notif type: %ld", ctx->hdr.type);
             ctx->complete = true;
-            post_recv_for_notif_payload(ctx, (execution_context_t *)ctx->econtext, ctx->hdr.id);
+            rc = post_recv_for_notif_payload(ctx, (execution_context_t *)ctx->econtext, ctx->hdr.id);
         }
         else
         {
             ctx->req = req;
+            rc = EVENT_INPROGRESS;
         }
     }
+    return rc;
 }
 
 /**

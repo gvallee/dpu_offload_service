@@ -1017,6 +1017,7 @@ static void progress_server_event_recv(execution_context_t *econtext)
 {
     size_t n_client = 0;
     size_t idx = 0;
+    int rc;
     ECONTEXT_LOCK(econtext);
     while (n_client < econtext->server->connected_clients.num_connected_clients)
     {
@@ -1063,12 +1064,17 @@ static void progress_server_event_recv(execution_context_t *econtext)
         }
         // The function will handle whether a new receive is required to be posted or not
         ECONTEXT_UNLOCK(econtext);
-        post_new_notif_recv(worker,
-                            &(client_info->notif_recv.ctx),
-                            econtext,
-                            client_info->notif_recv.hdr_ucp_tag,
-                            client_info->notif_recv.hdr_ucp_tag_mask,
-                            &(client_info->notif_recv.hdr_recv_params));
+        do
+        {
+            rc = post_new_notif_recv(worker,
+                                     &(client_info->notif_recv.ctx),
+                                     econtext,
+                                     client_info->notif_recv.hdr_ucp_tag,
+                                     client_info->notif_recv.hdr_ucp_tag_mask,
+                                     &(client_info->notif_recv.hdr_recv_params));
+            if (rc == -1)
+                ERR_MSG("post_new_notif_recv() failed");
+        } while (rc == EVENT_DONE);
         ECONTEXT_LOCK(econtext);
         idx++;
         n_client++;
@@ -1078,6 +1084,7 @@ static void progress_server_event_recv(execution_context_t *econtext)
 
 static void progress_client_event_recv(execution_context_t *econtext)
 {
+    int rc;
     ECONTEXT_LOCK(econtext);
     ucp_worker_h worker = GET_WORKER(econtext);
     if (econtext->event_channels->notif_recv.initialized == false)
@@ -1111,16 +1118,22 @@ static void progress_client_event_recv(execution_context_t *econtext)
     ECONTEXT_UNLOCK(econtext);
 
     // The function will handle whether a new receive is required to be posted or not
-    post_new_notif_recv(worker,
-                        &(econtext->event_channels->notif_recv.ctx),
-                        econtext,
-                        econtext->event_channels->notif_recv.hdr_ucp_tag,
-                        econtext->event_channels->notif_recv.hdr_ucp_tag_mask,
-                        &(econtext->event_channels->notif_recv.hdr_recv_params));
+    do
+    {
+        rc = post_new_notif_recv(worker,
+                                 &(econtext->event_channels->notif_recv.ctx),
+                                 econtext,
+                                 econtext->event_channels->notif_recv.hdr_ucp_tag,
+                                 econtext->event_channels->notif_recv.hdr_ucp_tag_mask,
+                                 &(econtext->event_channels->notif_recv.hdr_recv_params));
+        if (rc == -1)
+            ERR_MSG("post_new_notif_recv() failed");
+    } while (rc == EVENT_DONE);
 }
 
 static void progress_self_event_recv(execution_context_t *econtext)
 {
+    int rc;
     ECONTEXT_LOCK(econtext);
     ucp_worker_h worker = GET_WORKER(econtext);
     if (econtext->event_channels->notif_recv.initialized == false)
@@ -1140,12 +1153,17 @@ static void progress_self_event_recv(execution_context_t *econtext)
     ECONTEXT_UNLOCK(econtext);
 
     // The function will handle whether a new receive is required to be posted or not
-    post_new_notif_recv(worker,
-                        &(econtext->event_channels->notif_recv.ctx),
-                        econtext,
-                        econtext->event_channels->notif_recv.hdr_ucp_tag,
-                        econtext->event_channels->notif_recv.hdr_ucp_tag_mask,
-                        &(econtext->event_channels->notif_recv.hdr_recv_params));
+    do
+    {
+        rc = post_new_notif_recv(worker,
+                                 &(econtext->event_channels->notif_recv.ctx),
+                                 econtext,
+                                 econtext->event_channels->notif_recv.hdr_ucp_tag,
+                                 econtext->event_channels->notif_recv.hdr_ucp_tag_mask,
+                                 &(econtext->event_channels->notif_recv.hdr_recv_params));
+        if (rc == -1)
+            ERR_MSG("post_new_notif_recv() failed");
+    } while (rc == EVENT_DONE);
 }
 
 static void progress_event_recv(execution_context_t *econtext)
