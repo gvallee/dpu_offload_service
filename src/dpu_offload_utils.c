@@ -141,6 +141,8 @@ dpu_offload_status_t send_group_cache(execution_context_t *econtext, ucp_ep_h de
     group_cache_t *gp_cache;
     assert(econtext);
     assert(econtext->engine);
+    assert(metaev);
+    assert(EVENT_HDR_TYPE(metaev) == META_EVENT_TYPE);
     gp_cache = (group_cache_t *)econtext->engine->procs_cache.data.base;
     assert(gp_cache);
     if (!gp_cache[gp_id].initialized)
@@ -190,6 +192,7 @@ dpu_offload_status_t send_cache(execution_context_t *econtext, cache_t *cache, u
     group_cache_t *groups_cache = (group_cache_t *)cache->data.base;
     size_t i;
     assert(metaevt);
+    assert(EVENT_HDR_TYPE(metaevt) == META_EVENT_TYPE);
     for (i = 0; i < cache->data.num_elts; i++)
     {
         if (groups_cache[i].initialized)
@@ -289,6 +292,7 @@ dpu_offload_status_t broadcast_group_cache(offloading_engine_t *engine, int64_t 
         assert(list_dpus[i]->econtext);
         event_get(list_dpus[i]->econtext->event_channels, NULL, &ev);
         assert(ev);
+        EVENT_HDR_TYPE(ev) = META_EVENT_TYPE;
         dest_ep = GET_REMOTE_DPU_EP(engine, i);
         DBG("Sending group cache to DPU #%ld (econtext: %p)", i, list_dpus[i]->econtext);
         // If the econtext is a client to connect to a server, the dest_id is the index;
@@ -296,7 +300,7 @@ dpu_offload_status_t broadcast_group_cache(offloading_engine_t *engine, int64_t 
         if (list_dpus[i]->econtext->type == CONTEXT_SERVER)
             dest_id = list_dpus[i]->client_id;
         rc = send_group_cache(list_dpus[i]->econtext, dest_ep, dest_id, group_id, ev);
-        CHECK_ERR_RETURN((rc), DO_ERROR, "exchange_cache() failed");
+        CHECK_ERR_RETURN((rc), DO_ERROR, "send_group_cache() failed");
         // We do not want to explicitly deal with the event so we put it
         // on the list of ongoing events
         ucs_list_add_tail(&(list_dpus[i]->econtext->ongoing_events), &(ev->item));
@@ -408,6 +412,7 @@ static dpu_offload_status_t do_get_cache_entry_by_group_rank(offloading_engine_t
                     meta_econtext = econtext;
                     rc = event_get(meta_econtext->event_channels, NULL, &metaev);
                     CHECK_ERR_RETURN((rc), DO_ERROR, "get_event() failed");
+                    EVENT_HDR_TYPE(metaev) = META_EVENT_TYPE;
                 }
 
                 ucp_ep_h dpu_ep = list_dpus[i]->ep;
@@ -454,14 +459,17 @@ dpu_offload_status_t get_dpu_id_by_group_rank(offloading_engine_t *engine, int64
     return do_get_cache_entry_by_group_rank(engine, gp_id, rank, dpu_idx, NULL, dpu_id, ev);
 }
 
-dpu_offload_status_t get_dpu_ep_by_id(offloading_engine_t *engine, uint64_t id, ucp_ep_h *dpu_ep, execution_context_t **econtext_comm, uint64_t *comm_id)
+dpu_offload_status_t get_dpu_ep_by_id(offloading_engine_t *engine, uint64_t dpu_id, ucp_ep_h *dpu_ep, execution_context_t **econtext_comm, uint64_t *comm_id)
 {
     remote_dpu_info_t **list_dpus;
     CHECK_ERR_RETURN((engine == NULL), DO_ERROR, "engine is undefined");
-    CHECK_ERR_RETURN((id >= engine->num_dpus), DO_ERROR, "request DPU #%ld but only %ld DPUs are known", id, engine->num_dpus);
+    CHECK_ERR_RETURN((dpu_id >= engine->num_dpus),
+                     DO_ERROR,
+                     "request DPU #%ld but only %ld DPUs are known",
+                     dpu_id, engine->num_dpus);
     list_dpus = LIST_DPUS_FROM_ENGINE(engine);
-    DBG("Looking up entry for DPU #%" PRIu64, id);
-    if (list_dpus != NULL && list_dpus[id] == NULL)
+    DBG("Looking up entry for DPU #%" PRIu64, dpu_id);
+    if (list_dpus != NULL && list_dpus[dpu_id] == NULL)
     {
         *dpu_ep = NULL;
         *econtext_comm = NULL;
@@ -469,19 +477,42 @@ dpu_offload_status_t get_dpu_ep_by_id(offloading_engine_t *engine, uint64_t id, 
         // This is not an error, just that the data is not yet available.
         return DO_SUCCESS;
     }
-    *dpu_ep = GET_REMOTE_DPU_EP(engine, id);
-    *econtext_comm = GET_REMOTE_DPU_ECONTEXT(engine, id);
-    if ((*econtext_comm)->type == CONTEXT_SERVER)
+
+    // If not, we find the appropriate client or server
+    *dpu_ep = GET_REMOTE_DPU_EP(engine, dpu_id);
+    *econtext_comm = GET_REMOTE_DPU_ECONTEXT(engine, dpu_id);
+    switch ((*econtext_comm)->type)
     {
+    case CONTEXT_SERVER:
         // If the DPU is a local client, we cannot use the global DPU ID,
         // we have to look up the local ID that can be used to send notifications.
-        remote_dpu_info_t **list_dpus = LIST_DPUS_FROM_ENGINE(engine);
         assert(list_dpus);
-        *comm_id = list_dpus[id]->client_id;
+        *comm_id = list_dpus[dpu_id]->client_id;
+        break;
+    case CONTEXT_CLIENT:
+        *comm_id = dpu_id;
+        break;
+    case CONTEXT_SELF:
+        *comm_id = 0;
+        break;
+    default:
+        *comm_id = UINT64_MAX;
     }
-    else
-        *comm_id = id;
-    DBG("Details to communicate with DPU #%" PRIu64": econtext=%p ep=%p comm_id=%" PRIu64, id, *econtext_comm, *dpu_ep, *comm_id);
+    
+    DBG("Details to communicate with DPU #%" PRIu64": econtext=%p ep=%p comm_id=%" PRIu64, dpu_id, *econtext_comm, *dpu_ep, *comm_id);
+    fprintf(stderr, "Details to communicate with DPU #%" PRIu64": econtext=%p ep=%p comm_id=%" PRIu64 "\n", dpu_id, *econtext_comm, *dpu_ep, *comm_id);
+
+#if !NDEBUG
+    // Some checks in debug mode if the destination is really self
+    if (dpu_id == engine->config->local_dpu.id)
+    {
+        assert(*econtext_comm == engine->self_econtext);
+        assert(*comm_id == 0);
+    }
+#endif
+    assert(*econtext_comm);
+    assert(*dpu_ep);
+    assert(*comm_id != UINT64_MAX);
     return DO_SUCCESS;
 }
 
@@ -613,6 +644,8 @@ bool parse_line_dpu_version_1(offloading_config_t *data, char *line)
 
     // The host's name does not really matter here, moving to the DPU(s) configuration
     token = strtok_r(rest_line, ",", &rest_line);
+    if (token == NULL)
+        ERR_MSG("unable to parse: %s", line);
     assert(token);
     while (token != NULL)
     {

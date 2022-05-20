@@ -107,6 +107,46 @@
             (_scope_id));                                                                                                                  \
     } while (0)
 
+static void progress_econtext_sends(execution_context_t *ctx)
+{
+    dpu_offload_event_t *ev, *next_ev;
+    ucs_list_for_each_safe(ev, next_ev, (&(ctx->ongoing_events)), item)
+    {
+        if (event_completed(ev))
+        {
+            ucs_list_del(&(ev->item));
+            DBG("event %p (%ld) completed and removed from ongoing events list, %ld elements on list",
+                ev, ev->seq_num, ucs_list_length(&(ctx->ongoing_events)));
+            
+            if (ev->req)
+            {
+                ucp_request_free(ev->req);
+                ev->req = NULL;
+            }
+            event_return(&ev);
+        }
+#if !NDEBUG
+        // In debug mode, check the status of the requests
+        else
+        {
+            if (ev->hdr_request != NULL && UCS_PTR_IS_ERR(ev->hdr_request))
+            {
+                ucs_status_t send_status = UCS_PTR_STATUS(ev->hdr_request);
+                ERR_MSG("hdr send request reported a failure: %s", ucs_status_string(send_status));
+                abort(); // DBG: hard stop for now
+            }
+
+            if (ev->payload_request != NULL && UCS_PTR_IS_ERR(ev->payload_request))
+            {
+                ucs_status_t send_status = UCS_PTR_STATUS(ev->payload_request);
+                ERR_MSG("payload send request reported a failure: %s", ucs_status_string(send_status));
+                abort(); // DBG: hard stop for now
+            }
+        }
+#endif
+    }
+}
+
 /**
  * @brief Note: the function assumes that:
  * - the execution context is not locked before the function is invoked
@@ -214,19 +254,16 @@ static void notif_payload_recv_handler(void *request, ucs_status_t status, const
         return;
     }
 
-    // Once the callback invoked, we can safely free the payload
-    if (ctx->hdr.payload_size)
-    {
-        free(ctx->payload_ctx.buffer);
-        ctx->payload_ctx.buffer = NULL;
-    }
+    // Payload is freed when the event is returned
     if (ctx->req != NULL)
     {
+        assert(ctx->complete == true);
         ucp_request_free(ctx->req);
         ctx->req = NULL;
     }
     if (ctx->payload_ctx.req != NULL)
     {
+        assert(ctx->payload_ctx.complete == true);
         ucp_request_free(ctx->payload_ctx.req);
         ctx->payload_ctx.req = NULL;
     }
@@ -300,18 +337,16 @@ static void post_recv_for_notif_payload(hdr_notif_req_t *ctx, execution_context_
                 return;
             }
 
-            if (ctx->hdr.payload_size)
-            {
-                free(ctx->payload_ctx.buffer);
-                ctx->payload_ctx.buffer = NULL;
-            }
+            // Payload is freed when the event is returned
             if (ctx->req != NULL)
             {
+                assert(ctx->complete == true);
                 ucp_request_free(ctx->req);
                 ctx->req = NULL;
             }
             if (ctx->payload_ctx.req != NULL)
             {
+                assert(ctx->payload_ctx.complete == true);
                 ucp_request_free(ctx->payload_ctx.req);
                 ctx->payload_ctx.req = NULL;
             }
@@ -326,6 +361,7 @@ static void post_recv_for_notif_payload(hdr_notif_req_t *ctx, execution_context_
     else
     {
         // No payload to be received
+        ctx->payload_ctx.complete = true;
         int rc = handle_notif_msg(econtext, &(ctx->hdr), sizeof(am_header_t), NULL, 0);
         if (rc != UCS_OK)
         {
@@ -334,6 +370,7 @@ static void post_recv_for_notif_payload(hdr_notif_req_t *ctx, execution_context_
             return;
         }
 
+        // Payload is freed when the event is returned
         if (ctx->req != NULL)
         {
             ucp_request_free(ctx->req);

@@ -1191,6 +1191,8 @@ static dpu_offload_status_t send_group_cache_to_local_ranks(execution_context_t 
         dpu_offload_status_t rc = event_get(econtext->event_channels, NULL, &metaev);
         if (rc != DO_SUCCESS)
             ERR_MSG("event_get() failed"); // todo: better handle errors
+        assert(metaev);
+        EVENT_HDR_TYPE(metaev) = META_EVENT_TYPE;
         rc = send_group_cache(econtext, c->ep, c->id, group_id, metaev);
         if (rc != DO_SUCCESS)
             ERR_MSG("send_group_cache() failed"); // todo: better handler errors
@@ -1574,22 +1576,7 @@ static void execution_context_progress(execution_context_t *ctx)
 
     // Progress the ongoing events
     ECONTEXT_LOCK(ctx);
-    dpu_offload_event_t *ev, *next_ev;
-    ucs_list_for_each_safe(ev, next_ev, (&(ctx->ongoing_events)), item)
-    {
-        if (event_completed(ev))
-        {
-            ucs_list_del(&(ev->item));
-            DBG("event %p (%ld) completed and removed from ongoing events list, %ld elements on list",
-                ev, ev->seq_num, ucs_list_length(&(ctx->ongoing_events)));
-            if (ev->req)
-            {
-                ucp_request_free(ev->req);
-                ev->req = NULL;
-            }
-            event_return(&ev);
-        }
-    }
+    progress_econtext_sends(ctx);
 
     // Progress all active operations
     dpu_offload_status_t rc = progress_active_ops(ctx);

@@ -1206,6 +1206,16 @@ typedef struct dpu_offload_event
     dpu_offload_ev_sys_t *event_system;
 } dpu_offload_event_t;
 
+#define EVENT_HDR_ID(_ev) (_ev)->ctx.hdr.id
+#define EVENT_HDR_TYPE(_ev) (_ev)->ctx.hdr.type
+#define EVENT_HDR_PAYLOAD_SIZE(_ev) (_ev)->ctx.hdr.payload_size
+#define EVENT_HDR(_ev) &((_ev)->ctx.hdr)
+#if !NDEBUG
+#define EVENT_HDR_CLIENT_ID(_ev) (_ev)->ctx.hdr.client_id
+#define EVENT_HDR_SERVER_ID(_ev) (_ev)->ctx.hdr.server_id
+#define EVENT_HDR_SEQ_NUM(_ev) (_ev)->ctx.hdr.event_id
+#endif
+
 /**
  * @brief RESET_EVENT does not reinitialize sub_events_initialized because if is done
  * only once and reuse as events are reused. However, it is initialized when the
@@ -1222,9 +1232,9 @@ typedef struct dpu_offload_event
         (__ev)->ctx.complete = false;         \
         (__ev)->ctx.completion_cb = NULL;     \
         (__ev)->ctx.completion_cb_ctx = NULL; \
-        (__ev)->ctx.hdr.type = UINT64_MAX;    \
-        (__ev)->ctx.hdr.id = UINT64_MAX;      \
-        (__ev)->ctx.hdr.payload_size = 0;     \
+        EVENT_HDR_TYPE(__ev) = UINT64_MAX;    \
+        EVENT_HDR_ID(__ev) = UINT64_MAX;      \
+        EVENT_HDR_PAYLOAD_SIZE(__ev) = 0;     \
         (__ev)->manage_payload_buf = false;   \
         (__ev)->dest.ep = NULL;               \
         (__ev)->dest.id = UINT64_MAX;         \
@@ -1242,9 +1252,9 @@ typedef struct dpu_offload_event
         (__ev)->ctx.payload_completed = false; \
         (__ev)->ctx.completion_cb = NULL;      \
         (__ev)->ctx.completion_cb_ctx = NULL;  \
-        (__ev)->ctx.hdr.type = UINT64_MAX;     \
-        (__ev)->ctx.hdr.id = UINT64_MAX;       \
-        (__ev)->ctx.hdr.payload_size = 0;      \
+        EVENT_HDR_TYPE(__ev) = UINT64_MAX;     \
+        EVENT_HDR_ID(__ev) = UINT64_MAX;       \
+        EVENT_HDR_PAYLOAD_SIZE(__ev) = 0;      \
         (__ev)->manage_payload_buf = false;    \
         (__ev)->dest.ep = NULL;                \
         (__ev)->dest.id = UINT64_MAX;          \
@@ -1259,9 +1269,9 @@ typedef struct dpu_offload_event
     do                                                        \
     {                                                         \
         assert((__ev)->ctx.complete == 0);                    \
-        assert((__ev)->ctx.hdr.payload_size == 0);            \
-        assert((__ev)->ctx.hdr.type == UINT64_MAX);           \
-        assert((__ev)->ctx.hdr.id == UINT64_MAX);             \
+        assert(EVENT_HDR_PAYLOAD_SIZE(__ev) == 0);            \
+        assert(EVENT_HDR_TYPE(__ev) == UINT64_MAX);           \
+        assert(EVENT_HDR_ID(__ev) == UINT64_MAX);             \
         assert((__ev)->manage_payload_buf == false);          \
         assert((__ev)->dest.ep == NULL);                      \
         assert((__ev)->dest.id == UINT64_MAX);                \
@@ -1276,9 +1286,9 @@ typedef struct dpu_offload_event
     {                                                         \
         assert((__ev)->ctx.hdr_completed == 0);               \
         assert((__ev)->ctx.payload_completed == 0);           \
-        assert((__ev)->ctx.hdr.payload_size == 0);            \
-        assert((__ev)->ctx.hdr.type == UINT64_MAX);           \
-        assert((__ev)->ctx.hdr.id == UINT64_MAX);             \
+        assert(EVENT_HDR_PAYLOAD_SIZE(__ev) == 0);            \
+        assert(EVENT_HDR_TYPE(__ev) == UINT64_MAX);           \
+        assert(EVENT_HDR_ID(__ev) == UINT64_MAX);             \
         assert((__ev)->manage_payload_buf == false);          \
         assert((__ev)->dest.ep == NULL);                      \
         assert((__ev)->dest.id == UINT64_MAX);                \
@@ -1815,7 +1825,8 @@ dpu_offload_status_t find_config_from_platform_configfile(char *, char *, offloa
 
 typedef enum
 {
-    AM_TERM_MSG_ID = 33, // 33 to make it easier to see corruptions (dbg)
+    META_EVENT_TYPE = 32, // 32 to make it easier to see corruptions (dbg)
+    AM_TERM_MSG_ID = 33, 
     AM_EVENT_MSG_ID,
     AM_EVENT_MSG_HDR_ID, // 35
     AM_OP_START_MSG_ID,
