@@ -393,7 +393,9 @@ typedef struct peer_cache_entry
     // Number of  the peer's shadow DPU(s)
     size_t num_shadow_dpus;
 
-    // List of DPUs' unique ID that are the shadow DPU(s) of the peer
+    // List of DPUs' unique global IDs that are the shadow DPU(s) of the peer.
+    // The global DPU identifier is based on the index in the common list of DPU
+    // to use for the job.
     uint64_t shadow_dpus[MAX_SHADOW_DPUS]; // Array of DPUs (when applicable)
 
     // Is the list of events already initialized or not (lazy initialization)
