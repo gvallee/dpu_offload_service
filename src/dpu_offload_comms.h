@@ -148,7 +148,7 @@ static void progress_econtext_sends(execution_context_t *ctx)
 #endif
             }
 
-            if (event_posted(ev))
+            if (EVENT_HDR_TYPE(ev) != META_EVENT_TYPE && event_posted(ev))
                 num_posted_sends++;
         }
 
