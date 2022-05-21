@@ -138,7 +138,7 @@ static void progress_econtext_sends(execution_context_t *ctx)
     {
         if (!event_completed(ev))
         {
-            if (num_posted_sends < MAX_POSTED_SENDS && !event_posted(ev))
+            if (EVENT_HDR_TYPE(ev) != META_EVENT_TYPE && num_posted_sends < MAX_POSTED_SENDS && !event_posted(ev))
             {
                 int rc;
 #if USE_AM_IMPLEM
