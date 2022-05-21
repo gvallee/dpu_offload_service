@@ -375,43 +375,12 @@ int am_send_event_msg(dpu_offload_event_t **event)
 #else
 int do_tag_send_event_msg(dpu_offload_event_t *event)
 {
+    assert(event->dest.ep);
     if (event->ctx.hdr_completed && event->ctx.payload_completed)
     {
         WARN_MSG("Event %p already completed, not sending", event);
         return EVENT_DONE;
     }
-
-    assert(event->event_system);
-    assert(event->event_system->econtext);
-    execution_context_t *econtext = event->event_system->econtext;
-    uint64_t client_id, server_id;
-    size_t payload_size = EVENT_HDR_PAYLOAD_SIZE(event);
-    switch (event->event_system->econtext->type)
-    {
-    case CONTEXT_CLIENT:
-        client_id = econtext->client->id;
-        server_id = econtext->client->server_id;
-        break;
-    case CONTEXT_SERVER:
-        server_id = econtext->server->id;
-        client_id = event->dest.id;
-        break;
-    case CONTEXT_SELF:
-        client_id = 0;
-        server_id = 0;
-        break;
-    default:
-        return DO_ERROR;
-    }
-
-#if !NDEBUG
-    event->client_id = client_id;
-    event->server_id = server_id;
-    if (econtext->type == CONTEXT_CLIENT && econtext->scope_id == SCOPE_HOST_DPU && econtext->rank.n_local_ranks > 0 && econtext->rank.n_local_ranks != UINT64_MAX)
-    {
-        assert(client_id < econtext->rank.n_local_ranks);
-    }
-#endif
 
     if (send_moderation_on() && ucs_list_length(&(event->event_system->econtext->ongoing_events)) >= MAX_POSTED_SENDS)
     {
@@ -426,8 +395,8 @@ int do_tag_send_event_msg(dpu_offload_event_t *event)
     {
         ucp_request_param_t hdr_send_param = {0};
         ucp_tag_t hdr_ucp_tag = MAKE_SEND_TAG(AM_EVENT_MSG_HDR_ID,
-                                              client_id,
-                                              server_id,
+                                              event->client_id,
+                                              event->server_id,
                                               event->scope_id,
                                               0);
         hdr_send_param.op_attr_mask = UCP_OP_ATTR_FIELD_CALLBACK |
@@ -437,8 +406,7 @@ int do_tag_send_event_msg(dpu_offload_event_t *event)
         hdr_send_param.datatype = ucp_dt_make_contig(1);
         hdr_send_param.user_data = (void *)event;
         DBG("Sending notification header - ev: %" PRIu64 ", type: %" PRIu64 ", econtext: %p, scope_id: %d, client_id: %" PRIu64", server_id: %" PRIu64,
-            event->seq_num, EVENT_HDR_TYPE(event), event->event_system->econtext, event->scope_id, client_id, server_id);
-        assert(event->dest.ep);
+            event->seq_num, EVENT_HDR_TYPE(event), event->event_system->econtext, event->scope_id, event->client_id, event->server_id);
         event->hdr_request = NULL;
         event->payload_request = NULL;
 #if !NDEBUG
@@ -471,11 +439,11 @@ int do_tag_send_event_msg(dpu_offload_event_t *event)
                 AM_EVENT_MSG_ID,
                 event->scope_id, 
                 EVENT_HDR_PAYLOAD_SIZE(event),
-                client_id,
-                server_id);
+                event->client_id,
+                event->server_id);
             ucp_tag_t payload_ucp_tag = MAKE_SEND_TAG(AM_EVENT_MSG_ID,
-                                                      client_id,
-                                                      server_id,
+                                                      event->client_id,
+                                                      event->server_id,
                                                       event->scope_id,
                                                       0);
             struct ucx_context *payload_request = NULL;
@@ -488,7 +456,7 @@ int do_tag_send_event_msg(dpu_offload_event_t *event)
             payload_send_param.user_data = (void *)event;
             payload_request = ucp_tag_send_nbx(event->dest.ep,
                                                event->payload,
-                                               payload_size,
+                                               EVENT_HDR_PAYLOAD_SIZE(event),
                                                payload_ucp_tag,
                                                &payload_send_param);
             if (UCS_PTR_IS_ERR(payload_request))
@@ -524,6 +492,38 @@ int do_tag_send_event_msg(dpu_offload_event_t *event)
 
 int tag_send_event_msg(dpu_offload_event_t **event)
 {
+    assert((*event)->dest.ep);
+    assert((*event)->event_system);
+    assert((*event)->event_system->econtext);
+    execution_context_t *econtext = (*event)->event_system->econtext;
+    uint64_t client_id, server_id;
+    switch ((*event)->event_system->econtext->type)
+    {
+    case CONTEXT_CLIENT:
+        client_id = econtext->client->id;
+        server_id = econtext->client->server_id;
+        break;
+    case CONTEXT_SERVER:
+        server_id = econtext->server->id;
+        client_id = (*event)->dest.id;
+        break;
+    case CONTEXT_SELF:
+        client_id = 0;
+        server_id = 0;
+        break;
+    default:
+        return DO_ERROR;
+    }
+
+#if !NDEBUG
+    (*event)->client_id = client_id;
+    (*event)->server_id = server_id;
+    if (econtext->type == CONTEXT_CLIENT && econtext->scope_id == SCOPE_HOST_DPU && econtext->rank.n_local_ranks > 0 && econtext->rank.n_local_ranks != UINT64_MAX)
+    {
+        assert(client_id < econtext->rank.n_local_ranks);
+    }
+#endif
+
     do_tag_send_event_msg(*event);
     if ((*event)->hdr_request == NULL && (*event)->payload_request == NULL)
     {
@@ -589,22 +589,21 @@ int event_channel_emit_with_payload(dpu_offload_event_t **event, uint64_t type, 
 int event_channel_emit(dpu_offload_event_t **event, uint64_t type, ucp_ep_h dest_ep, uint64_t dest_id, void *ctx)
 {
     int rc = EVENT_INPROGRESS;
-    dpu_offload_event_t *ev = *event;
     DBG("Sending notification of type %" PRIu64, type);
 
     // Try to progress the sends before adding another one
-    progress_econtext_sends(ev->event_system->econtext);
+    progress_econtext_sends((*event)->event_system->econtext);
 #if USE_AM_IMPLEM
-    ev->ctx.complete = false;
+    (*event)->ctx.complete = false;
 #else
-    ev->ctx.hdr_completed = false;
-    ev->ctx.payload_completed = false;
+    (*event)->ctx.hdr_completed = false;
+    (*event)->ctx.payload_completed = false;
 #endif
-    EVENT_HDR_TYPE(ev) = type;
-    EVENT_HDR_ID(ev) = ECONTEXT_ID((*event)->event_system->econtext);
-    ev->user_context = ctx;
-    ev->dest.ep = dest_ep;
-    ev->dest.id = dest_id;
+    EVENT_HDR_TYPE(*event) = type;
+    EVENT_HDR_ID(*event) = ECONTEXT_ID((*event)->event_system->econtext);
+    (*event)->user_context = ctx;
+    (*event)->dest.ep = dest_ep;
+    (*event)->dest.id = dest_id;
 
     if ((*event)->event_system->econtext->type == CONTEXT_SELF)
     {
@@ -629,7 +628,9 @@ int event_channel_emit(dpu_offload_event_t **event, uint64_t type, ucp_ep_h dest
 #endif // USE_AM_IMPLEM
 
     if (rc == EVENT_INPROGRESS)
+    {
         ucs_list_add_tail(&((*event)->event_system->econtext->ongoing_events), &((*event)->item));
+    }
     return rc;
 }
 
