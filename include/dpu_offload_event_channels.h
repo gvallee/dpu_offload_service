@@ -44,7 +44,7 @@
 
 static inline bool send_moderation_on()
 {
-    return false;
+    return true;
 }
 
 #if !USE_AM_IMPLEM
