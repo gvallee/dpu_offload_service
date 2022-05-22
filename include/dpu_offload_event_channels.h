@@ -38,8 +38,8 @@
             ucs_list_head_init(&((_metaev)->sub_events));              \
             (_metaev)->sub_events_initialized = true;                  \
         }                                                              \
-        DBG("Adding sub-event %p to main event %p", (_ev), (_metaev)); \
         ucs_list_add_tail(&((_metaev)->sub_events), &((_ev)->item));   \
+        DBG("sub-event %p added to main event %p", (_ev), (_metaev));  \
     } while(0)
 
 

@@ -9,7 +9,7 @@
 #ifndef DPU_OFFLOAD_COMMS_H_
 #define DPU_OFFLOAD_COMMS_H_
 
-#define MAX_POSTED_SENDS (2)
+#define MAX_POSTED_SENDS (1)
 
 /* All the tag related code has been taken from UCC */
 
@@ -129,8 +129,6 @@
         /* Now check if it is completed */                                                       \
         if (event_completed((__ev)))                                                             \
         {                                                                                        \
-            DBG("event %p (%ld) completed and removed from ongoing events list",                 \
-                (__ev), (__ev)->seq_num);                                                        \
             ucs_list_del(&((__ev)->item));                                                       \
             if ((__ev)->was_posted)                                                              \
                 (__ev)->event_system->posted_sends--;                                            \
@@ -162,7 +160,7 @@ static bool event_posted(dpu_offload_event_t *ev)
 static void progress_econtext_sends(execution_context_t *ctx)
 {
     dpu_offload_event_t *ev, *next_ev;
-    ucs_list_for_each_safe(ev, next_ev, (&(ctx->ongoing_events)), item)
+    ucs_list_for_each_safe(ev, next_ev, &(ctx->ongoing_events), item)
     {
         if (ev->is_ongoing_event == false)
             ERR_MSG("Ev %p type %ld is not on ongoing list", ev, EVENT_HDR_TYPE(ev));

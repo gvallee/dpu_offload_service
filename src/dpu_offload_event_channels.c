@@ -387,8 +387,8 @@ int do_tag_send_event_msg(dpu_offload_event_t *event)
     {
         // We reached the maximum number of posted sends that are waiting for completion,
         // we queue the send for later posting
-        WARN_MSG("Delaying send of %p, already %ld events are waiting for completion",
-                 event, event->event_system->posted_sends);
+        WARN_MSG("Delaying send of %p, already %ld events are waiting for completion (client_id: %ld, server_id: %ld)",
+                 event, event->event_system->posted_sends, EVENT_HDR_CLIENT_ID(event), EVENT_HDR_SERVER_ID(event));
         return EVENT_INPROGRESS;
     }
 
@@ -412,12 +412,6 @@ int do_tag_send_event_msg(dpu_offload_event_t *event)
             event->seq_num, EVENT_HDR_TYPE(event), event->event_system->econtext, event->scope_id, event->client_id, event->server_id);
         event->hdr_request = NULL;
         event->payload_request = NULL;
-#if !NDEBUG
-        EVENT_HDR_SEQ_NUM(event) = event->seq_num;
-        EVENT_HDR_CLIENT_ID(event) = event->client_id;
-        EVENT_HDR_SERVER_ID(event) = event->server_id;
-#endif
-
         event->hdr_request = ucp_tag_send_nbx(event->dest.ep, EVENT_HDR(event), sizeof(am_header_t), hdr_ucp_tag, &hdr_send_param);
         if (UCS_PTR_IS_ERR(event->hdr_request))
         {
@@ -528,6 +522,9 @@ int tag_send_event_msg(dpu_offload_event_t **event)
 #if !NDEBUG
     (*event)->client_id = client_id;
     (*event)->server_id = server_id;
+    EVENT_HDR_SEQ_NUM(*event) = (*event)->seq_num;
+    EVENT_HDR_CLIENT_ID(*event) = (*event)->client_id;
+    EVENT_HDR_SERVER_ID(*event) = (*event)->server_id;
     if (econtext->type == CONTEXT_CLIENT && econtext->scope_id == SCOPE_HOST_DPU && econtext->rank.n_local_ranks > 0 && econtext->rank.n_local_ranks != UINT64_MAX)
     {
         assert(client_id < econtext->rank.n_local_ranks);
@@ -821,11 +818,8 @@ bool event_completed(dpu_offload_event_t *ev)
 #endif
 
     assert(ev->event_system);
-
-    // XXX handle the case where something needs to be posted (if ongoing_events is not too long)
-
     // Update the list of sub-event by removing the completed ones
-    if (ev->sub_events_initialized)
+    if (EVENT_HDR_TYPE(ev) == META_EVENT_TYPE)
     {
         dpu_offload_event_t *subevt, *next;
         ucs_list_for_each_safe(subevt, next, &(ev->sub_events), item)
@@ -853,7 +847,7 @@ bool event_completed(dpu_offload_event_t *ev)
     else
     {
 #if !USE_AM_IMPLEM
-        if (ev->hdr_request == NULL && ev->payload_request == NULL)
+        if (ev->ctx.hdr_completed == true && ev->ctx.payload_completed == true)
         {
             DBG("Event %p is completed", ev);
             COMPLETE_EVENT(ev);
@@ -1065,6 +1059,7 @@ static dpu_offload_status_t peer_cache_entries_recv_cb(struct dpu_offload_ev_sys
                         rc = send_group_cache(server, client_info->ep, client_info->id, group_id, metaev);
                         if (rc != DO_SUCCESS)
                             ERR_MSG("send_group_cache() failed"); // todo: better handle errors
+                        QUEUE_EVENT(metaev);
                         n++;
                         idx++;
                     }
