@@ -1214,8 +1214,7 @@ static dpu_offload_status_t send_group_cache_to_local_ranks(execution_context_t 
         rc = send_group_cache(econtext, c->ep, c->id, group_id, metaev);
         if (rc != DO_SUCCESS)
             ERR_MSG("send_group_cache() failed"); // todo: better handler errors
-        // We do not have to manage the event so we put it on the list of ongoing events
-        ucs_list_add_tail(&(econtext->ongoing_events), &(metaev->item));
+        QUEUE_EVENT(metaev);
         n++;
         idx++;
     }
