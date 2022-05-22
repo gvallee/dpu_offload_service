@@ -109,6 +109,34 @@
             (_scope_id));                                                                                                                  \
     } while (0)
 
+#define CAN_POST(_event_system) ({                        \
+    bool _can_post = false;                               \
+    if ((_event_system)->posted_sends < MAX_POSTED_SENDS) \
+        _can_post = true;                                 \
+    _can_post;                                            \
+})
+
+// TODO: same for AM
+#define PROGRESS_EVENT_SEND(__ev, __completed)                                                   \
+    do                                                                                           \
+    {                                                                                            \
+        (__completed) = false;                                                                   \
+        /* if we can post more events and the event is not posted yet, try to send it. */        \
+        if (!event_completed((__ev)) && CAN_POST((__ev)->event_system) && !event_posted((__ev))) \
+        {                                                                                        \
+            int rc;                                                                              \
+            rc = do_tag_send_event_msg((__ev));                                                  \
+        }                                                                                        \
+        /* Now check if it is completed */                                                       \
+        if (event_completed((__ev)))                                                             \
+        {                                                                                        \
+            if ((__ev)->was_posted)                                                              \
+                (__ev)->event_system->posted_sends--;                                            \
+            event_return(&(__ev));                                                               \
+            (__completed) = true;                                                                \
+        }                                                                                        \
+    } while(0)
+
 static bool event_posted(dpu_offload_event_t *ev)
 {
     if (ev->ctx.hdr_completed == false && ev->hdr_request != NULL && EVENT_HDR_PAYLOAD_SIZE(ev) == 0)
@@ -133,59 +161,42 @@ static bool event_posted(dpu_offload_event_t *ev)
 static void progress_econtext_sends(execution_context_t *ctx)
 {
     dpu_offload_event_t *ev, *next_ev;
-    size_t num_posted_sends = 0;
     ucs_list_for_each_safe(ev, next_ev, (&(ctx->ongoing_events)), item)
     {
-        if (!event_completed(ev))
+        if (ev->is_ongoing_event == false)
+            ERR_MSG("Ev %p type %ld is not on ongoing list", ev, EVENT_HDR_TYPE(ev));
+        assert(ev->is_ongoing_event == true);       
+        if (EVENT_HDR_TYPE(ev) == META_EVENT_TYPE)
         {
-            if (EVENT_HDR_TYPE(ev) != META_EVENT_TYPE && num_posted_sends < MAX_POSTED_SENDS && !event_posted(ev))
+            // if the event is meta-event, we need to check the sub-events
+            dpu_offload_event_t *subev, *next_subev;
+            bool completed;
+            ucs_list_for_each_safe(subev, next_subev, (&(ev->sub_events)), item)
             {
-                int rc;
-#if USE_AM_IMPLEM
-                rc = do_am_send_event_msg(ev);
-#else
-                rc = do_tag_send_event_msg(ev);
-#endif
+                PROGRESS_EVENT_SEND(subev, completed);
+                if (completed)
+                {
+                    ucs_list_del(&(subev->item));
+                    if (subev->was_posted)
+                        subev->event_system->posted_sends--;
+                    DBG("sub-event %p (%ld) completed and removed from list of sub-event, %ld elements on list",
+                        subev, subev->seq_num, ucs_list_length(&(ev->sub_events)));
+                }
             }
-
-            if (EVENT_HDR_TYPE(ev) != META_EVENT_TYPE && event_posted(ev))
-                num_posted_sends++;
         }
-
-
-        if (event_completed(ev))
-        {
-            ucs_list_del(&(ev->item));
-            DBG("event %p (%ld) completed and removed from ongoing events list, %ld elements on list",
-                ev, ev->seq_num, ucs_list_length(&(ctx->ongoing_events)));
-            
-            if (ev->req)
-            {
-                ucp_request_free(ev->req);
-                ev->req = NULL;
-            }
-            event_return(&ev);
-        }
-
-#if !NDEBUG
-        // In debug mode, check the status of the requests
         else
         {
-            if (ev->hdr_request != NULL && UCS_PTR_IS_ERR(ev->hdr_request))
+            bool completed;
+            PROGRESS_EVENT_SEND(ev, completed);
+            if (completed)
             {
-                ucs_status_t send_status = UCS_PTR_STATUS(ev->hdr_request);
-                ERR_MSG("hdr send request reported a failure: %s", ucs_status_string(send_status));
-                abort(); // DBG: hard stop for now
-            }
-
-            if (ev->payload_request != NULL && UCS_PTR_IS_ERR(ev->payload_request))
-            {
-                ucs_status_t send_status = UCS_PTR_STATUS(ev->payload_request);
-                ERR_MSG("payload send request reported a failure: %s", ucs_status_string(send_status));
-                abort(); // DBG: hard stop for now
+                ucs_list_del(&(ev->item));
+                if (ev->was_posted)
+                    ev->event_system->posted_sends--;
+                DBG("event %p (%ld) completed and removed from ongoing events list, %ld elements on list",
+                    ev, ev->seq_num, ucs_list_length(&(ctx->ongoing_events)));
             }
         }
-#endif
     }
 }
 

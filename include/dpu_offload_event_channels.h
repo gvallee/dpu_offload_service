@@ -16,6 +16,33 @@
 // Set to 1 to use the AM implementaton; 0 to use tag send/recv implementation
 #define USE_AM_IMPLEM (0)
 
+#define QUEUE_EVENT(__ev)                                                        \
+    do                                                                           \
+    {                                                                            \
+        if((__ev)->is_subevent == false)                                         \
+        {                                                                        \
+            assert((__ev)->is_ongoing_event == false);                           \
+            ucs_list_add_tail(&((__ev)->event_system->econtext->ongoing_events), \
+                              &((__ev)->item));                                  \
+            (__ev)->is_ongoing_event = true;                                     \
+        }                                                                        \
+    } while(0)
+
+#define QUEUE_SUBEVENT(_metaev, _ev)                                   \
+    do                                                                 \
+    {                                                                  \
+        assert((_ev)->is_subevent == true);                            \
+        assert((_ev)->is_ongoing_event == false);                      \
+        if (!(_metaev)->sub_events_initialized)                        \
+        {                                                              \
+            ucs_list_head_init(&((_metaev)->sub_events));              \
+            (_metaev)->sub_events_initialized = true;                  \
+        }                                                              \
+        DBG("Adding sub-event %p to main event %p", (_ev), (_metaev)); \
+        ucs_list_add_tail(&((_metaev)->sub_events), &((_ev)->item));   \
+    } while(0)
+
+
 #if USE_AM_IMPLEM
 #define COMPLETE_EVENT(__ev)                                          \
     do                                                                \

@@ -375,6 +375,7 @@ int am_send_event_msg(dpu_offload_event_t **event)
 #else
 int do_tag_send_event_msg(dpu_offload_event_t *event)
 {
+    int rc = EVENT_INPROGRESS;
     assert(event->dest.ep);
     if (event->ctx.hdr_completed && event->ctx.payload_completed)
     {
@@ -487,11 +488,17 @@ int do_tag_send_event_msg(dpu_offload_event_t *event)
         }
     }
 
-    return EVENT_INPROGRESS;
+    if (event->ctx.hdr_completed == true && event->ctx.payload_completed == true)
+    {
+        rc = EVENT_DONE;
+    }
+
+    return rc;
 }
 
 int tag_send_event_msg(dpu_offload_event_t **event)
 {
+    int rc;
     assert((*event)->dest.ep);
     assert((*event)->event_system);
     assert((*event)->event_system->econtext);
@@ -524,8 +531,8 @@ int tag_send_event_msg(dpu_offload_event_t **event)
     }
 #endif
 
-    do_tag_send_event_msg(*event);
-    if ((*event)->hdr_request == NULL && (*event)->payload_request == NULL)
+    rc = do_tag_send_event_msg(*event);
+    if (rc == EVENT_DONE)
     {
         COMPLETE_EVENT(*event);
         DBG("event %p send immediately completed", (*event));
@@ -533,12 +540,18 @@ int tag_send_event_msg(dpu_offload_event_t **event)
         CHECK_ERR_RETURN((rc), DO_ERROR, "event_return() failed");
         return EVENT_DONE;
     }
+    else
+    {
+        (*event)->was_posted = true;
+        (*event)->event_system->posted_sends++;
+    }
     return EVENT_INPROGRESS;
 }
 #endif // USE_AM_IMPLEM
 
 int event_channel_emit_with_payload(dpu_offload_event_t **event, uint64_t type, ucp_ep_h dest_ep, uint64_t dest_id, void *ctx, void *payload, size_t payload_size)
 {
+    int rc = EVENT_INPROGRESS;
     assert(event);
     assert(dest_ep);
     assert((*event));
@@ -580,10 +593,17 @@ int event_channel_emit_with_payload(dpu_offload_event_t **event, uint64_t type, 
     }
 
 #if USE_AM_IMPLEM
-    return am_send_event_msg(event);
+    rc = am_send_event_msg(event);
 #else
-    return tag_send_event_msg(event);
+    rc = tag_send_event_msg(event);
 #endif // USE_AM_IMPLEM
+
+    if (rc == EVENT_INPROGRESS)
+    {
+        QUEUE_EVENT(*event);
+    }
+
+    return rc;
 }
 
 int event_channel_emit(dpu_offload_event_t **event, uint64_t type, ucp_ep_h dest_ep, uint64_t dest_id, void *ctx)
@@ -629,7 +649,7 @@ int event_channel_emit(dpu_offload_event_t **event, uint64_t type, ucp_ep_h dest
 
     if (rc == EVENT_INPROGRESS)
     {
-        ucs_list_add_tail(&((*event)->event_system->econtext->ongoing_events), &((*event)->item));
+        QUEUE_EVENT(*event);
     }
     return rc;
 }
@@ -757,6 +777,12 @@ dpu_offload_status_t event_return(dpu_offload_event_t **ev)
 {
     assert(ev);
     assert(*ev);
+    if ((*ev)->is_subevent && (*ev)->is_ongoing_event)
+    {
+        ERR_MSG("event is a subevent and on the ongoing list, which is prohibited");
+        return DO_ERROR;
+    }
+    assert(!((*ev)->is_ongoing_event));
     if (ev == NULL || (*ev) == NULL)
         return DO_SUCCESS;
     int ret = do_event_return(*ev);
@@ -931,11 +957,7 @@ static dpu_offload_status_t peer_cache_entries_request_recv_cb(struct dpu_offloa
         DBG("Sending group cache to DPU #%" PRIu64 ": event=%p", hdr->id, send_cache_ev);
         rc = send_group_cache(econtext, peer_info->ep, peer_info->id, rank_info->group_id, send_cache_ev);
         CHECK_ERR_RETURN((rc), DO_ERROR, "send_group_cache() failed");
-
-        // Add the event to the list of pending events so it completed implicitely
-        if (send_cache_ev != NULL && !event_completed(send_cache_ev))
-            ucs_list_add_tail(&(econtext->ongoing_events), &(send_cache_ev->item));
-
+        QUEUE_EVENT(send_cache_ev);
         return DO_SUCCESS;
     }
 
@@ -953,11 +975,6 @@ static dpu_offload_status_t peer_cache_entries_request_recv_cb(struct dpu_offloa
             remote_dpu_info_t **list_dpus = (remote_dpu_info_t **)econtext->engine->dpus.base;
             rc = send_cache_entry_request(econtext, list_dpus[i]->ep, rank_info, &req_fwd_ev);
             CHECK_ERR_RETURN((rc), DO_ERROR, "send_cache_entry_request() failed");
-
-            // Add the event to the list of pending events so it completed implicitely
-            if (req_fwd_ev != NULL && !event_completed(req_fwd_ev))
-                ucs_list_add_tail(&(econtext->ongoing_events), &(req_fwd_ev->item));
-
             return DO_SUCCESS;
         }
     }

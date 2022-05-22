@@ -645,6 +645,10 @@ typedef struct dpu_offload_ev_sys
     // Note that it means these objects are not in the pool and must be returned at some points.
     size_t num_used_evs;
 
+    // Current number of event sends that are posted. Used to manage how many events can be
+    // being sent at any given time
+    size_t posted_sends;
+
     /* pending notifications are notifications that cannot be delivered upon reception because the callback is not registered yet */
     ucs_list_link_t pending_notifications;
 
@@ -669,6 +673,7 @@ typedef struct dpu_offload_ev_sys
     {                                               \
         (_s)->free_evs = NULL;                      \
         (_s)->num_used_evs = 0;                     \
+        (_s)->posted_sends = 0;                     \
         (_s)->free_pending_notifications = NULL;    \
         (_s)->econtext = 0;                         \
         RESET_NOTIF_RECEPTION(&((_s)->notif_recv)); \
@@ -679,6 +684,7 @@ typedef struct dpu_offload_ev_sys
     {                                            \
         (_s)->free_evs = NULL;                   \
         (_s)->num_used_evs = 0;                  \
+        (_s)->posted_sends = 0;                  \
         (_s)->free_pending_notifications = NULL; \
         (_s)->econtext = 0;                      \
     } while (0)
@@ -1175,6 +1181,12 @@ typedef struct dpu_offload_event
     // sub_events_initialized tracks whether the sub-event list has been initialized.
     bool sub_events_initialized;
 
+    bool is_subevent;
+
+    bool is_ongoing_event;
+
+    bool was_posted;
+
     // req is the opaque request object used to track any potential underlying communication associated to the event.
     // If more than one communication operation is required, please use sub-events.
     void *req;
@@ -1243,6 +1255,9 @@ typedef struct dpu_offload_event
         (__ev)->dest.ep = NULL;               \
         (__ev)->dest.id = UINT64_MAX;         \
         (__ev)->scope_id = SCOPE_HOST_DPU;    \
+        (__ev)->is_subevent = false;          \
+        (__ev)->is_ongoing_event = false;     \
+        (__ev)->was_posted = false;           \
     } while (0)
 #else
 #define RESET_EVENT(__ev)                      \
@@ -1260,12 +1275,15 @@ typedef struct dpu_offload_event
         EVENT_HDR_ID(__ev) = UINT64_MAX;       \
         EVENT_HDR_PAYLOAD_SIZE(__ev) = 0;      \
         (__ev)->manage_payload_buf = false;    \
-        (__ev)->explicit_return = false;      \
+        (__ev)->explicit_return = false;       \
         (__ev)->dest.ep = NULL;                \
         (__ev)->dest.id = UINT64_MAX;          \
         (__ev)->scope_id = SCOPE_HOST_DPU;     \
         (__ev)->hdr_request = NULL;            \
         (__ev)->payload_request = NULL;        \
+        (__ev)->is_subevent = false;           \
+        (__ev)->is_ongoing_event = false;      \
+        (__ev)->was_posted = false;            \
     } while (0)
 #endif
 
@@ -1285,6 +1303,9 @@ typedef struct dpu_offload_event
         {                                                     \
             assert(ucs_list_is_empty(&((__ev)->sub_events))); \
         }                                                     \
+        assert((__ev)->is_subevent == false);                 \
+        assert((__ev)->is_ongoing_event == false);            \
+        assert((__ev)->was_posted == false);                  \
     } while (0)
 #else
 #define CHECK_EVENT(__ev)                                     \
@@ -1303,6 +1324,7 @@ typedef struct dpu_offload_event
         {                                                     \
             assert(ucs_list_is_empty(&((__ev)->sub_events))); \
         }                                                     \
+        assert((__ev)->was_posted == false);                  \
     } while (0)
 #endif
 
