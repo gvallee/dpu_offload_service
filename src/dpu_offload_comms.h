@@ -9,7 +9,7 @@
 #ifndef DPU_OFFLOAD_COMMS_H_
 #define DPU_OFFLOAD_COMMS_H_
 
-#define MAX_POSTED_SENDS (3)
+#define MAX_POSTED_SENDS (2)
 
 /* All the tag related code has been taken from UCC */
 
@@ -117,10 +117,9 @@
 })
 
 // TODO: same for AM
-#define PROGRESS_EVENT_SEND(__ev, __completed)                                                   \
+#define PROGRESS_EVENT_SEND(__ev)                                                                \
     do                                                                                           \
     {                                                                                            \
-        (__completed) = false;                                                                   \
         /* if we can post more events and the event is not posted yet, try to send it. */        \
         if (!event_completed((__ev)) && CAN_POST((__ev)->event_system) && !event_posted((__ev))) \
         {                                                                                        \
@@ -130,10 +129,12 @@
         /* Now check if it is completed */                                                       \
         if (event_completed((__ev)))                                                             \
         {                                                                                        \
+            DBG("event %p (%ld) completed and removed from ongoing events list",                 \
+                (__ev), (__ev)->seq_num);                                                        \
+            ucs_list_del(&((__ev)->item));                                                       \
             if ((__ev)->was_posted)                                                              \
                 (__ev)->event_system->posted_sends--;                                            \
             event_return(&(__ev));                                                               \
-            (__completed) = true;                                                                \
         }                                                                                        \
     } while(0)
 
@@ -170,32 +171,14 @@ static void progress_econtext_sends(execution_context_t *ctx)
         {
             // if the event is meta-event, we need to check the sub-events
             dpu_offload_event_t *subev, *next_subev;
-            bool completed;
             ucs_list_for_each_safe(subev, next_subev, (&(ev->sub_events)), item)
             {
-                PROGRESS_EVENT_SEND(subev, completed);
-                if (completed)
-                {
-                    ucs_list_del(&(subev->item));
-                    if (subev->was_posted)
-                        subev->event_system->posted_sends--;
-                    DBG("sub-event %p (%ld) completed and removed from list of sub-event, %ld elements on list",
-                        subev, subev->seq_num, ucs_list_length(&(ev->sub_events)));
-                }
+                PROGRESS_EVENT_SEND(subev);
             }
         }
         else
         {
-            bool completed;
-            PROGRESS_EVENT_SEND(ev, completed);
-            if (completed)
-            {
-                ucs_list_del(&(ev->item));
-                if (ev->was_posted)
-                    ev->event_system->posted_sends--;
-                DBG("event %p (%ld) completed and removed from ongoing events list, %ld elements on list",
-                    ev, ev->seq_num, ucs_list_length(&(ctx->ongoing_events)));
-            }
+            PROGRESS_EVENT_SEND(ev);
         }
     }
 }
