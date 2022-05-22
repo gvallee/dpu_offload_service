@@ -387,8 +387,8 @@ int do_tag_send_event_msg(dpu_offload_event_t *event)
     {
         // We reached the maximum number of posted sends that are waiting for completion,
         // we queue the send for later posting
-        WARN_MSG("Delaying send of %p, already %ld events are waiting for completion (client_id: %ld, server_id: %ld)",
-                 event, event->event_system->posted_sends, EVENT_HDR_CLIENT_ID(event), EVENT_HDR_SERVER_ID(event));
+        WARN_MSG("Delaying send of %p (#%ld), already %ld events are waiting for completion (client_id: %ld, server_id: %ld)",
+                 event, event->seq_num, event->event_system->posted_sends, EVENT_HDR_CLIENT_ID(event), EVENT_HDR_SERVER_ID(event));
         return EVENT_INPROGRESS;
     }
 
@@ -422,6 +422,11 @@ int do_tag_send_event_msg(dpu_offload_event_t *event)
         if (event->hdr_request == NULL)
         {
             event->ctx.hdr_completed = true;
+        }
+        else
+        {
+            event->was_posted = true;
+            event->event_system->posted_sends++;
         }
         DBG("event %p (%ld) send posted (hdr) - scope_id: %d, req: %p",
             event, event->seq_num, event->scope_id, event->hdr_request);
@@ -466,6 +471,8 @@ int do_tag_send_event_msg(dpu_offload_event_t *event)
             {
                 // The send did not complete right away
                 event->payload_request = payload_request;
+                event->was_posted = true;
+                event->event_system->posted_sends++;
             }
             else
             {
@@ -476,12 +483,12 @@ int do_tag_send_event_msg(dpu_offload_event_t *event)
             DBG("event %p (%ld) send posted (payload) - scope_id: %d, req: %p, complete: %d",
                 event, event->seq_num, event->scope_id, payload_request, event->ctx.payload_completed);
         }
-        else
-        {
-            // no payload to send
-            assert(event->payload_request == NULL);
-            event->ctx.payload_completed = true;
-        }
+    }
+    else
+    {
+        // no payload to send
+        assert(event->payload_request == NULL);
+        event->ctx.payload_completed = true;
     }
 
     if (event->ctx.hdr_completed == true && event->ctx.payload_completed == true)
@@ -540,9 +547,6 @@ int tag_send_event_msg(dpu_offload_event_t **event)
         CHECK_ERR_RETURN((rc), DO_ERROR, "event_return() failed");
         return EVENT_DONE;
     }
-    
-    (*event)->was_posted = true;
-    (*event)->event_system->posted_sends++;
     return EVENT_INPROGRESS;
 }
 #endif // USE_AM_IMPLEM
@@ -810,11 +814,11 @@ dpu_offload_status_t event_return(dpu_offload_event_t **ev)
 bool event_completed(dpu_offload_event_t *ev)
 {
 #if USE_AM_IMPLEM
-    if (!ev->sub_events_initialized && ev->ctx.complete)
-        return true;
+    if (EVENT_HDR_TYPE(ev) != META_EVENT_TYPE && ev->ctx.complete)
+        goto event_completed;
 #else
-    if (!ev->sub_events_initialized && ev->ctx.hdr_completed && ev->ctx.payload_completed)
-        return true;
+    if (EVENT_HDR_TYPE(ev) != META_EVENT_TYPE && ev->ctx.hdr_completed == true && ev->ctx.payload_completed == true)
+        goto event_completed;
 #endif
 
     assert(ev->event_system);
@@ -840,21 +844,22 @@ bool event_completed(dpu_offload_event_t *ev)
         if (ucs_list_is_empty(&(ev->sub_events)) && ev->req == NULL)
         {
             DBG("All sub-events completed");
-            COMPLETE_EVENT(ev);
-            return true;
+            goto event_completed;
         }
     }
     else
     {
 #if !USE_AM_IMPLEM
         if (ev->ctx.hdr_completed == true && ev->ctx.payload_completed == true)
-        {
-            DBG("Event %p is completed", ev);
-            COMPLETE_EVENT(ev);
-        }
+            goto event_completed;
 #endif
     }
     return false;
+
+event_completed:
+    DBG("Event %p (#%ld) is completed", ev, ev->seq_num);
+    COMPLETE_EVENT(ev);
+    return true;
 }
 
 /********************/
