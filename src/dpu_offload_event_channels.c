@@ -383,10 +383,12 @@ int do_tag_send_event_msg(dpu_offload_event_t *event)
         return EVENT_DONE;
     }
 
-    if (send_moderation_on() && ucs_list_length(&(event->event_system->econtext->ongoing_events)) >= MAX_POSTED_SENDS)
+    if (send_moderation_on() && !CAN_POST(event->event_system))
     {
         // We reached the maximum number of posted sends that are waiting for completion,
         // we queue the send for later posting
+        WARN_MSG("Delaying send of %p, already %ld events are waiting for completion",
+                 event, event->event_system->posted_sends);
         return EVENT_INPROGRESS;
     }
 
@@ -490,6 +492,7 @@ int do_tag_send_event_msg(dpu_offload_event_t *event)
 
     if (event->ctx.hdr_completed == true && event->ctx.payload_completed == true)
     {
+        DBG("ev %p completed right away", event);
         rc = EVENT_DONE;
     }
 
@@ -540,11 +543,9 @@ int tag_send_event_msg(dpu_offload_event_t **event)
         CHECK_ERR_RETURN((rc), DO_ERROR, "event_return() failed");
         return EVENT_DONE;
     }
-    else
-    {
-        (*event)->was_posted = true;
-        (*event)->event_system->posted_sends++;
-    }
+    
+    (*event)->was_posted = true;
+    (*event)->event_system->posted_sends++;
     return EVENT_INPROGRESS;
 }
 #endif // USE_AM_IMPLEM
@@ -561,7 +562,7 @@ int event_channel_emit_with_payload(dpu_offload_event_t **event, uint64_t type, 
     // Try to progress the sends before adding another one
     progress_econtext_sends((*event)->event_system->econtext);
 
-    DBG("Sending notification of type %" PRIu64, type);
+    DBG("Sending event %p of type %" PRIu64, *event, type);
 #if USE_AM_IMPLEM
     (*event)->ctx.complete = false;
 #else
@@ -609,7 +610,7 @@ int event_channel_emit_with_payload(dpu_offload_event_t **event, uint64_t type, 
 int event_channel_emit(dpu_offload_event_t **event, uint64_t type, ucp_ep_h dest_ep, uint64_t dest_id, void *ctx)
 {
     int rc = EVENT_INPROGRESS;
-    DBG("Sending notification of type %" PRIu64, type);
+    DBG("Sending event %p of type %" PRIu64, *event, type);
 
     // Try to progress the sends before adding another one
     progress_econtext_sends((*event)->event_system->econtext);
@@ -779,7 +780,12 @@ dpu_offload_status_t event_return(dpu_offload_event_t **ev)
     assert(*ev);
     if ((*ev)->is_subevent && (*ev)->is_ongoing_event)
     {
-        ERR_MSG("event is a subevent and on the ongoing list, which is prohibited");
+        ERR_MSG("event %p is a subevent and on the ongoing list, which is prohibited", *ev);
+        return DO_ERROR;
+    }
+    if ((*ev)->is_ongoing_event)
+    {
+        ERR_MSG("event %p is still on the ongoing list, which is prohibited", *ev);
         return DO_ERROR;
     }
     assert(!((*ev)->is_ongoing_event));
