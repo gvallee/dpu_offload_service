@@ -387,8 +387,8 @@ int do_tag_send_event_msg(dpu_offload_event_t *event)
     {
         // We reached the maximum number of posted sends that are waiting for completion,
         // we queue the send for later posting
-        WARN_MSG("Delaying send of %p (#%ld), already %ld events are waiting for completion (client_id: %ld, server_id: %ld)",
-                 event, event->seq_num, event->event_system->posted_sends, EVENT_HDR_CLIENT_ID(event), EVENT_HDR_SERVER_ID(event));
+        DBG("Delaying send of %p (#%ld), already %ld events are waiting for completion (client_id: %ld, server_id: %ld)",
+            event, event->seq_num, event->event_system->posted_sends, EVENT_HDR_CLIENT_ID(event), EVENT_HDR_SERVER_ID(event));
         return EVENT_INPROGRESS;
     }
 
