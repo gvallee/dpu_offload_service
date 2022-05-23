@@ -994,6 +994,44 @@ static dpu_offload_status_t peer_cache_entries_request_recv_cb(struct dpu_offloa
     return DO_ERROR;
 }
 
+// Translate the local DPU ID received in the header of a notification to a global ID
+static uint64_t LOCAL_ID_TO_GLOBAL(execution_context_t *econtext, uint64_t local_id)
+{
+    uint64_t global_id = UINT64_MAX;
+    switch (econtext->type)
+    {
+    case CONTEXT_SERVER:
+    {
+        peer_info_t *_c = DYN_ARRAY_GET_ELT(&(econtext->server->connected_clients.clients), local_id, peer_info_t);
+        assert(_c);
+        global_id = _c->rank_data.group_rank;
+        break;
+    }
+    case CONTEXT_CLIENT:
+    {
+        if (econtext->engine->on_dpu)
+            global_id = local_id;
+        else
+            global_id = econtext->client->server_global_id;
+        break;
+    }
+    case CONTEXT_SELF:
+    {
+        if (econtext->engine->on_dpu)
+            global_id = econtext->engine->config->local_dpu.id;
+        else
+            global_id = 0; /* By default, for comm to self the ID is 0 */
+        break;
+    }
+    default:
+    {
+        global_id = UINT64_MAX;
+        break;
+    }
+    }
+    return global_id;
+}
+
 static dpu_offload_status_t peer_cache_entries_recv_cb(struct dpu_offload_ev_sys *ev_sys, execution_context_t *econtext, am_header_t *hdr, size_t hdr_size, void *data, size_t data_len)
 {
     assert(econtext);
@@ -1025,7 +1063,8 @@ static dpu_offload_status_t peer_cache_entries_recv_cb(struct dpu_offload_ev_sys
             cache_entry = GET_GROUP_RANK_CACHE_ENTRY(cache, group_id, group_rank, group_size);
             cache_entry->set = true;
             COPY_PEER_DATA(&(entries[idx].peer), &(cache_entry->peer));
-            cache_entry->shadow_dpus[cache_entry->num_shadow_dpus] = hdr->id;
+
+            cache_entry->shadow_dpus[cache_entry->num_shadow_dpus] = LOCAL_ID_TO_GLOBAL(econtext, hdr->id);
             cache_entry->num_shadow_dpus++;
 
             // If any event is associated to the cache entry, handle them
