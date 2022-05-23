@@ -829,6 +829,7 @@ bool event_completed(dpu_offload_event_t *ev)
         dpu_offload_event_t *subevt, *next;
         ucs_list_for_each_safe(subevt, next, &(ev->sub_events), item)
         {
+            assert(subevt->is_subevent);
 #if USE_AM_IMPLEM
             if (subevt->ctx.complete)
 #else
@@ -836,6 +837,7 @@ bool event_completed(dpu_offload_event_t *ev)
 #endif
             {
                 ucs_list_del(&(subevt->item));
+                subevt->is_subevent = false;
                 DBG("returning sub event %" PRIu64 " %p of main event %p", subevt->seq_num, subevt, ev);
                 dpu_offload_status_t rc = do_event_return(subevt);
                 CHECK_ERR_RETURN((rc), DO_ERROR, "event_return() failed");
