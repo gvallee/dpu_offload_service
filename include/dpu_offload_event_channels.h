@@ -131,10 +131,7 @@ int event_channel_emit(dpu_offload_event_t **ev, uint64_t type, ucp_ep_h dest_ep
  *      dpu_offload_event_t *my_ev;
  *      event_get(ev_sys, NULL, &my_ev);
  *      int rc = event_channel_emit_with_payload(my_ev, my_notification_type, dest_ep, dest_id, NULL, &my_global_static_object, object_size);
- *      if (rc == EVENT_DONE)
- *      {
- *          // Event completed right away. Nothing else to do.
- *      } else if (rc == EVENT_INPROGRESS) {
+ *      if (rc != EVENT_DONE && rc != EVENT_INPROGRESS) {
  *          // Event is ongoing, placed on the ongoing event list. The event will be automatically removed from the list and returned during progress of the execution context upon completion.
  *          ucs_list_add_tail(&(econtext->ongoing_events), &(myev->item));
  *      } else {
@@ -165,9 +162,8 @@ int event_channel_emit_with_payload(dpu_offload_event_t **ev, uint64_t type, ucp
  *      {
  *          // Event completed right away
  *          free(my_payload);
- *      } else if (rc == EVENT_INPROGRESS)
- *          // Nothing to do, event is in progress. The user will check for completion using event_completed()
- *      } else {
+ *      } 
+ *      else if (rc != EVENT_INPROGRESS)
  *          // Error
  *          return -1;
  *      }
@@ -178,13 +174,7 @@ int event_channel_emit_with_payload(dpu_offload_event_t **ev, uint64_t type, ucp
  *      event_get(ev_sys, &ev_info, &myev);
  *      memcpy(myev->payload, my_data, sizeof(my_payload_size));
  *      int rc = event_channel_emit(myev, dest_ep, dest_id, NULL);
- *      if (rc == EVENT_DONE)
- *      {
- *          // Event completed right away. Nothing else to do.
- *      } else if (rc == EVENT_INPROGRESS)
- *          // Nothing to do, event is in progress
- *          ucs_list_add_tail(&(econtext->ongoing_events), &(myev->item));
- *      } else {
+ *      if (rc != EVENT_DONE && rc != EVENT_INPROGRESS)
  *          // Error
  *          return -1;
  *      }
