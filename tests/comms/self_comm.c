@@ -187,7 +187,10 @@ int main(int argc, char **argv)
             goto error_out;
         }
         if (rc == EVENT_INPROGRESS)
-            ucs_list_add_tail(&(engine->self_econtext->ongoing_events), &(self_ev->item));
+        {
+            fprintf(stderr, "[ERROR] a notification for self is reported as INPROGRESS\n");
+            goto error_out;
+        }
     }
 
     while (count != NUM_NOTIFS)
@@ -210,7 +213,10 @@ int main(int argc, char **argv)
             goto error_out;
         }
         if (rc == EVENT_INPROGRESS)
-            ucs_list_add_tail(&(engine->self_econtext->ongoing_events), &(self_ev->item));
+        {
+            fprintf(stderr, "[ERROR] an event to self is reported as INPROGRESS\n");
+            goto error_out;
+        }
     }
 
     /* Notification to self to terminate the test */
@@ -225,8 +231,6 @@ int main(int argc, char **argv)
         fprintf(stderr, "[ERROR] event_channel_emit() failed\n");
         goto error_out;
     }
-    if (rc == EVENT_INPROGRESS)
-        ucs_list_add_tail(&(engine->self_econtext->ongoing_events), &(self_ev->item));
 
     while (self_notif_received == false)
         offload_engine_progress(engine);

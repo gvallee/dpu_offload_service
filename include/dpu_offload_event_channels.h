@@ -16,6 +16,33 @@
 // Set to 1 to use the AM implementaton; 0 to use tag send/recv implementation
 #define USE_AM_IMPLEM (0)
 
+#define QUEUE_EVENT(__ev)                                                        \
+    do                                                                           \
+    {                                                                            \
+        if((__ev)->is_subevent == false)                                         \
+        {                                                                        \
+            assert((__ev)->is_ongoing_event == false);                           \
+            ucs_list_add_tail(&((__ev)->event_system->econtext->ongoing_events), \
+                              &((__ev)->item));                                  \
+            (__ev)->is_ongoing_event = true;                                     \
+        }                                                                        \
+    } while(0)
+
+#define QUEUE_SUBEVENT(_metaev, _ev)                                   \
+    do                                                                 \
+    {                                                                  \
+        assert((_ev)->is_subevent == true);                            \
+        assert((_ev)->is_ongoing_event == false);                      \
+        if (!(_metaev)->sub_events_initialized)                        \
+        {                                                              \
+            ucs_list_head_init(&((_metaev)->sub_events));              \
+            (_metaev)->sub_events_initialized = true;                  \
+        }                                                              \
+        ucs_list_add_tail(&((_metaev)->sub_events), &((_ev)->item));   \
+        DBG("sub-event %p added to main event %p", (_ev), (_metaev));  \
+    } while(0)
+
+
 #if USE_AM_IMPLEM
 #define COMPLETE_EVENT(__ev)                                          \
     do                                                                \
@@ -40,6 +67,15 @@
             (__ev)->ctx.completion_cb = NULL;                         \
         }                                                             \
     } while (0)
+#endif
+
+static inline bool send_moderation_on()
+{
+    return true;
+}
+
+#if !USE_AM_IMPLEM
+int do_tag_send_event_msg(dpu_offload_event_t *event);
 #endif
 
 dpu_offload_status_t event_channels_init(execution_context_t *);
@@ -95,10 +131,7 @@ int event_channel_emit(dpu_offload_event_t **ev, uint64_t type, ucp_ep_h dest_ep
  *      dpu_offload_event_t *my_ev;
  *      event_get(ev_sys, NULL, &my_ev);
  *      int rc = event_channel_emit_with_payload(my_ev, my_notification_type, dest_ep, dest_id, NULL, &my_global_static_object, object_size);
- *      if (rc == EVENT_DONE)
- *      {
- *          // Event completed right away. Nothing else to do.
- *      } else if (rc == EVENT_INPROGRESS) {
+ *      if (rc != EVENT_DONE && rc != EVENT_INPROGRESS) {
  *          // Event is ongoing, placed on the ongoing event list. The event will be automatically removed from the list and returned during progress of the execution context upon completion.
  *          ucs_list_add_tail(&(econtext->ongoing_events), &(myev->item));
  *      } else {
@@ -129,9 +162,8 @@ int event_channel_emit_with_payload(dpu_offload_event_t **ev, uint64_t type, ucp
  *      {
  *          // Event completed right away
  *          free(my_payload);
- *      } else if (rc == EVENT_INPROGRESS)
- *          // Nothing to do, event is in progress. The user will check for completion using event_completed()
- *      } else {
+ *      } 
+ *      else if (rc != EVENT_INPROGRESS)
  *          // Error
  *          return -1;
  *      }
@@ -142,13 +174,7 @@ int event_channel_emit_with_payload(dpu_offload_event_t **ev, uint64_t type, ucp
  *      event_get(ev_sys, &ev_info, &myev);
  *      memcpy(myev->payload, my_data, sizeof(my_payload_size));
  *      int rc = event_channel_emit(myev, dest_ep, dest_id, NULL);
- *      if (rc == EVENT_DONE)
- *      {
- *          // Event completed right away. Nothing else to do.
- *      } else if (rc == EVENT_INPROGRESS)
- *          // Nothing to do, event is in progress
- *          ucs_list_add_tail(&(econtext->ongoing_events), &(myev->item));
- *      } else {
+ *      if (rc != EVENT_DONE && rc != EVENT_INPROGRESS)
  *          // Error
  *          return -1;
  *      }

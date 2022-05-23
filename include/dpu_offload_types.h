@@ -647,6 +647,10 @@ typedef struct dpu_offload_ev_sys
     // Note that it means these objects are not in the pool and must be returned at some points.
     size_t num_used_evs;
 
+    // Current number of event sends that are posted. Used to manage how many events can be
+    // being sent at any given time
+    size_t posted_sends;
+
     /* pending notifications are notifications that cannot be delivered upon reception because the callback is not registered yet */
     ucs_list_link_t pending_notifications;
 
@@ -671,6 +675,7 @@ typedef struct dpu_offload_ev_sys
     {                                               \
         (_s)->free_evs = NULL;                      \
         (_s)->num_used_evs = 0;                     \
+        (_s)->posted_sends = 0;                     \
         (_s)->free_pending_notifications = NULL;    \
         (_s)->econtext = 0;                         \
         RESET_NOTIF_RECEPTION(&((_s)->notif_recv)); \
@@ -681,6 +686,7 @@ typedef struct dpu_offload_ev_sys
     {                                            \
         (_s)->free_evs = NULL;                   \
         (_s)->num_used_evs = 0;                  \
+        (_s)->posted_sends = 0;                  \
         (_s)->free_pending_notifications = NULL; \
         (_s)->econtext = 0;                      \
     } while (0)
@@ -1177,6 +1183,12 @@ typedef struct dpu_offload_event
     // sub_events_initialized tracks whether the sub-event list has been initialized.
     bool sub_events_initialized;
 
+    bool is_subevent;
+
+    bool is_ongoing_event;
+
+    bool was_posted;
+
     // req is the opaque request object used to track any potential underlying communication associated to the event.
     // If more than one communication operation is required, please use sub-events.
     void *req;
@@ -1189,6 +1201,9 @@ typedef struct dpu_offload_event
 
     // user_context is the user-defined context for the event. Can be NULL.
     void *user_context;
+
+    // Specifies whether the user is in charge of explicitly returning the event or not (false by default)
+    bool explicit_return;
 
     // Specifies whether the payload buffer needs to be managed by the library.
     // If so, it uses the payload_size from the infro structure used when getting
@@ -1208,6 +1223,16 @@ typedef struct dpu_offload_event
     dpu_offload_ev_sys_t *event_system;
 } dpu_offload_event_t;
 
+#define EVENT_HDR_ID(_ev) (_ev)->ctx.hdr.id
+#define EVENT_HDR_TYPE(_ev) (_ev)->ctx.hdr.type
+#define EVENT_HDR_PAYLOAD_SIZE(_ev) (_ev)->ctx.hdr.payload_size
+#define EVENT_HDR(_ev) &((_ev)->ctx.hdr)
+#if !NDEBUG
+#define EVENT_HDR_CLIENT_ID(_ev) (_ev)->ctx.hdr.client_id
+#define EVENT_HDR_SERVER_ID(_ev) (_ev)->ctx.hdr.server_id
+#define EVENT_HDR_SEQ_NUM(_ev) (_ev)->ctx.hdr.event_id
+#endif
+
 /**
  * @brief RESET_EVENT does not reinitialize sub_events_initialized because if is done
  * only once and reuse as events are reused. However, it is initialized when the
@@ -1224,13 +1249,17 @@ typedef struct dpu_offload_event
         (__ev)->ctx.complete = false;         \
         (__ev)->ctx.completion_cb = NULL;     \
         (__ev)->ctx.completion_cb_ctx = NULL; \
-        (__ev)->ctx.hdr.type = UINT64_MAX;    \
-        (__ev)->ctx.hdr.id = UINT64_MAX;      \
-        (__ev)->ctx.hdr.payload_size = 0;     \
+        EVENT_HDR_TYPE(__ev) = UINT64_MAX;    \
+        EVENT_HDR_ID(__ev) = UINT64_MAX;      \
+        EVENT_HDR_PAYLOAD_SIZE(__ev) = 0;     \
         (__ev)->manage_payload_buf = false;   \
+        (__ev)->explicit_return = false;      \
         (__ev)->dest.ep = NULL;               \
         (__ev)->dest.id = UINT64_MAX;         \
         (__ev)->scope_id = SCOPE_HOST_DPU;    \
+        (__ev)->is_subevent = false;          \
+        (__ev)->is_ongoing_event = false;     \
+        (__ev)->was_posted = false;           \
     } while (0)
 #else
 #define RESET_EVENT(__ev)                      \
@@ -1244,15 +1273,19 @@ typedef struct dpu_offload_event
         (__ev)->ctx.payload_completed = false; \
         (__ev)->ctx.completion_cb = NULL;      \
         (__ev)->ctx.completion_cb_ctx = NULL;  \
-        (__ev)->ctx.hdr.type = UINT64_MAX;     \
-        (__ev)->ctx.hdr.id = UINT64_MAX;       \
-        (__ev)->ctx.hdr.payload_size = 0;      \
+        EVENT_HDR_TYPE(__ev) = UINT64_MAX;     \
+        EVENT_HDR_ID(__ev) = UINT64_MAX;       \
+        EVENT_HDR_PAYLOAD_SIZE(__ev) = 0;      \
         (__ev)->manage_payload_buf = false;    \
+        (__ev)->explicit_return = false;       \
         (__ev)->dest.ep = NULL;                \
         (__ev)->dest.id = UINT64_MAX;          \
         (__ev)->scope_id = SCOPE_HOST_DPU;     \
         (__ev)->hdr_request = NULL;            \
         (__ev)->payload_request = NULL;        \
+        (__ev)->is_subevent = false;           \
+        (__ev)->is_ongoing_event = false;      \
+        (__ev)->was_posted = false;            \
     } while (0)
 #endif
 
@@ -1261,16 +1294,20 @@ typedef struct dpu_offload_event
     do                                                        \
     {                                                         \
         assert((__ev)->ctx.complete == 0);                    \
-        assert((__ev)->ctx.hdr.payload_size == 0);            \
-        assert((__ev)->ctx.hdr.type == UINT64_MAX);           \
-        assert((__ev)->ctx.hdr.id == UINT64_MAX);             \
+        assert(EVENT_HDR_PAYLOAD_SIZE(__ev) == 0);            \
+        assert(EVENT_HDR_TYPE(__ev) == UINT64_MAX);           \
+        assert(EVENT_HDR_ID(__ev) == UINT64_MAX);             \
         assert((__ev)->manage_payload_buf == false);          \
+        assert((__ev)->explicit_return == false);             \
         assert((__ev)->dest.ep == NULL);                      \
         assert((__ev)->dest.id == UINT64_MAX);                \
         if ((__ev)->sub_events_initialized)                   \
         {                                                     \
             assert(ucs_list_is_empty(&((__ev)->sub_events))); \
         }                                                     \
+        assert((__ev)->is_subevent == false);                 \
+        assert((__ev)->is_ongoing_event == false);            \
+        assert((__ev)->was_posted == false);                  \
     } while (0)
 #else
 #define CHECK_EVENT(__ev)                                     \
@@ -1278,16 +1315,18 @@ typedef struct dpu_offload_event
     {                                                         \
         assert((__ev)->ctx.hdr_completed == 0);               \
         assert((__ev)->ctx.payload_completed == 0);           \
-        assert((__ev)->ctx.hdr.payload_size == 0);            \
-        assert((__ev)->ctx.hdr.type == UINT64_MAX);           \
-        assert((__ev)->ctx.hdr.id == UINT64_MAX);             \
+        assert(EVENT_HDR_PAYLOAD_SIZE(__ev) == 0);            \
+        assert(EVENT_HDR_TYPE(__ev) == UINT64_MAX);           \
+        assert(EVENT_HDR_ID(__ev) == UINT64_MAX);             \
         assert((__ev)->manage_payload_buf == false);          \
+        assert((__ev)->explicit_return == false);             \
         assert((__ev)->dest.ep == NULL);                      \
         assert((__ev)->dest.id == UINT64_MAX);                \
         if ((__ev)->sub_events_initialized)                   \
         {                                                     \
             assert(ucs_list_is_empty(&((__ev)->sub_events))); \
         }                                                     \
+        assert((__ev)->was_posted == false);                  \
     } while (0)
 #endif
 
@@ -1295,6 +1334,9 @@ typedef struct dpu_offload_event_info
 {
     // Size of the payload that the library needs to be managing. If 0 not payload needs to be managed
     size_t payload_size;
+
+    // Specify whether the user will explicitely return the event once done or not
+    bool explicit_return;
 } dpu_offload_event_info_t;
 
 typedef enum
@@ -1817,7 +1859,8 @@ dpu_offload_status_t find_config_from_platform_configfile(char *, char *, offloa
 
 typedef enum
 {
-    AM_TERM_MSG_ID = 33, // 33 to make it easier to see corruptions (dbg)
+    META_EVENT_TYPE = 32, // 32 to make it easier to see corruptions (dbg)
+    AM_TERM_MSG_ID = 33, 
     AM_EVENT_MSG_ID,
     AM_EVENT_MSG_HDR_ID, // 35
     AM_OP_START_MSG_ID,

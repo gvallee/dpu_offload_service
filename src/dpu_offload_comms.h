@@ -9,6 +9,8 @@
 #ifndef DPU_OFFLOAD_COMMS_H_
 #define DPU_OFFLOAD_COMMS_H_
 
+#define MAX_POSTED_SENDS (1)
+
 /* All the tag related code has been taken from UCC */
 
 /* Reflects the definition in UCS - The i-th bit */
@@ -107,6 +109,104 @@
             (_scope_id));                                                                                                                  \
     } while (0)
 
+#define CAN_POST(_event_system) ({                        \
+    bool _can_post = false;                               \
+    if ((_event_system)->posted_sends < MAX_POSTED_SENDS) \
+        _can_post = true;                                 \
+    _can_post;                                            \
+})
+
+// TODO: same for AM
+#define PROGRESS_EVENT_SEND(__ev)                                                                \
+    do                                                                                           \
+    {                                                                                            \
+        /* if we can post more events and the event is not posted yet, try to send it. */        \
+        if (!event_completed((__ev)) && CAN_POST((__ev)->event_system) && !event_posted((__ev))) \
+        {                                                                                        \
+            int rc;                                                                              \
+            rc = do_tag_send_event_msg((__ev));                                                  \
+        }                                                                                        \
+        /* Now check if it is completed */                                                       \
+        if (event_completed((__ev)))                                                             \
+        {                                                                                        \
+            if ((__ev)->is_ongoing_event && (__ev)->is_subevent)                                 \
+                ERR_MSG("sub-event %p %ld also on the ongoing list", (__ev), (__ev)->seq_num);   \
+            ucs_list_del(&((__ev)->item));                                                       \
+            if ((__ev)->is_ongoing_event)                                                        \
+                (__ev)->is_ongoing_event = false;                                                \
+            if ((__ev)->is_subevent)                                                             \
+                (__ev)->is_subevent = false;                                                     \
+            if ((__ev)->was_posted)                                                              \
+            {                                                                                    \
+                (__ev)->event_system->posted_sends--;                                            \
+                (__ev)->was_posted = false;                                                      \
+            }                                                                                    \
+            event_return(&(__ev));                                                               \
+        }                                                                                        \
+    } while(0)
+
+static bool event_posted(dpu_offload_event_t *ev)
+{
+    if (ev->ctx.hdr_completed == false && ev->hdr_request != NULL && EVENT_HDR_PAYLOAD_SIZE(ev) == 0)
+    {
+        // The send for the header is posted (and not completed) and no payload needs to be sent
+        return true;
+    }
+    
+    if (ev->ctx.hdr_completed == true &&
+        ev->hdr_request == NULL &&
+        EVENT_HDR_PAYLOAD_SIZE(ev) > 0 &&
+        ev->ctx.payload_completed == false &&
+        ev->payload_request != NULL)
+    {
+        // The send for the header completed and the send for the payload was posted and not yet completed
+        return true;
+    }
+
+    return false;
+}
+
+static void progress_econtext_sends(execution_context_t *ctx)
+{
+    dpu_offload_event_t *ev, *next_ev;
+    ucs_list_for_each_safe(ev, next_ev, &(ctx->ongoing_events), item)
+    {
+        if (ev->is_ongoing_event == false)
+        {
+            ERR_MSG("Ev %p type %ld is not on ongoing list", ev, EVENT_HDR_TYPE(ev));
+            assert(0);
+        }
+        assert(ev->is_ongoing_event == true);       
+        if (EVENT_HDR_TYPE(ev) == META_EVENT_TYPE)
+        {
+            // if the event is meta-event, we need to check the sub-events
+            dpu_offload_event_t *subev, *next_subev;
+            ucs_list_for_each_safe(subev, next_subev, (&(ev->sub_events)), item)
+            {
+                PROGRESS_EVENT_SEND(subev);
+            }
+
+            // Finally check if the meta-event is now completed
+            if (event_completed(ev))
+            {
+                assert(ev->is_ongoing_event);
+                ucs_list_del(&(ev->item));
+                ev->is_ongoing_event = false;
+                if (ev->was_posted)
+                {
+                    ev->event_system->posted_sends--;
+                    ev->was_posted = false;
+                }
+                event_return(&ev);
+            }
+        }
+        else
+        {
+            PROGRESS_EVENT_SEND(ev);
+        }
+    }
+}
+
 /**
  * @brief Note: the function assumes that:
  * - the execution context is not locked before the function is invoked
@@ -201,9 +301,8 @@ static void notif_payload_recv_handler(void *request, ucs_status_t status, const
     assert(ctx);
     assert(ctx->econtext);
     DBG("Notification payload received, ctx=%p econtext=%p type=%ld", ctx, ctx->econtext, ctx->hdr.type);
-    ctx->payload_ctx.complete = true;
-
     assert(ctx->hdr.payload_size == tag_info->length);
+    ctx->payload_ctx.complete = true;
 
     // Invoke the associated callback
     rc = handle_notif_msg(ctx->econtext, &(ctx->hdr), sizeof(am_header_t), ctx->payload_ctx.buffer, ctx->hdr.payload_size);
@@ -214,22 +313,20 @@ static void notif_payload_recv_handler(void *request, ucs_status_t status, const
         return;
     }
 
-    // Once the callback invoked, we can safely free the payload
-    if (ctx->hdr.payload_size)
-    {
-        free(ctx->payload_ctx.buffer);
-        ctx->payload_ctx.buffer = NULL;
-    }
+    // Payload is freed when the event is returned
     if (ctx->req != NULL)
     {
+        assert(ctx->complete == true);
         ucp_request_free(ctx->req);
         ctx->req = NULL;
     }
     if (ctx->payload_ctx.req != NULL)
     {
+        assert(ctx->payload_ctx.complete == true);
         ucp_request_free(ctx->payload_ctx.req);
         ctx->payload_ctx.req = NULL;
     }
+    ctx->payload_ctx.complete = true;
 }
 
 /**
@@ -238,9 +335,11 @@ static void notif_payload_recv_handler(void *request, ucs_status_t status, const
  * @param ctx
  * @param econtext
  * @param peer_id
+ * @return EVENT_DONE if the receive completed right away; EVENT_INPROGRESS otherwise
  */
-static void post_recv_for_notif_payload(hdr_notif_req_t *ctx, execution_context_t *econtext, uint64_t peer_id)
+static int post_recv_for_notif_payload(hdr_notif_req_t *ctx, execution_context_t *econtext, uint64_t peer_id)
 {
+    int rc = EVENT_INPROGRESS;
     assert(ctx);
     assert(econtext);
     DBG("Notification header received, payload size = %ld, type = %ld, econtext = %p-%p, ctx = %p",
@@ -255,7 +354,7 @@ static void post_recv_for_notif_payload(hdr_notif_req_t *ctx, execution_context_
     if (ctx->hdr.payload_size > 0 && ctx->payload_ctx.req != NULL)
     {
         WARN_MSG("We got a new header but still waiting for a previous notification payload");
-        return;
+        return EVENT_INPROGRESS;
     }
 
     if (ctx->hdr.payload_size > 0)
@@ -296,44 +395,46 @@ static void post_recv_for_notif_payload(hdr_notif_req_t *ctx, execution_context_
             if (rc != UCS_OK)
             {
                 ERR_MSG("handle_notif_msg() failed");
-                assert(0); // fail when in debug mode
-                return;
+                return -1;
             }
 
-            if (ctx->hdr.payload_size)
-            {
-                free(ctx->payload_ctx.buffer);
-                ctx->payload_ctx.buffer = NULL;
-            }
+            // Payload is freed when the event is returned
             if (ctx->req != NULL)
             {
+                assert(ctx->complete == true);
                 ucp_request_free(ctx->req);
                 ctx->req = NULL;
             }
             if (ctx->payload_ctx.req != NULL)
             {
+                assert(ctx->payload_ctx.complete == true);
                 ucp_request_free(ctx->payload_ctx.req);
                 ctx->payload_ctx.req = NULL;
             }
+            rc = EVENT_DONE;
         }
+        else
+            rc = EVENT_INPROGRESS;
 
         if (UCS_PTR_IS_ERR(ctx->payload_ctx.req))
         {
             ucs_status_t recv_status = UCS_PTR_STATUS(ctx->payload_ctx.req);
             ERR_MSG("ucp_tag_recv_nbx() failed: %s", ucs_status_string(recv_status));
+            return -1;
         }
     }
     else
     {
         // No payload to be received
+        ctx->payload_ctx.complete = true;
         int rc = handle_notif_msg(econtext, &(ctx->hdr), sizeof(am_header_t), NULL, 0);
         if (rc != UCS_OK)
         {
             ERR_MSG("handle_notif_msg() failed\n");
-            assert(0);
-            return;
+            return -1;
         }
 
+        // Payload is freed when the event is returned
         if (ctx->req != NULL)
         {
             ucp_request_free(ctx->req);
@@ -344,7 +445,10 @@ static void post_recv_for_notif_payload(hdr_notif_req_t *ctx, execution_context_
             ucp_request_free(ctx->payload_ctx.req);
             ctx->payload_ctx.req = NULL;
         }
+
+        rc = EVENT_DONE;
     }
+    return rc;
 }
 
 /**
@@ -356,9 +460,11 @@ static void post_recv_for_notif_payload(hdr_notif_req_t *ctx, execution_context_
  * @param hdr_ucp_tag
  * @param hdr_ucp_tag_mask
  * @param hdr_recv_param
+ * @return EVENT_DONE if the receive completed right away; EVENT_INPROGRESS otherwise
  */
-static void post_new_notif_recv(ucp_worker_h worker, hdr_notif_req_t *ctx, execution_context_t *econtext, ucp_tag_t hdr_ucp_tag, ucp_tag_t hdr_ucp_tag_mask, ucp_request_param_t *hdr_recv_param)
+static int post_new_notif_recv(ucp_worker_h worker, hdr_notif_req_t *ctx, execution_context_t *econtext, ucp_tag_t hdr_ucp_tag, ucp_tag_t hdr_ucp_tag_mask, ucp_request_param_t *hdr_recv_param)
 {
+    int rc = EVENT_INPROGRESS;
 #if !NDEBUG
     if (econtext->engine->on_dpu && econtext->scope_id == SCOPE_INTER_DPU)
     {
@@ -387,13 +493,15 @@ static void post_new_notif_recv(ucp_worker_h worker, hdr_notif_req_t *ctx, execu
             // Receive completed immediately, callback is not called
             DBG("Recv of notification header completed right away, notif type: %ld", ctx->hdr.type);
             ctx->complete = true;
-            post_recv_for_notif_payload(ctx, (execution_context_t *)ctx->econtext, ctx->hdr.id);
+            rc = post_recv_for_notif_payload(ctx, (execution_context_t *)ctx->econtext, ctx->hdr.id);
         }
         else
         {
             ctx->req = req;
+            rc = EVENT_INPROGRESS;
         }
     }
+    return rc;
 }
 
 /**

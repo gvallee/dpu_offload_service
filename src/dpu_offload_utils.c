@@ -72,19 +72,17 @@ bool group_cache_populated(offloading_engine_t *engine, int64_t gp_id)
     return false;
 }
 
-dpu_offload_status_t send_cache_entry_request(execution_context_t *econtext, ucp_ep_h ep, uint64_t dest_id, rank_info_t *requested_peer, dpu_offload_event_t **ev)
-{
-    dpu_offload_event_t *cache_entry_request_ev;
-    dpu_offload_status_t rc;
-    rc = event_get(econtext->event_channels, NULL, &cache_entry_request_ev);
-    CHECK_ERR_RETURN((rc), DO_ERROR, "event_get() failed");
 
+
+dpu_offload_status_t do_send_cache_entry_request(execution_context_t *econtext, ucp_ep_h ep, uint64_t dest_id, rank_info_t *requested_peer, dpu_offload_event_t *ev)
+{
+    int rc;
     DBG("Sending cache entry request for rank:%ld/gp:%ld (econtext: %p, scope_id: %d)",
         requested_peer->group_rank,
         requested_peer->group_id,
         econtext,
         econtext->scope_id);
-    rc = event_channel_emit_with_payload(&cache_entry_request_ev,
+    rc = event_channel_emit_with_payload(&ev,
                                          AM_PEER_CACHE_ENTRIES_REQUEST_MSG_ID,
                                          ep,
                                          dest_id,
@@ -92,23 +90,36 @@ dpu_offload_status_t send_cache_entry_request(execution_context_t *econtext, ucp
                                          requested_peer,
                                          sizeof(rank_info_t));
     CHECK_ERR_RETURN((rc != EVENT_DONE && rc != EVENT_INPROGRESS), DO_ERROR, "event_channel_emit_with_payload() failed");
-
-    *ev = cache_entry_request_ev;
     return DO_SUCCESS;
 }
 
-dpu_offload_status_t send_cache_entry(execution_context_t *econtext, ucp_ep_h ep, uint64_t dest_id, peer_cache_entry_t *cache_entry, dpu_offload_event_t **ev)
-{
-    dpu_offload_event_t *send_cache_entry_ev;
-    dpu_offload_status_t rc = event_get(econtext->event_channels, NULL, &send_cache_entry_ev);
-    CHECK_ERR_RETURN((rc), DO_ERROR, "event_get() failed");
 
+dpu_offload_status_t send_cache_entry_request(execution_context_t *econtext, ucp_ep_h ep, uint64_t dest_id, rank_info_t *requested_peer, dpu_offload_event_t **ev)
+{
+    dpu_offload_event_t *cache_entry_request_ev;
+    dpu_offload_status_t rc;
+    rc = event_get(econtext->event_channels, NULL, &cache_entry_request_ev);
+    CHECK_ERR_GOTO((rc), error_out, "event_get() failed");
+
+    rc = do_send_cache_entry_request(econtext, ep, dest_id, requested_peer, cache_entry_request_ev);
+    CHECK_ERR_GOTO((rc), error_out, "do_send_cache_entry_request() failed");
+
+    *ev = cache_entry_request_ev;
+    return DO_SUCCESS;
+error_out:
+    *ev = NULL;
+    return DO_ERROR;
+}
+
+dpu_offload_status_t do_send_cache_entry(execution_context_t *econtext, ucp_ep_h ep, uint64_t dest_id, peer_cache_entry_t *cache_entry, dpu_offload_event_t *ev)
+{
+    int rc;
     DBG("Sending cache entry for rank:%" PRId64 "/gp:%" PRId64 " (msg size=%ld, notif type=%d)",
         cache_entry->peer.proc_info.group_rank,
         cache_entry->peer.proc_info.group_id,
         sizeof(peer_cache_entry_t),
         AM_PEER_CACHE_ENTRIES_MSG_ID);
-    rc = event_channel_emit_with_payload(&send_cache_entry_ev,
+    rc = event_channel_emit_with_payload(&ev,
                                          AM_PEER_CACHE_ENTRIES_MSG_ID,
                                          ep,
                                          dest_id,
@@ -130,17 +141,32 @@ dpu_offload_status_t send_cache_entry(execution_context_t *econtext, ucp_ep_h ep
         DBG("cache entry send posted");
     }
 #endif
+    return DO_SUCCESS;
+}
 
+dpu_offload_status_t send_cache_entry(execution_context_t *econtext, ucp_ep_h ep, uint64_t dest_id, peer_cache_entry_t *cache_entry, dpu_offload_event_t **ev)
+{
+    dpu_offload_event_t *send_cache_entry_ev;
+    dpu_offload_status_t rc = event_get(econtext->event_channels, NULL, &send_cache_entry_ev);
+    CHECK_ERR_GOTO((rc), error_out, "event_get() failed");
+    rc = do_send_cache_entry(econtext, ep, dest_id, cache_entry, send_cache_entry_ev);
+    CHECK_ERR_GOTO((rc), error_out, "do_send_cache_entry() failed");
     *ev = send_cache_entry_ev;
     return DO_SUCCESS;
+error_out:
+    *ev = NULL;
+    return DO_ERROR;
 }
 
 dpu_offload_status_t send_group_cache(execution_context_t *econtext, ucp_ep_h dest_ep, uint64_t dest_id, int64_t gp_id, dpu_offload_event_t *metaev)
 {
     size_t i;
+    int rc;
     group_cache_t *gp_cache;
     assert(econtext);
     assert(econtext->engine);
+    assert(metaev);
+    assert(EVENT_HDR_TYPE(metaev) == META_EVENT_TYPE);
     gp_cache = (group_cache_t *)econtext->engine->procs_cache.data.base;
     assert(gp_cache);
     if (!gp_cache[gp_id].initialized)
@@ -160,18 +186,14 @@ dpu_offload_status_t send_group_cache(execution_context_t *econtext, ucp_ep_h de
                 metaev,
                 econtext->scope_id);
             dpu_offload_event_t *e;
-            dpu_offload_status_t rc = send_cache_entry(econtext, dest_ep, dest_id, cache_entry, &e);
+            rc = event_get(econtext->event_channels, NULL, &e);
+            CHECK_ERR_RETURN((rc), DO_ERROR, "event_get() failed");
+            e->is_subevent = true;
+            dpu_offload_status_t rc = do_send_cache_entry(econtext, dest_ep, dest_id, cache_entry, e);
             CHECK_ERR_RETURN((rc), DO_ERROR, "send_cache_entry() failed");
             if (e != NULL)
             {
-                // If the event did not complete right away, we add it as a sub-event to the meta-event so we can track everything
-                if (!metaev->sub_events_initialized)
-                {
-                    ucs_list_head_init(&(metaev->sub_events));
-                    metaev->sub_events_initialized = true;
-                }
-                DBG("Adding sub-event %p to main event %p", e, metaev);
-                ucs_list_add_tail(&(metaev->sub_events), &(e->item));
+                QUEUE_SUBEVENT(metaev, e);
             }
             else
             {
@@ -190,6 +212,7 @@ dpu_offload_status_t send_cache(execution_context_t *econtext, cache_t *cache, u
     group_cache_t *groups_cache = (group_cache_t *)cache->data.base;
     size_t i;
     assert(metaevt);
+    assert(EVENT_HDR_TYPE(metaevt) == META_EVENT_TYPE);
     for (i = 0; i < cache->data.num_elts; i++)
     {
         if (groups_cache[i].initialized)
@@ -273,6 +296,7 @@ dpu_offload_status_t broadcast_group_cache(offloading_engine_t *engine, int64_t 
     for (i = 0; i < engine->num_dpus; i++)
     {
         dpu_offload_status_t rc;
+        // Meta-event to be used to track all that need to happen
         dpu_offload_event_t *ev;
         ucp_ep_h dest_ep;
         uint64_t dest_id = i;
@@ -289,6 +313,7 @@ dpu_offload_status_t broadcast_group_cache(offloading_engine_t *engine, int64_t 
         assert(list_dpus[i]->econtext);
         event_get(list_dpus[i]->econtext->event_channels, NULL, &ev);
         assert(ev);
+        EVENT_HDR_TYPE(ev) = META_EVENT_TYPE;
         dest_ep = GET_REMOTE_DPU_EP(engine, i);
         DBG("Sending group cache to DPU #%ld (econtext: %p)", i, list_dpus[i]->econtext);
         // If the econtext is a client to connect to a server, the dest_id is the index;
@@ -296,10 +321,8 @@ dpu_offload_status_t broadcast_group_cache(offloading_engine_t *engine, int64_t 
         if (list_dpus[i]->econtext->type == CONTEXT_SERVER)
             dest_id = list_dpus[i]->client_id;
         rc = send_group_cache(list_dpus[i]->econtext, dest_ep, dest_id, group_id, ev);
-        CHECK_ERR_RETURN((rc), DO_ERROR, "exchange_cache() failed");
-        // We do not want to explicitly deal with the event so we put it
-        // on the list of ongoing events
-        ucs_list_add_tail(&(list_dpus[i]->econtext->ongoing_events), &(ev->item));
+        CHECK_ERR_RETURN((rc), DO_ERROR, "send_group_cache() failed");
+        QUEUE_EVENT(ev);
     }
     return DO_SUCCESS;
 }
@@ -353,6 +376,7 @@ static dpu_offload_status_t do_get_cache_entry_by_group_rank(offloading_engine_t
         ucs_list_head_init(&(cache_entry->events));
         cache_entry->events_initialized = true;
     }
+    EVENT_HDR_TYPE(cache_entry_updated_ev) = META_EVENT_TYPE;
     ucs_list_add_tail(&(cache_entry->events), &(cache_entry_updated_ev->item));
     DBG("Cache entry %p for gp/rank %" PRIu64 "/%" PRIu64 " now has %ld update events",
         cache_entry, gp_id, rank, ucs_list_length(&(cache_entry->events)));
@@ -378,7 +402,8 @@ static dpu_offload_status_t do_get_cache_entry_by_group_rank(offloading_engine_t
         request_data->offload_engine = engine;
         cache_entry_updated_ev->ctx.completion_cb = cb;
         cache_entry_updated_ev->ctx.completion_cb_ctx = (void *)request_data;
-        ucs_list_add_tail(&(engine->self_econtext->ongoing_events), &(cache_entry_updated_ev->item));
+        assert(0); // FIXME: events cannot be on two lists
+        //ucs_list_add_tail(&(engine->self_econtext->ongoing_events), &(cache_entry_updated_ev->item));
     }
 
     if (engine->on_dpu == true)
@@ -408,22 +433,21 @@ static dpu_offload_status_t do_get_cache_entry_by_group_rank(offloading_engine_t
                     meta_econtext = econtext;
                     rc = event_get(meta_econtext->event_channels, NULL, &metaev);
                     CHECK_ERR_RETURN((rc), DO_ERROR, "get_event() failed");
+                    EVENT_HDR_TYPE(metaev) = META_EVENT_TYPE;
                 }
 
                 ucp_ep_h dpu_ep = list_dpus[i]->ep;
                 dpu_offload_event_t *subev;
-                rc = send_cache_entry_request(econtext, dpu_ep, i, &rank_data, &subev);
+                rc = event_get(econtext->event_channels, NULL, &subev);
+                CHECK_ERR_RETURN((rc), DO_ERROR, "event_get() failed");
+                subev->is_subevent = true;
+                rc = do_send_cache_entry_request(econtext, dpu_ep, i, &rank_data, subev);
                 CHECK_ERR_RETURN((rc), DO_ERROR, "send_cache_entry_request() failed");
                 DBG("Sub-event for sending cache to DPU %ld: %p", i, subev);
                 if (subev != NULL)
                 {
                     // If the event did not complete right away, we add it as a sub-event to the meta-event so we can track everything
-                    if (metaev->sub_events_initialized == false)
-                    {
-                        ucs_list_head_init(&(metaev->sub_events));
-                        metaev->sub_events_initialized = true;
-                    }
-                    ucs_list_add_tail(&(metaev->sub_events), &(subev->item));
+                    QUEUE_SUBEVENT(metaev, subev);
                 }
             }
         }
@@ -431,7 +455,7 @@ static dpu_offload_status_t do_get_cache_entry_by_group_rank(offloading_engine_t
         {
             assert(meta_econtext);
             if (!event_completed(metaev))
-                ucs_list_add_tail(&(meta_econtext->ongoing_events), &(metaev->item));
+                QUEUE_EVENT(metaev);
         }
     }
     else
@@ -454,14 +478,17 @@ dpu_offload_status_t get_dpu_id_by_group_rank(offloading_engine_t *engine, int64
     return do_get_cache_entry_by_group_rank(engine, gp_id, rank, dpu_idx, NULL, dpu_id, ev);
 }
 
-dpu_offload_status_t get_dpu_ep_by_id(offloading_engine_t *engine, uint64_t id, ucp_ep_h *dpu_ep, execution_context_t **econtext_comm, uint64_t *comm_id)
+dpu_offload_status_t get_dpu_ep_by_id(offloading_engine_t *engine, uint64_t dpu_id, ucp_ep_h *dpu_ep, execution_context_t **econtext_comm, uint64_t *comm_id)
 {
     remote_dpu_info_t **list_dpus;
     CHECK_ERR_RETURN((engine == NULL), DO_ERROR, "engine is undefined");
-    CHECK_ERR_RETURN((id >= engine->num_dpus), DO_ERROR, "request DPU #%ld but only %ld DPUs are known", id, engine->num_dpus);
+    CHECK_ERR_RETURN((dpu_id >= engine->num_dpus),
+                     DO_ERROR,
+                     "request DPU #%ld but only %ld DPUs are known",
+                     dpu_id, engine->num_dpus);
     list_dpus = LIST_DPUS_FROM_ENGINE(engine);
-    DBG("Looking up entry for DPU #%" PRIu64, id);
-    if (list_dpus != NULL && list_dpus[id] == NULL)
+    DBG("Looking up entry for DPU #%" PRIu64, dpu_id);
+    if (list_dpus != NULL && list_dpus[dpu_id] == NULL)
     {
         *dpu_ep = NULL;
         *econtext_comm = NULL;
@@ -469,19 +496,41 @@ dpu_offload_status_t get_dpu_ep_by_id(offloading_engine_t *engine, uint64_t id, 
         // This is not an error, just that the data is not yet available.
         return DO_SUCCESS;
     }
-    *dpu_ep = GET_REMOTE_DPU_EP(engine, id);
-    *econtext_comm = GET_REMOTE_DPU_ECONTEXT(engine, id);
-    if ((*econtext_comm)->type == CONTEXT_SERVER)
+
+    // If not, we find the appropriate client or server
+    *dpu_ep = GET_REMOTE_DPU_EP(engine, dpu_id);
+    *econtext_comm = GET_REMOTE_DPU_ECONTEXT(engine, dpu_id);
+    switch ((*econtext_comm)->type)
     {
+    case CONTEXT_SERVER:
         // If the DPU is a local client, we cannot use the global DPU ID,
         // we have to look up the local ID that can be used to send notifications.
-        remote_dpu_info_t **list_dpus = LIST_DPUS_FROM_ENGINE(engine);
         assert(list_dpus);
-        *comm_id = list_dpus[id]->client_id;
+        *comm_id = list_dpus[dpu_id]->client_id;
+        break;
+    case CONTEXT_CLIENT:
+        *comm_id = dpu_id;
+        break;
+    case CONTEXT_SELF:
+        *comm_id = 0;
+        break;
+    default:
+        *comm_id = UINT64_MAX;
     }
-    else
-        *comm_id = id;
-    DBG("Details to communicate with DPU #%" PRIu64": econtext=%p ep=%p comm_id=%" PRIu64, id, *econtext_comm, *dpu_ep, *comm_id);
+    
+    DBG("Details to communicate with DPU #%" PRIu64": econtext=%p ep=%p comm_id=%" PRIu64, dpu_id, *econtext_comm, *dpu_ep, *comm_id);
+
+#if !NDEBUG
+    // Some checks in debug mode if the destination is really self
+    if (dpu_id == engine->config->local_dpu.id)
+    {
+        assert(*econtext_comm == engine->self_econtext);
+        assert(*comm_id == 0);
+    }
+#endif
+    assert(*econtext_comm);
+    assert(*dpu_ep);
+    assert(*comm_id != UINT64_MAX);
     return DO_SUCCESS;
 }
 
@@ -613,6 +662,8 @@ bool parse_line_dpu_version_1(offloading_config_t *data, char *line)
 
     // The host's name does not really matter here, moving to the DPU(s) configuration
     token = strtok_r(rest_line, ",", &rest_line);
+    if (token == NULL)
+        ERR_MSG("unable to parse: %s", line);
     assert(token);
     while (token != NULL)
     {

@@ -63,7 +63,6 @@ static int send_test_successful_message(execution_context_t *econtext, uint64_t 
     }
     if (rc == EVENT_INPROGRESS)
     {
-        ucs_list_add_tail(&(econtext->ongoing_events), &(evt->item));
         while (!ucs_list_is_empty(&(econtext->ongoing_events)))
         {
             econtext->progress(econtext);
