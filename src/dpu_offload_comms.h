@@ -129,7 +129,12 @@
         /* Now check if it is completed */                                                       \
         if (event_completed((__ev)))                                                             \
         {                                                                                        \
+            assert(!((__ev)->is_ongoing_event) && ((__ev)->is_subevent));                        \
             ucs_list_del(&((__ev)->item));                                                       \
+            if ((__ev)->is_ongoing_event)                                                        \
+                (__ev)->is_ongoing_event = false;                                                \
+            if ((__ev)->is_subevent)                                                             \
+                (__ev)->is_subevent = false;                                                     \
             if ((__ev)->was_posted)                                                              \
                 (__ev)->event_system->posted_sends--;                                            \
             event_return(&(__ev));                                                               \
@@ -163,7 +168,10 @@ static void progress_econtext_sends(execution_context_t *ctx)
     ucs_list_for_each_safe(ev, next_ev, &(ctx->ongoing_events), item)
     {
         if (ev->is_ongoing_event == false)
+        {
             ERR_MSG("Ev %p type %ld is not on ongoing list", ev, EVENT_HDR_TYPE(ev));
+            assert(0);
+        }
         assert(ev->is_ongoing_event == true);       
         if (EVENT_HDR_TYPE(ev) == META_EVENT_TYPE)
         {

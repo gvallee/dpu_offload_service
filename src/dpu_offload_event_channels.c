@@ -786,7 +786,8 @@ dpu_offload_status_t event_return(dpu_offload_event_t **ev)
     }
     if ((*ev)->is_ongoing_event)
     {
-        ERR_MSG("event %p is still on the ongoing list, which is prohibited", *ev);
+        ERR_MSG("event %p (#%ld, type: %ld) is still on the ongoing list, which is prohibited",
+                *ev, (*ev)->seq_num, EVENT_HDR_TYPE(*ev));
         return DO_ERROR;
     }
     assert(!((*ev)->is_ongoing_event));
