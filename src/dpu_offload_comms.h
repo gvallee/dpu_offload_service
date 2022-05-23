@@ -182,6 +182,17 @@ static void progress_econtext_sends(execution_context_t *ctx)
             {
                 PROGRESS_EVENT_SEND(subev);
             }
+
+            // Finally check if the meta-event is now completed
+            if (event_completed(ev))
+            {
+                assert(ev->is_ongoing_event);
+                ucs_list_del(&(ev->item));
+                ev->is_ongoing_event = false;
+                if (ev->was_posted)
+                    ev->event_system->posted_sends--;
+                event_return(&ev);
+            }
         }
         else
         {
