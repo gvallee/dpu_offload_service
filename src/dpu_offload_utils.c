@@ -519,7 +519,6 @@ dpu_offload_status_t get_dpu_ep_by_id(offloading_engine_t *engine, uint64_t dpu_
     }
     
     DBG("Details to communicate with DPU #%" PRIu64": econtext=%p ep=%p comm_id=%" PRIu64, dpu_id, *econtext_comm, *dpu_ep, *comm_id);
-    fprintf(stderr, "Details to communicate with DPU #%" PRIu64": econtext=%p ep=%p comm_id=%" PRIu64 "\n", dpu_id, *econtext_comm, *dpu_ep, *comm_id);
 
 #if !NDEBUG
     // Some checks in debug mode if the destination is really self
