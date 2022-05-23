@@ -425,6 +425,7 @@ int do_tag_send_event_msg(dpu_offload_event_t *event)
         }
         else
         {
+            assert(event->was_posted == false);
             event->was_posted = true;
             event->event_system->posted_sends++;
         }
@@ -471,8 +472,11 @@ int do_tag_send_event_msg(dpu_offload_event_t *event)
             {
                 // The send did not complete right away
                 event->payload_request = payload_request;
-                event->was_posted = true;
-                event->event_system->posted_sends++;
+                if (event->was_posted == false)
+                {
+                    event->was_posted = true;
+                    event->event_system->posted_sends++;
+                }
             }
             else
             {
@@ -734,6 +738,7 @@ static dpu_offload_status_t do_event_return(dpu_offload_event_t *ev)
 {
     assert(ev);
     assert(ev->event_system);
+    assert(ev->was_posted == false);
     if (ev->req)
     {
         WARN_MSG("returning event %p but it is still in progress", ev);
