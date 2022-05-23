@@ -129,7 +129,8 @@
         /* Now check if it is completed */                                                       \
         if (event_completed((__ev)))                                                             \
         {                                                                                        \
-            assert(!((__ev)->is_ongoing_event) && ((__ev)->is_subevent));                        \
+            if ((__ev)->is_ongoing_event && (__ev)->is_subevent)                                 \
+                ERR_MSG("sub-event %p %ld also on the ongoing list", (__ev), (__ev)->seq_num);   \
             ucs_list_del(&((__ev)->item));                                                       \
             if ((__ev)->is_ongoing_event)                                                        \
                 (__ev)->is_ongoing_event = false;                                                \
