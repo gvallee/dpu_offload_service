@@ -726,7 +726,6 @@ dpu_offload_status_t event_get(dpu_offload_ev_sys_t *ev_sys, dpu_offload_event_i
 
 out:
     DBG("Got event #%" PRIu64 " (%p) from list %p (scope_id: %d)", _ev->seq_num, _ev, ev_sys->free_evs, _ev->scope_id);
-
     *ev = _ev;
     return DO_SUCCESS;
 }
@@ -844,7 +843,7 @@ bool event_completed(dpu_offload_event_t *ev)
             }
         }
 
-        if (ucs_list_is_empty(&(ev->sub_events)) && ev->req == NULL)
+        if (ucs_list_is_empty(&(ev->sub_events)))
         {
             DBG("All sub-events completed");
             goto event_completed;
