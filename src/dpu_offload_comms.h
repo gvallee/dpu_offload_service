@@ -9,7 +9,7 @@
 #ifndef DPU_OFFLOAD_COMMS_H_
 #define DPU_OFFLOAD_COMMS_H_
 
-#define MAX_POSTED_SENDS (1)
+#define MAX_POSTED_SENDS (8)
 
 /* All the tag related code has been taken from UCC */
 
@@ -116,7 +116,7 @@
     _can_post;                                            \
 })
 
-// TODO: same for AM
+// TODO: same for UCX AM
 #define PROGRESS_EVENT_SEND(__ev)                                                                \
     do                                                                                           \
     {                                                                                            \
@@ -179,6 +179,7 @@ static void progress_econtext_sends(execution_context_t *ctx)
         assert(ev->is_ongoing_event == true);       
         if (EVENT_HDR_TYPE(ev) == META_EVENT_TYPE)
         {
+            assert(ev->sub_events_initialized);
             // if the event is meta-event, we need to check the sub-events
             dpu_offload_event_t *subev, *next_subev;
             ucs_list_for_each_safe(subev, next_subev, (&(ev->sub_events)), item)

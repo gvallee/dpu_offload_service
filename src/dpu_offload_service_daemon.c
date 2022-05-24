@@ -1189,35 +1189,19 @@ static void progress_event_recv(execution_context_t *econtext)
 #endif
 }
 
+/**
+ * @brief Sends the entire group cache to the local ranks, assuming the local ranks are forming the entire group.
+ * 
+ * @param econtext 
+ * @param group_id 
+ * @return dpu_offload_status_t 
+ */
 static dpu_offload_status_t send_group_cache_to_local_ranks(execution_context_t *econtext, int64_t group_id)
 {
-    size_t n = 0, idx = 0;
-    assert(econtext->type == CONTEXT_SERVER);
-    assert(econtext->scope_id == SCOPE_HOST_DPU);
     DBG("Cache for group %ld is now complete, sending it to the local ranks (scope_id: %d, num connected clients: %ld)",
         group_id, econtext->scope_id, econtext->server->connected_clients.num_connected_clients);
-    while (n < econtext->server->connected_clients.num_connected_clients)
-    {
-        dpu_offload_event_t *metaev;
-        peer_info_t *c = DYN_ARRAY_GET_ELT(&(econtext->server->connected_clients.clients), idx, peer_info_t);
-        if (c == NULL)
-        {
-            idx++;
-            continue;
-        }
-        DBG("Send cache to client #%ld (id: %"PRIu64")", idx, c->id);
-        dpu_offload_status_t rc = event_get(econtext->event_channels, NULL, &metaev);
-        if (rc != DO_SUCCESS)
-            ERR_MSG("event_get() failed"); // todo: better handle errors
-        assert(metaev);
-        EVENT_HDR_TYPE(metaev) = META_EVENT_TYPE;
-        rc = send_group_cache(econtext, c->ep, c->id, group_id, metaev);
-        if (rc != DO_SUCCESS)
-            ERR_MSG("send_group_cache() failed"); // todo: better handler errors
-        QUEUE_EVENT(metaev);
-        n++;
-        idx++;
-    }
+    dpu_offload_status_t rc = send_gp_cache_to_host(econtext, group_id);
+    CHECK_ERR_RETURN((rc), DO_ERROR, "send_gp_cache_to_host() failed");  
     return DO_SUCCESS;
 }
 
@@ -1257,11 +1241,10 @@ void local_rank_connect_default_callback(void *data)
     assert(connected_peer->econtext->engine);
     gc = GET_GROUP_CACHE(&(connected_peer->econtext->engine->procs_cache), group_id);
     assert(gc);
-
-    DBG("Checking group %" PRId64 " (number of local entries: %ld)", group_id, gc->num_local_entries);
-
+    assert(gc->n_local_ranks_populated <= gc->group_size);
+    DBG("Checking group %" PRId64 " (number of local entries: %ld)", group_id, gc->n_local_ranks_populated);
     // If the cache is full, i.e., all the ranks of the group are on the host, send it back to all ranks
-    if (gc->group_size == gc->num_local_entries)
+    if (gc->group_size == gc->n_local_ranks_populated)
     {
         dpu_offload_status_t rc = send_group_cache_to_local_ranks(connected_peer->econtext, group_id);
         CHECK_ERR_GOTO((rc), error_out, "send_group_cache_to_local_ranks() failed");
@@ -2351,6 +2334,8 @@ void server_fini(execution_context_t **exec_ctx)
 
     event_channels_fini(&(server->event_channels));
     ucp_worker_destroy(GET_WORKER(*exec_ctx));
+
+    DYN_ARRAY_FREE(&(server->local_groups_sent_to_host));
 
     free(context->server);
     context->server = NULL;

@@ -1036,35 +1036,39 @@ static dpu_offload_status_t peer_cache_entries_recv_cb(struct dpu_offload_ev_sys
 {
     assert(econtext);
     assert(data);
-
     offloading_engine_t *engine = (offloading_engine_t *)econtext->engine;
     peer_cache_entry_t *entries = (peer_cache_entry_t *)data;
     size_t cur_size = 0;
     size_t idx = 0;
     int64_t group_id = INVALID_GROUP;
     int64_t group_rank, group_size;
+    uint64_t dpu_global_id = LOCAL_ID_TO_GLOBAL(econtext, hdr->id);
+    cache_t *cache = &(engine->procs_cache);
+    size_t n_added = 0;
+    // Make sure we know the group ID of what we receive otherwise we do not know what to do
+    if (group_id == INVALID_GROUP)
+        group_id = entries[idx].peer.proc_info.group_id;
+    group_size = entries[idx].peer.proc_info.group_size;
+    group_cache_t *gp_cache = GET_GROUP_CACHE(&(econtext->engine->procs_cache), group_id);
     while (cur_size < data_len)
     {
-        cache_t *cache = &(engine->procs_cache);
-        // Make sure we know the group ID of what we receive otherwise we do not know what to do
-        if (group_id == INVALID_GROUP)
-            group_id = entries[idx].peer.proc_info.group_id;
-
         // Now that we know for sure we have the group ID, we can move the received data into the local cache
-        group_size = entries[idx].peer.proc_info.group_size;
         group_rank = entries[idx].peer.proc_info.group_rank;
+        assert(entries[idx].peer.proc_info.group_id == group_id);
+        assert(entries[idx].peer.proc_info.group_size == group_size);
         DBG("Received a cache entry for rank:%ld, group:%ld, group size:%ld, number of local rank: %ld from DPU %" PRId64 " (msg size=%ld, peer addr len=%ld)",
-            group_rank, group_id, group_size, entries[idx].peer.proc_info.n_local_ranks, hdr->id, data_len, entries[idx].peer.addr_len);
-
+            group_rank, group_id, group_size, entries[idx].peer.proc_info.n_local_ranks, dpu_global_id, data_len, entries[idx].peer.addr_len);
         if (!is_in_cache(cache, group_id, group_rank, group_size))
         {
             DBG("Adding received entry to cache...");
+            n_added++;
+            gp_cache->num_local_entries++;
             peer_cache_entry_t *cache_entry;
             cache_entry = GET_GROUP_RANK_CACHE_ENTRY(cache, group_id, group_rank, group_size);
             cache_entry->set = true;
             COPY_PEER_DATA(&(entries[idx].peer), &(cache_entry->peer));
 
-            cache_entry->shadow_dpus[cache_entry->num_shadow_dpus] = LOCAL_ID_TO_GLOBAL(econtext, hdr->id);
+            cache_entry->shadow_dpus[cache_entry->num_shadow_dpus] = dpu_global_id;
             cache_entry->num_shadow_dpus++;
 
             // If any event is associated to the cache entry, handle them
@@ -1077,50 +1081,6 @@ static dpu_offload_status_t peer_cache_entries_recv_cb(struct dpu_offload_ev_sys
                     COMPLETE_EVENT(e);
                 }
             }
-
-            group_cache_t *gp_cache = GET_GROUP_CACHE(&(econtext->engine->procs_cache), group_id);
-            gp_cache->num_local_entries++;
-            DBG("The cache for group %ld now has %ld entries (group size: %ld)", group_id, gp_cache->num_local_entries, gp_cache->group_size);
-
-            if (econtext->engine->on_dpu)
-            {
-                if (gp_cache->group_size > 0 && gp_cache->num_local_entries == gp_cache->group_size)
-                {
-                    size_t n = 0, idx = 0;
-                    execution_context_t *server = get_server_servicing_host(engine);
-                    assert(server->scope_id == SCOPE_HOST_DPU);
-                    DBG("Cache is complete, sending it to the local ranks (number of connected clients: %ld)",
-                        server->server->connected_clients.num_connected_clients);
-                    while (n < server->server->connected_clients.num_connected_clients)
-                    {
-                        dpu_offload_status_t rc;
-                        dpu_offload_event_t *metaev;
-                        peer_info_t *client_info = DYN_ARRAY_GET_ELT(&(server->server->connected_clients.clients), idx, peer_info_t);
-                        if (client_info == NULL)
-                        {
-                            idx++;
-                            continue;
-                        }
-                        rc = event_get(server->server->event_channels, NULL, &metaev);
-                        if (rc != DO_SUCCESS || metaev == NULL)
-                            ERR_MSG("event_get() failed"); // todo: better handle errors
-                        EVENT_HDR_TYPE(metaev) = META_EVENT_TYPE;
-                        DBG("Sending cache to client #%ld (group: %ld, econtext: %p, ep: %p, scope_id: %d)",
-                            idx, group_id, server, client_info->ep, server->scope_id);
-                        rc = send_group_cache(server, client_info->ep, client_info->id, group_id, metaev);
-                        if (rc != DO_SUCCESS)
-                            ERR_MSG("send_group_cache() failed"); // todo: better handle errors
-                        QUEUE_EVENT(metaev);
-                        n++;
-                        idx++;
-                    }
-                }
-                else
-                {
-                    DBG("Cache is still missing some data. group_size: %ld, num_local_entries: %ld",
-                        gp_cache->group_size, gp_cache->num_local_entries);
-                }
-            }
         }
         else
         {
@@ -1130,6 +1090,27 @@ static dpu_offload_status_t peer_cache_entries_recv_cb(struct dpu_offload_ev_sys
         cur_size += sizeof(peer_cache_entry_t);
         idx++;
     }
+
+    // Once we handled all the cache entries we received, we check whether the cache is full and if so, send it to the local ranks
+    DBG("The cache for group %ld now has %ld entries (group size: %ld)", group_id, gp_cache->num_local_entries, gp_cache->group_size);
+    if (econtext->engine->on_dpu && n_added > 0)
+    {
+        // If all the ranks are on the local hosts, the case is handled in the callback that deals with the
+        // final step of the connecting with the ranks.
+        if (gp_cache->group_size > 0 && gp_cache->num_local_entries == gp_cache->group_size && gp_cache->group_size != gp_cache->n_local_ranks)
+        {
+            execution_context_t *server = get_server_servicing_host(engine);
+            assert(server->scope_id == SCOPE_HOST_DPU);
+            dpu_offload_status_t rc = send_gp_cache_to_host(server, group_id);
+            CHECK_ERR_RETURN((rc), DO_ERROR, "send_gp_cache_to_host() failed");
+        }
+        else
+        {
+            DBG("Cache is still missing some data. group_size: %ld, num_local_entries: %ld",
+                gp_cache->group_size, gp_cache->num_local_entries);
+        }
+    }
+
     DBG("Reception completed");
 
     return DO_SUCCESS;
