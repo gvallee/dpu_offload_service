@@ -224,8 +224,12 @@ void connected_to_server_dpu(void *data)
     DBG("we now have %ld connections with other DPUs", connected_peer->econtext->engine->num_connected_dpus);
 
     // If we now have all the connections with the other DPUs, we exchange our cache
+    // Not needed for now, when ranks are all connected to the local DPU(s), the caches
+    // are automatically exchanged using broadcast_group_cache()
+#if 0
     if (can_exchange_cache)
         sync_group_caches(connected_peer->econtext);
+#endif
 }
 
 dpu_offload_status_t connect_to_remote_dpu(remote_dpu_info_t *remote_dpu_info)
@@ -322,8 +326,12 @@ void client_dpu_connected(void *data)
     ENGINE_UNLOCK(connected_peer->econtext->engine);
 
     // If we now have all the connections with the other DPUs, we exchange our cache
+    // Not needed for now, when ranks are all connected to the local DPU(s), the caches
+    // are automatically exchanged using broadcast_group_cache()
+#if 0
     if (can_exchange_cache)
         sync_group_caches(connected_peer->econtext);
+#endif
 }
 
 dpu_offload_status_t inter_dpus_connect_mgr(offloading_engine_t *engine, offloading_config_t *cfg)
