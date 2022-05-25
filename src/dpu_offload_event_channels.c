@@ -379,7 +379,7 @@ int do_tag_send_event_msg(dpu_offload_event_t *event)
     assert(event->dest.ep);
     if (event->ctx.hdr_completed && event->ctx.payload_completed)
     {
-        WARN_MSG("Event %p already completed, not sending", event);
+        DBG("Event %p already completed, not sending", event);
         return EVENT_DONE;
     }
 
@@ -466,6 +466,7 @@ int do_tag_send_event_msg(dpu_offload_event_t *event)
             {
                 ucs_status_t send_status = UCS_PTR_STATUS(payload_request);
                 ERR_MSG("ucp_tag_send_nbx() failed: %s", ucs_status_string(send_status));
+                abort();
                 return send_status;
             }
             if (payload_request != NULL)
@@ -994,44 +995,6 @@ static dpu_offload_status_t peer_cache_entries_request_recv_cb(struct dpu_offloa
     return DO_ERROR;
 }
 
-// Translate the local DPU ID received in the header of a notification to a global ID
-static uint64_t LOCAL_ID_TO_GLOBAL(execution_context_t *econtext, uint64_t local_id)
-{
-    uint64_t global_id = UINT64_MAX;
-    switch (econtext->type)
-    {
-    case CONTEXT_SERVER:
-    {
-        peer_info_t *_c = DYN_ARRAY_GET_ELT(&(econtext->server->connected_clients.clients), local_id, peer_info_t);
-        assert(_c);
-        global_id = _c->rank_data.group_rank;
-        break;
-    }
-    case CONTEXT_CLIENT:
-    {
-        if (econtext->engine->on_dpu)
-            global_id = local_id;
-        else
-            global_id = econtext->client->server_global_id;
-        break;
-    }
-    case CONTEXT_SELF:
-    {
-        if (econtext->engine->on_dpu)
-            global_id = econtext->engine->config->local_dpu.id;
-        else
-            global_id = 0; /* By default, for comm to self the ID is 0 */
-        break;
-    }
-    default:
-    {
-        global_id = UINT64_MAX;
-        break;
-    }
-    }
-    return global_id;
-}
-
 static dpu_offload_status_t peer_cache_entries_recv_cb(struct dpu_offload_ev_sys *ev_sys, execution_context_t *econtext, am_header_t *hdr, size_t hdr_size, void *data, size_t data_len)
 {
     assert(econtext);
@@ -1060,7 +1023,6 @@ static dpu_offload_status_t peer_cache_entries_recv_cb(struct dpu_offload_ev_sys
             group_rank, group_id, group_size, entries[idx].peer.proc_info.n_local_ranks, dpu_global_id, data_len, entries[idx].peer.addr_len);
         if (!is_in_cache(cache, group_id, group_rank, group_size))
         {
-            DBG("Adding received entry to cache...");
             n_added++;
             gp_cache->num_local_entries++;
             peer_cache_entry_t *cache_entry;
@@ -1084,7 +1046,7 @@ static dpu_offload_status_t peer_cache_entries_recv_cb(struct dpu_offload_ev_sys
         }
         else
         {
-            DBG("Entry already in cache");
+            DBG("Entry already in cache - gp: %ld, rank: %ld", group_id, group_rank);
         }
 
         cur_size += sizeof(peer_cache_entry_t);

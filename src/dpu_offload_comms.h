@@ -354,7 +354,7 @@ static int post_recv_for_notif_payload(hdr_notif_req_t *ctx, execution_context_t
 
     if (ctx->hdr.payload_size > 0 && ctx->payload_ctx.req != NULL)
     {
-        WARN_MSG("We got a new header but still waiting for a previous notification payload");
+        DBG("We got a new header but still waiting for a previous notification payload");
         return EVENT_INPROGRESS;
     }
 
@@ -531,7 +531,7 @@ static void notif_hdr_recv_handler(void *request, ucs_status_t status, const ucp
         ERR_MSG("expecting a message from server_id: %" PRIu64 " but received %" PRIu64 " ctx: %p", ctx->server_id, ctx->hdr.server_id, ctx);
         if (!ctx->econtext->engine->on_dpu && ctx->econtext->type == CONTEXT_CLIENT)
         {
-            WARN_MSG("My client ID is %" PRId64, ctx->econtext->rank.group_rank);
+            DBG("My client ID is %" PRId64, ctx->econtext->rank.group_rank);
         }
         abort();
     }

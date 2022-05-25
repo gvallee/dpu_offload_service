@@ -1242,9 +1242,12 @@ void local_rank_connect_default_callback(void *data)
     gc = GET_GROUP_CACHE(&(connected_peer->econtext->engine->procs_cache), group_id);
     assert(gc);
     assert(gc->n_local_ranks_populated <= gc->group_size);
-    DBG("Checking group %" PRId64 " (number of local entries: %ld)", group_id, gc->n_local_ranks_populated);
-    // If the cache is full, i.e., all the ranks of the group are on the host, send it back to all ranks
-    if (gc->group_size == gc->n_local_ranks_populated)
+    DBG("Checking group %" PRId64 " (number of local entries: %ld, n_local_populated: %ld, n_local: %ld)",
+        group_id, gc->n_local_ranks_populated, gc->n_local_ranks_populated, gc->n_local_ranks);
+
+    // If the cache is full, i.e., all the ranks of the group are on the host,
+    // or if the entire cache is there, we make sure to send it to the local ranks if necessary
+    if (gc->group_size == gc->num_local_entries)
     {
         dpu_offload_status_t rc = send_group_cache_to_local_ranks(connected_peer->econtext, group_id);
         CHECK_ERR_GOTO((rc), error_out, "send_group_cache_to_local_ranks() failed");
@@ -1255,6 +1258,55 @@ void local_rank_connect_default_callback(void *data)
 error_out:
     ERR_MSG("unable to figure out if cache needs to be sent out to local ranks");
     return;
+}
+
+static int add_cache_entry_for_new_client(peer_info_t *client_info, execution_context_t *ctx)
+{
+
+    if (client_info->rank_data.group_id != INVALID_GROUP && client_info->rank_data.group_rank != INVALID_RANK)
+    {
+        // Update the pointer to track cache entries, i.e., groups/ranks, for the peer
+        DBG("Adding gp/rank %" PRId64 "/%" PRId64 " to cache", client_info->rank_data.group_id, client_info->rank_data.group_rank);
+        peer_cache_entry_t *cache_entry;
+        cache_entry = GET_GROUP_RANK_CACHE_ENTRY(&(ctx->engine->procs_cache), client_info->rank_data.group_id, client_info->rank_data.group_rank, client_info->rank_data.group_size);
+        assert(cache_entry);
+        COPY_RANK_INFO(&(client_info->rank_data), &(cache_entry->peer.proc_info));
+        cache_entry->num_shadow_dpus = 1;
+        if (ctx->engine->on_dpu)
+            cache_entry->shadow_dpus[0] = ctx->engine->config->local_dpu.id;
+        else
+            cache_entry->shadow_dpus[0] = ECONTEXT_ID(ctx);
+        cache_entry->set = true;
+
+        group_cache_t *gp_cache = GET_GROUP_CACHE(&(ctx->engine->procs_cache), client_info->rank_data.group_id);
+        if (cache_entry == NULL)
+        {
+            ERR_MSG("undefined cache entry");
+            return DO_ERROR;
+        }
+        if (gp_cache->n_local_ranks <= 0 && client_info->rank_data.n_local_ranks >= 0)
+        {
+            DBG("Setting the number of local ranks for the group %" PRId64 " (%" PRId64 ")",
+                client_info->rank_data.group_id,
+                client_info->rank_data.n_local_ranks);
+            gp_cache->n_local_ranks = client_info->rank_data.n_local_ranks;
+        }
+        gp_cache->n_local_ranks_populated++;
+        gp_cache->num_local_entries++;
+        cache_entry->peer.addr_len = client_info->peer_addr_len;
+        if (client_info->peer_addr != NULL)
+        {
+            assert(client_info->peer_addr_len < MAX_ADDR_LEN);
+            memcpy(cache_entry->peer.addr,
+                   client_info->peer_addr,
+                   client_info->peer_addr_len);
+        }
+        assert(client_info->cache_entries.num_elts > 0);
+        peer_cache_entry_t **cache_entries = (peer_cache_entry_t **)(client_info->cache_entries.base);
+        assert(cache_entries);
+        cache_entries[0] = cache_entry;
+    }
+    return DO_SUCCESS;
 }
 
 static void progress_server_econtext(execution_context_t *ctx)
@@ -1337,79 +1389,13 @@ static void progress_server_econtext(execution_context_t *ctx)
                         client_info->rank_data.group_rank,
                         client_info->rank_data.group_size,
                         client_info->rank_data.n_local_ranks);
-                    if (client_info->rank_data.group_id != INVALID_GROUP && client_info->rank_data.group_rank != INVALID_RANK)
+
+                    // add_cache_entry_for_new_client chechks if the data actually needs to be put in the cache
+                    rc = add_cache_entry_for_new_client(client_info, ctx);
+                    if (rc == DO_ERROR)
                     {
-                        bool group_cache_now_full = false;
-                        // Update the pointer to track cache entries, i.e., groups/ranks, for the peer
-                        DBG("Adding gp/rank %" PRId64 "/%" PRId64 " to cache", client_info->rank_data.group_id, client_info->rank_data.group_rank);
-                        peer_cache_entry_t *cache_entry;
-                        cache_entry = GET_GROUP_RANK_CACHE_ENTRY(&(ctx->engine->procs_cache), client_info->rank_data.group_id, client_info->rank_data.group_rank, client_info->rank_data.group_size);
-                        assert(cache_entry);
-                        COPY_RANK_INFO(&(client_info->rank_data), &(cache_entry->peer.proc_info));
-                        cache_entry->num_shadow_dpus = 1;
-                        if (ctx->engine->on_dpu)
-                            cache_entry->shadow_dpus[0] = ctx->engine->config->local_dpu.id;
-                        else
-                            cache_entry->shadow_dpus[0] = ECONTEXT_ID(ctx);
-                        cache_entry->set = true;
-
-                        group_cache_t *gp_cache = GET_GROUP_CACHE(&(ctx->engine->procs_cache), client_info->rank_data.group_id);
-                        if (cache_entry == NULL)
-                        {
-                            ERR_MSG("undefined cache entry");
-                            ECONTEXT_UNLOCK(ctx);
-                            return;
-                        }
-                        if (gp_cache->n_local_ranks <= 0 && client_info->rank_data.n_local_ranks >= 0)
-                        {
-                            DBG("Setting the number of local ranks for the group %" PRId64 " (%" PRId64 ")",
-                                client_info->rank_data.group_id,
-                                client_info->rank_data.n_local_ranks);
-                            gp_cache->n_local_ranks = client_info->rank_data.n_local_ranks;
-                        }
-                        if (gp_cache->group_size == gp_cache->num_local_entries + 1)
-                        {
-                            // The cache is above to be fully populated
-                            DBG("Cache is complete for group %ld (gp size: %ld, local entries: %ld)\n",
-                                client_info->rank_data.group_id,
-                                gp_cache->group_size,
-                                gp_cache->num_local_entries + 1);
-                            group_cache_now_full = true;
-                        }
-                        gp_cache->n_local_ranks_populated++;
-                        gp_cache->num_local_entries++;
-
-                        cache_entry->peer.addr_len = client_info->peer_addr_len;
-                        if (client_info->peer_addr != NULL)
-                        {
-                            assert(client_info->peer_addr_len < MAX_ADDR_LEN);
-                            memcpy(cache_entry->peer.addr,
-                                   client_info->peer_addr,
-                                   client_info->peer_addr_len);
-                        }
-                        assert(client_info->cache_entries.num_elts > 0);
-                        peer_cache_entry_t **cache_entries = (peer_cache_entry_t **)(client_info->cache_entries.base);
-                        assert(cache_entries);
-                        cache_entries[0] = cache_entry;
-
-                        // Trigger the exchange of the cache between DPUs when possible
-                        // Do not check for errors, it may fail at this point (if all DPUs are not connected) and it is okay
-                        if (gp_cache->n_local_ranks > 0 && gp_cache->n_local_ranks_populated == gp_cache->n_local_ranks)
-                        {
-                            DBG("We now have a connection with all the local ranks, we can broadcast the group cache at once");
-                            broadcast_group_cache(ctx->engine, client_info->rank_data.group_id);
-                        }
-                        if (gp_cache->n_local_ranks < 0)
-                        {
-                            DBG("We do not know how many ranks to locally expect for that group, broadcast the new information by default");
-                            broadcast_group_cache(ctx->engine, client_info->rank_data.group_id);
-                        }
-
-                        // Check if the cache is fully populated
-                        if (group_cache_now_full && gp_cache->group_size > 0 && gp_cache->num_local_entries == gp_cache->group_size)
-                        {
-                            DBG("Cache is now complete, we will send it as soon as all the ranks are fully connected");
-                        }
+                        ECONTEXT_UNLOCK(ctx);
+                        return;
                     }
 
                     if (ECONTEXT_ON_DPU(ctx) && ctx->scope_id == SCOPE_INTER_DPU)
@@ -1446,6 +1432,38 @@ static void progress_server_econtext(execution_context_t *ctx)
                         idx,
                         ctx->server->connected_clients.num_connected_clients,
                         ctx->engine->num_connected_dpus);
+
+                    // Trigger the exchange of the cache between DPUs when possible
+                    // Do not check for errors, it may fail at this point (if all DPUs are not connected) and it is okay
+                    if (ECONTEXT_ON_DPU(ctx) && client_info->rank_data.group_id != INVALID_GROUP && client_info->rank_data.group_rank != INVALID_RANK)
+                    {
+                        group_cache_t *gp_cache = GET_GROUP_CACHE(&(ctx->engine->procs_cache), client_info->rank_data.group_id);
+                        if (gp_cache->n_local_ranks > 0 && gp_cache->n_local_ranks_populated == gp_cache->n_local_ranks)
+                        {
+                            DBG("We now have a connection with all the local ranks, we can broadcast the group cache at once");
+                            broadcast_group_cache(ctx->engine, client_info->rank_data.group_id);
+                        }
+                        if (gp_cache->n_local_ranks < 0)
+                        {
+                            DBG("We do not know how many ranks to locally expect for that group, broadcast the new information by default");
+                            broadcast_group_cache(ctx->engine, client_info->rank_data.group_id);
+                        }
+                        // Check if the cache is fully populated
+                        bool group_cache_now_full = false;
+                        if (gp_cache->group_size == gp_cache->num_local_entries + 1)
+                        {
+                            // The cache is above to be fully populated
+                            DBG("Cache is complete for group %ld (gp size: %ld, local entries: %ld)\n",
+                                client_info->rank_data.group_id,
+                                gp_cache->group_size,
+                                gp_cache->num_local_entries + 1);
+                            group_cache_now_full = true;
+                        }
+                        if (group_cache_now_full && gp_cache->group_size > 0 && gp_cache->num_local_entries == gp_cache->group_size)
+                        {
+                            DBG("Cache is now complete, we will send it as soon as all the ranks are fully connected");
+                        }
+                    }
 
                     if (ctx->server->connected_cb != NULL)
                     {

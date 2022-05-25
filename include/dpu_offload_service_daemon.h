@@ -84,6 +84,8 @@ dpu_offload_status_t send_add_group_rank_request(execution_context_t *econtext, 
 
 void local_rank_connect_default_callback(void *data);
 
+uint64_t LOCAL_ID_TO_GLOBAL(execution_context_t *econtext, uint64_t local_id);
+
 /**
  * @brief Send group cache to a specific destination, mainly used to send the cache back to the local ranks.
  *

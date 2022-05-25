@@ -18,6 +18,8 @@
 #include "dpu_offload_event_channels.h"
 #include "dpu_offload_envvars.h"
 
+#define AGGR_SEND_CACHE_ENTRIES (0)
+
 #if !NDEBUG
 debug_config_t dbg_cfg = {
     .my_hostname = NULL,
@@ -74,7 +76,43 @@ bool group_cache_populated(offloading_engine_t *engine, int64_t gp_id)
     return false;
 }
 
-
+// Translate the local DPU ID received in the header of a notification to a global ID
+uint64_t LOCAL_ID_TO_GLOBAL(execution_context_t *econtext, uint64_t local_id)
+{
+    uint64_t global_id = UINT64_MAX;
+    switch (econtext->type)
+    {
+    case CONTEXT_SERVER:
+    {
+        peer_info_t *_c = DYN_ARRAY_GET_ELT(&(econtext->server->connected_clients.clients), local_id, peer_info_t);
+        assert(_c);
+        global_id = _c->rank_data.group_rank;
+        break;
+    }
+    case CONTEXT_CLIENT:
+    {
+        if (econtext->engine->on_dpu)
+            global_id = local_id;
+        else
+            global_id = econtext->client->server_global_id;
+        break;
+    }
+    case CONTEXT_SELF:
+    {
+        if (econtext->engine->on_dpu)
+            global_id = econtext->engine->config->local_dpu.id;
+        else
+            global_id = 0; /* By default, for comm to self the ID is 0 */
+        break;
+    }
+    default:
+    {
+        global_id = UINT64_MAX;
+        break;
+    }
+    }
+    return global_id;
+}
 
 dpu_offload_status_t do_send_cache_entry_request(execution_context_t *econtext, ucp_ep_h ep, uint64_t dest_id, rank_info_t *requested_peer, dpu_offload_event_t *ev)
 {
@@ -162,50 +200,61 @@ error_out:
 
 dpu_offload_status_t send_group_cache(execution_context_t *econtext, ucp_ep_h dest_ep, uint64_t dest_id, int64_t gp_id, dpu_offload_event_t *metaev)
 {
-    size_t i;
+    size_t i, idx;
     int rc;
     group_cache_t *gp_cache;
     assert(econtext);
     assert(econtext->engine);
     assert(metaev);
     assert(EVENT_HDR_TYPE(metaev) == META_EVENT_TYPE);
-    gp_cache = (group_cache_t *)econtext->engine->procs_cache.data.base;
+    gp_cache = GET_GROUP_CACHE(&(econtext->engine->procs_cache), gp_id);
     assert(gp_cache);
-    if (!gp_cache[gp_id].initialized)
+    if (!gp_cache->initialized)
         return DO_SUCCESS;
 
-    assert(gp_cache[gp_id].group_size > 0);
+    assert(gp_cache->group_size > 0);
+#if AGGR_SEND_CACHE_ENTRIES
     size_t idx_start, idx_end;
     bool idx_start_set = false;
     bool idx_end_set = false;
-    for (i = 0; i < gp_cache[gp_id].ranks.num_elts; i++)
+#endif
+    DBG("Sending group cache: %ld entries", gp_cache->num_local_entries);
+    i = 0;
+    idx = 0;
+    while (i < gp_cache->num_local_entries)
     {
-        peer_cache_entry_t *cache_entry = GET_GROUP_RANK_CACHE_ENTRY(&(econtext->engine->procs_cache), gp_id, i, gp_cache[gp_id].group_size);
-#if 1
+        peer_cache_entry_t *cache_entry = GET_GROUP_RANK_CACHE_ENTRY(&(econtext->engine->procs_cache), gp_id, idx, gp_cache[gp_id].group_size);
+#if AGGR_SEND_CACHE_ENTRIES
+        if (cache_entry->set)
+        {
+            i++;
+        }
+
         if (cache_entry->set && idx_start_set == false)
         {
-            idx_start = i;
+            idx_start = idx;
             idx_start_set = true;
         }
 
-        if (idx_start_set == true && cache_entry->set && i == gp_cache[gp_id].ranks.num_elts - 1)
+        if (idx_start_set == true && cache_entry->set && i == gp_cache->num_local_entries - 1)
         {
             // end of group array, can send entire array
-            idx_end = i;
+            idx_end = idx;
             idx_end_set = true;
         }
 
         if (idx_start_set == true && idx_end_set == false && cache_entry->set == false)
         {
-            idx_end = i - 1;
+            idx_end = idx - 1;
             idx_end_set = true;
         }
 
         if (idx_end_set == true)
         {
             dpu_offload_event_t *e;
-            peer_cache_entry_t *first_entry = GET_GROUP_RANK_CACHE_ENTRY(&(econtext->engine->procs_cache), gp_id, idx_start, gp_cache[gp_id].group_size);
+            peer_cache_entry_t *first_entry = GET_GROUP_RANK_CACHE_ENTRY(&(econtext->engine->procs_cache), gp_id, idx_start, gp_cache->group_size);
             DBG("Sending %ld cache entries to %ld from entry %ld to %ld\n", idx_end - idx_start + 1, dest_id, idx_start, idx_end);
+            WARN_MSG("Sending %ld cache entries to %ld from entry %ld to %ld\n", idx_end - idx_start + 1, dest_id, idx_start, idx_end);
             rc = event_get(econtext->event_channels, NULL, &e);
             CHECK_ERR_RETURN((rc), DO_ERROR, "event_get() failed");
             e->is_subevent = true;
@@ -223,9 +272,11 @@ dpu_offload_status_t send_group_cache(execution_context_t *econtext, ucp_ep_h de
             idx_start_set = false;
             idx_end_set = false;
         }
+        idx++;
 #else
         if (cache_entry->set)
         {
+            i++;
             DBG("Sending cache entry for rank:%ld/gp:%ld gp_size:%ld local_ranks:%ld (meta event: %p, scope_id: %d)",
                 cache_entry->peer.proc_info.group_rank,
                 cache_entry->peer.proc_info.group_id,
@@ -248,6 +299,7 @@ dpu_offload_status_t send_group_cache(execution_context_t *econtext, ucp_ep_h de
                 DBG("Sending cache completed right away");
             }
         }
+        idx++;
 #endif
     }
     return DO_SUCCESS;
@@ -262,8 +314,9 @@ dpu_offload_status_t send_gp_cache_to_host(execution_context_t *econtext, int64_
                                                  group_id, bool);
     if (*cache_sent_to_host == false)
     {
-        DBG("Cache is complete, sending it to the local ranks (number of connected clients: %ld)",
-            econtext->server->connected_clients.num_connected_clients);
+        DBG("Cache is complete, sending it to the local ranks (number of connected clients: %ld, total: %ld)",
+            econtext->server->connected_clients.num_connected_clients,
+            econtext->server->connected_clients.num_total_connected_clients);
         while (n < econtext->server->connected_clients.num_connected_clients)
         {
             dpu_offload_event_t *metaev;
@@ -287,6 +340,8 @@ dpu_offload_status_t send_gp_cache_to_host(execution_context_t *econtext, int64_
         }
         *cache_sent_to_host = true;
     }
+    else
+        DBG("cache aleady sent to host");
     return DO_SUCCESS;
 }
 
@@ -368,7 +423,7 @@ dpu_offload_status_t broadcast_group_cache(offloading_engine_t *engine, int64_t 
     if (!all_dpus_connected(engine))
     {
         // Not all the DPUs are connected, we cannot exchange the data yet
-        WARN_MSG("Not all DPUs are connected, unable to broadcast group cache (num DPUS: %ld, connected DPUs: %ld)",
+        DBG("Not all DPUs are connected, unable to broadcast group cache (num DPUS: %ld, connected DPUs: %ld)",
                  engine->num_dpus,
                  engine->num_connected_dpus);
         return DO_ERROR;
@@ -401,7 +456,8 @@ dpu_offload_status_t broadcast_group_cache(offloading_engine_t *engine, int64_t 
         assert(ev);
         EVENT_HDR_TYPE(ev) = META_EVENT_TYPE;
         dest_ep = GET_REMOTE_DPU_EP(engine, i);
-        DBG("Sending group cache to DPU #%ld (econtext: %p)", i, list_dpus[i]->econtext);
+        DBG("Sending group cache to DPU #%ld (econtext: %p, scope_id: %d)",
+            LOCAL_ID_TO_GLOBAL(list_dpus[i]->econtext, i), list_dpus[i]->econtext, list_dpus[i]->econtext->scope_id);
         // If the econtext is a client to connect to a server, the dest_id is the index;
         // otherwise we need to find the client ID based on the index
         if (list_dpus[i]->econtext->type == CONTEXT_SERVER)
@@ -415,10 +471,13 @@ dpu_offload_status_t broadcast_group_cache(offloading_engine_t *engine, int64_t 
     // so we check if the cache is full and needs to be sent to the local ranks
     // both when we receive cache entries and broadcast our cache. We may have received
     // all the remote data first
-    execution_context_t *server = get_server_servicing_host(engine);
-    assert(server->scope_id == SCOPE_HOST_DPU);
-    dpu_offload_status_t rc = send_gp_cache_to_host(server, group_id);
-    CHECK_ERR_RETURN((rc), DO_ERROR, "send_gp_cache_to_host() failed");
+    if (cache->group_size == cache->num_local_entries)
+    {
+        execution_context_t *server = get_server_servicing_host(engine);
+        assert(server->scope_id == SCOPE_HOST_DPU);
+        dpu_offload_status_t rc = send_gp_cache_to_host(server, group_id);
+        CHECK_ERR_RETURN((rc), DO_ERROR, "send_gp_cache_to_host() failed");
+    }
 
     return DO_SUCCESS;
 }
@@ -518,9 +577,10 @@ static dpu_offload_status_t do_get_cache_entry_by_group_rank(offloading_engine_t
             if (list_dpus[i] != NULL && list_dpus[i]->ep != NULL && list_dpus[i]->init_params.conn_params != NULL)
             {
                 execution_context_t *econtext = ECONTEXT_FOR_DPU_COMMUNICATION(engine, i);
+                uint64_t global_dpu_id = LOCAL_ID_TO_GLOBAL(econtext, i);
                 CHECK_ERR_RETURN((econtext == NULL), DO_ERROR, "unable to get execution context to communicate with DPU #0");
                 DBG("Sending cache entry request to DPU #%ld (econtext: %p, scope_id: %d)",
-                    i,
+                    global_dpu_id,
                     econtext,
                     econtext->scope_id);
 
@@ -539,7 +599,7 @@ static dpu_offload_status_t do_get_cache_entry_by_group_rank(offloading_engine_t
                 subev->is_subevent = true;
                 rc = do_send_cache_entry_request(econtext, dpu_ep, i, &rank_data, subev);
                 CHECK_ERR_RETURN((rc), DO_ERROR, "send_cache_entry_request() failed");
-                DBG("Sub-event for sending cache to DPU %ld: %p", i, subev);
+                DBG("Sub-event for sending cache to DPU %ld: %p", global_dpu_id, subev);
                 if (subev != NULL)
                 {
                     // If the event did not complete right away, we add it as a sub-event to the meta-event so we can track everything
