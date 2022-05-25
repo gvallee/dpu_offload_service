@@ -18,8 +18,6 @@
 #include "dpu_offload_event_channels.h"
 #include "dpu_offload_envvars.h"
 
-#define AGGR_SEND_CACHE_ENTRIES (0)
-
 #if !NDEBUG
 debug_config_t dbg_cfg = {
     .my_hostname = NULL,
@@ -200,7 +198,87 @@ error_out:
 
 dpu_offload_status_t send_group_cache(execution_context_t *econtext, ucp_ep_h dest_ep, uint64_t dest_id, int64_t gp_id, dpu_offload_event_t *metaev)
 {
-    size_t i, idx;
+    size_t i;
+    int rc;
+    group_cache_t *gp_cache;
+    assert(econtext);
+    assert(econtext->engine);
+    assert(metaev);
+    assert(EVENT_HDR_TYPE(metaev) == META_EVENT_TYPE);
+    gp_cache = GET_GROUP_CACHE(&(econtext->engine->procs_cache), gp_id);
+    assert(gp_cache);
+    if (!gp_cache->initialized)
+        return DO_SUCCESS;
+
+    assert(gp_cache->group_size > 0);
+
+    // The entire group is supposed to be ready, starting at rank 0
+#if !NDEBUG
+    for (i = 0; i < gp_cache->group_size; i++)
+    {
+        peer_cache_entry_t *cache_entry = GET_GROUP_RANK_CACHE_ENTRY(&(econtext->engine->procs_cache), gp_id, i, gp_cache[gp_id].group_size);
+        assert(cache_entry->set == true);
+    }
+#endif
+
+    dpu_offload_event_t *e;
+    peer_cache_entry_t *first_entry = GET_GROUP_RANK_CACHE_ENTRY(&(econtext->engine->procs_cache), gp_id, 0, gp_cache->group_size);
+    rc = event_get(econtext->event_channels, NULL, &e);
+    CHECK_ERR_RETURN((rc), DO_ERROR, "event_get() failed");
+    e->is_subevent = true;
+    DBG("Sending %ld cache entries to %ld, ev: %p (%ld), metaev: %ld\n",
+        gp_cache->group_size, dest_id, e, e->seq_num, metaev->seq_num);
+    rc = event_channel_emit_with_payload(&e, AM_PEER_CACHE_ENTRIES_MSG_ID, dest_ep, dest_id, NULL, first_entry, gp_cache->group_size * sizeof(peer_cache_entry_t));
+    if (rc != EVENT_DONE && rc != EVENT_INPROGRESS)
+    {
+        ERR_MSG("event_channel_emit_with_payload() failed");
+        return DO_ERROR;
+    }
+    if (e != NULL)
+    {
+        QUEUE_SUBEVENT(metaev, e);
+    }
+    else
+    {
+        WARN_MSG("Sending cache completed right away");
+    }
+    return DO_SUCCESS;
+}
+
+bool find_range_local_ranks(execution_context_t *econtext, int64_t gp_id, int64_t gp_size, size_t start_idx, size_t total_count, size_t cur_count, size_t *range_start, size_t *num, size_t *cur_idx)
+{
+    size_t count = 0;
+    size_t idx = start_idx;
+    bool found_begining = false;
+    while (found_begining == false || cur_count + count != total_count)
+    {
+        peer_cache_entry_t *cache_entry = GET_GROUP_RANK_CACHE_ENTRY(&(econtext->engine->procs_cache), gp_id, idx, gp_size);
+        if (cache_entry->set == false)
+        {
+            idx++;
+            continue;
+        }
+        
+        if (found_begining == false && cache_entry->shadow_dpus[0] == econtext->engine->config->local_dpu.id)
+        {
+            found_begining = true;
+            *range_start = idx;
+        }
+
+        if (found_begining == true && cache_entry->shadow_dpus[0] == econtext->engine->config->local_dpu.id)
+            count++;
+
+        idx++;
+    }
+    *num = count;
+    *cur_idx = idx;
+
+    return true;
+}
+
+dpu_offload_status_t send_local_rank_group_cache(execution_context_t *econtext, ucp_ep_h dest_ep, uint64_t dest_id, int64_t gp_id, dpu_offload_event_t *metaev)
+{
+    size_t count, idx;
     int rc;
     group_cache_t *gp_cache;
     assert(econtext);
@@ -218,90 +296,39 @@ dpu_offload_status_t send_group_cache(execution_context_t *econtext, ucp_ep_h de
     bool idx_start_set = false;
     bool idx_end_set = false;
 #endif
-    DBG("Sending group cache: %ld entries", gp_cache->num_local_entries);
-    i = 0;
+    assert(gp_cache->n_local_ranks_populated == gp_cache->n_local_ranks);
+    DBG("Sending group cache %ld for local ranks: %ld entries", gp_id, gp_cache->n_local_ranks);
+    count = 0;
     idx = 0;
-    while (i < gp_cache->num_local_entries)
+    while (count < gp_cache->n_local_ranks)
     {
-        peer_cache_entry_t *cache_entry = GET_GROUP_RANK_CACHE_ENTRY(&(econtext->engine->procs_cache), gp_id, idx, gp_cache[gp_id].group_size);
-#if AGGR_SEND_CACHE_ENTRIES
-        if (cache_entry->set)
+        size_t n_entries_to_send;
+        size_t idx_start;
+        find_range_local_ranks(econtext, gp_id, gp_cache->group_size, idx, gp_cache->n_local_ranks, count, &idx_start, &n_entries_to_send, &idx);
+        dpu_offload_event_t *e;
+        peer_cache_entry_t *first_entry = GET_GROUP_RANK_CACHE_ENTRY(&(econtext->engine->procs_cache), gp_id, idx_start, gp_cache->group_size);
+        rc = event_get(econtext->event_channels, NULL, &e);
+        CHECK_ERR_RETURN((rc), DO_ERROR, "event_get() failed");
+        e->is_subevent = true;
+        DBG("Sending %ld cache entries to %ld from entry %ld, ev: %p (%ld), metaev: %ld (msg size: %ld)\n",
+            n_entries_to_send, dest_id, idx_start, e, e->seq_num, metaev->seq_num, n_entries_to_send * sizeof(peer_cache_entry_t));
+        rc = event_channel_emit_with_payload(&e, AM_PEER_CACHE_ENTRIES_MSG_ID, dest_ep, dest_id, NULL, first_entry, n_entries_to_send * sizeof(peer_cache_entry_t));
+        if (rc != EVENT_DONE && rc != EVENT_INPROGRESS)
         {
-            i++;
+            ERR_MSG("event_channel_emit_with_payload() failed");
+            return DO_ERROR;
         }
-
-        if (cache_entry->set && idx_start_set == false)
+        if (e != NULL)
         {
-            idx_start = idx;
-            idx_start_set = true;
+            QUEUE_SUBEVENT(metaev, e);
         }
-
-        if (idx_start_set == true && cache_entry->set && i == gp_cache->num_local_entries - 1)
+        else
         {
-            // end of group array, can send entire array
-            idx_end = idx;
-            idx_end_set = true;
+            WARN_MSG("Sending cache completed right away");
         }
-
-        if (idx_start_set == true && idx_end_set == false && cache_entry->set == false)
-        {
-            idx_end = idx - 1;
-            idx_end_set = true;
-        }
-
-        if (idx_end_set == true)
-        {
-            dpu_offload_event_t *e;
-            peer_cache_entry_t *first_entry = GET_GROUP_RANK_CACHE_ENTRY(&(econtext->engine->procs_cache), gp_id, idx_start, gp_cache->group_size);
-            DBG("Sending %ld cache entries to %ld from entry %ld to %ld\n", idx_end - idx_start + 1, dest_id, idx_start, idx_end);
-            WARN_MSG("Sending %ld cache entries to %ld from entry %ld to %ld\n", idx_end - idx_start + 1, dest_id, idx_start, idx_end);
-            rc = event_get(econtext->event_channels, NULL, &e);
-            CHECK_ERR_RETURN((rc), DO_ERROR, "event_get() failed");
-            e->is_subevent = true;
-            rc = event_channel_emit_with_payload(&e, AM_PEER_CACHE_ENTRIES_MSG_ID, dest_ep, dest_id, NULL, first_entry, (idx_end - idx_start + 1) * sizeof(peer_cache_entry_t));
-            if (rc != EVENT_DONE && rc != EVENT_INPROGRESS)
-                ERR_MSG("event_channel_emit_with_payload() failed");
-            if (e != NULL)
-            {
-                QUEUE_SUBEVENT(metaev, e);
-            }
-            else
-            {
-                DBG("Sending cache completed right away");
-            }
-            idx_start_set = false;
-            idx_end_set = false;
-        }
-        idx++;
-#else
-        if (cache_entry->set)
-        {
-            i++;
-            DBG("Sending cache entry for rank:%ld/gp:%ld gp_size:%ld local_ranks:%ld (meta event: %p, scope_id: %d)",
-                cache_entry->peer.proc_info.group_rank,
-                cache_entry->peer.proc_info.group_id,
-                cache_entry->peer.proc_info.group_size,
-                cache_entry->peer.proc_info.n_local_ranks,
-                metaev,
-                econtext->scope_id);
-            dpu_offload_event_t *e;
-            rc = event_get(econtext->event_channels, NULL, &e);
-            CHECK_ERR_RETURN((rc), DO_ERROR, "event_get() failed");
-            e->is_subevent = true;
-            dpu_offload_status_t rc = do_send_cache_entry(econtext, dest_ep, dest_id, cache_entry, e);
-            CHECK_ERR_RETURN((rc), DO_ERROR, "send_cache_entry() failed");
-            if (e != NULL)
-            {
-                QUEUE_SUBEVENT(metaev, e);
-            }
-            else
-            {
-                DBG("Sending cache completed right away");
-            }
-        }
-        idx++;
-#endif
+        count += n_entries_to_send;
     }
+
     return DO_SUCCESS;
 }
 
@@ -431,7 +458,6 @@ dpu_offload_status_t broadcast_group_cache(offloading_engine_t *engine, int64_t 
 
     cache = GET_GROUP_CACHE(&(engine->procs_cache), group_id);
     assert(cache);
-
     list_dpus = LIST_DPUS_FROM_ENGINE(engine);
     assert(list_dpus);
     for (i = 0; i < engine->num_dpus; i++)
@@ -447,22 +473,18 @@ dpu_offload_status_t broadcast_group_cache(offloading_engine_t *engine, int64_t 
         if (i == cfg->local_dpu.id)
             continue;
 
-        if (list_dpus[i]->econtext == NULL)
-        {
-            ERR_MSG("execution context for DPU #%ld is undefined", i);
-        }
         assert(list_dpus[i]->econtext);
         event_get(list_dpus[i]->econtext->event_channels, NULL, &ev);
         assert(ev);
         EVENT_HDR_TYPE(ev) = META_EVENT_TYPE;
         dest_ep = GET_REMOTE_DPU_EP(engine, i);
-        DBG("Sending group cache to DPU #%ld (econtext: %p, scope_id: %d)",
-            LOCAL_ID_TO_GLOBAL(list_dpus[i]->econtext, i), list_dpus[i]->econtext, list_dpus[i]->econtext->scope_id);
         // If the econtext is a client to connect to a server, the dest_id is the index;
         // otherwise we need to find the client ID based on the index
         if (list_dpus[i]->econtext->type == CONTEXT_SERVER)
             dest_id = list_dpus[i]->client_id;
-        rc = send_group_cache(list_dpus[i]->econtext, dest_ep, dest_id, group_id, ev);
+        DBG("Sending group cache to DPU #%ld (econtext: %p, scope_id: %d, dest_id: %ld)",
+            LOCAL_ID_TO_GLOBAL(list_dpus[i]->econtext, i), list_dpus[i]->econtext, list_dpus[i]->econtext->scope_id, dest_id);
+        rc = send_local_rank_group_cache(list_dpus[i]->econtext, dest_ep, dest_id, group_id, ev);
         CHECK_ERR_RETURN((rc), DO_ERROR, "send_group_cache() failed");
         QUEUE_EVENT(ev);
     }

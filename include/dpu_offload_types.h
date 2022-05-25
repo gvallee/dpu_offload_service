@@ -28,6 +28,7 @@ typedef enum
     CONTEXT_CLIENT,
     CONTEXT_SERVER,
     CONTEXT_SELF,
+    CONTEXT_LIMIT_MAX,
 } daemon_type_t;
 
 #define INIT_UCX() ({                                                      \

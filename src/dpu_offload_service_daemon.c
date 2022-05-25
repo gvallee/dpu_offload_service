@@ -85,10 +85,16 @@ struct oob_msg
 
 extern dpu_offload_status_t get_env_config(conn_params_t *params);
 
-static void err_cb(void *arg, ucp_ep_h ep, ucs_status_t status)
+static void ep_create_err_cb(void *arg, ucp_ep_h ep, ucs_status_t status)
 {
+    execution_context_t *econtext = (execution_context_t *)arg;
+    if (econtext == NULL)
+        WARN_MSG("execution context is undefined");
     ERR_MSG("error callback was invoked with status %d (%s) on ep %p\n",
             status, ucs_status_string(status), ep);
+    ERR_MSG("econtext info - type: %d, scope_id: %d",
+            econtext->type, econtext->scope_id);
+    abort();
 }
 
 static void oob_recv_addr_handler_2(void *request, ucs_status_t status, const ucp_tag_recv_info_t *tag_info, void *user_data)
@@ -221,14 +227,16 @@ error_out:
 static inline dpu_offload_status_t oob_server_ucx_client_connection_step3(execution_context_t *econtext, peer_info_t *client_info)
 {
     /* 3. Create the endpoint using the address we just received */
+    assert(econtext->type > 0); // should not be unknown
+    assert(econtext->type < CONTEXT_LIMIT_MAX);
     ucp_ep_params_t ep_params = {0};
     ep_params.field_mask = UCP_EP_PARAM_FIELD_REMOTE_ADDRESS |
                            UCP_EP_PARAM_FIELD_ERR_HANDLING_MODE |
                            UCP_EP_PARAM_FIELD_ERR_HANDLER |
                            UCP_EP_PARAM_FIELD_USER_DATA;
     ep_params.err_mode = err_handling_opt.ucp_err_mode;
-    ep_params.err_handler.cb = err_cb;
-    ep_params.err_handler.arg = NULL;
+    ep_params.err_handler.cb = ep_create_err_cb;
+    ep_params.err_handler.arg = econtext;
     ep_params.address = client_info->peer_addr;
     ep_params.user_data = &(client_info->ep_status);
     ucp_worker_h worker = GET_WORKER(econtext);
@@ -614,6 +622,8 @@ dpu_offload_status_t client_init_context(execution_context_t *econtext, init_par
 // This function assumes the client structure is properly lock before it is invoked
 static dpu_offload_status_t ucx_listener_client_connect(dpu_offload_client_t *client)
 {
+    assert(client->econtext->type > 0); // should not be unknown
+    assert(client->econtext->type < CONTEXT_LIMIT_MAX);
     set_sock_addr(client->conn_params.addr_str, client->conn_params.port, &(client->conn_data.ucx_listener.connect_addr));
 
     /*
@@ -636,8 +646,8 @@ static dpu_offload_status_t ucx_listener_client_connect(dpu_offload_client_t *cl
                            UCP_EP_PARAM_FIELD_ERR_HANDLER |
                            UCP_EP_PARAM_FIELD_ERR_HANDLING_MODE;
     ep_params.err_mode = UCP_ERR_HANDLING_MODE_PEER;
-    ep_params.err_handler.cb = err_cb;
-    ep_params.err_handler.arg = NULL;
+    ep_params.err_handler.cb = ep_create_err_cb;
+    ep_params.err_handler.arg = client->econtext;
     ep_params.flags = UCP_EP_PARAMS_FLAGS_CLIENT_SERVER;
     ep_params.sockaddr.addr = (struct sockaddr *)&(client->conn_data.ucx_listener.connect_addr);
     ep_params.sockaddr.addrlen = sizeof(client->conn_data.ucx_listener.connect_addr);
@@ -746,6 +756,8 @@ static dpu_offload_status_t client_ucx_bootstrap_step1(execution_context_t *econ
 {
     /* Establish the UCX level connection */
     ECONTEXT_LOCK(econtext);
+    assert(econtext->type > 0); // should not be unknown
+    assert(econtext->type < CONTEXT_LIMIT_MAX);
     ucp_ep_params_t ep_params = {0};
     ep_params.field_mask = UCP_EP_PARAM_FIELD_REMOTE_ADDRESS |
                            UCP_EP_PARAM_FIELD_ERR_HANDLING_MODE |
@@ -753,11 +765,11 @@ static dpu_offload_status_t client_ucx_bootstrap_step1(execution_context_t *econ
                            UCP_EP_PARAM_FIELD_USER_DATA;
     ep_params.address = econtext->client->conn_data.oob.peer_addr;
     ep_params.err_mode = err_handling_opt.ucp_err_mode;
-    ep_params.err_handler.cb = err_cb;
-    ep_params.err_handler.arg = NULL;
+    ep_params.err_handler.cb = ep_create_err_cb;
+    ep_params.err_handler.arg = econtext;
     ep_params.user_data = &(econtext->client->server_ep_status);
 
-    ucs_status_t status = ucp_ep_create(GET_WORKER(econtext), &ep_params, &econtext->client->server_ep);
+    ucs_status_t status = ucp_ep_create(GET_WORKER(econtext), &ep_params, &(econtext->client->server_ep));
     CHECK_ERR_GOTO((status != UCS_OK), error_out, "ucp_ep_create() failed");
 
     ucp_request_param_t send_param = {0};
@@ -1273,7 +1285,9 @@ static int add_cache_entry_for_new_client(peer_info_t *client_info, execution_co
         COPY_RANK_INFO(&(client_info->rank_data), &(cache_entry->peer.proc_info));
         cache_entry->num_shadow_dpus = 1;
         if (ctx->engine->on_dpu)
+        {
             cache_entry->shadow_dpus[0] = ctx->engine->config->local_dpu.id;
+        }
         else
             cache_entry->shadow_dpus[0] = ECONTEXT_ID(ctx);
         cache_entry->set = true;

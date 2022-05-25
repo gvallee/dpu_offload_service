@@ -666,7 +666,7 @@ void event_channels_fini(dpu_offload_ev_sys_t **ev_sys)
     SYS_EVENT_LOCK(*ev_sys);
     if ((*ev_sys)->num_used_evs > 0)
     {
-        WARN_MSG("[WARN] %ld events objects have not been returned", (*ev_sys)->num_used_evs);
+        WARN_MSG("%ld events objects have not been returned", (*ev_sys)->num_used_evs);
     }
 
 #if USE_AM_IMPLEM
@@ -851,7 +851,7 @@ bool event_completed(dpu_offload_event_t *ev)
 
         if (ucs_list_is_empty(&(ev->sub_events)))
         {
-            DBG("All sub-events completed");
+            DBG("All sub-events completed, metaev %p %ld completes", ev, ev->seq_num);
             goto event_completed;
         }
     }
@@ -1023,15 +1023,19 @@ static dpu_offload_status_t peer_cache_entries_recv_cb(struct dpu_offload_ev_sys
             group_rank, group_id, group_size, entries[idx].peer.proc_info.n_local_ranks, dpu_global_id, data_len, entries[idx].peer.addr_len);
         if (!is_in_cache(cache, group_id, group_rank, group_size))
         {
+            size_t n;
             n_added++;
             gp_cache->num_local_entries++;
             peer_cache_entry_t *cache_entry;
             cache_entry = GET_GROUP_RANK_CACHE_ENTRY(cache, group_id, group_rank, group_size);
             cache_entry->set = true;
             COPY_PEER_DATA(&(entries[idx].peer), &(cache_entry->peer));
-
-            cache_entry->shadow_dpus[cache_entry->num_shadow_dpus] = dpu_global_id;
-            cache_entry->num_shadow_dpus++;
+            assert(entries[idx].num_shadow_dpus > 0);
+            for (n = 0; n < entries[idx].num_shadow_dpus; n++)
+            {
+                cache_entry->shadow_dpus[cache_entry->num_shadow_dpus + n] = entries[idx].shadow_dpus[n];
+            }
+            cache_entry->num_shadow_dpus += entries[idx].num_shadow_dpus;
 
             // If any event is associated to the cache entry, handle them
             if (cache_entry->events_initialized)
@@ -1048,7 +1052,6 @@ static dpu_offload_status_t peer_cache_entries_recv_cb(struct dpu_offload_ev_sys
         {
             DBG("Entry already in cache - gp: %ld, rank: %ld", group_id, group_rank);
         }
-
         cur_size += sizeof(peer_cache_entry_t);
         idx++;
     }
@@ -1074,7 +1077,6 @@ static dpu_offload_status_t peer_cache_entries_recv_cb(struct dpu_offload_ev_sys
     }
 
     DBG("Reception completed");
-
     return DO_SUCCESS;
 }
 
