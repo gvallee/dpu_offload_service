@@ -995,6 +995,18 @@ static dpu_offload_status_t peer_cache_entries_request_recv_cb(struct dpu_offloa
     return DO_ERROR;
 }
 
+/**
+ * @brief receive handler for cache entry notifications. Note that a single notification
+ * can hold multiple cache entries.
+ * 
+ * @param ev_sys Associated event channels/system
+ * @param econtext Associated execution context
+ * @param hdr Header of the notification
+ * @param hdr_size Size of the header
+ * @param data Notifaction's payload, i.e., the cache entries
+ * @param data_len Total size of the notification's payload
+ * @return dpu_offload_status_t 
+ */
 static dpu_offload_status_t peer_cache_entries_recv_cb(struct dpu_offload_ev_sys *ev_sys, execution_context_t *econtext, am_header_t *hdr, size_t hdr_size, void *data, size_t data_len)
 {
     assert(econtext);
@@ -1031,6 +1043,7 @@ static dpu_offload_status_t peer_cache_entries_recv_cb(struct dpu_offload_ev_sys
             cache_entry->set = true;
             COPY_PEER_DATA(&(entries[idx].peer), &(cache_entry->peer));
             assert(entries[idx].num_shadow_dpus > 0);
+            // append the shadow DPU data to the data already local available (if any)
             for (n = 0; n < entries[idx].num_shadow_dpus; n++)
             {
                 cache_entry->shadow_dpus[cache_entry->num_shadow_dpus + n] = entries[idx].shadow_dpus[n];
