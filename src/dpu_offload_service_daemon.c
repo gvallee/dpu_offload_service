@@ -181,7 +181,7 @@ static inline dpu_offload_status_t oob_server_ucx_client_connection_step2(execut
     // Get the buffer ready for the receive
     ucp_tag_t ucp_tag, ucp_tag_mask;
     ucp_request_param_t recv_param = {0};
-    client_info->peer_addr = MALLOC(client_info->peer_addr_len);
+    client_info->peer_addr = DPU_OFFLOAD_MALLOC(client_info->peer_addr_len);
     CHECK_ERR_GOTO((client_info->peer_addr == NULL),
                    error_out,
                    "unable to allocate memory for peer address (%ld bytes)",
@@ -555,7 +555,7 @@ dpu_offload_status_t client_init_context(execution_context_t *econtext, init_par
     int ret;
     dpu_offload_status_t rc;
     econtext->type = CONTEXT_CLIENT;
-    econtext->client = MALLOC(sizeof(dpu_offload_client_t));
+    econtext->client = DPU_OFFLOAD_MALLOC(sizeof(dpu_offload_client_t));
     CHECK_ERR_RETURN((econtext->client == NULL), DO_ERROR, "Unable to allocate client handle\n");
     RESET_CLIENT(econtext->client);
     econtext->client->econtext = (struct execution_context *)econtext;
@@ -819,7 +819,7 @@ static dpu_offload_status_t oob_connect(execution_context_t *econtext)
     ssize_t size_recvd = recv(client->conn_data.oob.sock, &addr_len, sizeof(addr_len), MSG_WAITALL);
     DBG("Addr len received (len: %ld): %ld", size_recvd, addr_len);
     client->conn_data.oob.peer_addr_len = addr_len;
-    client->conn_data.oob.peer_addr = MALLOC(client->conn_data.oob.peer_addr_len);
+    client->conn_data.oob.peer_addr = DPU_OFFLOAD_MALLOC(client->conn_data.oob.peer_addr_len);
     CHECK_ERR_GOTO((client->conn_data.oob.peer_addr == NULL), error_out, "Unable to allocate memory");
     size_recvd = recv(client->conn_data.oob.sock, client->conn_data.oob.peer_addr, client->conn_data.oob.peer_addr_len, MSG_WAITALL);
     DBG("Received the address (size: %ld)", size_recvd);
@@ -966,17 +966,17 @@ dpu_offload_status_t lib_progress(execution_context_t *econtext)
 
 dpu_offload_status_t offload_engine_init(offloading_engine_t **engine)
 {
-    offloading_engine_t *d = MALLOC(sizeof(offloading_engine_t));
+    offloading_engine_t *d = DPU_OFFLOAD_MALLOC(sizeof(offloading_engine_t));
     CHECK_ERR_GOTO((d == NULL), error_out, "Unable to allocate resources");
     RESET_ENGINE(d);
     int ret = pthread_mutex_init(&(d->mutex), NULL);
     CHECK_ERR_GOTO((ret), error_out, "pthread_mutex_init() failed: %s", strerror(errno));
     d->num_max_servers = DEFAULT_MAX_NUM_SERVERS;
-    d->servers = MALLOC(d->num_max_servers * sizeof(dpu_offload_server_t *));
+    d->servers = DPU_OFFLOAD_MALLOC(d->num_max_servers * sizeof(dpu_offload_server_t *));
     CHECK_ERR_GOTO((d->servers == NULL), error_out, "unable to allocate memory to track servers");
     memset(d->servers, 0, d->num_max_servers * sizeof(dpu_offload_server_t *));
     d->num_max_inter_dpus_clients = DEFAULT_MAX_NUM_SERVERS;
-    d->inter_dpus_clients = MALLOC(d->num_max_inter_dpus_clients * sizeof(remote_dpu_connect_tracker_t));
+    d->inter_dpus_clients = DPU_OFFLOAD_MALLOC(d->num_max_inter_dpus_clients * sizeof(remote_dpu_connect_tracker_t));
     CHECK_ERR_GOTO((d->servers == NULL), error_out, "unable to allocate resources");
     DYN_LIST_ALLOC(d->free_op_descs, 8, op_desc_t, item);
     CHECK_ERR_GOTO((d->free_op_descs == NULL), error_out, "Allocation of pool of free operation descriptors failed");
@@ -1611,7 +1611,7 @@ static void execution_context_progress(execution_context_t *ctx)
 
 static dpu_offload_status_t execution_context_init(offloading_engine_t *offload_engine, uint64_t type, execution_context_t **econtext)
 {
-    execution_context_t *ctx = MALLOC(sizeof(execution_context_t));
+    execution_context_t *ctx = DPU_OFFLOAD_MALLOC(sizeof(execution_context_t));
     CHECK_ERR_GOTO((ctx == NULL), error_out, "unable to allocate execution context");
     RESET_ECONTEXT(ctx);
     int ret = pthread_mutex_init(&(ctx->mutex), NULL);
@@ -2119,7 +2119,7 @@ dpu_offload_status_t server_init_context(execution_context_t *econtext, init_par
     int ret;
     size_t i;
     econtext->type = CONTEXT_SERVER;
-    econtext->server = MALLOC(sizeof(dpu_offload_server_t));
+    econtext->server = DPU_OFFLOAD_MALLOC(sizeof(dpu_offload_server_t));
     CHECK_ERR_RETURN((econtext->server == NULL), DO_ERROR, "Unable to allocate server handle");
     RESET_SERVER(econtext->server);
     econtext->server->econtext = (struct execution_context *)econtext;

@@ -248,7 +248,7 @@ static int handle_notif_msg(execution_context_t *econtext, am_header_t *hdr, siz
         pending_notif->econtext = econtext;
         if (pending_notif->data_size > 0)
         {
-            pending_notif->data = MALLOC(pending_notif->data_size);
+            pending_notif->data = DPU_OFFLOAD_MALLOC(pending_notif->data_size);
             CHECK_ERR_RETURN((pending_notif->data == NULL), DO_ERROR, "unable to allocate pending notification's data");
             memcpy(pending_notif->data, data, pending_notif->data_size);
         }
@@ -258,7 +258,7 @@ static int handle_notif_msg(execution_context_t *econtext, am_header_t *hdr, siz
         }
         if (pending_notif->header_size > 0)
         {
-            pending_notif->header = MALLOC(pending_notif->header_size);
+            pending_notif->header = DPU_OFFLOAD_MALLOC(pending_notif->header_size);
             CHECK_ERR_RETURN((pending_notif->header == NULL), DO_ERROR, "unable to allocate pending notification's header");
             memcpy(pending_notif->header, hdr, pending_notif->header_size);
         }
@@ -365,7 +365,7 @@ static int post_recv_for_notif_payload(hdr_notif_req_t *ctx, execution_context_t
         ucp_worker_h worker;
 
         ucp_tag_t payload_ucp_tag, payload_ucp_tag_mask;
-        ctx->payload_ctx.buffer = MALLOC(ctx->hdr.payload_size);
+        ctx->payload_ctx.buffer = DPU_OFFLOAD_MALLOC(ctx->hdr.payload_size);
         assert(ctx->payload_ctx.buffer);
         worker = GET_WORKER(econtext);
         assert(worker);

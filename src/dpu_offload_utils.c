@@ -459,8 +459,8 @@ dpu_offload_status_t broadcast_group_cache(offloading_engine_t *engine, int64_t 
     {
         // Not all the DPUs are connected, we cannot exchange the data yet
         DBG("Not all DPUs are connected, unable to broadcast group cache (num DPUS: %ld, connected DPUs: %ld)",
-                 engine->num_dpus,
-                 engine->num_connected_dpus);
+            engine->num_dpus,
+            engine->num_connected_dpus);
         return DO_ERROR;
     }
 
@@ -1080,7 +1080,7 @@ dpu_offload_status_t find_dpu_config_from_platform_configfile(char *filepath, of
     len = ftell(file);
     fseek(file, 0, SEEK_SET); /* same as rewind(f); */
 
-    char *content = MALLOC(len + 1);
+    char *content = DPU_OFFLOAD_MALLOC(len + 1);
     fread(content, len, 1, file);
     fclose(file);
     content[len] = '\0';

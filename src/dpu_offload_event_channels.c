@@ -55,7 +55,7 @@ static ucs_status_t am_notification_recv_rdv_msg(execution_context_t *econtext, 
     // be received in advance but we do our best to avoid mallocs
     if (pending_recv->buff_size == 0)
     {
-        pending_recv->user_data = MALLOC(payload_size);
+        pending_recv->user_data = DPU_OFFLOAD_MALLOC(payload_size);
         pending_recv->buff_size = payload_size;
     }
     if (pending_recv->buff_size < payload_size)
@@ -137,7 +137,7 @@ void init_event(void *ev_ptr)
 
 dpu_offload_status_t ev_channels_init(dpu_offload_ev_sys_t **ev_channels)
 {
-    dpu_offload_ev_sys_t *event_channels = MALLOC(sizeof(dpu_offload_ev_sys_t));
+    dpu_offload_ev_sys_t *event_channels = DPU_OFFLOAD_MALLOC(sizeof(dpu_offload_ev_sys_t));
     CHECK_ERR_RETURN((event_channels == NULL), DO_ERROR, "Resource allocation failed");
     RESET_EV_SYS(event_channels);
     size_t num_evts = DEFAULT_NUM_EVTS;
@@ -725,7 +725,7 @@ dpu_offload_status_t event_get(dpu_offload_ev_sys_t *ev_sys, dpu_offload_event_i
         // If we get here, it means that we need to manage a payload buffer for that event
         _ev->manage_payload_buf = true;
         EVENT_HDR_PAYLOAD_SIZE(_ev) = info->payload_size;
-        _ev->payload = MALLOC(info->payload_size); // No advanced memory management at the moment, just malloc
+        _ev->payload = DPU_OFFLOAD_MALLOC(info->payload_size); // No advanced memory management at the moment, just malloc
         assert(_ev->payload);
     }
 
