@@ -1202,22 +1202,6 @@ static void progress_event_recv(execution_context_t *econtext)
 }
 
 /**
- * @brief Sends the entire group cache to the local ranks, assuming the local ranks are forming the entire group.
- * 
- * @param econtext 
- * @param group_id 
- * @return dpu_offload_status_t 
- */
-static dpu_offload_status_t send_group_cache_to_local_ranks(execution_context_t *econtext, int64_t group_id)
-{
-    DBG("Cache for group %ld is now complete, sending it to the local ranks (scope_id: %d, num connected clients: %ld)",
-        group_id, econtext->scope_id, econtext->server->connected_clients.num_connected_clients);
-    dpu_offload_status_t rc = send_gp_cache_to_host(econtext, group_id);
-    CHECK_ERR_RETURN((rc), DO_ERROR, "send_gp_cache_to_host() failed");  
-    return DO_SUCCESS;
-}
-
-/**
  * @brief callback that servers on DPUs can set (server->connected_cb) to have
  * implicit management of caches, especially when all the ranks of the group
  * are on the local host. In such a situation, it will be detected when the last
@@ -1261,8 +1245,10 @@ void local_rank_connect_default_callback(void *data)
     // or if the entire cache is there, we make sure to send it to the local ranks if necessary
     if (gc->group_size == gc->num_local_entries)
     {
-        dpu_offload_status_t rc = send_group_cache_to_local_ranks(connected_peer->econtext, group_id);
-        CHECK_ERR_GOTO((rc), error_out, "send_group_cache_to_local_ranks() failed");
+        DBG("Cache for group %ld is now complete, sending it to the local ranks (scope_id: %d, num connected clients: %ld)",
+            group_id, connected_peer->econtext->scope_id, connected_peer->econtext->server->connected_clients.num_connected_clients);
+        dpu_offload_status_t rc = send_gp_cache_to_host(connected_peer->econtext, group_id);
+        CHECK_ERR_GOTO((rc), error_out, "send_gp_cache_to_host() failed");
     }
 
     // No need to trigger the broadcast of the cache, it is handled by the inter-dpu code.
