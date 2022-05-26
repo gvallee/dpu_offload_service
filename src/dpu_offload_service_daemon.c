@@ -85,10 +85,16 @@ struct oob_msg
 
 extern dpu_offload_status_t get_env_config(conn_params_t *params);
 
-static void err_cb(void *arg, ucp_ep_h ep, ucs_status_t status)
+static void ep_create_err_cb(void *arg, ucp_ep_h ep, ucs_status_t status)
 {
+    execution_context_t *econtext = (execution_context_t *)arg;
+    if (econtext == NULL)
+        WARN_MSG("execution context is undefined");
     ERR_MSG("error callback was invoked with status %d (%s) on ep %p\n",
             status, ucs_status_string(status), ep);
+    ERR_MSG("econtext info - type: %d, scope_id: %d",
+            econtext->type, econtext->scope_id);
+    abort();
 }
 
 static void oob_recv_addr_handler_2(void *request, ucs_status_t status, const ucp_tag_recv_info_t *tag_info, void *user_data)
@@ -175,7 +181,7 @@ static inline dpu_offload_status_t oob_server_ucx_client_connection_step2(execut
     // Get the buffer ready for the receive
     ucp_tag_t ucp_tag, ucp_tag_mask;
     ucp_request_param_t recv_param = {0};
-    client_info->peer_addr = MALLOC(client_info->peer_addr_len);
+    client_info->peer_addr = DPU_OFFLOAD_MALLOC(client_info->peer_addr_len);
     CHECK_ERR_GOTO((client_info->peer_addr == NULL),
                    error_out,
                    "unable to allocate memory for peer address (%ld bytes)",
@@ -221,14 +227,16 @@ error_out:
 static inline dpu_offload_status_t oob_server_ucx_client_connection_step3(execution_context_t *econtext, peer_info_t *client_info)
 {
     /* 3. Create the endpoint using the address we just received */
+    assert(econtext->type > 0); // should not be unknown
+    assert(econtext->type < CONTEXT_LIMIT_MAX);
     ucp_ep_params_t ep_params = {0};
     ep_params.field_mask = UCP_EP_PARAM_FIELD_REMOTE_ADDRESS |
                            UCP_EP_PARAM_FIELD_ERR_HANDLING_MODE |
                            UCP_EP_PARAM_FIELD_ERR_HANDLER |
                            UCP_EP_PARAM_FIELD_USER_DATA;
     ep_params.err_mode = err_handling_opt.ucp_err_mode;
-    ep_params.err_handler.cb = err_cb;
-    ep_params.err_handler.arg = NULL;
+    ep_params.err_handler.cb = ep_create_err_cb;
+    ep_params.err_handler.arg = econtext;
     ep_params.address = client_info->peer_addr;
     ep_params.user_data = &(client_info->ep_status);
     ucp_worker_h worker = GET_WORKER(econtext);
@@ -547,7 +555,7 @@ dpu_offload_status_t client_init_context(execution_context_t *econtext, init_par
     int ret;
     dpu_offload_status_t rc;
     econtext->type = CONTEXT_CLIENT;
-    econtext->client = MALLOC(sizeof(dpu_offload_client_t));
+    econtext->client = DPU_OFFLOAD_MALLOC(sizeof(dpu_offload_client_t));
     CHECK_ERR_RETURN((econtext->client == NULL), DO_ERROR, "Unable to allocate client handle\n");
     RESET_CLIENT(econtext->client);
     econtext->client->econtext = (struct execution_context *)econtext;
@@ -614,6 +622,8 @@ dpu_offload_status_t client_init_context(execution_context_t *econtext, init_par
 // This function assumes the client structure is properly lock before it is invoked
 static dpu_offload_status_t ucx_listener_client_connect(dpu_offload_client_t *client)
 {
+    assert(client->econtext->type > 0); // should not be unknown
+    assert(client->econtext->type < CONTEXT_LIMIT_MAX);
     set_sock_addr(client->conn_params.addr_str, client->conn_params.port, &(client->conn_data.ucx_listener.connect_addr));
 
     /*
@@ -636,8 +646,8 @@ static dpu_offload_status_t ucx_listener_client_connect(dpu_offload_client_t *cl
                            UCP_EP_PARAM_FIELD_ERR_HANDLER |
                            UCP_EP_PARAM_FIELD_ERR_HANDLING_MODE;
     ep_params.err_mode = UCP_ERR_HANDLING_MODE_PEER;
-    ep_params.err_handler.cb = err_cb;
-    ep_params.err_handler.arg = NULL;
+    ep_params.err_handler.cb = ep_create_err_cb;
+    ep_params.err_handler.arg = client->econtext;
     ep_params.flags = UCP_EP_PARAMS_FLAGS_CLIENT_SERVER;
     ep_params.sockaddr.addr = (struct sockaddr *)&(client->conn_data.ucx_listener.connect_addr);
     ep_params.sockaddr.addrlen = sizeof(client->conn_data.ucx_listener.connect_addr);
@@ -746,6 +756,8 @@ static dpu_offload_status_t client_ucx_bootstrap_step1(execution_context_t *econ
 {
     /* Establish the UCX level connection */
     ECONTEXT_LOCK(econtext);
+    assert(econtext->type > 0); // should not be unknown
+    assert(econtext->type < CONTEXT_LIMIT_MAX);
     ucp_ep_params_t ep_params = {0};
     ep_params.field_mask = UCP_EP_PARAM_FIELD_REMOTE_ADDRESS |
                            UCP_EP_PARAM_FIELD_ERR_HANDLING_MODE |
@@ -753,11 +765,11 @@ static dpu_offload_status_t client_ucx_bootstrap_step1(execution_context_t *econ
                            UCP_EP_PARAM_FIELD_USER_DATA;
     ep_params.address = econtext->client->conn_data.oob.peer_addr;
     ep_params.err_mode = err_handling_opt.ucp_err_mode;
-    ep_params.err_handler.cb = err_cb;
-    ep_params.err_handler.arg = NULL;
+    ep_params.err_handler.cb = ep_create_err_cb;
+    ep_params.err_handler.arg = econtext;
     ep_params.user_data = &(econtext->client->server_ep_status);
 
-    ucs_status_t status = ucp_ep_create(GET_WORKER(econtext), &ep_params, &econtext->client->server_ep);
+    ucs_status_t status = ucp_ep_create(GET_WORKER(econtext), &ep_params, &(econtext->client->server_ep));
     CHECK_ERR_GOTO((status != UCS_OK), error_out, "ucp_ep_create() failed");
 
     ucp_request_param_t send_param = {0};
@@ -807,7 +819,7 @@ static dpu_offload_status_t oob_connect(execution_context_t *econtext)
     ssize_t size_recvd = recv(client->conn_data.oob.sock, &addr_len, sizeof(addr_len), MSG_WAITALL);
     DBG("Addr len received (len: %ld): %ld", size_recvd, addr_len);
     client->conn_data.oob.peer_addr_len = addr_len;
-    client->conn_data.oob.peer_addr = MALLOC(client->conn_data.oob.peer_addr_len);
+    client->conn_data.oob.peer_addr = DPU_OFFLOAD_MALLOC(client->conn_data.oob.peer_addr_len);
     CHECK_ERR_GOTO((client->conn_data.oob.peer_addr == NULL), error_out, "Unable to allocate memory");
     size_recvd = recv(client->conn_data.oob.sock, client->conn_data.oob.peer_addr, client->conn_data.oob.peer_addr_len, MSG_WAITALL);
     DBG("Received the address (size: %ld)", size_recvd);
@@ -954,17 +966,17 @@ dpu_offload_status_t lib_progress(execution_context_t *econtext)
 
 dpu_offload_status_t offload_engine_init(offloading_engine_t **engine)
 {
-    offloading_engine_t *d = MALLOC(sizeof(offloading_engine_t));
+    offloading_engine_t *d = DPU_OFFLOAD_MALLOC(sizeof(offloading_engine_t));
     CHECK_ERR_GOTO((d == NULL), error_out, "Unable to allocate resources");
     RESET_ENGINE(d);
     int ret = pthread_mutex_init(&(d->mutex), NULL);
     CHECK_ERR_GOTO((ret), error_out, "pthread_mutex_init() failed: %s", strerror(errno));
     d->num_max_servers = DEFAULT_MAX_NUM_SERVERS;
-    d->servers = MALLOC(d->num_max_servers * sizeof(dpu_offload_server_t *));
+    d->servers = DPU_OFFLOAD_MALLOC(d->num_max_servers * sizeof(dpu_offload_server_t *));
     CHECK_ERR_GOTO((d->servers == NULL), error_out, "unable to allocate memory to track servers");
     memset(d->servers, 0, d->num_max_servers * sizeof(dpu_offload_server_t *));
     d->num_max_inter_dpus_clients = DEFAULT_MAX_NUM_SERVERS;
-    d->inter_dpus_clients = MALLOC(d->num_max_inter_dpus_clients * sizeof(remote_dpu_connect_tracker_t));
+    d->inter_dpus_clients = DPU_OFFLOAD_MALLOC(d->num_max_inter_dpus_clients * sizeof(remote_dpu_connect_tracker_t));
     CHECK_ERR_GOTO((d->servers == NULL), error_out, "unable to allocate resources");
     DYN_LIST_ALLOC(d->free_op_descs, 8, op_desc_t, item);
     CHECK_ERR_GOTO((d->free_op_descs == NULL), error_out, "Allocation of pool of free operation descriptors failed");
@@ -1189,38 +1201,6 @@ static void progress_event_recv(execution_context_t *econtext)
 #endif
 }
 
-static dpu_offload_status_t send_group_cache_to_local_ranks(execution_context_t *econtext, int64_t group_id)
-{
-    size_t n = 0, idx = 0;
-    assert(econtext->type == CONTEXT_SERVER);
-    assert(econtext->scope_id == SCOPE_HOST_DPU);
-    DBG("Cache for group %ld is now complete, sending it to the local ranks (scope_id: %d, num connected clients: %ld)",
-        group_id, econtext->scope_id, econtext->server->connected_clients.num_connected_clients);
-    while (n < econtext->server->connected_clients.num_connected_clients)
-    {
-        dpu_offload_event_t *metaev;
-        peer_info_t *c = DYN_ARRAY_GET_ELT(&(econtext->server->connected_clients.clients), idx, peer_info_t);
-        if (c == NULL)
-        {
-            idx++;
-            continue;
-        }
-        DBG("Send cache to client #%ld (id: %"PRIu64")", idx, c->id);
-        dpu_offload_status_t rc = event_get(econtext->event_channels, NULL, &metaev);
-        if (rc != DO_SUCCESS)
-            ERR_MSG("event_get() failed"); // todo: better handle errors
-        assert(metaev);
-        EVENT_HDR_TYPE(metaev) = META_EVENT_TYPE;
-        rc = send_group_cache(econtext, c->ep, c->id, group_id, metaev);
-        if (rc != DO_SUCCESS)
-            ERR_MSG("send_group_cache() failed"); // todo: better handler errors
-        QUEUE_EVENT(metaev);
-        n++;
-        idx++;
-    }
-    return DO_SUCCESS;
-}
-
 /**
  * @brief callback that servers on DPUs can set (server->connected_cb) to have
  * implicit management of caches, especially when all the ranks of the group
@@ -1257,14 +1237,18 @@ void local_rank_connect_default_callback(void *data)
     assert(connected_peer->econtext->engine);
     gc = GET_GROUP_CACHE(&(connected_peer->econtext->engine->procs_cache), group_id);
     assert(gc);
+    assert(gc->n_local_ranks_populated <= gc->group_size);
+    DBG("Checking group %" PRId64 " (number of local entries: %ld, n_local_populated: %ld, n_local: %ld)",
+        group_id, gc->n_local_ranks_populated, gc->n_local_ranks_populated, gc->n_local_ranks);
 
-    DBG("Checking group %" PRId64 " (number of local entries: %ld)", group_id, gc->num_local_entries);
-
-    // If the cache is full, i.e., all the ranks of the group are on the host, send it back to all ranks
+    // If the cache is full, i.e., all the ranks of the group are on the host,
+    // or if the entire cache is there, we make sure to send it to the local ranks if necessary
     if (gc->group_size == gc->num_local_entries)
     {
-        dpu_offload_status_t rc = send_group_cache_to_local_ranks(connected_peer->econtext, group_id);
-        CHECK_ERR_GOTO((rc), error_out, "send_group_cache_to_local_ranks() failed");
+        DBG("Cache for group %ld is now complete, sending it to the local ranks (scope_id: %d, num connected clients: %ld)",
+            group_id, connected_peer->econtext->scope_id, connected_peer->econtext->server->connected_clients.num_connected_clients);
+        dpu_offload_status_t rc = send_gp_cache_to_host(connected_peer->econtext, group_id);
+        CHECK_ERR_GOTO((rc), error_out, "send_gp_cache_to_host() failed");
     }
 
     // No need to trigger the broadcast of the cache, it is handled by the inter-dpu code.
@@ -1272,6 +1256,57 @@ void local_rank_connect_default_callback(void *data)
 error_out:
     ERR_MSG("unable to figure out if cache needs to be sent out to local ranks");
     return;
+}
+
+static int add_cache_entry_for_new_client(peer_info_t *client_info, execution_context_t *ctx)
+{
+
+    if (client_info->rank_data.group_id != INVALID_GROUP && client_info->rank_data.group_rank != INVALID_RANK)
+    {
+        // Update the pointer to track cache entries, i.e., groups/ranks, for the peer
+        DBG("Adding gp/rank %" PRId64 "/%" PRId64 " to cache", client_info->rank_data.group_id, client_info->rank_data.group_rank);
+        peer_cache_entry_t *cache_entry;
+        cache_entry = GET_GROUP_RANK_CACHE_ENTRY(&(ctx->engine->procs_cache), client_info->rank_data.group_id, client_info->rank_data.group_rank, client_info->rank_data.group_size);
+        assert(cache_entry);
+        COPY_RANK_INFO(&(client_info->rank_data), &(cache_entry->peer.proc_info));
+        cache_entry->num_shadow_dpus = 1;
+        if (ctx->engine->on_dpu)
+        {
+            cache_entry->shadow_dpus[0] = ctx->engine->config->local_dpu.id;
+        }
+        else
+            cache_entry->shadow_dpus[0] = ECONTEXT_ID(ctx);
+        cache_entry->set = true;
+
+        group_cache_t *gp_cache = GET_GROUP_CACHE(&(ctx->engine->procs_cache), client_info->rank_data.group_id);
+        if (cache_entry == NULL)
+        {
+            ERR_MSG("undefined cache entry");
+            return DO_ERROR;
+        }
+        if (gp_cache->n_local_ranks <= 0 && client_info->rank_data.n_local_ranks >= 0)
+        {
+            DBG("Setting the number of local ranks for the group %" PRId64 " (%" PRId64 ")",
+                client_info->rank_data.group_id,
+                client_info->rank_data.n_local_ranks);
+            gp_cache->n_local_ranks = client_info->rank_data.n_local_ranks;
+        }
+        gp_cache->n_local_ranks_populated++;
+        gp_cache->num_local_entries++;
+        cache_entry->peer.addr_len = client_info->peer_addr_len;
+        if (client_info->peer_addr != NULL)
+        {
+            assert(client_info->peer_addr_len < MAX_ADDR_LEN);
+            memcpy(cache_entry->peer.addr,
+                   client_info->peer_addr,
+                   client_info->peer_addr_len);
+        }
+        assert(client_info->cache_entries.num_elts > 0);
+        peer_cache_entry_t **cache_entries = (peer_cache_entry_t **)(client_info->cache_entries.base);
+        assert(cache_entries);
+        cache_entries[0] = cache_entry;
+    }
+    return DO_SUCCESS;
 }
 
 static void progress_server_econtext(execution_context_t *ctx)
@@ -1354,79 +1389,13 @@ static void progress_server_econtext(execution_context_t *ctx)
                         client_info->rank_data.group_rank,
                         client_info->rank_data.group_size,
                         client_info->rank_data.n_local_ranks);
-                    if (client_info->rank_data.group_id != INVALID_GROUP && client_info->rank_data.group_rank != INVALID_RANK)
+
+                    // add_cache_entry_for_new_client chechks if the data actually needs to be put in the cache
+                    rc = add_cache_entry_for_new_client(client_info, ctx);
+                    if (rc == DO_ERROR)
                     {
-                        bool group_cache_now_full = false;
-                        // Update the pointer to track cache entries, i.e., groups/ranks, for the peer
-                        DBG("Adding gp/rank %" PRId64 "/%" PRId64 " to cache", client_info->rank_data.group_id, client_info->rank_data.group_rank);
-                        peer_cache_entry_t *cache_entry;
-                        cache_entry = GET_GROUP_RANK_CACHE_ENTRY(&(ctx->engine->procs_cache), client_info->rank_data.group_id, client_info->rank_data.group_rank, client_info->rank_data.group_size);
-                        assert(cache_entry);
-                        COPY_RANK_INFO(&(client_info->rank_data), &(cache_entry->peer.proc_info));
-                        cache_entry->num_shadow_dpus = 1;
-                        if (ctx->engine->on_dpu)
-                            cache_entry->shadow_dpus[0] = ctx->engine->config->local_dpu.id;
-                        else
-                            cache_entry->shadow_dpus[0] = ECONTEXT_ID(ctx);
-                        cache_entry->set = true;
-
-                        group_cache_t *gp_cache = GET_GROUP_CACHE(&(ctx->engine->procs_cache), client_info->rank_data.group_id);
-                        if (cache_entry == NULL)
-                        {
-                            ERR_MSG("undefined cache entry");
-                            ECONTEXT_UNLOCK(ctx);
-                            return;
-                        }
-                        if (gp_cache->n_local_ranks <= 0 && client_info->rank_data.n_local_ranks >= 0)
-                        {
-                            DBG("Setting the number of local ranks for the group %" PRId64 " (%" PRId64 ")",
-                                client_info->rank_data.group_id,
-                                client_info->rank_data.n_local_ranks);
-                            gp_cache->n_local_ranks = client_info->rank_data.n_local_ranks;
-                        }
-                        if (gp_cache->group_size == gp_cache->num_local_entries + 1)
-                        {
-                            // The cache is above to be fully populated
-                            DBG("Cache is complete for group %ld (gp size: %ld, local entries: %ld)\n",
-                                client_info->rank_data.group_id,
-                                gp_cache->group_size,
-                                gp_cache->num_local_entries + 1);
-                            group_cache_now_full = true;
-                        }
-                        gp_cache->n_local_ranks_populated++;
-                        gp_cache->num_local_entries++;
-
-                        cache_entry->peer.addr_len = client_info->peer_addr_len;
-                        if (client_info->peer_addr != NULL)
-                        {
-                            assert(client_info->peer_addr_len < MAX_ADDR_LEN);
-                            memcpy(cache_entry->peer.addr,
-                                   client_info->peer_addr,
-                                   client_info->peer_addr_len);
-                        }
-                        assert(client_info->cache_entries.num_elts > 0);
-                        peer_cache_entry_t **cache_entries = (peer_cache_entry_t **)(client_info->cache_entries.base);
-                        assert(cache_entries);
-                        cache_entries[0] = cache_entry;
-
-                        // Trigger the exchange of the cache between DPUs when possible
-                        // Do not check for errors, it may fail at this point (if all DPUs are not connected) and it is okay
-                        if (gp_cache->n_local_ranks > 0 && gp_cache->n_local_ranks_populated == gp_cache->n_local_ranks)
-                        {
-                            DBG("We now have a connection with all the local ranks, we can broadcast the group cache at once");
-                            broadcast_group_cache(ctx->engine, client_info->rank_data.group_id);
-                        }
-                        if (gp_cache->n_local_ranks < 0)
-                        {
-                            DBG("We do not know how many ranks to locally expect for that group, broadcast the new information by default");
-                            broadcast_group_cache(ctx->engine, client_info->rank_data.group_id);
-                        }
-
-                        // Check if the cache is fully populated
-                        if (group_cache_now_full && gp_cache->group_size > 0 && gp_cache->num_local_entries == gp_cache->group_size)
-                        {
-                            DBG("Cache is now complete, we will send it as soon as all the ranks are fully connected");
-                        }
+                        ECONTEXT_UNLOCK(ctx);
+                        return;
                     }
 
                     if (ECONTEXT_ON_DPU(ctx) && ctx->scope_id == SCOPE_INTER_DPU)
@@ -1463,6 +1432,41 @@ static void progress_server_econtext(execution_context_t *ctx)
                         idx,
                         ctx->server->connected_clients.num_connected_clients,
                         ctx->engine->num_connected_dpus);
+
+                    // Trigger the exchange of the cache between DPUs when all the local ranks are connected
+                    // Do not check for errors, it may fail at this point (if all DPUs are not connected) and it is okay
+                    if (ECONTEXT_ON_DPU(ctx) &&
+                        ctx->scope_id == SCOPE_HOST_DPU &&
+                        client_info->rank_data.group_id != INVALID_GROUP &&
+                        client_info->rank_data.group_rank != INVALID_RANK)
+                    {
+                        group_cache_t *gp_cache = GET_GROUP_CACHE(&(ctx->engine->procs_cache), client_info->rank_data.group_id);
+                        if (gp_cache->n_local_ranks > 0 && gp_cache->n_local_ranks_populated == gp_cache->n_local_ranks)
+                        {
+                            DBG("We now have a connection with all the local ranks, we can broadcast the group cache at once");
+                            broadcast_group_cache(ctx->engine, client_info->rank_data.group_id);
+                        }
+                        if (gp_cache->n_local_ranks < 0)
+                        {
+                            DBG("We do not know how many ranks to locally expect for that group, broadcast the new information by default");
+                            broadcast_group_cache(ctx->engine, client_info->rank_data.group_id);
+                        }
+                        // Check if the cache is fully populated
+                        bool group_cache_now_full = false;
+                        if (gp_cache->group_size == gp_cache->num_local_entries + 1)
+                        {
+                            // The cache is above to be fully populated
+                            DBG("Cache is complete for group %ld (gp size: %ld, local entries: %ld)\n",
+                                client_info->rank_data.group_id,
+                                gp_cache->group_size,
+                                gp_cache->num_local_entries + 1);
+                            group_cache_now_full = true;
+                        }
+                        if (group_cache_now_full && gp_cache->group_size > 0 && gp_cache->num_local_entries == gp_cache->group_size)
+                        {
+                            DBG("Cache is now complete, we will send it as soon as all the ranks are fully connected");
+                        }
+                    }
 
                     if (ctx->server->connected_cb != NULL)
                     {
@@ -1607,7 +1611,7 @@ static void execution_context_progress(execution_context_t *ctx)
 
 static dpu_offload_status_t execution_context_init(offloading_engine_t *offload_engine, uint64_t type, execution_context_t **econtext)
 {
-    execution_context_t *ctx = MALLOC(sizeof(execution_context_t));
+    execution_context_t *ctx = DPU_OFFLOAD_MALLOC(sizeof(execution_context_t));
     CHECK_ERR_GOTO((ctx == NULL), error_out, "unable to allocate execution context");
     RESET_ECONTEXT(ctx);
     int ret = pthread_mutex_init(&(ctx->mutex), NULL);
@@ -2115,7 +2119,7 @@ dpu_offload_status_t server_init_context(execution_context_t *econtext, init_par
     int ret;
     size_t i;
     econtext->type = CONTEXT_SERVER;
-    econtext->server = MALLOC(sizeof(dpu_offload_server_t));
+    econtext->server = DPU_OFFLOAD_MALLOC(sizeof(dpu_offload_server_t));
     CHECK_ERR_RETURN((econtext->server == NULL), DO_ERROR, "Unable to allocate server handle");
     RESET_SERVER(econtext->server);
     econtext->server->econtext = (struct execution_context *)econtext;
@@ -2351,6 +2355,8 @@ void server_fini(execution_context_t **exec_ctx)
 
     event_channels_fini(&(server->event_channels));
     ucp_worker_destroy(GET_WORKER(*exec_ctx));
+
+    DYN_ARRAY_FREE(&(server->local_groups_sent_to_host));
 
     free(context->server);
     context->server = NULL;

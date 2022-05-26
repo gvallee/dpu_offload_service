@@ -9,7 +9,7 @@
 #ifndef DPU_OFFLOAD_COMMS_H_
 #define DPU_OFFLOAD_COMMS_H_
 
-#define MAX_POSTED_SENDS (1)
+#define MAX_POSTED_SENDS (8)
 
 /* All the tag related code has been taken from UCC */
 
@@ -116,7 +116,7 @@
     _can_post;                                            \
 })
 
-// TODO: same for AM
+// TODO: same for UCX AM
 #define PROGRESS_EVENT_SEND(__ev)                                                                \
     do                                                                                           \
     {                                                                                            \
@@ -179,6 +179,7 @@ static void progress_econtext_sends(execution_context_t *ctx)
         assert(ev->is_ongoing_event == true);       
         if (EVENT_HDR_TYPE(ev) == META_EVENT_TYPE)
         {
+            assert(ev->sub_events_initialized);
             // if the event is meta-event, we need to check the sub-events
             dpu_offload_event_t *subev, *next_subev;
             ucs_list_for_each_safe(subev, next_subev, (&(ev->sub_events)), item)
@@ -247,7 +248,7 @@ static int handle_notif_msg(execution_context_t *econtext, am_header_t *hdr, siz
         pending_notif->econtext = econtext;
         if (pending_notif->data_size > 0)
         {
-            pending_notif->data = MALLOC(pending_notif->data_size);
+            pending_notif->data = DPU_OFFLOAD_MALLOC(pending_notif->data_size);
             CHECK_ERR_RETURN((pending_notif->data == NULL), DO_ERROR, "unable to allocate pending notification's data");
             memcpy(pending_notif->data, data, pending_notif->data_size);
         }
@@ -257,7 +258,7 @@ static int handle_notif_msg(execution_context_t *econtext, am_header_t *hdr, siz
         }
         if (pending_notif->header_size > 0)
         {
-            pending_notif->header = MALLOC(pending_notif->header_size);
+            pending_notif->header = DPU_OFFLOAD_MALLOC(pending_notif->header_size);
             CHECK_ERR_RETURN((pending_notif->header == NULL), DO_ERROR, "unable to allocate pending notification's header");
             memcpy(pending_notif->header, hdr, pending_notif->header_size);
         }
@@ -353,7 +354,7 @@ static int post_recv_for_notif_payload(hdr_notif_req_t *ctx, execution_context_t
 
     if (ctx->hdr.payload_size > 0 && ctx->payload_ctx.req != NULL)
     {
-        WARN_MSG("We got a new header but still waiting for a previous notification payload");
+        DBG("We got a new header but still waiting for a previous notification payload");
         return EVENT_INPROGRESS;
     }
 
@@ -364,7 +365,7 @@ static int post_recv_for_notif_payload(hdr_notif_req_t *ctx, execution_context_t
         ucp_worker_h worker;
 
         ucp_tag_t payload_ucp_tag, payload_ucp_tag_mask;
-        ctx->payload_ctx.buffer = MALLOC(ctx->hdr.payload_size);
+        ctx->payload_ctx.buffer = DPU_OFFLOAD_MALLOC(ctx->hdr.payload_size);
         assert(ctx->payload_ctx.buffer);
         worker = GET_WORKER(econtext);
         assert(worker);
@@ -530,7 +531,7 @@ static void notif_hdr_recv_handler(void *request, ucs_status_t status, const ucp
         ERR_MSG("expecting a message from server_id: %" PRIu64 " but received %" PRIu64 " ctx: %p", ctx->server_id, ctx->hdr.server_id, ctx);
         if (!ctx->econtext->engine->on_dpu && ctx->econtext->type == CONTEXT_CLIENT)
         {
-            WARN_MSG("My client ID is %" PRId64, ctx->econtext->rank.group_rank);
+            DBG("My client ID is %" PRId64, ctx->econtext->rank.group_rank);
         }
         abort();
     }

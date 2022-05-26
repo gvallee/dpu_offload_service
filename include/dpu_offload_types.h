@@ -28,6 +28,7 @@ typedef enum
     CONTEXT_CLIENT,
     CONTEXT_SERVER,
     CONTEXT_SELF,
+    CONTEXT_LIMIT_MAX,
 } daemon_type_t;
 
 #define INIT_UCX() ({                                                      \
@@ -940,6 +941,10 @@ typedef struct dpu_offload_server_t
 
     dpu_offload_ev_sys_t *event_channels;
 
+    // Vector to track which groups have been sent to the host once all the local ranks
+    // showed up. Only used on DPUs.
+    dyn_array_t local_groups_sent_to_host;
+
     union
     {
         struct
@@ -972,6 +977,8 @@ typedef struct dpu_offload_server_t
         RESET_CONNECTED_CLIENTS(&((_server)->connected_clients)); \
         (_server)->connected_cb = NULL;                           \
         (_server)->event_channels = NULL;                         \
+        DYN_ARRAY_ALLOC(&((_server)->local_groups_sent_to_host),  \
+                        8, bool);                                 \
     } while (0)
 
 typedef struct dpu_offload_client_t
