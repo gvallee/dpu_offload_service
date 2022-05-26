@@ -435,6 +435,14 @@ dpu_offload_status_t broadcast_group_cache(offloading_engine_t *engine, int64_t 
     assert(engine);
     assert(group_id >= 0);
 
+    // Check whether all the DPUs are connected, if not, do not do anything
+    if (engine->num_dpus != engine->num_connected_dpus + 1)
+    {
+        DBG("Not all DPUs are connected, not initiating the broadcast");
+        return DO_SUCCESS;
+    }
+    DBG("All DPUs connected, starting broadcast of the cache entries for the local ranks");
+
     if (!engine->on_dpu)
     {
         ERR_MSG("Not on a DPU, not allowed to broadcast group cache");
@@ -443,7 +451,7 @@ dpu_offload_status_t broadcast_group_cache(offloading_engine_t *engine, int64_t 
 
     if (engine->num_dpus == 1)
     {
-        // It is only the current DPU, nothing to do
+        // The configuration has a single DPU, the current DPU, nothing to do
         return DO_SUCCESS;
     }
 
@@ -473,6 +481,11 @@ dpu_offload_status_t broadcast_group_cache(offloading_engine_t *engine, int64_t 
         if (i == cfg->local_dpu.id)
             continue;
 
+        if (list_dpus[i]->econtext == NULL)
+        {
+            ERR_MSG("number of connected DPUs: %ld", engine->num_connected_dpus);
+            ERR_MSG("econtext for DPU %ld is NULL", i);
+        }
         assert(list_dpus[i]->econtext);
         event_get(list_dpus[i]->econtext->event_channels, NULL, &ev);
         assert(ev);
@@ -948,7 +961,6 @@ bool parse_line_dpu_version_1(offloading_config_t *data, char *line)
                 DBG("Check DPU %s that we need to connect to (with %s)", connect_to->hostname, target_entry->version_1.hostname);
                 if (strncmp(target_entry->version_1.hostname, connect_to->hostname, strlen(connect_to->hostname)) == 0)
                 {
-                    DBG("Saving connection parameters to connect to %s (%p)", connect_to->hostname, connect_to);
                     conn_params_t *new_conn_params;
                     DYN_LIST_GET(data->offloading_engine->pool_conn_params, conn_params_t, item, new_conn_params); // fixme: properly return it
                     RESET_CONN_PARAMS(new_conn_params);
@@ -957,6 +969,7 @@ bool parse_line_dpu_version_1(offloading_config_t *data, char *line)
                     // fixme: add support for multiple daemons on a single DPU (issue #98);
                     int *port = DYN_ARRAY_GET_ELT(&(target_entry->version_1.interdpu_ports), 0, int);
                     connect_to->init_params.conn_params->port = *port;
+                    DBG("\tconnection parameters to connect to %s at %s (%p) saved", connect_to->hostname, target_entry->version_1.addr, connect_to);
                 }
             }
         }
@@ -1208,7 +1221,7 @@ dpu_offload_status_t get_host_config(offloading_config_t *config_data)
     {
         DBG("Looking for %s's configuration data from %s", hostname, config_data->config_file);
         rc = find_config_from_platform_configfile(config_data->config_file, hostname, config_data);
-        CHECK_ERR_RETURN((rc), DO_ERROR, "find_dpu_config_from_platform_configfile() failed");
+        CHECK_ERR_RETURN((rc), DO_ERROR, "find_config_from_platform_configfile() failed");
     }
     else
     {

@@ -1447,9 +1447,12 @@ static void progress_server_econtext(execution_context_t *ctx)
                         ctx->server->connected_clients.num_connected_clients,
                         ctx->engine->num_connected_dpus);
 
-                    // Trigger the exchange of the cache between DPUs when possible
+                    // Trigger the exchange of the cache between DPUs when all the local ranks are connected
                     // Do not check for errors, it may fail at this point (if all DPUs are not connected) and it is okay
-                    if (ECONTEXT_ON_DPU(ctx) && client_info->rank_data.group_id != INVALID_GROUP && client_info->rank_data.group_rank != INVALID_RANK)
+                    if (ECONTEXT_ON_DPU(ctx) &&
+                        ctx->scope_id == SCOPE_HOST_DPU &&
+                        client_info->rank_data.group_id != INVALID_GROUP &&
+                        client_info->rank_data.group_rank != INVALID_RANK)
                     {
                         group_cache_t *gp_cache = GET_GROUP_CACHE(&(ctx->engine->procs_cache), client_info->rank_data.group_id);
                         if (gp_cache->n_local_ranks > 0 && gp_cache->n_local_ranks_populated == gp_cache->n_local_ranks)

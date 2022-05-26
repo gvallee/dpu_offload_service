@@ -238,10 +238,11 @@ dpu_offload_status_t connect_to_remote_dpu(remote_dpu_info_t *remote_dpu_info)
     offloading_engine_t *offload_engine = remote_dpu_info->offload_engine;
     CHECK_ERR_RETURN((offload_engine == NULL), DO_ERROR, "undefined offload_engine");
 
-    DBG("connecting to DPU server %s at %s:%d",
+    DBG("connecting to DPU server %s at %s:%d, my ID %" PRIu64,
         remote_dpu_info->hostname,
         remote_dpu_info->init_params.conn_params->addr_str,
-        remote_dpu_info->init_params.conn_params->port);
+        remote_dpu_info->init_params.conn_params->port,
+        offload_engine->config->local_dpu.id);
     // Inter-DPU connection, no group, rank is the ID
     rank_info_t dpu_info;
     dpu_info.group_id = INVALID_GROUP;
@@ -297,6 +298,7 @@ void client_dpu_connected(void *data)
     assert(econtext);
     assert(econtext->type == CONTEXT_SERVER);
     assert(econtext->engine);
+    assert(econtext->scope_id == SCOPE_INTER_DPU);
 
     DBG("DPU #%" PRIu64 " (client %" PRIu64 ") is now fully connected",
         connected_peer->rank_info.group_rank, connected_peer->peer_id);
