@@ -124,8 +124,15 @@ dpu_offload_status_t send_cache(execution_context_t *econtext, cache_t *cache, u
 dpu_offload_status_t exchange_cache(execution_context_t *econtext, cache_t *cache, dpu_offload_event_t *meta_event);
 
 /**
- * @brief The function exchange a group cache between DPUs but only if all DPUs are
- * connected, otherwise the broadcast would be incomplete.
+ * @brief The function sends the cache entries for the local ranks of a group to all other DPUs
+ * but only if all DPUs are connected, otherwise the broadcast would be incomplete.
+ * Remember that all DPU daemons and ranks are initiating connections independently
+ * and in parallel, there is not way to predict whether the local ranks will be fully
+ * connected before all the DPUs, or the opposite.
+ * In other words, when calling the function, it is possible that it would not be
+ * possible to perform the broadcast right away. The function checks whether the
+ * broadcast can be performed before trying to send the cache. In other words, the
+ * broadcast is not initiated if all the DPUs are not locally connected.
  *
  * @param engine Current offloading engine
  * @param group_id ID of the group to broadcast.
