@@ -56,7 +56,7 @@ int main(int argc, char **argv)
     fprintf(stderr, "Connections between DPUs successfully initialized\n");
 
     /* Wait for the DPUs to connect to each other */
-    while (offload_engine->num_dpus != offload_engine->num_connected_dpus + 1)
+    while (!all_service_procs_connected(offload_engine))
         offload_engine_progress(offload_engine);
 
     /*
@@ -64,7 +64,7 @@ int main(int argc, char **argv)
      */
     fprintf(stderr, "Creating server for processes on the DPU\n");
     // We let the system figure out the configuration to use to let ranks connect
-    execution_context_t *service_server = server_init(offload_engine, &(config_data.local_dpu.host_init_params));
+    execution_context_t *service_server = server_init(offload_engine, &(config_data.local_service_proc.host_init_params));
     if (service_server == NULL)
     {
         fprintf(stderr, "service_server is undefined\n");

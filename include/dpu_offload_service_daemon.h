@@ -141,17 +141,17 @@ dpu_offload_status_t exchange_cache(execution_context_t *econtext, cache_t *cach
 dpu_offload_status_t broadcast_group_cache(offloading_engine_t *engine, int64_t group_id);
 
 /**
- * @brief Get the dpu ID by host rank object. That ID can then be used to look up the corresponding endpoint.
+ * @brief Get the service process ID by host rank object. That ID can then be used to look up the corresponding endpoint.
  *
  * @param[in] engine Offloading engine for the query
  * @param[in] gp_id Target group identifier
  * @param[in] rank Target rank in the group
- * @param[in] dpu_idx In case of multiple DPUs per host, index of the target shadow DPU for the group/rank
- * @param[out] dpu_id Resulting DPU identifier
+ * @param[in] dpu_idx In case of multiple service processes per host, index of the target shadow service process for the group/rank
+ * @param[out] dpu_id Resulting service process identifier
  * @param[out] ev Associated event. If NULL, the DPU identifier is available right away. If not, it is required to call the function again once the event has completed. The caller is in charge of returning the event after completion. The event cannot be added to any list since it is already put on a list.
  * @return dpu_offload_status_t
  */
-dpu_offload_status_t get_dpu_id_by_group_rank(offloading_engine_t *engine, int64_t gp_id, int64_t rank, int64_t dpu_idx, int64_t *dpu_id, dpu_offload_event_t **ev);
+dpu_offload_status_t get_sp_id_by_group_rank(offloading_engine_t *engine, int64_t gp_id, int64_t rank, int64_t sp_idx, int64_t *sp_id, dpu_offload_event_t **ev);
 
 /**
  * @brief Get the dpu ID by host rank object. That ID can then be used to look up the corresponding endpoint.
@@ -159,12 +159,12 @@ dpu_offload_status_t get_dpu_id_by_group_rank(offloading_engine_t *engine, int64
  * @param[in] engine Offloading engine for the query
  * @param[in] gp_id Target group identifier
  * @param[in] rank Target rank in the group
- * @param[in] dpu_idx In case of multiple DPUs per host, index of the target shadow DPU for the group/rank
+ * @param[in] sp_idx In case of multiple service processes per host, index of the target shadow service process for the group/rank
  * @param[out] cb Associated callback. If the event completes right away, the callback is still being invoked. The user is in charge of returning the object related to the request.
  * @return dpu_offload_status_t
  *
  * Example:
- *      - To issue the request for the first DPU attached to the group/rank `gp_id` and `rank_id`
+ *      - To issue the request for the first service process attached to the group/rank `gp_id` and `rank_id`
  *          get_cache_entry_by_group_rank(offload_engine, gp_id, rank_id, 0, my_completion_cb);
  *      - Completion callback example:
  *          void my_completion_cb(void *data)
@@ -173,27 +173,27 @@ dpu_offload_status_t get_dpu_id_by_group_rank(offloading_engine_t *engine, int64
  *              cache_entry_request_t *cache_entry_req = (cache_entry_request_t*)data;
  *              assert(cache_entry_req->offload_engine);
  *              offloading_engine_t *engine = (offloading_engine_t*)cache_entry_req->offload_engine;
- *              ucp_ep_h target_dpu_ep = NULL;
- *              execution_context_t *target_dpu_econtext = NULL;
+ *              ucp_ep_h target_sp_ep = NULL;
+ *              execution_context_t *target_sp_econtext = NULL;
  *              uint64_t notif_dest_id;
- *              get_dpu_ep_by_id(engine, cache_entry_req->target_dpu_idx, &target_dpu_econtext, &target_dpu_econtext, &notif_dest_id);
- *              assert(target_dpu_ep == NULL);
+ *              get_sp_ep_by_id(engine, cache_entry_req->target_sp_idx, &target_sp_econtext, &target_sp_econtext, &notif_dest_id);
+ *              assert(target_sp_ep == NULL);
  *              DYN_LIST_RETURN(engine->free_cache_entry_requests, cache_entry_req, item);
  *          }
  */
-dpu_offload_status_t get_cache_entry_by_group_rank(offloading_engine_t *engine, int64_t gp_id, int64_t rank, int64_t dpu_idx, request_compl_cb_t cb);
+dpu_offload_status_t get_cache_entry_by_group_rank(offloading_engine_t *engine, int64_t gp_id, int64_t rank, int64_t sp_idx, request_compl_cb_t cb);
 
 /**
- * @brief Get the DPU endpoint by ID object, i.e., the identifier returned by get_dpu_id_by_host_rank
+ * @brief Get the service process endpoint by ID object, i.e., the identifier returned by get_sp_id_by_host_rank
  *
  * @param[in] engine engine Offloading engine for the query
- * @param[in] id Global DPU identifier
+ * @param[in] id Global service process identifier
  * @param[out] ucp_ep_h DPU's endpoint to use to communicate with the target DPU
  * @param[out] econtext_comm The execution context to use for notification, must be used to get an event
  * @param[out] notif_dest_id The local identifier to send notification to the remote DPU
  * @return dpu_offload_status_t
  */
-dpu_offload_status_t get_dpu_ep_by_id(offloading_engine_t *engine, uint64_t id, ucp_ep_h *ep, execution_context_t **econtext_comm, uint64_t *notif_dest_id);
+dpu_offload_status_t get_sp_ep_by_id(offloading_engine_t *engine, uint64_t sp_id, ucp_ep_h *sp_ep, execution_context_t **econtext_comm, uint64_t *comm_id);
 
 bool group_cache_populated(offloading_engine_t *engine, int64_t gp_id);
 
@@ -201,7 +201,9 @@ bool is_in_cache(cache_t *cache, int64_t gp_id, int64_t rank_id, int64_t group_s
 
 execution_context_t *get_server_servicing_host(offloading_engine_t *engine);
 
-#define SET_DEFAULT_DPU_HOST_SERVER_CALLBACKS(_init_params)                      \
+bool all_service_procs_connected(offloading_engine_t *engine);
+
+#define SET_DEFAULT_DPU_HOST_SERVER_CALLBACKS(_init_params)                 \
     do                                                                      \
     {                                                                       \
         (_init_params)->connected_cb = local_rank_connect_default_callback; \

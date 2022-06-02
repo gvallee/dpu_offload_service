@@ -73,7 +73,7 @@ static int send_test_successful_message(execution_context_t *econtext, uint64_t 
 }
 
 static bool endpoint_success = false;
-/* Called on DPU #0 */
+/* Called on service process #0 */
 void cache_entry_cb(void *data)
 {
     assert(data);
@@ -83,16 +83,16 @@ void cache_entry_cb(void *data)
             cache_entry_req->rank);
     assert(cache_entry_req->offload_engine);
     offloading_engine_t *engine = (offloading_engine_t *)cache_entry_req->offload_engine;
-    ucp_ep_h target_dpu_ep;
+    ucp_ep_h target_sp_ep;
     execution_context_t *econtext_comm;
     uint64_t notif_dest_id;
-    dpu_offload_status_t rc = get_dpu_ep_by_id(engine, cache_entry_req->target_dpu_idx, &target_dpu_ep, &econtext_comm, &notif_dest_id);
+    dpu_offload_status_t rc = get_sp_ep_by_id(engine, cache_entry_req->target_sp_idx, &target_sp_ep, &econtext_comm, &notif_dest_id);
     if (rc)
     {
-        fprintf(stderr, "l.%d - [ERROR] get_dpu_ep_by_id() failed\n", __LINE__);
+        fprintf(stderr, "l.%d - [ERROR] get_sp_ep_by_id() failed\n", __LINE__);
         return;
     }
-    if (target_dpu_ep == NULL)
+    if (target_sp_ep == NULL)
     {
         fprintf(stderr, "l.%d - [ERROR] shadow DPU endpoint is undefined\n", __LINE__);
         return;
@@ -102,19 +102,19 @@ void cache_entry_cb(void *data)
         fprintf(stderr, "l.%d - [ERROR] econtext is undefined\n", __LINE__);
         return;
     }
-    fprintf(stderr, "l.%d - Successfully retrieved endpoint (%p)\n", __LINE__, target_dpu_ep);
+    fprintf(stderr, "l.%d - Successfully retrieved endpoint (%p)\n", __LINE__, target_sp_ep);
     fprintf(stderr, "-> lookup succeeded (l.%d)\n", __LINE__);
     dpu_offload_event_t *end_test_cb_ev;
-    remote_dpu_info_t **list_dpus = LIST_DPUS_FROM_ENGINE(engine);
-    execution_context_t *target_dpu_econtext = list_dpus[0]->econtext;
-    assert(target_dpu_econtext);
-    rc = event_get(target_dpu_econtext->event_channels, NULL, &end_test_cb_ev);
+    remote_service_proc_info_t **list_sps = LIST_SERVICE_PROCS_FROM_ENGINE(engine);
+    execution_context_t *target_sp_econtext = list_sps[0]->econtext;
+    assert(target_sp_econtext);
+    rc = event_get(target_sp_econtext->event_channels, NULL, &end_test_cb_ev);
     if (rc)
     {
         fprintf(stderr, "l.%d: [ERROR] event_get() failed\n", __LINE__);
         return;
     }
-    rc = event_channel_emit(&end_test_cb_ev, END_TEST_FROM_CALLBACK, list_dpus[1]->ep, 1, NULL);
+    rc = event_channel_emit(&end_test_cb_ev, END_TEST_FROM_CALLBACK, list_sps[1]->ep, 1, NULL);
     if (rc != EVENT_DONE && rc != EVENT_INPROGRESS)
     {
         fprintf(stderr, "l.%d: [ERROR] event_channel_emit() failed\n", __LINE__);
@@ -125,13 +125,13 @@ void cache_entry_cb(void *data)
 }
 
 /**
- * @brief Called on DPU #0.
- * 
- * @param offload_engine 
- * @param gp_id 
- * @param rank_id 
- * @param expected_dpu_id 
- * @return int 
+ * @brief Called on service process #0.
+ *
+ * @param offload_engine
+ * @param gp_id
+ * @param rank_id
+ * @param expected_dpu_id
+ * @return int
  */
 static int do_lookup_from_callback(offloading_engine_t *offload_engine, int64_t gp_id, int64_t rank_id, int64_t expected_dpu_id)
 {
@@ -147,9 +147,9 @@ static int do_lookup_from_callback(offloading_engine_t *offload_engine, int64_t 
 static int do_lookup(offloading_engine_t *offload_engine, int64_t gp_id, int64_t rank_id, int64_t expected_dpu_id)
 {
     dpu_offload_status_t rc;
-    int64_t remote_dpu_id;
+    int64_t remote_sp_id;
     dpu_offload_event_t *ev;
-    execution_context_t *econtext = ECONTEXT_FOR_DPU_COMMUNICATION(offload_engine, 1);
+    execution_context_t *econtext = ECONTEXT_FOR_SERVICE_PROC_COMMUNICATION(offload_engine, 1);
     if (econtext == NULL)
     {
         fprintf(stderr, "[ERROR] unable to find a valid execution context\n");
@@ -157,13 +157,13 @@ static int do_lookup(offloading_engine_t *offload_engine, int64_t gp_id, int64_t
     }
 
     fprintf(stderr, "Looking up endpoint for %" PRId64 "/%" PRId64 "\n", gp_id, rank_id);
-    rc = get_dpu_id_by_group_rank(offload_engine, gp_id, rank_id, 0, &remote_dpu_id, &ev);
+    rc = get_sp_id_by_group_rank(offload_engine, gp_id, rank_id, 0, &remote_sp_id, &ev);
     if (rc != DO_SUCCESS)
     {
         fprintf(stderr, "[ERROR] first get_dpu_id_by_host_rank() failed\n");
         goto error_out;
     }
-    fprintf(stderr, "l.%d - get_dpu_id_by_group_rank() succeeded, ev=%p\n", __LINE__, ev);
+    fprintf(stderr, "l.%d - get_sp_id_by_group_rank() succeeded, ev=%p\n", __LINE__, ev);
 
     if (ev != NULL)
     {
@@ -179,7 +179,7 @@ static int do_lookup(offloading_engine_t *offload_engine, int64_t gp_id, int64_t
             goto error_out;
         }
 
-        rc = get_dpu_id_by_group_rank(offload_engine, gp_id, rank_id, 0, &remote_dpu_id, &ev);
+        rc = get_sp_id_by_group_rank(offload_engine, gp_id, rank_id, 0, &remote_sp_id, &ev);
         if (rc != DO_SUCCESS)
         {
             fprintf(stderr, "[ERROR] second get_dpu_id_by_host_rank() failed\n");
@@ -192,9 +192,9 @@ static int do_lookup(offloading_engine_t *offload_engine, int64_t gp_id, int64_t
         }
     }
 
-    if (remote_dpu_id != expected_dpu_id)
+    if (remote_sp_id != expected_dpu_id)
     {
-        fprintf(stderr, "[ERROR] returned DPU is %" PRIu64 " instead of %" PRId64 "\n", remote_dpu_id, expected_dpu_id);
+        fprintf(stderr, "[ERROR] returned DPU is %" PRIu64 " instead of %" PRId64 "\n", remote_sp_id, expected_dpu_id);
         goto error_out;
     }
     fprintf(stderr, "Successfully got the remote DPU ID, getting the corresponding endpoint...\n");
@@ -202,10 +202,10 @@ static int do_lookup(offloading_engine_t *offload_engine, int64_t gp_id, int64_t
     ucp_ep_h target_dpu_ep;
     execution_context_t *econtext_comm;
     uint64_t notif_dest_id;
-    rc = get_dpu_ep_by_id(offload_engine, remote_dpu_id, &target_dpu_ep, &econtext_comm, &notif_dest_id);
+    rc = get_sp_ep_by_id(offload_engine, remote_sp_id, &target_dpu_ep, &econtext_comm, &notif_dest_id);
     if (rc)
     {
-        fprintf(stderr, "l.%d - [ERROR] get_dpu_ep_by_id\n", __LINE__);
+        fprintf(stderr, "l.%d - [ERROR] get_sp_ep_by_id\n", __LINE__);
         goto error_out;
     }
     if (target_dpu_ep == NULL)
@@ -240,14 +240,14 @@ static int end_test_cb(struct dpu_offload_ev_sys *ev_sys, execution_context_t *e
 
 /**
  * @brief Callback invoked upon reception of the notification to start the test from a callback. Invoked on DPU #0.
- * 
- * @param ev_sys 
- * @param econtext 
- * @param hdr 
- * @param hdr_len 
- * @param data 
- * @param data_len 
- * @return int 
+ *
+ * @param ev_sys
+ * @param econtext
+ * @param hdr
+ * @param hdr_len
+ * @param data
+ * @param data_len
+ * @return int
  */
 static int test_cb(struct dpu_offload_ev_sys *ev_sys, execution_context_t *econtext, am_header_t *hdr, size_t hdr_len, void *data, size_t data_len)
 {
@@ -272,8 +272,8 @@ static int test_cb(struct dpu_offload_ev_sys *ev_sys, execution_context_t *econt
         _entry->peer.proc_info.group_id = _gp;                                                  \
         _entry->set = true;                                                                     \
         /* The shadow DPU is myself. */                                                         \
-        _entry->num_shadow_dpus = 1;                                                            \
-        _entry->shadow_dpus[0] = (_config_data).local_dpu.id;                                   \
+        _entry->num_shadow_service_procs = 1;                                                   \
+        _entry->shadow_service_procs[0] = (_config_data).local_service_proc.info.global_id;     \
         _entry->peer.addr_len = 43;                                                             \
         if (!is_in_cache(&((_engine)->procs_cache), _gp, _rank, group_size))                    \
         {                                                                                       \
@@ -333,12 +333,12 @@ int main(int argc, char **argv)
         fprintf(stderr, "[ERROR] get_config() failed\n");
         return EXIT_FAILURE;
     }
-    fprintf(stderr, "Configuration loaded, I am DPU #%ld\n", config_data.local_dpu.id);
+    fprintf(stderr, "Configuration loaded, I am service process #%ld\n", config_data.local_service_proc.info.global_id);
 
     /*
      * INITIATE CONNECTION BETWEEN DPUS.
      */
-    fprintf(stderr, "Initiating connections between DPUs\n");
+    fprintf(stderr, "Initiating connections between service processes\n");
     rc = inter_dpus_connect_mgr(offload_engine, &config_data);
     if (rc)
     {
@@ -347,13 +347,13 @@ int main(int argc, char **argv)
     }
     fprintf(stderr, "Connections between DPUs successfully initialized\n");
 
-    fprintf(stderr, "I am DPU #%ld, starting the test\n", config_data.local_dpu.id);
+    fprintf(stderr, "I am service process #%ld, starting the test\n", config_data.local_service_proc.info.global_id);
 
-    remote_dpu_info_t **list_dpus = LIST_DPUS_FROM_ENGINE(offload_engine);
-    int64_t remote_dpu_id;
-    if (config_data.local_dpu.id == 1)
+    remote_service_proc_info_t **list_sps = LIST_SERVICE_PROCS_FROM_ENGINE(offload_engine);
+    int64_t remote_sp_id;
+    if (config_data.local_service_proc.info.global_id == 1)
     {
-        /* DPU #1 */
+        /* Service Process #1 */
 
         // Create a fake entry in the cache
         // 42 is used to avoid lucky initialization effects that would hide a bug
@@ -368,7 +368,7 @@ int main(int argc, char **argv)
 
         // Next test with local cache: look up the cache entry that is already in the cache
         dpu_offload_event_t *ev;
-        rc = get_dpu_id_by_group_rank(offload_engine, 42, 42, 0, &remote_dpu_id, &ev);
+        rc = get_sp_id_by_group_rank(offload_engine, 42, 42, 0, &remote_sp_id, &ev);
         if (rc != DO_SUCCESS)
         {
             fprintf(stderr, "[ERROR] first get_dpu_id_by_host_rank() failed\n");
@@ -377,19 +377,19 @@ int main(int argc, char **argv)
 
         if (ev != NULL)
         {
-            fprintf(stderr, "[ERROR] get_dpu_id_by_group_rank() did not complete right away but was expected to\n");
+            fprintf(stderr, "[ERROR] get_sp_id_by_group_rank() did not complete right away but was expected to\n");
             goto error_out;
         }
 
-        ucp_ep_h target_dpu_ep;
+        ucp_ep_h target_sp_ep;
         execution_context_t *econtext_comm;
         uint64_t notif_dest_id;
-        rc = get_dpu_ep_by_id(offload_engine, remote_dpu_id, &target_dpu_ep, &econtext_comm, &notif_dest_id);
+        rc = get_sp_ep_by_id(offload_engine, remote_sp_id, &target_sp_ep, &econtext_comm, &notif_dest_id);
         if (rc)
         {
-            fprintf(stderr, "[ERROR] get_dpu_ep_by_id() failed\n");
+            fprintf(stderr, "[ERROR] get_sp_ep_by_id() failed\n");
         }
-        if (target_dpu_ep == NULL)
+        if (target_sp_ep == NULL)
         {
             fprintf(stderr, "[ERROR] undefined endpoint\n");
             goto error_out;
@@ -399,9 +399,9 @@ int main(int argc, char **argv)
             fprintf(stderr, "[ERROR] undefined execution context\n");
             goto error_out;
         }
-        if (target_dpu_ep != list_dpus[config_data.local_dpu.id]->ep)
+        if (target_sp_ep != list_sps[config_data.local_service_proc.info.global_id]->ep)
         {
-            fprintf(stderr, "[ERROR] invalid endpoint was returned (%p instead of %p)\n", target_dpu_ep, list_dpus[config_data.local_dpu.id]->ep);
+            fprintf(stderr, "[ERROR] invalid endpoint was returned (%p instead of %p)\n", target_sp_ep, list_sps[config_data.local_service_proc.info.global_id]->ep);
             goto error_out;
         }
 
@@ -411,9 +411,9 @@ int main(int argc, char **argv)
         fprintf(stderr, "-> l.%d - Sending notification to initiate the test in a callback...\n", __LINE__);
         ADD_TO_CACHE(52, 42, offload_engine, config_data);
         dpu_offload_event_t *start_test_cb_ev;
-        execution_context_t *dpu0_econtext = list_dpus[0]->econtext;
-        assert(dpu0_econtext);
-        rc = event_get(dpu0_econtext->event_channels, NULL, &start_test_cb_ev);
+        execution_context_t *sp0_econtext = list_sps[0]->econtext;
+        assert(sp0_econtext);
+        rc = event_get(sp0_econtext->event_channels, NULL, &start_test_cb_ev);
         if (rc)
         {
             fprintf(stderr, "l.%d: [ERROR] event_get() failed\n", __LINE__);
@@ -422,19 +422,19 @@ int main(int argc, char **argv)
         // Direct access to the endpoint, which will not trigger the creation of the endpoint
         // even if all the required data to do so is there, so I can check on things and not
         // only get fail/success details.
-        if (list_dpus[0]->ep == NULL)
+        if (list_sps[0]->ep == NULL)
         {
-            if (list_dpus[0]->peer_addr == NULL)
+            if (list_sps[0]->peer_addr == NULL)
             {
                 fprintf(stderr, "[WARN] the peer's address is NULL\n");
             }
         }
-        ucp_ep_h remote_dpu_ep = GET_REMOTE_DPU_EP(offload_engine, 0ul);
+        ucp_ep_h remote_sp_ep = GET_REMOTE_SERVICE_PROC_EP(offload_engine, 0ul);
         // After calling DPU_GET_REMOTE_DPU_EP, the endpoint should always be there since
         // in the worst case, we had all the data required to generate the endpoint.
-        assert(list_dpus[0]->ep);
-        assert(remote_dpu_ep);
-        rc = event_channel_emit(&start_test_cb_ev, START_TEST_FROM_CALLBACK, list_dpus[0]->ep, 0, NULL);
+        assert(list_sps[0]->ep);
+        assert(remote_sp_ep);
+        rc = event_channel_emit(&start_test_cb_ev, START_TEST_FROM_CALLBACK, list_sps[0]->ep, 0, NULL);
         if (rc != EVENT_DONE && rc != EVENT_INPROGRESS)
         {
             fprintf(stderr, "l.%d: [ERROR] event_channel_emit() failed (rc: %d - %s)\n", __LINE__, rc, ucs_status_string(rc));
@@ -448,19 +448,19 @@ int main(int argc, char **argv)
     }
     else
     {
-        /* DPU #0 */
+        /* Service Process #0 */
 
-        // We need to make sure we have the connection to DPU #1
-        remote_dpu_info_t *dpu1_config;
-        fprintf(stderr, "Waiting to be connected to DPU #1\n");
+        // We need to make sure we have the connection to service process #1
+        remote_service_proc_info_t *sp1_config;
+        fprintf(stderr, "Waiting to be connected to service process #1\n");
         do
         {
             ENGINE_LOCK(offload_engine);
-            dpu1_config = list_dpus[1];
+            sp1_config = list_sps[1];
             ENGINE_UNLOCK(offload_engine);
             offload_engine_progress(offload_engine);
-        } while (dpu1_config == NULL || dpu1_config->econtext == NULL);
-        fprintf(stderr, "Now connected to DPU #1 (econtext=%p)\n", dpu1_config->econtext);
+        } while (sp1_config == NULL || sp1_config->econtext == NULL);
+        fprintf(stderr, "Now connected to DPU #1 (econtext=%p)\n", sp1_config->econtext);
 
         int ret = do_lookup(offload_engine, 42, 42, 1);
         if (ret != 0)
@@ -471,7 +471,7 @@ int main(int argc, char **argv)
         fprintf(stderr, "-> lookup succeeded (l.%d)\n", __LINE__);
 
         fprintf(stderr, "All done with first test, notify DPU #1...\n");
-        execution_context_t *econtext = ECONTEXT_FOR_DPU_COMMUNICATION(offload_engine, 1);
+        execution_context_t *econtext = ECONTEXT_FOR_SERVICE_PROC_COMMUNICATION(offload_engine, 1);
         send_test_successful_message(econtext, 1);
 
         while (!endpoint_success)

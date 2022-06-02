@@ -976,8 +976,7 @@ static dpu_offload_status_t peer_cache_entries_request_recv_cb(struct dpu_offloa
 
     // If the entry is not in the cache we forward the request
     // and also trigger the send of our cache for the target group
-    // Fixme: forward should happen only when the request is coming from a local rank, not a DPU
-    if (econtext->engine->on_dpu)
+    if (econtext->engine->on_dpu && econtext->scope_id == SCOPE_HOST_DPU)
     {
         size_t i;
         DBG("Entry not in the cache, forwarding the request to other DPUs");
@@ -985,8 +984,8 @@ static dpu_offload_status_t peer_cache_entries_request_recv_cb(struct dpu_offloa
         {
             dpu_offload_status_t rc;
             dpu_offload_event_t *req_fwd_ev;
-            remote_dpu_info_t **list_dpus = (remote_dpu_info_t **)econtext->engine->dpus.base;
-            rc = send_cache_entry_request(econtext, list_dpus[i]->ep, rank_info, &req_fwd_ev);
+            remote_service_proc_info_t **list_sps = (remote_service_proc_info_t **)econtext->engine->service_procs.base;
+            rc = send_cache_entry_request(econtext, list_sps[i]->ep, rank_info, &req_fwd_ev);
             CHECK_ERR_RETURN((rc), DO_ERROR, "send_cache_entry_request() failed");
             return DO_SUCCESS;
         }
@@ -1042,13 +1041,13 @@ static dpu_offload_status_t peer_cache_entries_recv_cb(struct dpu_offload_ev_sys
             cache_entry = GET_GROUP_RANK_CACHE_ENTRY(cache, group_id, group_rank, group_size);
             cache_entry->set = true;
             COPY_PEER_DATA(&(entries[idx].peer), &(cache_entry->peer));
-            assert(entries[idx].num_shadow_dpus > 0);
+            assert(entries[idx].num_shadow_service_procs > 0);
             // append the shadow DPU data to the data already local available (if any)
-            for (n = 0; n < entries[idx].num_shadow_dpus; n++)
+            for (n = 0; n < entries[idx].num_shadow_service_procs; n++)
             {
-                cache_entry->shadow_dpus[cache_entry->num_shadow_dpus + n] = entries[idx].shadow_dpus[n];
+                cache_entry->shadow_service_procs[cache_entry->num_shadow_service_procs + n] = entries[idx].shadow_service_procs[n];
             }
-            cache_entry->num_shadow_dpus += entries[idx].num_shadow_dpus;
+            cache_entry->num_shadow_service_procs += entries[idx].num_shadow_service_procs;
 
             // If any event is associated to the cache entry, handle them
             if (cache_entry->events_initialized)

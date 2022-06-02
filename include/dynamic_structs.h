@@ -22,6 +22,8 @@ typedef struct mem_chunk
     void *ptr;
 } mem_chunk_t;
 
+typedef void (*dyn_struct_elt_init_fn)(void *);
+
 /*****************/
 /* DYNAMIC ARRAY */
 /*****************/
@@ -31,6 +33,7 @@ typedef struct dyn_array
     void *base;
     size_t num_elts;
     size_t num_elts_alloc;
+    dyn_struct_elt_init_fn element_init_fn;
 } dyn_array_t;
 
 #define DYN_ARRAY_ALLOC(_dyn_array, _num_elts_alloc, _type)             \
@@ -39,17 +42,37 @@ typedef struct dyn_array
         assert(_num_elts_alloc);                                        \
         (_dyn_array)->num_elts_alloc = _num_elts_alloc;                 \
         (_dyn_array)->num_elts = _num_elts_alloc;                       \
+        (_dyn_array)->element_init_fn = NULL;                           \
         (_dyn_array)->base = malloc(_num_elts_alloc * sizeof(_type));   \
         assert((_dyn_array)->base);                                     \
         memset((_dyn_array)->base, 0, _num_elts_alloc * sizeof(_type)); \
     } while (0)
 
-#define DYN_ARRAY_FREE(_dyn_array)  \
-    do                              \
-    {                               \
-        assert((_dyn_array)->base); \
-        free((_dyn_array)->base);   \
-        (_dyn_array)->base = NULL;  \
+#define DYN_ARRAY_ALLOC_WITH_INIT_FN(_dyn_array, _num_elts_alloc, _type, _fn) \
+    do                                                                        \
+    {                                                                         \
+        size_t _x;                                                            \
+        assert(_num_elts_alloc);                                              \
+        (_dyn_array)->num_elts_alloc = _num_elts_alloc;                       \
+        (_dyn_array)->num_elts = _num_elts_alloc;                             \
+        (_dyn_array)->element_init_fn = _fn;                                  \
+        (_dyn_array)->base = malloc(_num_elts_alloc * sizeof(_type));         \
+        assert((_dyn_array)->base);                                           \
+        memset((_dyn_array)->base, 0, _num_elts_alloc * sizeof(_type));       \
+        _type *_a = (_type *)(_dyn_array)->base;                              \
+        for (_x = 0; _x < (_dyn_array)->num_elts; _x++)                       \
+        {                                                                     \
+            _fn(_a[_x]);                                                      \
+        }                                                                     \
+    } while (0)
+
+#define DYN_ARRAY_FREE(_dyn_array)            \
+    do                                        \
+    {                                         \
+        assert((_dyn_array)->base);           \
+        free((_dyn_array)->base);             \
+        (_dyn_array)->base = NULL;            \
+        (_dyn_array)->element_init_fn = NULL; \
     } while (0)
 
 #define DYN_ARRAY_GROW(_dyn_array, _type, _size)                                                        \
@@ -65,6 +88,15 @@ typedef struct dyn_array
         assert((_dyn_array)->base);                                                                     \
         char *_start = (char *)(((ptrdiff_t)((_dyn_array)->base)) + _initial_num_elts * sizeof(_type)); \
         memset(_start, 0, (_new_num_elts - _initial_num_elts) * sizeof(_type));                         \
+        if ((_dyn_array)->element_init_fn != NULL)                                                      \
+        {                                                                                               \
+            size_t _x;                                                                                  \
+            _type *_a = (_type *)_start;                                                                \
+            for (_x = 0; _x < _new_num_elts - _initial_num_elts; _x++)                                  \
+            {                                                                                           \
+                (_dyn_array)->element_init_fn(&(_a[_initial_num_elts + _x]));                           \
+            }                                                                                           \
+        }                                                                                               \
         (_dyn_array)->num_elts = _new_num_elts;                                                         \
     } while (0)
 
@@ -97,14 +129,12 @@ typedef struct dyn_array
 /* DYNAMIC LIST */
 /****************/
 
-typedef void (*dyn_list_elt_init_fn)(void *);
-
 typedef struct dyn_list
 {
     size_t num_elts;
     size_t num_elts_alloc;
     ucs_list_link_t list;
-    dyn_list_elt_init_fn element_init_cb;
+    dyn_struct_elt_init_fn element_init_cb;
     // List of memory chunks used for the elements of the list
     size_t num_mem_chunks;
     dyn_array_t mem_chunks;
