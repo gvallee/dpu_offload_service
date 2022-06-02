@@ -15,6 +15,7 @@ extern dpu_offload_status_t dpu_offload_parse_list_dpus(offloading_engine_t *eng
 
 int main(int argc, char **argv)
 {
+    dpu_offload_status_t rc;
     if (argc != 4)
     {
         fprintf(stderr, "Please give in order:\n");
@@ -25,15 +26,30 @@ int main(int argc, char **argv)
     }
 
     offloading_engine_t *engine;
-    offload_engine_init(&engine);
+    rc = offload_engine_init(&engine);
+    if (rc != DO_SUCCESS)
+    {
+        fprintf(stderr, "[ERROR] offload_engine_init() failed\n");
+        goto error_out;
+    }
     assert(engine);
 
     offloading_config_t cfg;
     INIT_DPU_CONFIG_DATA(&cfg);
     cfg.list_dpus = argv[2];
     strcpy(cfg.local_service_proc.hostname, argv[3]);
-    dpu_offload_parse_list_dpus(engine, &cfg);
-    find_dpu_config_from_platform_configfile(argv[1], &cfg);
+    rc = dpu_offload_parse_list_dpus(engine, &cfg);
+    if (rc != DO_SUCCESS)
+    {
+        fprintf(stderr, "[ERROR] dpu_offload_parse_list_dpus() failed\n");
+        goto error_out;
+    }
+    rc = find_dpu_config_from_platform_configfile(argv[1], &cfg);
+    if (rc != DO_SUCCESS)
+    {
+        fprintf(stderr, "[ERROR] find_dpu_config_from_platform_configfile() failed\n");
+        goto error_out;
+    }
     fprintf(stdout, "Configuration: \n");
     fprintf(stdout, "\tNumber of DPUs: %ld\n", cfg.num_dpus);
     fprintf(stdout, "\tNumber of service process per DPU: %ld\n", cfg.num_service_procs_per_dpu);
