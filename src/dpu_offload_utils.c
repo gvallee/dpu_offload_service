@@ -995,6 +995,9 @@ bool parse_line_version_1(char *target_hostname, offloading_config_t *data, char
 {
     int idx = 0;
     char *rest = line;
+    assert(target_hostname);
+    assert(data);
+    assert(line);
 
     while (line[idx] == ' ')
         idx++;
@@ -1038,6 +1041,9 @@ bool parse_line_version_1(char *target_hostname, offloading_config_t *data, char
  */
 bool parse_line(char *target_hostname, char *line, offloading_config_t *data)
 {
+    assert(target_hostname);
+    assert(line);
+    assert(data);
     switch (data->format_version)
     {
     case 1:
@@ -1155,7 +1161,13 @@ dpu_offload_status_t find_config_from_platform_configfile(char *filepath, char *
     dpu_offload_status_t rc = DO_ERROR;
     bool first_line = true;
 
+    assert(filepath);
+    assert(hostname);
+    assert(data);
+
     file = fopen(filepath, "r");
+    if (file == NULL)
+        ERR_MSG("unable to open %s", filepath);
 
     while ((read = getline(&line, &len, file)) != -1)
     {
