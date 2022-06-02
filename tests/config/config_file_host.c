@@ -16,7 +16,7 @@ extern dpu_offload_status_t dpu_offload_parse_list_dpus(offloading_engine_t *eng
 int main(int argc, char **argv)
 {
     dpu_offload_status_t rc;
-    if (argc != 4)
+    if (argc != 3)
     {
         fprintf(stderr, "Please give in order:\n");
         fprintf(stderr, "\t- the path to the configuration file to parse,\n");
@@ -36,7 +36,7 @@ int main(int argc, char **argv)
     offloading_config_t cfg;
     INIT_DPU_CONFIG_DATA(&cfg);
     strcpy(cfg.local_service_proc.hostname, argv[2]);
-    rc = find_config_from_platform_configfile(argv[1], argv[3], &cfg);
+    rc = find_config_from_platform_configfile(argv[1], argv[2], &cfg);
     if (rc != DO_SUCCESS)
     {
         fprintf(stderr, "[ERROR] find_config_from_platform_configfile() failed\n");
