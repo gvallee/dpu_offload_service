@@ -9,8 +9,11 @@
 # $HEADER$
 #
 
-bin_PROGRAMS = config_file_dpu
+bin_PROGRAMS = config_file_dpu config_file_host
 
-config_file_dpu_SOURCES = config_file_dpu.c
 AM_LDFLAGS = -ldpuoffloaddaemon -lucp
 AM_CFLAGS = -I@top_srcdir@/include -L@top_builddir@/src/.libs
+
+config_file_dpu_SOURCES = config_file_dpu.c
+
+config_file_host_SOURCES = config_file_host.c
