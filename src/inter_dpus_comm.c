@@ -389,11 +389,13 @@ connect_to_service_procs(offloading_engine_t *offload_engine, service_procs_inte
 
 static uint64_t get_dpu_global_id_from_service_proc_id(offloading_engine_t *engine, uint64_t service_proc_global_id)
 {
-    if (engine->num_service_procs >= service_proc_global_id)
+    if (engine->num_service_procs <= service_proc_global_id)
         return UINT64_MAX;
-    remote_service_proc_info_t **list = LIST_SERVICE_PROCS_FROM_ENGINE(engine);
-    assert(list);
-    return (list[service_proc_global_id]->dpu->idx);
+    remote_service_proc_info_t *sp = DYN_ARRAY_GET_ELT(&(engine->service_procs),
+                                                         service_proc_global_id,
+                                                         remote_service_proc_info_t);
+    assert(sp);
+    return (sp->dpu->idx);
 }
 
 /**
@@ -429,6 +431,7 @@ void client_service_proc_connected(void *data)
     service_proc_global_id = connected_peer->rank_info.group_rank;
     assert(service_proc_global_id < econtext->engine->num_service_procs);
     dpu_global_id = get_dpu_global_id_from_service_proc_id(econtext->engine, service_proc_global_id);
+    assert(dpu_global_id != UINT64_MAX);
     assert(dpu_global_id < econtext->engine->num_dpus);
     DBG("Service proc #%" PRIu64 " running on DPU #%" PRIu64 " (client %" PRIu64 ") is now fully connected",
         service_proc_global_id,
