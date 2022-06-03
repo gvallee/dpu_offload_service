@@ -829,7 +829,7 @@ static inline bool parse_dpu_cfg(char *str, dpu_config_data_t *config_entry)
 }
 
 /**
- * @brief Main function to parse the content of the configuration file.
+ * @brief Main function to parse the content of the configuration file in the context of service processes.
  * The function relies on the placeholders created while parsing the list of DPUs to be used.
  * Format: <host name>,<dpu1_hostname:dpu_conn_addr:interdpu-port1&interdpu-port2,...:rank-conn-port1&rank-conn-port2,...>,...
  */
@@ -1002,7 +1002,10 @@ bool parse_line_dpu_version_1(offloading_config_t *data, char *line)
     return rc;
 }
 
-// <host name>,<dpu1_hostname:dpu_conn_addr:interdpu-port:rank-conn-port>,...
+/**
+ * @brief Main function to parse the configuration file in the context of the host.
+ * Format: <host name>,<dpu1_hostname:dpu_conn_addr:interdpu-port:rank-conn-port>,...
+ */
 bool parse_line_version_1(char *target_hostname, offloading_config_t *data, char *line)
 {
     int idx = 0;
