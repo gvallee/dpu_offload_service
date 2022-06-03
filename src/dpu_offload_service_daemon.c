@@ -848,7 +848,7 @@ dpu_offload_status_t finalize_connection_to_remote_service_proc(offloading_engin
     remote_service_proc_info_t *sp = DYN_ARRAY_GET_ELT(&(offload_engine->service_procs),
                                                           remote_sp->idx,
                                                           remote_service_proc_info_t);
-    assert(sp);                                                                                     
+    assert(sp);
     sp->ep = client->client->server_ep;
     sp->econtext = client;
     sp->peer_addr = client->client->conn_data.oob.peer_addr;
