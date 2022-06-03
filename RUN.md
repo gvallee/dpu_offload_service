@@ -10,6 +10,10 @@ Each line has the following format:
 <[full host name],[first DPU full hostname]:[first DPU UP ADDRESS]:[PORT FOR INTER-DPU CONNECTION]:[PORT FOR CONNECTION WITH LOCAL HOST],[...]>
 ```
 
+It is recommanded to create a configuration file per platform. In other words, there is no need to customize configuration files for a specific job.
+The infrastructure is capable of excluding the data from the configuration file that is not required for the execution of the job based on the configuration of the job.
+Examples of configuration files for entire systems are available in `etc/platforms`.
+
 ## Execution of the DPU daemon
 
 Assuming you want to use two BlueField cards, `thor-bf21` and `thor-bf22`, please execute the following on each DPU:
