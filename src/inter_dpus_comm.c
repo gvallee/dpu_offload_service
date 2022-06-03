@@ -445,6 +445,10 @@ void client_service_proc_connected(void *data)
     list_service_procs[service_proc_global_id]->peer_addr = connected_peer->peer_addr;
     list_service_procs[service_proc_global_id]->econtext = connected_peer->econtext;
     list_service_procs[service_proc_global_id]->client_id = connected_peer->peer_id;
+
+    // Increase the number of connected service proc
+    connected_peer->econtext->engine->num_connected_service_procs++;
+
     // Not needed for now, when ranks are all connected to the local DPU(s), the caches
     // are automatically exchanged using broadcast_group_cache()
 #if 0
