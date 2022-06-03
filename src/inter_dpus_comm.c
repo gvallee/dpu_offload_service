@@ -236,6 +236,7 @@ dpu_offload_parse_list_dpus(offloading_engine_t *engine, offloading_config_t *co
 
     config_data->num_connecting_service_procs = n_connecting_from;
     config_data->offloading_engine->num_dpus = dpu_idx;
+    config_data->offloading_engine->num_service_procs = config_data->offloading_engine->num_dpus * config_data->num_service_procs_per_dpu;
     return DO_SUCCESS;
 }
 
@@ -334,6 +335,12 @@ dpu_offload_status_t connect_to_remote_service_proc(remote_service_proc_info_t *
     offloading_engine_t *offload_engine = remote_service_proc_info->offload_engine;
     CHECK_ERR_RETURN((offload_engine == NULL), DO_ERROR, "undefined offload_engine");
 
+    assert(remote_service_proc_info->service_proc.global_id != UINT64_MAX);
+    assert(remote_service_proc_info->init_params.conn_params->addr_str);
+    assert(remote_service_proc_info->init_params.conn_params->port != -1);
+    assert(remote_service_proc_info->dpu->hostname);
+    assert(offload_engine->config->local_service_proc.info.global_id != UINT64_MAX);
+
     DBG("connecting to service proc %" PRIu64 " at %s:%d running on DPU server %s, my global ID %" PRIu64,
         remote_service_proc_info->service_proc.global_id,
         remote_service_proc_info->init_params.conn_params->addr_str,
@@ -360,6 +367,9 @@ dpu_offload_status_t connect_to_remote_service_proc(remote_service_proc_info_t *
 static dpu_offload_status_t
 connect_to_service_procs(offloading_engine_t *offload_engine, service_procs_inter_connect_info_t *info_connect_to, init_params_t *init_params)
 {
+    assert(offload_engine);
+    assert(info_connect_to);
+    assert(init_params);
     // Create a connection thread for all the required connection
     connect_to_service_proc_t *conn_info, *conn_info_next;
     ucs_list_for_each_safe(conn_info, conn_info_next, &(info_connect_to->sps_connect_to), item)
@@ -483,7 +493,7 @@ dpu_offload_status_t inter_dpus_connect_mgr(offloading_engine_t *engine, offload
     ucs_status_t status = ucp_ep_create(engine->ucp_worker, &ep_params, &self_ep);
     CHECK_ERR_RETURN((status != UCS_OK), DO_ERROR, "ucp_ep_create() failed");
     engine->self_ep = self_ep; // fixme: correctly free
-
+    assert(cfg->local_service_proc.info.global_id != UINT64_MAX);
     remote_service_proc_info_t **list_service_procs = LIST_SERVICE_PROCS_FROM_ENGINE(engine);
     list_service_procs[cfg->local_service_proc.info.global_id]->ep = engine->self_ep;
 

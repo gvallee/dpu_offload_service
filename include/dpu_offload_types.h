@@ -1577,6 +1577,7 @@ typedef struct offloading_engine
         /* The actual object are from a dynamic array when parsing the configuration file. */                       \
         DYN_ARRAY_ALLOC(&((_engine)->service_procs), 32, remote_service_proc_info_t *);                             \
         (_engine)->num_dpus = 0;                                                                                    \
+        (_engine)->num_service_procs = 0;                                                                           \
         (_engine)->num_connected_service_procs = 0;                                                                 \
         (_engine)->default_notifications = NULL;                                                                    \
         (_engine)->num_default_notifications = 0;                                                                   \
