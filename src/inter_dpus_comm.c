@@ -51,28 +51,29 @@ extern execution_context_t *client_init(offloading_engine_t *, init_params_t *);
             _sp->init_params.conn_params = _sp_conn_params;                                                  \
             _sp->service_proc.local_id = _x;                                                                 \
             _sp->service_proc.global_id = _sp_gid;                                                           \
+            _sp->offload_engine = (_cfg)->offloading_engine;                                                 \
             ucs_list_add_tail(&((_dpu)->remote_service_procs), &(_sp->item));                                \
         }                                                                                                    \
     } while (0)
 
-#define SET_REMOTE_SP_TO_CONNECT_TO(_cfg, _sp_gid)                                             \
-    do                                                                                         \
-    {                                                                                          \
-        remote_service_proc_info_t *sp_connect_to = NULL;                                      \
-        sp_connect_to = DYN_ARRAY_GET_ELT(&((_cfg)->offloading_engine->service_procs),         \
-                                          _sp_gid,                                             \
-                                          remote_service_proc_info_t);                         \
-        assert(sp_connect_to);                                                                 \
-        assert(sp_connect_to->init_params.conn_params);                                        \
-        connect_to_service_proc_t *sp_conn_to;                                                 \
-        DYN_LIST_GET((_cfg)->info_connecting_to.pool_remote_sp_connect_to,                     \
-                     connect_to_service_proc_t,                                                \
-                     item,                                                                     \
-                     sp_conn_to);                                                              \
-        assert(sp_conn_to);                                                                    \
-        sp_conn_to->sp = sp_connect_to;                                                        \
-        /* Connection details are set while parsing the config file */                         \
-        ucs_list_add_tail(&((_cfg)->info_connecting_to.sps_connect_to), &(sp_conn_to->item));  \
+#define SET_REMOTE_SP_TO_CONNECT_TO(_cfg, _sp_gid)                                            \
+    do                                                                                        \
+    {                                                                                         \
+        remote_service_proc_info_t *sp_connect_to = NULL;                                     \
+        sp_connect_to = DYN_ARRAY_GET_ELT(&((_cfg)->offloading_engine->service_procs),        \
+                                          _sp_gid,                                            \
+                                          remote_service_proc_info_t);                        \
+        assert(sp_connect_to);                                                                \
+        assert(sp_connect_to->init_params.conn_params);                                       \
+        connect_to_service_proc_t *sp_conn_to;                                                \
+        DYN_LIST_GET((_cfg)->info_connecting_to.pool_remote_sp_connect_to,                    \
+                     connect_to_service_proc_t,                                               \
+                     item,                                                                    \
+                     sp_conn_to);                                                             \
+        assert(sp_conn_to);                                                                   \
+        sp_conn_to->sp = sp_connect_to;                                                       \
+        /* Connection details are set while parsing the config file */                        \
+        ucs_list_add_tail(&((_cfg)->info_connecting_to.sps_connect_to), &(sp_conn_to->item)); \
     } while (0)
 
 #define SET_SERVICE_PROC_TO_CONNECT_TO(_engine, _cfg, _remote_dpu)                              \
