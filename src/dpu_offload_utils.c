@@ -828,7 +828,11 @@ static inline bool parse_dpu_cfg(char *str, dpu_config_data_t *config_entry)
     return false;
 }
 
-// <host name>,<dpu1_hostname:dpu_conn_addr:interdpu-port1&interdpu-port2,...:rank-conn-port1&rank-conn-port2,...>,...
+/**
+ * @brief Main function to parse the content of the configuration file.
+ * The function relies on the placeholders created while parsing the list of DPUs to be used.
+ * Format: <host name>,<dpu1_hostname:dpu_conn_addr:interdpu-port1&interdpu-port2,...:rank-conn-port1&rank-conn-port2,...>,...
+ */
 bool parse_line_dpu_version_1(offloading_config_t *data, char *line)
 {
     int idx = 0;
@@ -888,15 +892,18 @@ bool parse_line_dpu_version_1(offloading_config_t *data, char *line)
         {
             size_t sp_idx = 0;
             size_t d;
-            // Find the corresponding remote_dpu_info_t
+            // Find the corresponding remote_dpu_info_t structure so we can populate it
+            // while parsing the line.
             remote_dpu_info_t *cur_dpu = NULL;
             for (d = 0; d < data->num_dpus; d++)
             {
                 remote_dpu_info_t *remote_dpu = list_dpus[d];
+                size_t _strlen = strlen(remote_dpu->hostname);
+                if (strlen(target_entry->version_1.hostname) < _strlen)
+                    _strlen = strlen(target_entry->version_1.hostname);
                 assert(remote_dpu);
                 assert(remote_dpu->hostname);
-                if (strncmp(target_entry->version_1.hostname, remote_dpu->hostname,
-                            strlen(remote_dpu->hostname)) == 0)
+                if (strncmp(target_entry->version_1.hostname, remote_dpu->hostname, _strlen) == 0)
                 {
                     cur_dpu = remote_dpu;
                     break;
@@ -911,6 +918,8 @@ bool parse_line_dpu_version_1(offloading_config_t *data, char *line)
 
             bool parsing_okay = parse_dpu_cfg(token, target_entry);
             CHECK_ERR_RETURN((parsing_okay == false), false, "unable to parse config file entry");
+            // We now have the configuration associated to the line we just parsed, checking a few things...
+            assert(target_entry->version_1.addr);
 
             /* Save the configuration details of each service process on that DPU */
             assert(list_sps);
@@ -933,6 +942,7 @@ bool parse_line_dpu_version_1(offloading_config_t *data, char *line)
                 sp_config->version_1.host_port = *host_port;
                 sp_config->version_1.intersp_port = *intersp_port;
                 cur_sp->init_params.conn_params->port = *host_port;
+                cur_sp->init_params.conn_params->addr_str = target_entry->version_1.addr;
                 sp_idx++;
                 cur_global_sp_id++;
             }
@@ -974,7 +984,9 @@ bool parse_line_dpu_version_1(offloading_config_t *data, char *line)
                 int *host_port = DYN_ARRAY_GET_ELT(&(target_entry->version_1.host_ports),
                                                    data->local_service_proc.info.local_id, int);
                 data->local_service_proc.inter_service_procs_conn_params.port = *intersp_port;
+                data->local_service_proc.inter_service_procs_conn_params.addr_str = target_entry->version_1.addr;
                 data->local_service_proc.host_conn_params.port = *host_port;
+                data->local_service_proc.host_conn_params.addr_str = target_entry->version_1.addr;
                 assert(data->local_service_proc.info.dpu <= data->offloading_engine->num_dpus);
                 list_sps[data->local_service_proc.info.global_id]->ep = data->offloading_engine->self_ep;
                 // data->local_dpu.id is already set while parsing the list of DPUs to use for the job
