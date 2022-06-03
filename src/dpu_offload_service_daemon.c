@@ -1410,23 +1410,20 @@ static void progress_server_econtext(execution_context_t *ctx)
                     if (ECONTEXT_ON_DPU(ctx) && ctx->scope_id == SCOPE_INTER_SERVICE_PROCS)
                     {
                         size_t service_proc = client_info->rank_data.group_rank;
-                        remote_service_proc_info_t **list_service_procs = LIST_SERVICE_PROCS_FROM_ECONTEXT(ctx);
-                        if (list_service_procs == NULL)
-                        {
-                            ERR_MSG("unable to get list of service processes");
-                            ECONTEXT_UNLOCK(ctx);
-                            return;
-                        }
+                        remote_service_proc_info_t *sp = DYN_ARRAY_GET_ELT(&(ctx->engine->service_procs),
+                                                          service_proc,
+                                                          remote_service_proc_info_t);
+                        assert(sp);
                         assert(service_proc < ctx->engine->num_service_procs);
                         assert(ctx->engine);
                         // Set the endpoint to communicate with that remote service process
-                        list_service_procs[service_proc]->ep = client_info->ep;
+                        sp->ep = client_info->ep;
                         // Set the pointer to the execution context in the list of know service processes. Used for notifications with the remote service process.
-                        list_service_procs[service_proc]->econtext = ctx;
+                        sp->econtext = ctx;
                         DBG("-> Service process #%ld: addr=%s, port=%d, ep=%p, econtext=%p, client_id=%" PRIu64 ", server_id=%" PRIu64 "", service_proc,
-                            list_service_procs[service_proc]->init_params.conn_params->addr_str,
-                            list_service_procs[service_proc]->init_params.conn_params->port,
-                            list_service_procs[service_proc]->ep,
+                            sp->init_params.conn_params->addr_str,
+                            sp->init_params.conn_params->port,
+                            sp->ep,
                             ctx,
                             client_info->id,
                             ctx->server->id);
