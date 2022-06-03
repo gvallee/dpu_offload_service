@@ -386,6 +386,7 @@ static dpu_offload_status_t oob_server_accept(execution_context_t *econtext, cha
     ECONTEXT_UNLOCK(econtext);
     accept_sock = accept(econtext->server->conn_data.oob.listenfd, (struct sockaddr *)&addr, &addr_len);
     ECONTEXT_LOCK(econtext);
+    CHECK_ERR_GOTO((accept_sock == -1), error_out, "accept failed: %s", strerror(errno));
     econtext->server->conn_data.oob.sock = accept_sock;
     struct in_addr ipAddr = addr.sin_addr;
     inet_ntop(AF_INET, &ipAddr, client_addr, INET_ADDRSTRLEN);
@@ -935,7 +936,8 @@ dpu_offload_status_t offload_engine_progress(offloading_engine_t *engine)
         }
         progress_servers(engine);
 
-        // Progress all the execution context in the engine
+        // Progress all the execution context used to connect to other service processes
+        assert(engine->num_service_procs);
         size_t i;
         remote_service_proc_info_t **list_sp = LIST_SERVICE_PROCS_FROM_ENGINE(engine);
         for (i = 0; i < engine->num_service_procs; i++)
@@ -2287,11 +2289,14 @@ execution_context_t *server_init(offloading_engine_t *offloading_engine, init_pa
 
 #if !NDEBUG
     if (init_params != NULL && init_params->conn_params != NULL)
+    {
         DBG("Server created on %s:%d (econtext: %p, scope_id=%d)",
             init_params->conn_params->addr_str,
             init_params->conn_params->port,
             execution_context,
             execution_context->scope_id);
+        assert(init_params->conn_params->addr_str);
+    }
 #endif
 
     ECONTEXT_LOCK(execution_context);
