@@ -845,25 +845,28 @@ error_out:
 dpu_offload_status_t finalize_connection_to_remote_service_proc(offloading_engine_t *offload_engine, remote_service_proc_info_t *remote_sp, execution_context_t *client)
 {
     ENGINE_LOCK(offload_engine);
-    remote_service_proc_info_t **list_service_procs = LIST_SERVICE_PROCS_FROM_ENGINE(offload_engine);
-    assert(list_service_procs);
-    list_service_procs[remote_sp->idx]->ep = client->client->server_ep;
-    list_service_procs[remote_sp->idx]->econtext = client;
-    list_service_procs[remote_sp->idx]->peer_addr = client->client->conn_data.oob.peer_addr;
-    list_service_procs[remote_sp->idx]->ucp_worker = GET_WORKER(client);
+    remote_service_proc_info_t *sp = DYN_ARRAY_GET_ELT(&(offload_engine->service_procs),
+                                                          remote_sp->idx,
+                                                          remote_service_proc_info_t);
+    assert(sp);                                                                                     
+    sp->ep = client->client->server_ep;
+    sp->econtext = client;
+    sp->peer_addr = client->client->conn_data.oob.peer_addr;
+    sp->ucp_worker = GET_WORKER(client);
     DBG("Connection successfully established to service process #%" PRIu64 
         " running on DPU #%" PRIu64 " (num service processes: %ld, number of connection with other service processes: %ld)",
         remote_sp->idx,
         remote_sp->service_proc.dpu,
         offload_engine->num_service_procs,
         offload_engine->num_connected_service_procs);
-    assert(list_service_procs[remote_sp->idx]->peer_addr);
+    assert(sp->peer_addr);
+    assert(sp->init_params.conn_params);
     DBG("-> Service process #%ld: addr=%s, port=%d, ep=%p, econtext=%p, client_id=%" PRIu64 ", server_id=%" PRIu64,
         remote_sp->idx,
-        list_service_procs[remote_sp->idx]->init_params.conn_params->addr_str,
-        list_service_procs[remote_sp->idx]->init_params.conn_params->port,
-        list_service_procs[remote_sp->idx]->ep,
-        list_service_procs[remote_sp->idx]->econtext,
+        sp->init_params.conn_params->addr_str,
+        sp->init_params.conn_params->port,
+        sp->ep,
+        sp->econtext,
         client->client->id,
         client->client->server_id);
     // Do not increment num_connected_dpus, it is already done in the callback invoked when the connection goes through
