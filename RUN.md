@@ -2,9 +2,12 @@
 
 ## Format of the configuration file.
 
-An example of configuration file is in `etc/platforms/thor.cfg`.
+Example of configuration files are in `etc/platforms/`.
 
-Each line represents the configuration of a host, i.e., information about the host itself and all the DPUs local to the host.
+All configuration files must start with a line such as `# Format version: 1`, which specifies the format version that is used throughout the configuration file.
+This is used by the infrastructure to determine how to extract the required data from the configuration file.
+
+Them, each line represents the configuration of a host, i.e., information about the host itself and all the DPUs local to the host.
 Each line has the following format:
 ```
 <[full host name],[first DPU full hostname]:[first DPU UP ADDRESS]:[PORT FOR INTER-DPU CONNECTION]:[PORT FOR CONNECTION WITH LOCAL HOST],[...]>
