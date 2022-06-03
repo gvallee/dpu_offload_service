@@ -2040,33 +2040,33 @@ typedef struct offloading_config
     } local_service_proc;
 } offloading_config_t;
 
-#define INIT_DPU_CONFIG_DATA(_data)                                                                                                               \
-    do                                                                                                                                            \
-    {                                                                                                                                             \
-        (_data)->list_dpus = NULL;                                                                                                                \
-        (_data)->config_file = NULL;                                                                                                              \
-        (_data)->num_service_procs_per_dpu_str = NULL;                                                                                            \
-        (_data)->num_service_procs_per_dpu = 0;                                                                                                   \
-        (_data)->format_version = 0;                                                                                                              \
-        (_data)->offloading_engine = NULL;                                                                                                        \
-        (_data)->service_proc_found = false;                                                                                                      \
-        (_data)->num_connecting_service_procs = 0;                                                                                                \
-        RESET_INFO_CONNECTING_TO(&((_data)->info_connecting_to));                                                                                 \
-        (_data)->num_dpus = 0;                                                                                                                    \
-        (_data)->num_service_procs = 0;                                                                                                           \
-        DYN_ARRAY_ALLOC(&((_data)->dpus_config), 32, dpu_config_data_t);                                                                          \
-        DYN_ARRAY_ALLOC(&((_data)->sps_configs), 256, service_proc_config_data_t);                                                                \
-        RESET_SERVICE_PROC(&((_data)->local_service_proc.info));                                                                                  \
-        (_data)->local_service_proc.config = NULL;                                                                                                \
-        (_data)->local_service_proc.hostname[1023] = '\0';                                                                                        \
-        (_data)->local_service_proc.host_conn_params.port = -1;                                                                                   \
-        (_data)->local_service_proc.host_conn_params.port_str = NULL;                                                                             \
-        (_data)->local_service_proc.host_conn_params.addr_str = NULL;                                                                             \
-        (_data)->local_service_proc.host_init_params.conn_params = &((_data)->local_service_proc.host_conn_params);                               \
-        (_data)->local_service_proc.inter_service_procs_conn_params.port = -1;                                                                    \
-        (_data)->local_service_proc.inter_service_procs_conn_params.port_str = NULL;                                                              \
-        (_data)->local_service_proc.inter_service_procs_conn_params.addr_str = NULL;                                                              \
-        (_data)->local_service_proc.inter_service_procs_init_params.conn_params = &((_data)->local_service_proc.inter_service_procs_conn_params); \
+#define INIT_DPU_CONFIG_DATA(_data)                                                                                 \
+    do                                                                                                              \
+    {                                                                                                               \
+        (_data)->list_dpus = NULL;                                                                                  \
+        (_data)->config_file = NULL;                                                                                \
+        (_data)->num_service_procs_per_dpu_str = NULL;                                                              \
+        (_data)->num_service_procs_per_dpu = 0;                                                                     \
+        (_data)->format_version = 0;                                                                                \
+        (_data)->offloading_engine = NULL;                                                                          \
+        (_data)->service_proc_found = false;                                                                        \
+        (_data)->num_connecting_service_procs = 0;                                                                  \
+        RESET_INFO_CONNECTING_TO(&((_data)->info_connecting_to));                                                   \
+        (_data)->num_dpus = 0;                                                                                      \
+        (_data)->num_service_procs = 0;                                                                             \
+        DYN_ARRAY_ALLOC(&((_data)->dpus_config), 32, dpu_config_data_t);                                            \
+        DYN_ARRAY_ALLOC(&((_data)->sps_configs), 256, service_proc_config_data_t);                                  \
+        RESET_SERVICE_PROC(&((_data)->local_service_proc.info));                                                    \
+        (_data)->local_service_proc.config = NULL;                                                                  \
+        (_data)->local_service_proc.hostname[1023] = '\0';                                                          \
+        RESET_INIT_PARAMS(&((_data)->local_service_proc.host_init_params));                                         \
+        RESET_INIT_PARAMS(&((_data)->local_service_proc.inter_service_procs_init_params));                          \
+        RESET_CONN_PARAMS(&((_data)->local_service_proc.host_conn_params));                                         \
+        RESET_CONN_PARAMS(&((_data)->local_service_proc.inter_service_procs_conn_params));                          \
+        (_data)->local_service_proc.inter_service_procs_init_params.scope_id = SCOPE_INTER_SERVICE_PROCS;           \
+        (_data)->local_service_proc.host_init_params.conn_params = &((_data)->local_service_proc.host_conn_params); \
+        (_data)->local_service_proc.inter_service_procs_init_params.conn_params =                                   \
+            &((_data)->local_service_proc.inter_service_procs_conn_params);                                         \
     } while (0)
 
 /**
