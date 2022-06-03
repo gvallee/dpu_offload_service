@@ -355,6 +355,9 @@ dpu_offload_status_t connect_to_remote_service_proc(remote_service_proc_info_t *
     remote_service_proc_info->init_params.proc_info = &service_proc_info;
     remote_service_proc_info->init_params.connected_cb = connected_to_server_dpu;
     remote_service_proc_info->init_params.scope_id = SCOPE_INTER_SERVICE_PROCS;
+    // We make sure that we use the inter-service-process port here because we do not know the context while
+    // parsing the configuration file (host or DPU) and updating the value while parsing ends up beinng confusing
+    remote_service_proc_info->init_params.conn_params->port = remote_service_proc_info->config->version_1.intersp_port;
     execution_context_t *client = client_init(offload_engine, &(remote_service_proc_info->init_params));
     CHECK_ERR_RETURN((client == NULL), DO_ERROR, "Unable to connect to %s\n", remote_service_proc_info->init_params.conn_params->addr_str);
     ENGINE_LOCK(offload_engine);
