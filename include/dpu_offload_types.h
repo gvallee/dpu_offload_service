@@ -1769,32 +1769,38 @@ typedef struct pending_notification
     _list;                                                           \
 })
 
-#define ECONTEXT_FOR_SERVICE_PROC_COMMUNICATION(_engine, _service_proc_idx) ({    \
-    execution_context_t *_e = NULL;                                               \
-    remote_service_proc_info_t **_list = LIST_SERVICE_PROCS_FROM_ENGINE(_engine); \
-    if (_list != NULL && _list[(_service_proc_idx)] != NULL)                      \
-    {                                                                             \
-        _e = _list[(_service_proc_idx)]->econtext;                                \
-    }                                                                             \
-    _e;                                                                           \
+#define ECONTEXT_FOR_SERVICE_PROC_COMMUNICATION(_engine, _service_proc_idx) ({ \
+    execution_context_t *_e = NULL;                                            \
+    remote_service_proc_info_t *_sp;                                           \
+        _sp = DYN_ARRAY_GET_ELT(&((_engine)->service_procs),                   \
+                                _service_proc_idx,                             \
+                                remote_service_proc_info_t);                   \
+    if (_sp != NULL)                                                           \
+    {                                                                          \
+        _e = _sp->econtext;                                                    \
+    }                                                                          \
+    _e;                                                                        \
 })
 
-#define GET_REMOTE_SERVICE_PROC_ECONTEXT(_engine, _service_proc_idx) ({                         \
-    remote_service_proc_info_t **_list_service_procs = LIST_SERVICE_PROCS_FROM_ENGINE(_engine); \
-    execution_context_t *_e = NULL;                                                             \
-    if ((_service_proc_idx) <= (_engine)->num_connected_service_procs)                          \
-    {                                                                                           \
-        if (_list_service_procs[(_service_proc_idx)]->econtext == NULL &&                       \
-            _service_proc_idx == (_engine)->config->local_service_proc.info.global_id)          \
-        {                                                                                       \
-            _list_service_procs[(_service_proc_idx)]->econtext = (_engine)->self_econtext;      \
-        }                                                                                       \
-        if (_list_service_procs[(_service_proc_idx)]->econtext != NULL)                         \
-        {                                                                                       \
-            _e = _list_service_procs[(_service_proc_idx)]->econtext;                            \
-        }                                                                                       \
-    }                                                                                           \
-    _e;                                                                                         \
+#define GET_REMOTE_SERVICE_PROC_ECONTEXT(_engine, _service_proc_idx) ({                \
+    execution_context_t *_e = NULL;                                                    \
+    if ((_service_proc_idx) <= (_engine)->num_connected_service_procs)                 \
+    {                                                                                  \
+        remote_service_proc_info_t *_sp;                                               \
+        _sp = DYN_ARRAY_GET_ELT(&((_engine)->service_procs),                           \
+                                _service_proc_idx,                                     \
+                                remote_service_proc_info_t);                           \
+        if (_sp->econtext == NULL &&                                                   \
+            _service_proc_idx == (_engine)->config->local_service_proc.info.global_id) \
+        {                                                                              \
+            _sp->econtext = (_engine)->self_econtext;                                  \
+        }                                                                              \
+        if (_sp->econtext != NULL)                                                     \
+        {                                                                              \
+            _e = _sp->econtext;                                                        \
+        }                                                                              \
+    }                                                                                  \
+    _e;                                                                                \
 })
 
 #define GET_REMOTE_SERVICE_PROC_EP(_engine, _idx) ({                       \
