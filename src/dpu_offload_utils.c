@@ -429,7 +429,6 @@ bool all_service_procs_connected(offloading_engine_t *engine)
 dpu_offload_status_t broadcast_group_cache(offloading_engine_t *engine, int64_t group_id)
 {
     size_t i;
-    remote_service_proc_info_t **list_sps;
     group_cache_t *cache;
     assert(engine);
     assert(group_id >= 0);
@@ -459,8 +458,6 @@ dpu_offload_status_t broadcast_group_cache(offloading_engine_t *engine, int64_t 
 
     cache = GET_GROUP_CACHE(&(engine->procs_cache), group_id);
     assert(cache);
-    list_sps = LIST_SERVICE_PROCS_FROM_ENGINE(engine);
-    assert(list_sps);
     for (i = 0; i < engine->num_service_procs; i++)
     {
         dpu_offload_status_t rc;
@@ -468,30 +465,33 @@ dpu_offload_status_t broadcast_group_cache(offloading_engine_t *engine, int64_t 
         dpu_offload_event_t *ev;
         ucp_ep_h dest_ep;
         uint64_t dest_id = i;
+        remote_service_proc_info_t *sp;
+        sp = DYN_ARRAY_GET_ELT(&(engine->service_procs), i, remote_service_proc_info_t);
+        assert(sp);
 
         // Do not send to self
         offloading_config_t *cfg = (offloading_config_t *)engine->config;
         if (i == cfg->local_service_proc.info.global_id)
             continue;
 
-        if (list_sps[i]->econtext == NULL)
+        if (sp->econtext == NULL)
         {
             ERR_MSG("number of connected service process(es): %ld", engine->num_connected_service_procs);
             ERR_MSG("econtext for service process %ld is NULL", i);
         }
-        assert(list_sps[i]->econtext);
-        event_get(list_sps[i]->econtext->event_channels, NULL, &ev);
+        assert(sp->econtext);
+        event_get(sp->econtext->event_channels, NULL, &ev);
         assert(ev);
         EVENT_HDR_TYPE(ev) = META_EVENT_TYPE;
         dest_ep = GET_REMOTE_SERVICE_PROC_EP(engine, i);
         // If the econtext is a client to connect to a server, the dest_id is the index;
         // otherwise we need to find the client ID based on the index
-        if (list_sps[i]->econtext->type == CONTEXT_SERVER)
-            dest_id = list_sps[i]->client_id;
-        DBG("Sending group cache to service process #%ld (econtext: %p, scope_id: %d, dest_id: %ld)",
-            LOCAL_ID_TO_GLOBAL(list_sps[i]->econtext, i), list_sps[i]->econtext, list_sps[i]->econtext->scope_id, dest_id);
-        rc = send_local_rank_group_cache(list_sps[i]->econtext, dest_ep, dest_id, group_id, ev);
-        CHECK_ERR_RETURN((rc), DO_ERROR, "send_group_cache() failed");
+        if (sp->econtext->type == CONTEXT_SERVER)
+            dest_id = sp->client_id;
+        DBG("Sending group cache to service process #%ld (econtext: %p, scope_id: %d, dest_id: %ld, ep: %p)",
+            LOCAL_ID_TO_GLOBAL(sp->econtext, i), sp->econtext, sp->econtext->scope_id, dest_id, dest_ep);
+        rc = send_local_rank_group_cache(sp->econtext, dest_ep, dest_id, group_id, ev);
+        CHECK_ERR_RETURN((rc), DO_ERROR, "send_local_rank_group_cache() failed");
         QUEUE_EVENT(ev);
     }
 
@@ -597,6 +597,7 @@ static dpu_offload_status_t do_get_cache_entry_by_group_rank(offloading_engine_t
         size_t i;
         dpu_offload_status_t rc;
         dpu_offload_event_t *metaev = NULL;
+        // fixme: use DYN_ARRAY API here, not list_sps
         remote_service_proc_info_t **list_sps = LIST_SERVICE_PROCS_FROM_ENGINE(engine);
         execution_context_t *meta_econtext = NULL;
 

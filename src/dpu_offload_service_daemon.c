@@ -245,7 +245,7 @@ static inline dpu_offload_status_t oob_server_ucx_client_connection_step3(execut
     ucs_status_t status = ucp_ep_create(worker, &ep_params, &client_ep);
     CHECK_ERR_GOTO((status != UCS_OK), error_out, "ucp_ep_create() failed: %s", ucs_status_string(status));
     client_info->ep = client_ep;
-    DBG("endpoint successfully created");
+    DBG("endpoint %p successfully created", client_ep);
 
     // receive the rank/group data
     DBG("Ready to receive peer data\n");
@@ -376,8 +376,8 @@ static dpu_offload_status_t oob_server_accept(execution_context_t *econtext, cha
         CHECK_ERR_GOTO((rc), error_out, "listen() failed: %s", strerror(errno));
 
         // fixme: debug when multi-connections are required
-        DBG("Listening for connections on port %" PRIu16 "... (server: %" PRIu64 ")",
-            server_port, econtext->server->id);
+        DBG("Listening for connections on port %" PRIu16 "... (server: %" PRIu64 ", econtext: %p, scope_id=%d)",
+            server_port, econtext->server->id, econtext, econtext->scope_id);
     }
     else
     {
@@ -774,6 +774,7 @@ static dpu_offload_status_t client_ucx_bootstrap_step1(execution_context_t *econ
 
     ucs_status_t status = ucp_ep_create(GET_WORKER(econtext), &ep_params, &(econtext->client->server_ep));
     CHECK_ERR_GOTO((status != UCS_OK), error_out, "ucp_ep_create() failed");
+    DBG("Endpoint %p successfully created", econtext->client->server_ep);
 
     ucp_request_param_t send_param = {0};
     send_param.op_attr_mask = UCP_OP_ATTR_FIELD_CALLBACK |
@@ -1441,7 +1442,7 @@ static void progress_server_econtext(execution_context_t *ctx)
                     // Trigger the exchange of the cache between service processes when all the local ranks are connected
                     // Do not check for errors, it may fail at this point (if all service processes are not connected) and it is okay
                     if (ECONTEXT_ON_DPU(ctx) &&
-                        ctx->scope_id == SCOPE_INTER_SERVICE_PROCS &&
+                        ctx->scope_id == SCOPE_HOST_DPU &&
                         client_info->rank_data.group_id != INVALID_GROUP &&
                         client_info->rank_data.group_rank != INVALID_RANK)
                     {
@@ -1458,13 +1459,13 @@ static void progress_server_econtext(execution_context_t *ctx)
                         }
                         // Check if the cache is fully populated
                         bool group_cache_now_full = false;
-                        if (gp_cache->group_size == gp_cache->num_local_entries + 1)
+                        if (gp_cache->group_size == gp_cache-> num_local_entries)
                         {
                             // The cache is above to be fully populated
                             DBG("Cache is complete for group %ld (gp size: %ld, local entries: %ld)\n",
                                 client_info->rank_data.group_id,
                                 gp_cache->group_size,
-                                gp_cache->num_local_entries + 1);
+                                gp_cache->num_local_entries);
                             group_cache_now_full = true;
                         }
                         if (group_cache_now_full && gp_cache->group_size > 0 && gp_cache->num_local_entries == gp_cache->group_size)
@@ -1996,7 +1997,7 @@ static dpu_offload_status_t oob_server_listen(execution_context_t *econtext)
                              &(econtext->server->conn_data.oob.local_addr_len),
                              sizeof(econtext->server->conn_data.oob.local_addr_len),
                              0);
-    DBG("Addr length send (len: %ld)", size_sent);
+    DBG("Addr length sent (len: %ld)", size_sent);
     size_sent = send(econtext->server->conn_data.oob.sock,
                      econtext->server->conn_data.oob.local_addr,
                      econtext->server->conn_data.oob.local_addr_len,
@@ -2187,7 +2188,8 @@ dpu_offload_status_t server_init_context(execution_context_t *econtext, init_par
     default:
     {
         // OOB
-        DBG("server initialized with OOB backend");
+        DBG("server %" PRIu64 " initialized with OOB backend (econtext: %p, scope_id: %d)",
+            econtext->server->id, econtext, econtext->scope_id);
         econtext->server->conn_data.oob.tag = OOB_DEFAULT_TAG;
         econtext->server->conn_data.oob.tag_mask = UINT64_MAX;
         econtext->server->conn_data.oob.addr_msg_str = strdup(UCX_ADDR_MSG); // fixme: correctly free

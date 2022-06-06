@@ -1797,35 +1797,39 @@ typedef struct pending_notification
     _e;                                                                                         \
 })
 
-#define GET_REMOTE_SERVICE_PROC_EP(_engine, _idx) ({                              \
-    remote_service_proc_info_t **_list = LIST_SERVICE_PROCS_FROM_ENGINE(_engine); \
-    ucp_ep_h __ep = NULL;                                                         \
-    if (_idx <= (_engine)->num_connected_service_procs)                           \
-    {                                                                             \
-        if (_list[_idx]->ep != NULL)                                              \
-        {                                                                         \
-            __ep = _list[_idx]->ep;                                               \
-        }                                                                         \
-        else                                                                      \
-        {                                                                         \
-            if (_list[_idx]->peer_addr != NULL)                                   \
-            {                                                                     \
-                /* Generate the endpoint with the data we have */                 \
-                ucp_ep_params_t _ep_params;                                       \
-                _ep_params.field_mask = UCP_EP_PARAM_FIELD_REMOTE_ADDRESS;        \
-                _ep_params.address = _list[_idx]->peer_addr;                      \
-                ucs_status_t status = ucp_ep_create((_engine)->ucp_worker,        \
-                                                    &_ep_params,                  \
-                                                    &(_list[_idx]->ep));          \
-                CHECK_ERR_RETURN((status != UCS_OK), DO_ERROR,                    \
-                                 "ucp_ep_create() failed: %s",                    \
-                                 ucs_status_string(status));                      \
-                assert(_list[_idx]->ep);                                          \
-                __ep = _list[_idx]->ep;                                           \
-            }                                                                     \
-        }                                                                         \
-    }                                                                             \
-    __ep;                                                                         \
+#define GET_REMOTE_SERVICE_PROC_EP(_engine, _idx) ({                       \
+        ucp_ep_h __ep = NULL;                                              \
+    if (_idx <= (_engine)->num_connected_service_procs)                    \
+    {                                                                      \
+        remote_service_proc_info_t *_sp;                                   \
+        _sp = DYN_ARRAY_GET_ELT(&((_engine)->service_procs),               \
+                                _idx,                                      \
+                                remote_service_proc_info_t);               \
+        assert(_sp);                                                       \
+        if (_sp->ep != NULL)                                               \
+        {                                                                  \
+            __ep = _sp->ep;                                                \
+        }                                                                  \
+        else                                                               \
+        {                                                                  \
+            if (_sp->peer_addr != NULL)                                    \
+            {                                                              \
+                /* Generate the endpoint with the data we have */          \
+                ucp_ep_params_t _ep_params;                                \
+                _ep_params.field_mask = UCP_EP_PARAM_FIELD_REMOTE_ADDRESS; \
+                _ep_params.address = _sp->peer_addr;                       \
+                ucs_status_t status = ucp_ep_create((_engine)->ucp_worker, \
+                                                    &_ep_params,           \
+                                                    &(_sp->ep));           \
+                CHECK_ERR_RETURN((status != UCS_OK), DO_ERROR,             \
+                                 "ucp_ep_create() failed: %s",             \
+                                 ucs_status_string(status));               \
+                assert(_sp->ep);                                           \
+                __ep = _sp->ep;                                            \
+            }                                                              \
+        }                                                                  \
+    }                                                                      \
+    __ep;                                                                  \
 })
 
 typedef enum
