@@ -842,7 +842,6 @@ bool parse_line_dpu_version_1(offloading_config_t *data, char *line)
     bool rc = false;
     char *rest_line = line;
     dpu_config_data_t *target_entry = NULL;
-    remote_service_proc_info_t **list_sps = NULL;
     remote_dpu_info_t **list_dpus = NULL;
 
     assert(data);
@@ -921,7 +920,6 @@ bool parse_line_dpu_version_1(offloading_config_t *data, char *line)
             assert(target_entry->version_1.addr);
 
             /* Save the configuration details of each service process on that DPU */
-            assert(list_sps);
             remote_service_proc_info_t *cur_sp, *next_sp;
             ucs_list_for_each_safe(cur_sp, next_sp, &(cur_dpu->remote_service_procs), item)
             {
@@ -948,6 +946,7 @@ bool parse_line_dpu_version_1(offloading_config_t *data, char *line)
 
             if (strncmp(data->local_service_proc.hostname, target_entry->version_1.hostname, strlen(target_entry->version_1.hostname)) == 0)
             {
+                remote_service_proc_info_t *sp = NULL;
                 // This is the DPU's configuration we were looking for
                 DBG("-> This is the current DPU");
 
@@ -987,7 +986,9 @@ bool parse_line_dpu_version_1(offloading_config_t *data, char *line)
                 data->local_service_proc.host_conn_params.port = *host_port;
                 data->local_service_proc.host_conn_params.addr_str = target_entry->version_1.addr;
                 assert(data->local_service_proc.info.dpu <= data->offloading_engine->num_dpus);
-                list_sps[data->local_service_proc.info.global_id]->ep = data->offloading_engine->self_ep;
+                sp = DYN_ARRAY_GET_ELT(&(data->offloading_engine->service_procs), data->local_service_proc.info.global_id, remote_service_proc_info_t);
+                assert(sp);
+                sp->ep = data->offloading_engine->self_ep;
                 // data->local_dpu.id is already set while parsing the list of DPUs to use for the job
                 rc = true;
             }
