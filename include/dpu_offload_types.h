@@ -1498,7 +1498,7 @@ typedef struct offloading_engine
 
     // dpus is a vector of remote_dpu_info_t structures used on the DPUs
     // to easily track all the DPUs used in the current configuration.
-    // This is at the moment not used on the host. Type: remote_dpu_info_t
+    // This is at the moment not used on the host. Type: remote_dpu_info_t*
     dyn_array_t dpus;
 
     // service_procs is a vector of remote_service_proc_info_t structures
@@ -1573,9 +1573,7 @@ typedef struct offloading_engine
         /* Note that engine->dpus is a vector of remote_dpu_info_t pointers. */                                     \
         /* The actual object are from pool_remote_dpu_info */                                                       \
         DYN_ARRAY_ALLOC(&((_engine)->dpus), 32, remote_dpu_info_t *);                                               \
-        /* Note that engine->service_procs is a vector of remote_service_proc_info_t pointers. */                   \
-        /* The actual object are from a dynamic array when parsing the configuration file. */                       \
-        DYN_ARRAY_ALLOC(&((_engine)->service_procs), 32, remote_service_proc_info_t *);                             \
+        DYN_ARRAY_ALLOC(&((_engine)->service_procs), 256, remote_service_proc_info_t);                              \
         (_engine)->num_dpus = 0;                                                                                    \
         (_engine)->num_service_procs = 0;                                                                           \
         (_engine)->num_connected_service_procs = 0;                                                                 \
