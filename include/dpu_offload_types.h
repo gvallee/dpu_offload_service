@@ -1739,36 +1739,6 @@ typedef struct pending_notification
     _list;                                                  \
 })
 
-/**
- * @brief LIST_SERVICE_PROCS_FROM_ENGINE returns the pointer to the array of remote_service_proc_info_t structures
- * representing the list of known service processes, based on a engine. This is relevant mainly on DPUs.
- *
- * @parma[in] engine
- */
-#define LIST_SERVICE_PROCS_FROM_ENGINE(_engine) ({                              \
-    remote_service_proc_info_t **_list = NULL;                                  \
-    if (_engine)                                                                \
-    {                                                                           \
-        _list = (remote_service_proc_info_t **)((_engine)->service_procs.base); \
-    }                                                                           \
-    _list;                                                                      \
-})
-
-/**
- * @brief LIST_SERVICE_PROCS_FROM_ECONTEXT returns the pointer to the array of remote_service_proc_info_t structures
- * representing the list of known service processes, based on a execution context. This is relevant mainly on DPUs.
- *
- * @parma[in] econtext
- */
-#define LIST_SERVICE_PROCS_FROM_ECONTEXT(_econtext) ({               \
-    remote_service_proc_info_t **_list = NULL;                       \
-    if (_econtext != NULL)                                           \
-    {                                                                \
-        _list = LIST_SERVICE_PROCS_FROM_ENGINE((_econtext)->engine); \
-    }                                                                \
-    _list;                                                           \
-})
-
 #define ECONTEXT_FOR_SERVICE_PROC_COMMUNICATION(_engine, _service_proc_idx) ({ \
     execution_context_t *_e = NULL;                                            \
     remote_service_proc_info_t *_sp;                                           \

@@ -408,10 +408,10 @@ static uint64_t get_dpu_global_id_from_service_proc_id(offloading_engine_t *engi
 void client_service_proc_connected(void *data)
 {
     connected_peer_data_t *connected_peer;
-    remote_service_proc_info_t **list_service_procs;
     execution_context_t *econtext;
     uint64_t service_proc_global_id, dpu_global_id;
     peer_info_t *service_proc_info;
+    remote_service_proc_info_t *sp;
 
     assert(data);
     connected_peer = (connected_peer_data_t *)data;
@@ -422,8 +422,6 @@ void client_service_proc_connected(void *data)
     assert(econtext->scope_id == SCOPE_INTER_SERVICE_PROCS);
 
     // Lookup the service proc's client data
-    list_service_procs = LIST_SERVICE_PROCS_FROM_ENGINE(connected_peer->econtext->engine);
-    assert(list_service_procs);
     service_proc_info = DYN_ARRAY_GET_ELT(&(econtext->server->connected_clients.clients),
                                           connected_peer->rank_info.group_rank,
                                           peer_info_t);
@@ -442,9 +440,11 @@ void client_service_proc_connected(void *data)
     set_default_econtext(connected_peer);
 
     // Update data in the list of DPUs
-    list_service_procs[service_proc_global_id]->peer_addr = connected_peer->peer_addr;
-    list_service_procs[service_proc_global_id]->econtext = connected_peer->econtext;
-    list_service_procs[service_proc_global_id]->client_id = connected_peer->peer_id;
+    sp = DYN_ARRAY_GET_ELT(&(connected_peer->econtext->engine->service_procs), service_proc_global_id, remote_service_proc_info_t);
+    assert(sp);
+    sp->peer_addr = connected_peer->peer_addr;
+    sp->econtext = connected_peer->econtext;
+    sp->client_id = connected_peer->peer_id;
 
     // Increase the number of connected service proc
     connected_peer->econtext->engine->num_connected_service_procs++;
@@ -470,6 +470,7 @@ void client_service_proc_connected(void *data)
 
 dpu_offload_status_t inter_dpus_connect_mgr(offloading_engine_t *engine, offloading_config_t *cfg)
 {
+    remote_service_proc_info_t *sp;
     CHECK_ERR_RETURN((engine == NULL), DO_ERROR, "undefined engine");
     CHECK_ERR_RETURN((cfg == NULL), DO_ERROR, "undefined configuration");
     engine->on_dpu = true;
@@ -505,8 +506,11 @@ dpu_offload_status_t inter_dpus_connect_mgr(offloading_engine_t *engine, offload
     CHECK_ERR_RETURN((status != UCS_OK), DO_ERROR, "ucp_ep_create() failed");
     engine->self_ep = self_ep; // fixme: correctly free
     assert(cfg->local_service_proc.info.global_id != UINT64_MAX);
-    remote_service_proc_info_t **list_service_procs = LIST_SERVICE_PROCS_FROM_ENGINE(engine);
-    list_service_procs[cfg->local_service_proc.info.global_id]->ep = engine->self_ep;
+    sp = DYN_ARRAY_GET_ELT(&(cfg->offloading_engine->service_procs),
+                           cfg->local_service_proc.info.global_id,
+                           remote_service_proc_info_t);
+    assert(sp);
+    sp->ep = engine->self_ep;
 
     if (cfg->num_connecting_service_procs > 0)
     {

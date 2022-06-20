@@ -598,12 +598,14 @@ static dpu_offload_status_t do_get_cache_entry_by_group_rank(offloading_engine_t
         dpu_offload_status_t rc;
         dpu_offload_event_t *metaev = NULL;
         // fixme: use DYN_ARRAY API here, not list_sps
-        remote_service_proc_info_t **list_sps = LIST_SERVICE_PROCS_FROM_ENGINE(engine);
         execution_context_t *meta_econtext = NULL;
 
         for (i = 0; i < engine->num_service_procs; i++)
         {
-            if (list_sps[i] != NULL && list_sps[i]->ep != NULL && list_sps[i]->init_params.conn_params != NULL)
+            remote_service_proc_info_t *sp;
+            sp = DYN_ARRAY_GET_ELT(&(engine->service_procs), i, remote_service_proc_info_t);
+            assert(sp);
+            if (sp != NULL && sp->ep != NULL && sp->init_params.conn_params != NULL)
             {
                 execution_context_t *econtext = ECONTEXT_FOR_SERVICE_PROC_COMMUNICATION(engine, i);
                 uint64_t global_sp_id = LOCAL_ID_TO_GLOBAL(econtext, i);
@@ -621,7 +623,7 @@ static dpu_offload_status_t do_get_cache_entry_by_group_rank(offloading_engine_t
                     EVENT_HDR_TYPE(metaev) = META_EVENT_TYPE;
                 }
 
-                ucp_ep_h dpu_ep = list_sps[i]->ep;
+                ucp_ep_h dpu_ep = sp->ep;
                 dpu_offload_event_t *subev;
                 rc = event_get(econtext->event_channels, NULL, &subev);
                 CHECK_ERR_RETURN((rc), DO_ERROR, "event_get() failed");
@@ -665,15 +667,14 @@ dpu_offload_status_t get_sp_id_by_group_rank(offloading_engine_t *engine, int64_
 
 dpu_offload_status_t get_sp_ep_by_id(offloading_engine_t *engine, uint64_t sp_id, ucp_ep_h *sp_ep, execution_context_t **econtext_comm, uint64_t *comm_id)
 {
-    remote_service_proc_info_t **list_sps;
     CHECK_ERR_RETURN((engine == NULL), DO_ERROR, "engine is undefined");
     CHECK_ERR_RETURN((sp_id >= engine->num_dpus),
                      DO_ERROR,
                      "request service process #%ld but only %ld service processes are known",
                      sp_id, engine->num_service_procs);
-    list_sps = LIST_SERVICE_PROCS_FROM_ENGINE(engine);
-    DBG("Looking up entry for service process #%" PRIu64, sp_id);
-    if (list_sps != NULL && list_sps[sp_id] == NULL)
+    remote_service_proc_info_t *sp;
+    sp = DYN_ARRAY_GET_ELT(&(engine->service_procs), sp_id, remote_service_proc_info_t);
+    if (sp == NULL)
     {
         *sp_ep = NULL;
         *econtext_comm = NULL;
@@ -690,8 +691,7 @@ dpu_offload_status_t get_sp_ep_by_id(offloading_engine_t *engine, uint64_t sp_id
     case CONTEXT_SERVER:
         // If the DPU is a local client, we cannot use the global service process's ID,
         // we have to look up the local ID that can be used to send notifications.
-        assert(list_sps);
-        *comm_id = list_sps[sp_id]->client_id;
+        *comm_id = sp->client_id;
         break;
     case CONTEXT_CLIENT:
         *comm_id = sp_id;
@@ -848,8 +848,6 @@ bool parse_line_dpu_version_1(offloading_config_t *data, char *line)
     assert(data);
     assert(data->offloading_engine);
     assert(line);
-    list_sps = LIST_SERVICE_PROCS_FROM_ENGINE(data->offloading_engine);
-    assert(list_sps);
     list_dpus = LIST_DPUS_FROM_ENGINE(data->offloading_engine);
     assert(list_dpus);
 

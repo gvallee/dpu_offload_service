@@ -943,13 +943,15 @@ dpu_offload_status_t offload_engine_progress(offloading_engine_t *engine)
         // Progress all the execution context used to connect to other service processes
         assert(engine->num_service_procs);
         size_t i;
-        remote_service_proc_info_t **list_sp = LIST_SERVICE_PROCS_FROM_ENGINE(engine);
         for (i = 0; i < engine->num_service_procs; i++)
         {
-            if (list_sp[i] == NULL)
+            remote_service_proc_info_t *sp;
+            sp = DYN_ARRAY_GET_ELT(&(engine->service_procs), i, remote_service_proc_info_t);
+            assert(sp);
+            if (sp == NULL)
                 continue;
 
-            execution_context_t *econtext = list_sp[i]->econtext;
+            execution_context_t *econtext = sp->econtext;
             if (econtext == NULL || econtext->progress == NULL)
                 continue;
 

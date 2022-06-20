@@ -105,8 +105,11 @@ void cache_entry_cb(void *data)
     fprintf(stderr, "l.%d - Successfully retrieved endpoint (%p)\n", __LINE__, target_sp_ep);
     fprintf(stderr, "-> lookup succeeded (l.%d)\n", __LINE__);
     dpu_offload_event_t *end_test_cb_ev;
-    remote_service_proc_info_t **list_sps = LIST_SERVICE_PROCS_FROM_ENGINE(engine);
-    execution_context_t *target_sp_econtext = list_sps[0]->econtext;
+    remote_service_proc_info_t *sp0 = DYN_ARRAY_GET_ELT(&(engine->service_procs), 0, remote_service_proc_info_t);
+    assert(sp0);
+    remote_service_proc_info_t *sp1 = DYN_ARRAY_GET_ELT(&(engine->service_procs), 1, remote_service_proc_info_t);
+    assert(sp1);
+    execution_context_t *target_sp_econtext = sp0->econtext;
     assert(target_sp_econtext);
     rc = event_get(target_sp_econtext->event_channels, NULL, &end_test_cb_ev);
     if (rc)
@@ -114,7 +117,7 @@ void cache_entry_cb(void *data)
         fprintf(stderr, "l.%d: [ERROR] event_get() failed\n", __LINE__);
         return;
     }
-    rc = event_channel_emit(&end_test_cb_ev, END_TEST_FROM_CALLBACK, list_sps[1]->ep, 1, NULL);
+    rc = event_channel_emit(&end_test_cb_ev, END_TEST_FROM_CALLBACK, sp1->ep, 1, NULL);
     if (rc != EVENT_DONE && rc != EVENT_INPROGRESS)
     {
         fprintf(stderr, "l.%d: [ERROR] event_channel_emit() failed\n", __LINE__);
@@ -284,6 +287,7 @@ static int test_cb(struct dpu_offload_ev_sys *ev_sys, execution_context_t *econt
 
 int main(int argc, char **argv)
 {
+    remote_service_proc_info_t *sp;
     fprintf(stderr, "Creating offload engine...\n");
     offloading_engine_t *offload_engine;
     dpu_offload_status_t rc = offload_engine_init(&offload_engine);
@@ -348,12 +352,16 @@ int main(int argc, char **argv)
     fprintf(stderr, "Connections between DPUs successfully initialized\n");
 
     fprintf(stderr, "I am service process #%ld, starting the test\n", config_data.local_service_proc.info.global_id);
-
-    remote_service_proc_info_t **list_sps = LIST_SERVICE_PROCS_FROM_ENGINE(offload_engine);
+    
     int64_t remote_sp_id;
     if (config_data.local_service_proc.info.global_id == 1)
     {
         /* Service Process #1 */
+        remote_service_proc_info_t *sp0;
+        sp = DYN_ARRAY_GET_ELT(&(offload_engine->service_procs), config_data.local_service_proc.info.global_id, remote_service_proc_info_t);
+        assert(sp);
+        sp0 = DYN_ARRAY_GET_ELT(&(offload_engine->service_procs), 0, remote_service_proc_info_t);
+        assert(sp0);
 
         // Create a fake entry in the cache
         // 42 is used to avoid lucky initialization effects that would hide a bug
@@ -399,9 +407,9 @@ int main(int argc, char **argv)
             fprintf(stderr, "[ERROR] undefined execution context\n");
             goto error_out;
         }
-        if (target_sp_ep != list_sps[config_data.local_service_proc.info.global_id]->ep)
+        if (target_sp_ep != sp->ep)
         {
-            fprintf(stderr, "[ERROR] invalid endpoint was returned (%p instead of %p)\n", target_sp_ep, list_sps[config_data.local_service_proc.info.global_id]->ep);
+            fprintf(stderr, "[ERROR] invalid endpoint was returned (%p instead of %p)\n", target_sp_ep, sp->ep);
             goto error_out;
         }
 
@@ -411,7 +419,7 @@ int main(int argc, char **argv)
         fprintf(stderr, "-> l.%d - Sending notification to initiate the test in a callback...\n", __LINE__);
         ADD_TO_CACHE(52, 42, offload_engine, config_data);
         dpu_offload_event_t *start_test_cb_ev;
-        execution_context_t *sp0_econtext = list_sps[0]->econtext;
+        execution_context_t *sp0_econtext = sp0->econtext;
         assert(sp0_econtext);
         rc = event_get(sp0_econtext->event_channels, NULL, &start_test_cb_ev);
         if (rc)
@@ -422,9 +430,9 @@ int main(int argc, char **argv)
         // Direct access to the endpoint, which will not trigger the creation of the endpoint
         // even if all the required data to do so is there, so I can check on things and not
         // only get fail/success details.
-        if (list_sps[0]->ep == NULL)
+        if (sp0->ep == NULL)
         {
-            if (list_sps[0]->peer_addr == NULL)
+            if (sp0->peer_addr == NULL)
             {
                 fprintf(stderr, "[WARN] the peer's address is NULL\n");
             }
@@ -432,9 +440,9 @@ int main(int argc, char **argv)
         ucp_ep_h remote_sp_ep = GET_REMOTE_SERVICE_PROC_EP(offload_engine, 0ul);
         // After calling DPU_GET_REMOTE_DPU_EP, the endpoint should always be there since
         // in the worst case, we had all the data required to generate the endpoint.
-        assert(list_sps[0]->ep);
+        assert(sp0->ep);
         assert(remote_sp_ep);
-        rc = event_channel_emit(&start_test_cb_ev, START_TEST_FROM_CALLBACK, list_sps[0]->ep, 0, NULL);
+        rc = event_channel_emit(&start_test_cb_ev, START_TEST_FROM_CALLBACK, sp0->ep, 0, NULL);
         if (rc != EVENT_DONE && rc != EVENT_INPROGRESS)
         {
             fprintf(stderr, "l.%d: [ERROR] event_channel_emit() failed (rc: %d - %s)\n", __LINE__, rc, ucs_status_string(rc));
@@ -452,11 +460,12 @@ int main(int argc, char **argv)
 
         // We need to make sure we have the connection to service process #1
         remote_service_proc_info_t *sp1_config;
+        sp1_config = DYN_ARRAY_GET_ELT(&(offload_engine->service_procs), 1, remote_service_proc_info_t);
         fprintf(stderr, "Waiting to be connected to service process #1\n");
         do
         {
             ENGINE_LOCK(offload_engine);
-            sp1_config = list_sps[1];
+            sp1_config = DYN_ARRAY_GET_ELT(&(offload_engine->service_procs), 1, remote_service_proc_info_t);
             ENGINE_UNLOCK(offload_engine);
             offload_engine_progress(offload_engine);
         } while (sp1_config == NULL || sp1_config->econtext == NULL);
