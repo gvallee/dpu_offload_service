@@ -1293,6 +1293,37 @@ execution_context_t *get_server_servicing_host(offloading_engine_t *engine)
     return NULL;
 }
 
+dpu_offload_status_t get_local_service_proc_connect_info(offloading_config_t *cfg, rank_info_t *rank_info, init_params_t *init_params)
+{
+    int64_t service_proc_local_id = 0;
+    dpu_config_data_t *entry = NULL;
+    int *host_port = NULL;
+    assert(cfg);
+    assert(rank_info);
+    assert(init_params);
+    assert(cfg->num_connecting_service_procs > 0);
+    assert(cfg->num_service_procs_per_dpu != UINT64_MAX);
+    assert(cfg->local_service_proc.info.dpu != UINT64_MAX);
+
+    if (rank_info->local_rank != INVALID_RANK)
+    {
+        service_proc_local_id = rank_info->local_rank % cfg->num_service_procs_per_dpu;
+    }
+
+    entry = DYN_ARRAY_GET_ELT(&(cfg->dpus_config), cfg->local_service_proc.info.dpu, dpu_config_data_t);
+    cfg->local_service_proc.info.local_id = service_proc_local_id;
+    cfg->local_service_proc.info.global_id = cfg->local_service_proc.info.dpu * cfg->num_service_procs_per_dpu + service_proc_local_id;
+    host_port = DYN_ARRAY_GET_ELT(&(entry->version_1.host_ports), service_proc_local_id, int);
+    init_params->conn_params->port = *host_port;
+    init_params->conn_params->addr_str = entry->version_1.addr;
+    DBG("Service process connection info - port: %d, addr: %s, local_id: %" PRIu64 ", global_id: %" PRIu64,
+        init_params->conn_params->port,
+        init_params->conn_params->addr_str,
+        cfg->local_service_proc.info.local_id,
+        cfg->local_service_proc.info.global_id);
+    return DO_SUCCESS;
+}
+
 void offload_config_free(offloading_config_t *cfg)
 {
     dpu_config_data_t *list_dpus = (dpu_config_data_t *)cfg->dpus_config.base;

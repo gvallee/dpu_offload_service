@@ -201,6 +201,8 @@ bool is_in_cache(cache_t *cache, int64_t gp_id, int64_t rank_id, int64_t group_s
 
 execution_context_t *get_server_servicing_host(offloading_engine_t *engine);
 
+dpu_offload_status_t get_local_service_proc_connect_info(offloading_config_t *cfg, rank_info_t *rank_info, init_params_t *init_params);
+
 bool all_service_procs_connected(offloading_engine_t *engine);
 
 #define SET_DEFAULT_DPU_HOST_SERVER_CALLBACKS(_init_params)                 \
