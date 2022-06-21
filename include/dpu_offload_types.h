@@ -304,6 +304,9 @@ typedef struct rank_info
 
     // Number of ranks on the host. Used for optimization. Can be set to any negative value when unknown
     int64_t n_local_ranks;
+
+    // Rank on the host, can be used to figure out which service process on the local DPU to connect to.
+    int64_t local_rank;
 } rank_info_t;
 
 #define RESET_RANK_INFO(_r)              \
@@ -313,6 +316,7 @@ typedef struct rank_info
         (_r)->group_rank = INVALID_RANK; \
         (_r)->group_size = 0;            \
         (_r)->n_local_ranks = 0;         \
+        (_r)->local_rank = INVALID_RANK; \
     } while (0)
 
 #define COPY_RANK_INFO(__s, __d)                     \
@@ -322,6 +326,7 @@ typedef struct rank_info
         (__d)->group_rank = (__s)->group_rank;       \
         (__d)->group_size = (__s)->group_size;       \
         (__d)->n_local_ranks = (__s)->n_local_ranks; \
+        (__d)->local_rank = (__s)->local_rank;       \
     } while (0)
 
 // fixme: long term, we do not want to have a limit on the length of the address
