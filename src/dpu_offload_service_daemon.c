@@ -371,7 +371,7 @@ static dpu_offload_status_t oob_server_accept(execution_context_t *econtext, cha
         setsockopt(econtext->server->conn_data.oob.listenfd, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval));
 
         rc = bind(econtext->server->conn_data.oob.listenfd, (struct sockaddr *)&servaddr, sizeof(servaddr));
-        CHECK_ERR_GOTO((rc), error_out, "bind() failed: %s", strerror(errno));
+        CHECK_ERR_GOTO((rc), error_out, "bind() failed on port %d: %s", server_port, strerror(errno));
         rc = listen(econtext->server->conn_data.oob.listenfd, 1024);
         CHECK_ERR_GOTO((rc), error_out, "listen() failed: %s", strerror(errno));
 
@@ -2294,7 +2294,7 @@ execution_context_t *server_init(offloading_engine_t *offloading_engine, init_pa
 #if !NDEBUG
     if (init_params != NULL && init_params->conn_params != NULL)
     {
-        DBG("Server created on %s:%d (econtext: %p, scope_id=%d)",
+        DBG("Server initiated on %s:%d (econtext: %p, scope_id=%d)",
             init_params->conn_params->addr_str,
             init_params->conn_params->port,
             execution_context,
