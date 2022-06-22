@@ -1597,7 +1597,9 @@ typedef struct dpu_config_data
         {
             char *hostname;
             char *addr;
+            size_t num_host_ports;
             dyn_array_t host_ports;     // Type: int
+            size_t num_interdpu_ports;
             dyn_array_t interdpu_ports; // Type: int
         } version_1;
     };

@@ -806,6 +806,7 @@ static inline bool parse_dpu_cfg(char *str, dpu_config_data_t *config_entry)
             }
             token = strtok_r(rest, ":", &rest);
             assert(token);
+            config_entry->version_1.num_interdpu_ports = j;
             step++;
             break;
         case 2:
@@ -821,6 +822,7 @@ static inline bool parse_dpu_cfg(char *str, dpu_config_data_t *config_entry)
                 j++;
                 token_port = strtok_r(host_ports_str, "&", &host_ports_str);
             }
+            config_entry->version_1.num_host_ports = j;
             return true;
         }
     }
@@ -1206,6 +1208,23 @@ dpu_offload_status_t find_config_from_platform_configfile(char *filepath, char *
         }
     }
 
+    // The configuration is stored in the first element of dpus_configs
+    dpu_config_data_t *dpu_config = DYN_ARRAY_GET_ELT(&(data->dpus_config), 0, dpu_config_data_t);
+    assert(dpu_config);
+
+    // At this point if we do not know how many service processes are on the DPU, we use the number
+    // of ports for the host to connect to set it.
+    if (data->num_service_procs_per_dpu == 0)
+        data->num_service_procs_per_dpu = dpu_config->version_1.num_host_ports;
+
+    // Same for the DPU id that we are associated with. We currently assume we have a single DPU
+    if (data->local_service_proc.info.dpu == UINT64_MAX)
+    {
+        // When parsing the configuration file, the number of DPUs stops increasing when we find the local DPU
+        // so the DPU ID is the number of DPUs - 1
+        data->local_service_proc.info.dpu = data->num_dpus - 1;
+    }
+
     rc = DO_SUCCESS;
 
 error_out:
@@ -1261,6 +1280,8 @@ dpu_offload_status_t get_host_config(offloading_config_t *config_data)
         DBG("Looking for %s's configuration data from %s", hostname, config_data->config_file);
         rc = find_config_from_platform_configfile(config_data->config_file, hostname, config_data);
         CHECK_ERR_RETURN((rc), DO_ERROR, "find_config_from_platform_configfile() failed");
+        assert(config_data->num_service_procs_per_dpu > 0);
+        assert(config_data->num_service_procs_per_dpu != UINT64_MAX);
     }
     else
     {
@@ -1301,7 +1322,6 @@ dpu_offload_status_t get_local_service_proc_connect_info(offloading_config_t *cf
     assert(cfg);
     assert(rank_info);
     assert(init_params);
-    assert(cfg->num_connecting_service_procs > 0);
     assert(cfg->num_service_procs_per_dpu != UINT64_MAX);
     assert(cfg->local_service_proc.info.dpu != UINT64_MAX);
 
@@ -1313,9 +1333,13 @@ dpu_offload_status_t get_local_service_proc_connect_info(offloading_config_t *cf
     entry = DYN_ARRAY_GET_ELT(&(cfg->dpus_config), cfg->local_service_proc.info.dpu, dpu_config_data_t);
     cfg->local_service_proc.info.local_id = service_proc_local_id;
     cfg->local_service_proc.info.global_id = cfg->local_service_proc.info.dpu * cfg->num_service_procs_per_dpu + service_proc_local_id;
-    host_port = DYN_ARRAY_GET_ELT(&(entry->version_1.host_ports), service_proc_local_id, int);
+    // The config of our DPU is always the first one in the list.
+    dpu_config_data_t *dpu_config = DYN_ARRAY_GET_ELT(&(cfg->dpus_config), 0, dpu_config_data_t);
+    assert(dpu_config);
+    host_port = DYN_ARRAY_GET_ELT(&(dpu_config->version_1.host_ports), service_proc_local_id, int);
     init_params->conn_params->port = *host_port;
-    init_params->conn_params->addr_str = entry->version_1.addr;
+    assert(dpu_config->version_1.addr);
+    init_params->conn_params->addr_str = dpu_config->version_1.addr;
     DBG("Service process connection info - port: %d, addr: %s, local_id: %" PRIu64 ", global_id: %" PRIu64,
         init_params->conn_params->port,
         init_params->conn_params->addr_str,
