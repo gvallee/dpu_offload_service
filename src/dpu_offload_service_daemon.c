@@ -1744,7 +1744,7 @@ execution_context_t *client_init(offloading_engine_t *offload_engine, init_param
     ECONTEXT_UNLOCK(ctx);
     CHECK_ERR_GOTO((rc), error_out, "register_default_notfications() failed");
 
-    // We add ourselves to the local EP cache
+    // We add ourselves to the local EP cache as shadow service process
     if (ctx->rank.group_id != INVALID_GROUP &&
         ctx->rank.group_rank != INVALID_RANK &&
         !is_in_cache(&(offload_engine->procs_cache), ctx->rank.group_id, ctx->rank.group_rank, ctx->rank.group_size))
@@ -1756,7 +1756,7 @@ execution_context_t *client_init(offloading_engine_t *offload_engine, init_param
         group_cache_t *gp_cache = GET_GROUP_CACHE(&(offload_engine->procs_cache), ctx->rank.group_id);
         assert(cache_entry);
         assert(gp_cache);
-        cache_entry->shadow_service_procs[cache_entry->num_shadow_service_procs] = ctx->client->server_global_id;
+        cache_entry->shadow_service_procs[cache_entry->num_shadow_service_procs] = ctx->engine->config->local_service_proc.info.global_id;
         cache_entry->peer.proc_info.group_id = ctx->rank.group_id;
         cache_entry->peer.proc_info.group_rank = ctx->rank.group_rank;
         cache_entry->peer.proc_info.group_size = ctx->rank.group_size;
