@@ -16,7 +16,34 @@
 #define INTER_DPU_ADDR_ENVVAR "INTER_DPU_CONN_ADDR"
 #define INTER_DPU_PORT_ENVVAR "INTER_DPU_CONN_PORT"
 
+/**
+ * @brief Environment variable defining the list of DPUs to be used
+ * for offloading. When used, it should be the exact same list
+ * for all DPUs to be used.
+ */
 #define LIST_DPUS_ENVVAR "DPU_OFFLOAD_LIST_DPUS"
+
+/**
+ * @brief Environment variable defining the global ID of the service process.
+ * It should be only in the context of a service process and will be used,
+ * in conjunction with the list of DPUs to determine the configuration.
+ * If not defined, it is assumed that a single service process is running
+ * on the DPU.
+ */
+#define DPU_OFFLOAD_SERVICE_PROCESS_GLOBAL_ID_ENVVAR "DPU_OFFLOAD_SERVICE_PROCESS_GLOBAL_ID"
+
+/**
+ * @brief Environment variable defining the local ID of the service process.
+ * If not defined, it is assumed that a single service process is running
+ * on the DPU.
+ */
+#define DPU_OFFLOAD_SERVICE_PROCESS_LOCAL_ID_ENVVAR "DPU_OFFLOAD_SERVICE_PROCESS_LOCAL_ID"
+
+/**
+ * @brief Environment variable defining the number of service processes per DPU. At the
+ * moment, it is assumed that the same number of service processes are running on all DPUs.
+ */
+#define DPU_OFFLOAD_SERVICE_PROCESSES_PER_DPU_ENVVAR "DPU_OFFLOAD_SERVICE_PROCESSES_PER_DPU"
 
 #define DPU_OFFLOAD_DBG_VERBOSE "DPU_OFFLOAD_DBG_VERBOSE"
 

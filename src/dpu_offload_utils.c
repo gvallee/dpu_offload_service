@@ -98,7 +98,7 @@ uint64_t LOCAL_ID_TO_GLOBAL(execution_context_t *econtext, uint64_t local_id)
     case CONTEXT_SELF:
     {
         if (econtext->engine->on_dpu)
-            global_id = econtext->engine->config->local_dpu.id;
+            global_id = econtext->engine->config->local_service_proc.info.global_id;
         else
             global_id = 0; /* By default, for comm to self the ID is 0 */
         break;
@@ -130,7 +130,6 @@ dpu_offload_status_t do_send_cache_entry_request(execution_context_t *econtext, 
     CHECK_ERR_RETURN((rc != EVENT_DONE && rc != EVENT_INPROGRESS), DO_ERROR, "event_channel_emit_with_payload() failed");
     return DO_SUCCESS;
 }
-
 
 dpu_offload_status_t send_cache_entry_request(execution_context_t *econtext, ucp_ep_h ep, uint64_t dest_id, rank_info_t *requested_peer, dpu_offload_event_t **ev)
 {
@@ -258,14 +257,14 @@ bool find_range_local_ranks(execution_context_t *econtext, int64_t gp_id, int64_
             idx++;
             continue;
         }
-        
-        if (found_begining == false && cache_entry->shadow_dpus[0] == econtext->engine->config->local_dpu.id)
+
+        if (found_begining == false && cache_entry->shadow_service_procs[0] == econtext->engine->config->local_service_proc.info.global_id)
         {
             found_begining = true;
             *range_start = idx;
         }
 
-        if (found_begining == true && cache_entry->shadow_dpus[0] == econtext->engine->config->local_dpu.id)
+        if (found_begining == true && cache_entry->shadow_service_procs[0] == econtext->engine->config->local_service_proc.info.global_id)
             count++;
 
         idx++;
@@ -354,7 +353,7 @@ dpu_offload_status_t send_gp_cache_to_host(execution_context_t *econtext, int64_
                 idx++;
                 continue;
             }
-            DBG("Send cache to client #%ld (id: %"PRIu64")", idx, c->id);
+            DBG("Send cache to client #%ld (id: %" PRIu64 ")", idx, c->id);
             dpu_offload_status_t rc = event_get(econtext->event_channels, NULL, &metaev);
             CHECK_ERR_RETURN((rc), DO_ERROR, "event_get() failed");
             assert(metaev);
@@ -409,7 +408,7 @@ dpu_offload_status_t exchange_cache(execution_context_t *econtext, cache_t *cach
     size_t i;
     for (i = 0; i < offload_engine->num_dpus; i++)
     {
-        ucp_ep_h dest_ep = GET_REMOTE_DPU_EP(offload_engine, i);
+        ucp_ep_h dest_ep = GET_REMOTE_SERVICE_PROC_EP(offload_engine, i);
         if (dest_ep)
         {
             rc = send_cache(econtext, &(offload_engine->procs_cache), dest_ep, i, meta_evt);
@@ -419,29 +418,31 @@ dpu_offload_status_t exchange_cache(execution_context_t *econtext, cache_t *cach
     return DO_SUCCESS;
 }
 
-bool all_dpus_connected(offloading_engine_t *engine)
+bool all_service_procs_connected(offloading_engine_t *engine)
 {
     if (!engine->on_dpu)
         return false;
 
-    return (engine->num_dpus == (engine->num_connected_dpus + 1)); // Plus one because we do not connect to ourselves
+    return (engine->num_service_procs == (engine->num_connected_service_procs + 1)); // Plus one because we do not connect to ourselves
 }
 
 dpu_offload_status_t broadcast_group_cache(offloading_engine_t *engine, int64_t group_id)
 {
     size_t i;
-    remote_dpu_info_t **list_dpus;
     group_cache_t *cache;
     assert(engine);
     assert(group_id >= 0);
 
-    // Check whether all the DPUs are connected, if not, do not do anything
-    if (engine->num_dpus != engine->num_connected_dpus + 1)
+    // Check whether all the service processes are connected, if not, do not do anything
+    if (!all_service_procs_connected(engine))
     {
-        DBG("Not all DPUs are connected, not initiating the broadcast");
+        // Not all the DPUs are connected, we cannot exchange the data yet
+        DBG("Not all service processes are connected, unable to broadcast group cache (num service processes: %ld, connected service processes: %ld)",
+            engine->num_service_procs,
+            engine->num_connected_service_procs);
         return DO_SUCCESS;
     }
-    DBG("All DPUs connected, starting broadcast of the cache entries for the local ranks");
+    DBG("All service processes connected, starting broadcast of the cache entries for the local ranks");
 
     if (!engine->on_dpu)
     {
@@ -449,56 +450,48 @@ dpu_offload_status_t broadcast_group_cache(offloading_engine_t *engine, int64_t 
         return DO_ERROR;
     }
 
-    if (engine->num_dpus == 1)
+    if (engine->num_service_procs == 1)
     {
-        // The configuration has a single DPU, the current DPU, nothing to do
+        // The configuration has a single service process, the current DPU, nothing to do
         return DO_SUCCESS;
-    }
-
-    if (!all_dpus_connected(engine))
-    {
-        // Not all the DPUs are connected, we cannot exchange the data yet
-        DBG("Not all DPUs are connected, unable to broadcast group cache (num DPUS: %ld, connected DPUs: %ld)",
-            engine->num_dpus,
-            engine->num_connected_dpus);
-        return DO_ERROR;
     }
 
     cache = GET_GROUP_CACHE(&(engine->procs_cache), group_id);
     assert(cache);
-    list_dpus = LIST_DPUS_FROM_ENGINE(engine);
-    assert(list_dpus);
-    for (i = 0; i < engine->num_dpus; i++)
+    for (i = 0; i < engine->num_service_procs; i++)
     {
         dpu_offload_status_t rc;
         // Meta-event to be used to track all that need to happen
         dpu_offload_event_t *ev;
         ucp_ep_h dest_ep;
         uint64_t dest_id = i;
+        remote_service_proc_info_t *sp;
+        sp = DYN_ARRAY_GET_ELT(&(engine->service_procs), i, remote_service_proc_info_t);
+        assert(sp);
 
         // Do not send to self
         offloading_config_t *cfg = (offloading_config_t *)engine->config;
-        if (i == cfg->local_dpu.id)
+        if (i == cfg->local_service_proc.info.global_id)
             continue;
 
-        if (list_dpus[i]->econtext == NULL)
+        if (sp->econtext == NULL)
         {
-            ERR_MSG("number of connected DPUs: %ld", engine->num_connected_dpus);
-            ERR_MSG("econtext for DPU %ld is NULL", i);
+            ERR_MSG("number of connected service process(es): %ld", engine->num_connected_service_procs);
+            ERR_MSG("econtext for service process %ld is NULL", i);
         }
-        assert(list_dpus[i]->econtext);
-        event_get(list_dpus[i]->econtext->event_channels, NULL, &ev);
+        assert(sp->econtext);
+        event_get(sp->econtext->event_channels, NULL, &ev);
         assert(ev);
         EVENT_HDR_TYPE(ev) = META_EVENT_TYPE;
-        dest_ep = GET_REMOTE_DPU_EP(engine, i);
+        dest_ep = GET_REMOTE_SERVICE_PROC_EP(engine, i);
         // If the econtext is a client to connect to a server, the dest_id is the index;
         // otherwise we need to find the client ID based on the index
-        if (list_dpus[i]->econtext->type == CONTEXT_SERVER)
-            dest_id = list_dpus[i]->client_id;
-        DBG("Sending group cache to DPU #%ld (econtext: %p, scope_id: %d, dest_id: %ld)",
-            LOCAL_ID_TO_GLOBAL(list_dpus[i]->econtext, i), list_dpus[i]->econtext, list_dpus[i]->econtext->scope_id, dest_id);
-        rc = send_local_rank_group_cache(list_dpus[i]->econtext, dest_ep, dest_id, group_id, ev);
-        CHECK_ERR_RETURN((rc), DO_ERROR, "send_group_cache() failed");
+        if (sp->econtext->type == CONTEXT_SERVER)
+            dest_id = sp->client_id;
+        DBG("Sending group cache to service process #%ld (econtext: %p, scope_id: %d, dest_id: %ld, ep: %p)",
+            LOCAL_ID_TO_GLOBAL(sp->econtext, i), sp->econtext, sp->econtext->scope_id, dest_id, dest_ep);
+        rc = send_local_rank_group_cache(sp->econtext, dest_ep, dest_id, group_id, ev);
+        CHECK_ERR_RETURN((rc), DO_ERROR, "send_local_rank_group_cache() failed");
         QUEUE_EVENT(ev);
     }
 
@@ -525,7 +518,7 @@ bool is_in_cache(cache_t *cache, int64_t gp_id, int64_t rank_id, int64_t group_s
     return (entry->set);
 }
 
-static dpu_offload_status_t do_get_cache_entry_by_group_rank(offloading_engine_t *engine, int64_t gp_id, int64_t rank, int64_t dpu_idx, request_compl_cb_t cb, int64_t *dpu_id, dpu_offload_event_t **ev)
+static dpu_offload_status_t do_get_cache_entry_by_group_rank(offloading_engine_t *engine, int64_t gp_id, int64_t rank, int64_t sp_idx, request_compl_cb_t cb, int64_t *sp_global_id, dpu_offload_event_t **ev)
 {
     if (ev != NULL && cb != NULL)
     {
@@ -535,17 +528,17 @@ static dpu_offload_status_t do_get_cache_entry_by_group_rank(offloading_engine_t
 
     // If the event is defined, the dpu_id must also be defined, they go in pairs
     if (ev != NULL)
-        assert(dpu_id);
+        assert(sp_global_id);
 
     if (is_in_cache(&(engine->procs_cache), gp_id, rank, -1))
     {
         // The cache has the data
         peer_cache_entry_t *cache_entry = GET_GROUP_RANK_CACHE_ENTRY(&(engine->procs_cache), gp_id, rank, GROUP_SIZE_UNKNOWN);
-        DBG("%" PRId64 "/%" PRId64 " is in the cache, DPU ID = %" PRId64, rank, gp_id, cache_entry->shadow_dpus[dpu_idx]);
+        DBG("%" PRId64 "/%" PRId64 " is in the cache, service proc ID = %" PRId64, rank, gp_id, cache_entry->shadow_service_procs[sp_idx]);
         if (ev != NULL)
         {
             *ev = NULL;
-            *dpu_id = cache_entry->shadow_dpus[dpu_idx];
+            *sp_global_id = cache_entry->shadow_service_procs[sp_idx];
         }
         return DO_SUCCESS;
     }
@@ -588,12 +581,12 @@ static dpu_offload_status_t do_get_cache_entry_by_group_rank(offloading_engine_t
         assert(request_data);
         request_data->gp_id = gp_id;
         request_data->rank = rank;
-        request_data->target_dpu_idx = dpu_idx;
+        request_data->target_sp_idx = sp_idx;
         request_data->offload_engine = engine;
         cache_entry_updated_ev->ctx.completion_cb = cb;
         cache_entry_updated_ev->ctx.completion_cb_ctx = (void *)request_data;
         assert(0); // FIXME: events cannot be on two lists
-        //ucs_list_add_tail(&(engine->self_econtext->ongoing_events), &(cache_entry_updated_ev->item));
+        // ucs_list_add_tail(&(engine->self_econtext->ongoing_events), &(cache_entry_updated_ev->item));
     }
 
     if (engine->on_dpu == true)
@@ -604,18 +597,21 @@ static dpu_offload_status_t do_get_cache_entry_by_group_rank(offloading_engine_t
         size_t i;
         dpu_offload_status_t rc;
         dpu_offload_event_t *metaev = NULL;
-        remote_dpu_info_t **list_dpus = LIST_DPUS_FROM_ENGINE(engine);
+        // fixme: use DYN_ARRAY API here, not list_sps
         execution_context_t *meta_econtext = NULL;
 
-        for (i = 0; i < engine->num_dpus; i++)
+        for (i = 0; i < engine->num_service_procs; i++)
         {
-            if (list_dpus[i] != NULL && list_dpus[i]->ep != NULL && list_dpus[i]->init_params.conn_params != NULL)
+            remote_service_proc_info_t *sp;
+            sp = DYN_ARRAY_GET_ELT(&(engine->service_procs), i, remote_service_proc_info_t);
+            assert(sp);
+            if (sp != NULL && sp->ep != NULL && sp->init_params.conn_params != NULL)
             {
-                execution_context_t *econtext = ECONTEXT_FOR_DPU_COMMUNICATION(engine, i);
-                uint64_t global_dpu_id = LOCAL_ID_TO_GLOBAL(econtext, i);
-                CHECK_ERR_RETURN((econtext == NULL), DO_ERROR, "unable to get execution context to communicate with DPU #0");
-                DBG("Sending cache entry request to DPU #%ld (econtext: %p, scope_id: %d)",
-                    global_dpu_id,
+                execution_context_t *econtext = ECONTEXT_FOR_SERVICE_PROC_COMMUNICATION(engine, i);
+                uint64_t global_sp_id = LOCAL_ID_TO_GLOBAL(econtext, i);
+                CHECK_ERR_RETURN((econtext == NULL), DO_ERROR, "unable to get execution context to communicate with service process #%ld", i);
+                DBG("Sending cache entry request to service process #%ld (econtext: %p, scope_id: %d)",
+                    global_sp_id,
                     econtext,
                     econtext->scope_id);
 
@@ -627,14 +623,14 @@ static dpu_offload_status_t do_get_cache_entry_by_group_rank(offloading_engine_t
                     EVENT_HDR_TYPE(metaev) = META_EVENT_TYPE;
                 }
 
-                ucp_ep_h dpu_ep = list_dpus[i]->ep;
+                ucp_ep_h dpu_ep = sp->ep;
                 dpu_offload_event_t *subev;
                 rc = event_get(econtext->event_channels, NULL, &subev);
                 CHECK_ERR_RETURN((rc), DO_ERROR, "event_get() failed");
                 subev->is_subevent = true;
                 rc = do_send_cache_entry_request(econtext, dpu_ep, i, &rank_data, subev);
                 CHECK_ERR_RETURN((rc), DO_ERROR, "send_cache_entry_request() failed");
-                DBG("Sub-event for sending cache to DPU %ld: %p", global_dpu_id, subev);
+                DBG("Sub-event for sending cache to DPU %ld: %p", global_sp_id, subev);
                 if (subev != NULL)
                 {
                     // If the event did not complete right away, we add it as a sub-event to the meta-event so we can track everything
@@ -659,29 +655,28 @@ static dpu_offload_status_t do_get_cache_entry_by_group_rank(offloading_engine_t
     return DO_SUCCESS;
 }
 
-dpu_offload_status_t get_cache_entry_by_group_rank(offloading_engine_t *engine, int64_t gp_id, int64_t rank, int64_t dpu_idx, request_compl_cb_t cb)
+dpu_offload_status_t get_cache_entry_by_group_rank(offloading_engine_t *engine, int64_t gp_id, int64_t rank, int64_t sp_idx, request_compl_cb_t cb)
 {
-    return do_get_cache_entry_by_group_rank(engine, gp_id, rank, dpu_idx, cb, NULL, NULL);
+    return do_get_cache_entry_by_group_rank(engine, gp_id, rank, sp_idx, cb, NULL, NULL);
 }
 
-dpu_offload_status_t get_dpu_id_by_group_rank(offloading_engine_t *engine, int64_t gp_id, int64_t rank, int64_t dpu_idx, int64_t *dpu_id, dpu_offload_event_t **ev)
+dpu_offload_status_t get_sp_id_by_group_rank(offloading_engine_t *engine, int64_t gp_id, int64_t rank, int64_t sp_idx, int64_t *sp_id, dpu_offload_event_t **ev)
 {
-    return do_get_cache_entry_by_group_rank(engine, gp_id, rank, dpu_idx, NULL, dpu_id, ev);
+    return do_get_cache_entry_by_group_rank(engine, gp_id, rank, sp_idx, NULL, sp_id, ev);
 }
 
-dpu_offload_status_t get_dpu_ep_by_id(offloading_engine_t *engine, uint64_t dpu_id, ucp_ep_h *dpu_ep, execution_context_t **econtext_comm, uint64_t *comm_id)
+dpu_offload_status_t get_sp_ep_by_id(offloading_engine_t *engine, uint64_t sp_id, ucp_ep_h *sp_ep, execution_context_t **econtext_comm, uint64_t *comm_id)
 {
-    remote_dpu_info_t **list_dpus;
     CHECK_ERR_RETURN((engine == NULL), DO_ERROR, "engine is undefined");
-    CHECK_ERR_RETURN((dpu_id >= engine->num_dpus),
+    CHECK_ERR_RETURN((sp_id >= engine->num_dpus),
                      DO_ERROR,
-                     "request DPU #%ld but only %ld DPUs are known",
-                     dpu_id, engine->num_dpus);
-    list_dpus = LIST_DPUS_FROM_ENGINE(engine);
-    DBG("Looking up entry for DPU #%" PRIu64, dpu_id);
-    if (list_dpus != NULL && list_dpus[dpu_id] == NULL)
+                     "request service process #%ld but only %ld service processes are known",
+                     sp_id, engine->num_service_procs);
+    remote_service_proc_info_t *sp;
+    sp = DYN_ARRAY_GET_ELT(&(engine->service_procs), sp_id, remote_service_proc_info_t);
+    if (sp == NULL)
     {
-        *dpu_ep = NULL;
+        *sp_ep = NULL;
         *econtext_comm = NULL;
         DBG("Endpoint not available");
         // This is not an error, just that the data is not yet available.
@@ -689,18 +684,17 @@ dpu_offload_status_t get_dpu_ep_by_id(offloading_engine_t *engine, uint64_t dpu_
     }
 
     // If not, we find the appropriate client or server
-    *dpu_ep = GET_REMOTE_DPU_EP(engine, dpu_id);
-    *econtext_comm = GET_REMOTE_DPU_ECONTEXT(engine, dpu_id);
+    *sp_ep = GET_REMOTE_SERVICE_PROC_EP(engine, sp_id);
+    *econtext_comm = GET_REMOTE_SERVICE_PROC_ECONTEXT(engine, sp_id);
     switch ((*econtext_comm)->type)
     {
     case CONTEXT_SERVER:
-        // If the DPU is a local client, we cannot use the global DPU ID,
+        // If the DPU is a local client, we cannot use the global service process's ID,
         // we have to look up the local ID that can be used to send notifications.
-        assert(list_dpus);
-        *comm_id = list_dpus[dpu_id]->client_id;
+        *comm_id = sp->client_id;
         break;
     case CONTEXT_CLIENT:
-        *comm_id = dpu_id;
+        *comm_id = sp_id;
         break;
     case CONTEXT_SELF:
         *comm_id = 0;
@@ -708,19 +702,19 @@ dpu_offload_status_t get_dpu_ep_by_id(offloading_engine_t *engine, uint64_t dpu_
     default:
         *comm_id = UINT64_MAX;
     }
-    
-    DBG("Details to communicate with DPU #%" PRIu64": econtext=%p ep=%p comm_id=%" PRIu64, dpu_id, *econtext_comm, *dpu_ep, *comm_id);
+
+    DBG("Details to communicate with service process #%" PRIu64 ": econtext=%p ep=%p comm_id=%" PRIu64, sp_id, *econtext_comm, *sp_ep, *comm_id);
 
 #if !NDEBUG
     // Some checks in debug mode if the destination is really self
-    if (dpu_id == engine->config->local_dpu.id)
+    if (sp_id == engine->config->local_service_proc.info.global_id)
     {
         assert(*econtext_comm == engine->self_econtext);
         assert(*comm_id == 0);
     }
 #endif
     assert(*econtext_comm);
-    assert(*dpu_ep);
+    assert(*sp_ep);
     assert(*comm_id != UINT64_MAX);
     return DO_SUCCESS;
 }
@@ -812,6 +806,7 @@ static inline bool parse_dpu_cfg(char *str, dpu_config_data_t *config_entry)
             }
             token = strtok_r(rest, ":", &rest);
             assert(token);
+            config_entry->version_1.num_interdpu_ports = j;
             step++;
             break;
         case 2:
@@ -827,6 +822,7 @@ static inline bool parse_dpu_cfg(char *str, dpu_config_data_t *config_entry)
                 j++;
                 token_port = strtok_r(host_ports_str, "&", &host_ports_str);
             }
+            config_entry->version_1.num_host_ports = j;
             return true;
         }
     }
@@ -835,23 +831,33 @@ static inline bool parse_dpu_cfg(char *str, dpu_config_data_t *config_entry)
     return false;
 }
 
-// <host name>,<dpu1_hostname:dpu_conn_addr:interdpu-port1&interdpu-port2,...:rank-conn-port1&rank-conn-port2,...>,...
+/**
+ * @brief Main function to parse the content of the configuration file in the context of service processes.
+ * The function relies on the placeholders created while parsing the list of DPUs to be used.
+ * Format: <host name>,<dpu1_hostname:dpu_conn_addr:interdpu-port1&interdpu-port2,...:rank-conn-port1&rank-conn-port2,...>,...
+ */
 bool parse_line_dpu_version_1(offloading_config_t *data, char *line)
 {
     int idx = 0;
+    size_t dpu_idx = 0;
+    size_t cur_global_sp_id = 0;
     bool rc = false;
     char *rest_line = line;
     dpu_config_data_t *target_entry = NULL;
+    remote_dpu_info_t **list_dpus = NULL;
 
     assert(data);
+    assert(data->offloading_engine);
     assert(line);
+    list_dpus = LIST_DPUS_FROM_ENGINE(data->offloading_engine);
+    assert(list_dpus);
 
     while (line[idx] == ' ')
         idx++;
 
     char *token = strtok_r(rest_line, ",", &rest_line);
 
-    // The host's name does not really matter here, moving to the DPU(s) configuration
+    // The host's name does not really matter here, moving to the service process(es) configuration
     token = strtok_r(rest_line, ",", &rest_line);
     if (token == NULL)
         ERR_MSG("unable to parse: %s", line);
@@ -859,8 +865,8 @@ bool parse_line_dpu_version_1(offloading_config_t *data, char *line)
     while (token != NULL)
     {
         bool target_dpu = false;
-        size_t i, j;
-        DBG("-> DPU data: %s", token);
+        size_t i;
+        DBG("-> Service proc data: %s", token);
 
         /* if the DPU is not part of the list of DPUs to use, we skip it */
         for (i = 0; i < data->num_dpus; i++)
@@ -876,6 +882,7 @@ bool parse_line_dpu_version_1(offloading_config_t *data, char *line)
             {
                 target_dpu = true;
                 target_entry = entry;
+                dpu_idx = i;
                 DBG("Found the configuration for %s", entry->version_1.hostname);
                 break;
             }
@@ -883,94 +890,109 @@ bool parse_line_dpu_version_1(offloading_config_t *data, char *line)
 
         if (target_dpu)
         {
+            size_t sp_idx = 0;
+            size_t d;
+            // Find the corresponding remote_dpu_info_t structure so we can populate it
+            // while parsing the line.
+            remote_dpu_info_t *cur_dpu = NULL;
+            for (d = 0; d < data->num_dpus; d++)
+            {
+                remote_dpu_info_t *remote_dpu = list_dpus[d];
+                size_t _strlen = strlen(remote_dpu->hostname);
+                if (strlen(target_entry->version_1.hostname) < _strlen)
+                    _strlen = strlen(target_entry->version_1.hostname);
+                assert(remote_dpu);
+                assert(remote_dpu->hostname);
+                if (strncmp(target_entry->version_1.hostname, remote_dpu->hostname, _strlen) == 0)
+                {
+                    cur_dpu = remote_dpu;
+                    break;
+                }
+            }
+            if (cur_dpu == NULL)
+            {
+                ERR_MSG("Unable to find data for DPU %s", target_entry->version_1.hostname);
+                return false;
+            }
+            assert(cur_dpu);
+
             bool parsing_okay = parse_dpu_cfg(token, target_entry);
             CHECK_ERR_RETURN((parsing_okay == false), false, "unable to parse config file entry");
-            // fixme: support ranks dealing with multiple daemons on a single DPU (issue #98)
-            //int *displayed_interdpu_port = DYN_ARRAY_GET_ELT(&(target_entry->version_1.interdpu_ports), 0, int);
-            //int *displayed_host_port = DYN_ARRAY_GET_ELT(&(target_entry->version_1.host_ports), 0, int);
-            //DBG("-> DPU %s found (%s:%d:%d)", target_entry->version_1.hostname,
-            //    target_entry->version_1.addr,
-            //    *displayed_interdpu_port,
-            //    *displayed_host_port);
+            // We now have the configuration associated to the line we just parsed, checking a few things...
+            assert(target_entry->version_1.addr);
 
-            /* Save the configuration details */
-            remote_dpu_info_t **list_dpus = LIST_DPUS_FROM_ENGINE(data->offloading_engine);
-            assert(list_dpus);
-            for (j = 0; j < data->offloading_engine->num_dpus; j++)
+            /* Save the configuration details of each service process on that DPU */
+            remote_service_proc_info_t *cur_sp, *next_sp;
+            ucs_list_for_each_safe(cur_sp, next_sp, &(cur_dpu->remote_service_procs), item)
             {
-                if (list_dpus[j] == NULL)
-                {
-                    continue;
-                }
-
-                if (strncmp(target_entry->version_1.hostname, list_dpus[j]->hostname,
-                            strlen(list_dpus[j]->hostname)) == 0)
-                {
-                    DBG("Saving configuration details for DPU #%ld, %s (addr: %s)",
-                        j,
-                        target_entry->version_1.hostname,
-                        target_entry->version_1.addr);
-
-                    // We found the DPU in the engine's list
-                    if (list_dpus[j]->init_params.conn_params != NULL)
-                    {
-                        list_dpus[j]->init_params.conn_params->addr_str = target_entry->version_1.addr;
-                        // fixme: support ranks dealing with multiple daemons on a single DPU (issue #98)
-                        int *port = DYN_ARRAY_GET_ELT(&(target_entry->version_1.interdpu_ports), 0, int);
-                        list_dpus[j]->init_params.conn_params->port = *port;
-                    }
-                }
+                assert(cur_sp->init_params.conn_params);
+                cur_sp->init_params.conn_params->addr_str = target_entry->version_1.addr;
+                int *port = DYN_ARRAY_GET_ELT(&(target_entry->version_1.interdpu_ports),
+                                              sp_idx,
+                                              int);
+                cur_sp->init_params.conn_params->port = *port;
+                service_proc_config_data_t *sp_config;
+                sp_config = DYN_ARRAY_GET_ELT(&(data->sps_configs), cur_global_sp_id, service_proc_config_data_t);
+                assert(sp_config);
+                cur_sp->config = sp_config;
+                sp_config->version_1.hostname = target_entry->version_1.hostname;
+                int *intersp_port = DYN_ARRAY_GET_ELT(&(target_entry->version_1.interdpu_ports), sp_idx, int);
+                int *host_port = DYN_ARRAY_GET_ELT(&(target_entry->version_1.host_ports), sp_idx, int);
+                sp_config->version_1.host_port = *host_port;
+                sp_config->version_1.intersp_port = *intersp_port;
+                cur_sp->init_params.conn_params->port = *host_port;
+                cur_sp->init_params.conn_params->addr_str = target_entry->version_1.addr;
+                sp_idx++;
+                cur_global_sp_id++;
             }
 
-            if (strncmp(data->local_dpu.hostname, target_entry->version_1.hostname, strlen(target_entry->version_1.hostname)) == 0)
+            if (strncmp(data->local_service_proc.hostname, target_entry->version_1.hostname, strlen(target_entry->version_1.hostname)) == 0)
             {
+                remote_service_proc_info_t *sp = NULL;
                 // This is the DPU's configuration we were looking for
-                DBG("-> This is my configuration");
-                data->dpu_found = true;
-                // At the moment, the unique ID from the list of DPUs is used as:
-                // - reference,
-                // - unique identifier when connecting to other DPUs or other DPUs connecting to us,
-                // - unique identifier when handling connections from the ranks running on the local host.
-                // In other words, it is used to create the mapping between all DPUs and all ranks.
-                data->local_dpu.interdpu_init_params.id_set = true;
-                data->local_dpu.interdpu_init_params.id = data->local_dpu.id;
-                data->local_dpu.host_init_params.id_set = true;
-                data->local_dpu.host_init_params.id = data->local_dpu.id;
-                data->local_dpu.config = target_entry;
-                data->local_dpu.interdpu_conn_params.addr_str = data->local_dpu.config->version_1.addr;
-                // fixme: support ranks dealing with multiple daemons on a single DPU (issue #98)
-                int *dpu_port = DYN_ARRAY_GET_ELT(&(target_entry->version_1.interdpu_ports), 0, int);
-                data->local_dpu.interdpu_conn_params.port = *dpu_port;
-                data->local_dpu.interdpu_conn_params.port_str = NULL;
-                data->local_dpu.host_conn_params.addr_str = data->local_dpu.config->version_1.addr;
-                // fixme: support ranks dealing with multiple daemons on a single DPU (issue #98)
-                int *host_port = DYN_ARRAY_GET_ELT(&(target_entry->version_1.host_ports), 0, int);
-                data->local_dpu.host_conn_params.port = *host_port;
-                data->local_dpu.host_conn_params.port_str = NULL;
-                assert(data->local_dpu.id <= data->offloading_engine->num_dpus);
+                DBG("-> This is the current DPU");
 
-                list_dpus[data->local_dpu.id]->ep = data->offloading_engine->self_ep;
+                // We now know that the configuration is about the local DPU. Based on this, the nest
+                // steps are:
+                // 1. Find how many service processes are before/after us to update the list of service
+                //    processes we need to connect to and the list of service processes we expect to
+                //    connect to us.
+                // 2. Update the data of the local service processes, e.g., ports and so on.
+                // In debug mode, we make sure the local ID for the service proc is correct
+                if (data->local_service_proc.info.global_id == UINT64_MAX)
+                {
+                    assert(data->local_service_proc.info.local_id == 0);
+                    // This assumes the global ID was not set in the environment and therefore
+                    // we assume a single service process per DPU and as a result the global ID
+                    // of the service process is equal to the DPU global ID
+                    data->local_service_proc.info.global_id = dpu_idx;
+                }
+                assert(data->local_service_proc.info.local_id != UINT64_MAX);
+                assert(data->local_service_proc.info.global_id != UINT64_MAX);
+                assert(data->num_service_procs_per_dpu != 0);
+                assert(data->num_service_procs_per_dpu != UINT64_MAX);
+                assert(ucs_list_length(&(cur_dpu->remote_service_procs)) == data->num_service_procs_per_dpu);
+
+                if (data->local_service_proc.info.global_id < data->num_service_procs_per_dpu * (dpu_idx + 1))
+                    data->service_proc_found = true;
+                data->local_service_proc.inter_service_procs_init_params.id_set = true;
+                data->local_service_proc.inter_service_procs_init_params.id = data->local_service_proc.info.global_id;
+                data->local_service_proc.host_init_params.id_set = true;
+                data->local_service_proc.host_init_params.id = data->local_service_proc.info.global_id;
+                int *intersp_port = DYN_ARRAY_GET_ELT(&(target_entry->version_1.interdpu_ports),
+                                                      data->local_service_proc.info.local_id, int);
+                int *host_port = DYN_ARRAY_GET_ELT(&(target_entry->version_1.host_ports),
+                                                   data->local_service_proc.info.local_id, int);
+                data->local_service_proc.inter_service_procs_conn_params.port = *intersp_port;
+                data->local_service_proc.inter_service_procs_conn_params.addr_str = target_entry->version_1.addr;
+                data->local_service_proc.host_conn_params.port = *host_port;
+                data->local_service_proc.host_conn_params.addr_str = target_entry->version_1.addr;
+                assert(data->local_service_proc.info.dpu <= data->offloading_engine->num_dpus);
+                sp = DYN_ARRAY_GET_ELT(&(data->offloading_engine->service_procs), data->local_service_proc.info.global_id, remote_service_proc_info_t);
+                assert(sp);
+                sp->ep = data->offloading_engine->self_ep;
                 // data->local_dpu.id is already set while parsing the list of DPUs to use for the job
                 rc = true;
-            }
-
-            // Is it an outbound connection?
-            remote_dpu_info_t *connect_to, *next_connect_to;
-            ucs_list_for_each_safe(connect_to, next_connect_to, &(data->info_connecting_to.connect_to), item)
-            {
-                DBG("Check DPU %s that we need to connect to (with %s)", connect_to->hostname, target_entry->version_1.hostname);
-                if (strncmp(target_entry->version_1.hostname, connect_to->hostname, strlen(connect_to->hostname)) == 0)
-                {
-                    conn_params_t *new_conn_params;
-                    DYN_LIST_GET(data->offloading_engine->pool_conn_params, conn_params_t, item, new_conn_params); // fixme: properly return it
-                    RESET_CONN_PARAMS(new_conn_params);
-                    connect_to->init_params.conn_params = new_conn_params;
-                    connect_to->init_params.conn_params->addr_str = target_entry->version_1.addr;
-                    // fixme: add support for multiple daemons on a single DPU (issue #98);
-                    int *port = DYN_ARRAY_GET_ELT(&(target_entry->version_1.interdpu_ports), 0, int);
-                    connect_to->init_params.conn_params->port = *port;
-                    DBG("\tconnection parameters to connect to %s at %s (%p) saved", connect_to->hostname, target_entry->version_1.addr, connect_to);
-                }
             }
         }
         else
@@ -982,11 +1004,17 @@ bool parse_line_dpu_version_1(offloading_config_t *data, char *line)
     return rc;
 }
 
-// <host name>,<dpu1_hostname:dpu_conn_addr:interdpu-port:rank-conn-port>,...
+/**
+ * @brief Main function to parse the configuration file in the context of the host.
+ * Format: <host name>,<dpu1_hostname:dpu_conn_addr:interdpu-port:rank-conn-port>,...
+ */
 bool parse_line_version_1(char *target_hostname, offloading_config_t *data, char *line)
 {
     int idx = 0;
     char *rest = line;
+    assert(target_hostname);
+    assert(data);
+    assert(line);
 
     while (line[idx] == ' ')
         idx++;
@@ -1030,6 +1058,9 @@ bool parse_line_version_1(char *target_hostname, offloading_config_t *data, char
  */
 bool parse_line(char *target_hostname, char *line, offloading_config_t *data)
 {
+    assert(target_hostname);
+    assert(line);
+    assert(data);
     switch (data->format_version)
     {
     case 1:
@@ -1041,7 +1072,8 @@ bool parse_line(char *target_hostname, char *line, offloading_config_t *data)
 }
 
 /**
- * @brief parse_line_for_dpu_cfg parses a line of the configuration file looking for a specific DPU. It shall not be used to seek the configuration of a host.
+ * @brief parse_line_for_dpu_cfg parses a line of the configuration file looking for a specific DPU.
+ * It shall not be used to seek the configuration of a host.
  *
  * @param data Data gathered while parsing the configuration file
  * @param line Line from the configuration file that is being parsed
@@ -1074,8 +1106,14 @@ dpu_offload_status_t find_dpu_config_from_platform_configfile(char *filepath, of
     dpu_offload_status_t rc = DO_ERROR;
     bool found_self = false;
 
+    assert(filepath);
+    assert(config_data);
+
     // Read the entire file so we can go over the content quickly. Configure files are not expected to get huge
     FILE *file = fopen(filepath, "rb");
+    if (file == NULL)
+        ERR_MSG("unable to open %s", filepath);
+    assert(file);
     fseek(file, 0, SEEK_END);
     len = ftell(file);
     fseek(file, 0, SEEK_SET); /* same as rewind(f); */
@@ -1113,7 +1151,6 @@ dpu_offload_status_t find_dpu_config_from_platform_configfile(char *filepath, of
         line = strtok_r(rest_content, "\n", &rest_content);
     }
     DBG("done parsing the configuration file");
-
     rc = DO_SUCCESS;
 
 error_out:
@@ -1141,7 +1178,13 @@ dpu_offload_status_t find_config_from_platform_configfile(char *filepath, char *
     dpu_offload_status_t rc = DO_ERROR;
     bool first_line = true;
 
+    assert(filepath);
+    assert(hostname);
+    assert(data);
+
     file = fopen(filepath, "r");
+    if (file == NULL)
+        ERR_MSG("unable to open %s", filepath);
 
     while ((read = getline(&line, &len, file)) != -1)
     {
@@ -1163,6 +1206,23 @@ dpu_offload_status_t find_config_from_platform_configfile(char *filepath, char *
             // We found the configuration for the hostname
             break;
         }
+    }
+
+    // The configuration is stored in the first element of dpus_configs
+    dpu_config_data_t *dpu_config = DYN_ARRAY_GET_ELT(&(data->dpus_config), 0, dpu_config_data_t);
+    assert(dpu_config);
+
+    // At this point if we do not know how many service processes are on the DPU, we use the number
+    // of ports for the host to connect to set it.
+    if (data->num_service_procs_per_dpu == 0)
+        data->num_service_procs_per_dpu = dpu_config->version_1.num_host_ports;
+
+    // Same for the DPU id that we are associated with. We currently assume we have a single DPU
+    if (data->local_service_proc.info.dpu == UINT64_MAX)
+    {
+        // When parsing the configuration file, the number of DPUs stops increasing when we find the local DPU
+        // so the DPU ID is the number of DPUs - 1
+        data->local_service_proc.info.dpu = data->num_dpus - 1;
     }
 
     rc = DO_SUCCESS;
@@ -1209,11 +1269,9 @@ dpu_offload_status_t get_host_config(offloading_config_t *config_data)
     hostname[1023] = '\0';
     gethostname(hostname, 1023);
 
-    config_data->list_dpus = NULL;                                // Not used on host
-    config_data->local_dpu.interdpu_init_params.worker = NULL;    // Not used on host
-    config_data->local_dpu.interdpu_init_params.proc_info = NULL; // Not used on host
-    config_data->local_dpu.host_init_params.worker = NULL;        // Not used on host
-    config_data->local_dpu.host_init_params.proc_info = NULL;     // Not used on host
+    config_data->list_dpus = NULL;                                                         // Not used on host
+    RESET_INIT_PARAMS(&(config_data->local_service_proc.inter_service_procs_init_params)); // Not used on host
+    RESET_INIT_PARAMS(&(config_data->local_service_proc.host_init_params));                // Not used on host
 
     /* First, we check whether we know about a configuration file. If so, we load all the configuration details from it */
     /* If there is no configuration file, we try to configuration from environment variables */
@@ -1222,17 +1280,19 @@ dpu_offload_status_t get_host_config(offloading_config_t *config_data)
         DBG("Looking for %s's configuration data from %s", hostname, config_data->config_file);
         rc = find_config_from_platform_configfile(config_data->config_file, hostname, config_data);
         CHECK_ERR_RETURN((rc), DO_ERROR, "find_config_from_platform_configfile() failed");
+        assert(config_data->num_service_procs_per_dpu > 0);
+        assert(config_data->num_service_procs_per_dpu != UINT64_MAX);
     }
     else
     {
         DBG("No configuration file");
         char *port_str = getenv(INTER_DPU_PORT_ENVVAR);
-        config_data->local_dpu.interdpu_conn_params.addr_str = getenv(INTER_DPU_ADDR_ENVVAR);
-        CHECK_ERR_RETURN((config_data->local_dpu.interdpu_conn_params.addr_str == NULL), DO_ERROR, "%s is not set, please set it\n", INTER_DPU_ADDR_ENVVAR);
+        config_data->local_service_proc.inter_service_procs_conn_params.addr_str = getenv(INTER_DPU_ADDR_ENVVAR);
+        CHECK_ERR_RETURN((config_data->local_service_proc.inter_service_procs_conn_params.addr_str == NULL), DO_ERROR, "%s is not set, please set it\n", INTER_DPU_ADDR_ENVVAR);
 
-        config_data->local_dpu.interdpu_conn_params.port = DEFAULT_INTER_DPU_CONNECT_PORT;
+        config_data->local_service_proc.inter_service_procs_conn_params.port = DEFAULT_INTER_DPU_CONNECT_PORT;
         if (port_str)
-            config_data->local_dpu.interdpu_conn_params.port = atoi(port_str);
+            config_data->local_service_proc.inter_service_procs_conn_params.port = atoi(port_str);
     }
 
     return DO_SUCCESS;
@@ -1252,6 +1312,40 @@ execution_context_t *get_server_servicing_host(offloading_engine_t *engine)
     }
 
     return NULL;
+}
+
+dpu_offload_status_t get_local_service_proc_connect_info(offloading_config_t *cfg, rank_info_t *rank_info, init_params_t *init_params)
+{
+    int64_t service_proc_local_id = 0;
+    dpu_config_data_t *entry = NULL;
+    int *host_port = NULL;
+    assert(cfg);
+    assert(rank_info);
+    assert(init_params);
+    assert(cfg->num_service_procs_per_dpu != UINT64_MAX);
+    assert(cfg->local_service_proc.info.dpu != UINT64_MAX);
+
+    if (rank_info->local_rank != INVALID_RANK)
+    {
+        service_proc_local_id = rank_info->local_rank % cfg->num_service_procs_per_dpu;
+    }
+
+    entry = DYN_ARRAY_GET_ELT(&(cfg->dpus_config), cfg->local_service_proc.info.dpu, dpu_config_data_t);
+    cfg->local_service_proc.info.local_id = service_proc_local_id;
+    cfg->local_service_proc.info.global_id = cfg->local_service_proc.info.dpu * cfg->num_service_procs_per_dpu + service_proc_local_id;
+    // The config of our DPU is always the first one in the list.
+    dpu_config_data_t *dpu_config = DYN_ARRAY_GET_ELT(&(cfg->dpus_config), 0, dpu_config_data_t);
+    assert(dpu_config);
+    host_port = DYN_ARRAY_GET_ELT(&(dpu_config->version_1.host_ports), service_proc_local_id, int);
+    init_params->conn_params->port = *host_port;
+    assert(dpu_config->version_1.addr);
+    init_params->conn_params->addr_str = dpu_config->version_1.addr;
+    DBG("Service process connection info - port: %d, addr: %s, local_id: %" PRIu64 ", global_id: %" PRIu64,
+        init_params->conn_params->port,
+        init_params->conn_params->addr_str,
+        cfg->local_service_proc.info.local_id,
+        cfg->local_service_proc.info.global_id);
+    return DO_SUCCESS;
 }
 
 void offload_config_free(offloading_config_t *cfg)

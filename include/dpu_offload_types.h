@@ -109,7 +109,8 @@ typedef enum
     _ep;                                                                                        \
 })
 
-typedef struct dest_client {
+typedef struct dest_client
+{
     ucp_ep_h ep;
     uint64_t id;
 } dest_client_t;
@@ -303,6 +304,9 @@ typedef struct rank_info
 
     // Number of ranks on the host. Used for optimization. Can be set to any negative value when unknown
     int64_t n_local_ranks;
+
+    // Rank on the host, can be used to figure out which service process on the local DPU to connect to.
+    int64_t local_rank;
 } rank_info_t;
 
 #define RESET_RANK_INFO(_r)              \
@@ -312,6 +316,7 @@ typedef struct rank_info
         (_r)->group_rank = INVALID_RANK; \
         (_r)->group_size = 0;            \
         (_r)->n_local_ranks = 0;         \
+        (_r)->local_rank = INVALID_RANK; \
     } while (0)
 
 #define COPY_RANK_INFO(__s, __d)                     \
@@ -321,6 +326,7 @@ typedef struct rank_info
         (__d)->group_rank = (__s)->group_rank;       \
         (__d)->group_size = (__s)->group_size;       \
         (__d)->n_local_ranks = (__s)->n_local_ranks; \
+        (__d)->local_rank = (__s)->local_rank;       \
     } while (0)
 
 // fixme: long term, we do not want to have a limit on the length of the address
@@ -329,7 +335,7 @@ typedef struct rank_info
 // application processes
 #define MAX_ADDR_LEN (2048)
 
-#define MAX_SHADOW_DPUS (8)
+#define MAX_SHADOW_SERVICE_PROCS (8)
 
 #define SELF_DPU(_engine, _dpu_index) ({                                             \
     bool _is_self = (_engine)->on_dpu;                                               \
@@ -362,7 +368,7 @@ typedef struct peer_data
         RESET_RANK_INFO((_d)->proc_info); \
         (_d)->addr_len = 0;               \
         (_d)->addr = NULL;                \
-    } while(0)
+    } while (0)
 
 #define COPY_PEER_DATA(_src, _dst)                                  \
     do                                                              \
@@ -372,13 +378,13 @@ typedef struct peer_data
         (_dst)->addr_len = (_src)->addr_len;                        \
         if ((_src)->addr_len > 0)                                   \
             strncpy((_dst)->addr, (_src)->addr, (_src)->addr_len);  \
-    } while(0)
+    } while (0)
 
-typedef struct shadow_dpu_info
+typedef struct shadow_service_proc_info
 {
     peer_data_t shadow_data; // Can be NULL if applied to DPU specific data
     ucp_ep_h shadow_ep;      // endpoint to reach the attached DPU
-} shadow_dpu_info_t;
+} shadow_service_pro_info_t;
 
 typedef struct peer_cache_entry
 {
@@ -391,13 +397,13 @@ typedef struct peer_cache_entry
     // endpoint to reach the peer
     ucp_ep_h ep;
 
-    // Number of  the peer's shadow DPU(s)
-    size_t num_shadow_dpus;
+    // Number of the peer's shadow service process(es)
+    size_t num_shadow_service_procs;
 
     // List of DPUs' unique global IDs that are the shadow DPU(s) of the peer.
     // The global DPU identifier is based on the index in the common list of DPU
     // to use for the job.
-    uint64_t shadow_dpus[MAX_SHADOW_DPUS]; // Array of DPUs (when applicable)
+    uint64_t shadow_service_procs[MAX_SHADOW_SERVICE_PROCS]; // Array of DPUs (when applicable)
 
     // Is the list of events already initialized or not (lazy initialization)
     bool events_initialized;
@@ -412,8 +418,8 @@ typedef struct cache_entry_request
 
     struct offloading_engine *offload_engine;
 
-    // ID of the target DPU ID in case multiple DPUs are attached to the target group/rank
-    uint64_t target_dpu_idx;
+    // ID of the target service process ID in case multiple service processes are attached to the target group/rank
+    uint64_t target_sp_idx;
 
     int64_t gp_id;
     int64_t rank;
@@ -729,8 +735,11 @@ typedef struct connected_peer_data
     // Associated execution context
     struct execution_context *econtext;
 
-    // Peer's ID
+    // Peer's ID used for the connection
     uint64_t peer_id;
+
+    // Peer's unique global ID, valid mainly in the context of inter-service-processes connections.
+    uint64_t global_peer_id;
 
     rank_info_t rank_info;
 } connected_peer_data_t;
@@ -741,8 +750,9 @@ typedef struct connected_peer_data
         (_d)->peer_addr = NULL;            \
         (_d)->econtext = NULL;             \
         (_d)->peer_id = UINT64_MAX;        \
+        (_d)->global_peer_id = UINT64_MAX; \
         REST_RANK_DATA((_d)->rank_info);   \
-    } while(0)
+    } while (0)
 
 #define COPY_CONNECTED_PEER_DATA(_src, _dest)                  \
     do                                                         \
@@ -751,7 +761,7 @@ typedef struct connected_peer_data
         (_dest)->econtext = (_src)->econtext;                  \
         (_dest)->peer_id = (_src)->peer_id;                    \
         COPY_RANK_INFO((_dest)->rank_info, (_src)->rank_info); \
-    } while(0)
+    } while (0)
 
 typedef struct conn_params
 {
@@ -779,7 +789,7 @@ typedef void (*connect_completed_cb)(void *);
 typedef enum
 {
     SCOPE_HOST_DPU = 0,
-    SCOPE_INTER_DPU,
+    SCOPE_INTER_SERVICE_PROCS,
     SCOPE_SELF,
 } execution_scope_t;
 
@@ -903,8 +913,8 @@ typedef struct init_params
         case CONTEXT_SERVER:                         \
             SERVER_UNLOCK((_econtext)->server);      \
             break;                                   \
-        default:                                   \
-            break;                                 \
+        default:                                     \
+            break;                                   \
         }                                            \
     } while (0)
 
@@ -989,10 +999,10 @@ typedef struct dpu_offload_client_t
     int64_t idx;
 
     // Identifier assigned by server
-    uint64_t id; 
+    uint64_t id;
 
     // Unique identifier of the server
-    uint64_t server_id; 
+    uint64_t server_id;
 
     uint64_t server_global_id;
 
@@ -1221,7 +1231,8 @@ typedef struct dpu_offload_event
     void *payload;
 
     // Destination endpoint for remote events
-    struct {
+    struct
+    {
         ucp_ep_h ep;
         uint64_t id;
     } dest;
@@ -1423,13 +1434,13 @@ typedef struct group_cache
         _entry;                                                                  \
     })
 
-struct remote_dpu_info; // Forward declaration
+struct remote_service_proc_info; // Forward declaration
 
 typedef struct remote_dpu_connect_tracker
 {
-    struct remote_dpu_info *remote_dpu_info;
+    struct remote_service_proc_info *remote_service_proc_info;
     execution_context_t *client_econtext;
-} remote_dpu_connect_tracker_t;
+} remote_service_procs_connect_tracker_t;
 
 // Forward declaration
 struct offloading_config;
@@ -1466,11 +1477,11 @@ typedef struct offloading_engine
     // Self endpoint
     ucp_ep_h self_ep;
 
-    /* we track the clients used for inter-DPU connection separately. Servers are at the */
-    /* moment in the servers list. */
-    size_t num_inter_dpus_clients;
-    size_t num_max_inter_dpus_clients;
-    remote_dpu_connect_tracker_t *inter_dpus_clients;
+    /* we track the clients used for inter-service-processes connection separately. */
+    /* Servers are at the moment in the servers list. */
+    size_t num_inter_service_proc_clients;
+    size_t num_max_inter_service_proc_clients;
+    remote_service_procs_connect_tracker_t *inter_service_proc_clients;
 
     /* Vector of registered operation, ready for execution */
     size_t num_registered_ops;
@@ -1484,19 +1495,31 @@ typedef struct offloading_engine
     /* Objects used during wire-up */
     dyn_list_t *pool_conn_params;
 
+    /* Pool of remote_dpu_info_t structures, used when getting the configuration */
+    dyn_list_t *pool_remote_dpu_info;
+
     // Flag to specify if we are on the DPU or not
     bool on_dpu;
 
     // dpus is a vector of remote_dpu_info_t structures used on the DPUs
-    // to easily track all the DPUs the execution context is connected to.
-    // This is at the moment not used on the host. Type: remote_dpu_info_t
+    // to easily track all the DPUs used in the current configuration.
+    // This is at the moment not used on the host. Type: remote_dpu_info_t*
     dyn_array_t dpus;
+
+    // service_procs is a vector of remote_service_proc_info_t structures
+    // used on the DPUs to easily track all the remote services processes
+    // that we will have a connection to.
+    // This is at the moment not used on the host. Type: remote_service_proc_info_t
+    dyn_array_t service_procs;
 
     // Number of DPUs defined in dpus
     size_t num_dpus;
 
-    // Number of DPUs with which a connection is established (both as server and client).
-    size_t num_connected_dpus;
+    // Number of services processses running on the DPUs
+    size_t num_service_procs;
+
+    // Number of service processes with which a connection is established (both as server and client).
+    size_t num_connected_service_procs;
 
     // List of default notifications that are applied to all new execution contexts added to the engine.
     dpu_offload_ev_sys_t *default_notifications;
@@ -1505,32 +1528,127 @@ typedef struct offloading_engine
     size_t num_default_notifications;
 } offloading_engine_t;
 
-#define RESET_ENGINE(_engine)                        \
-    do                                               \
-    {                                                \
-        (_engine)->done = false;                     \
-        (_engine)->config = NULL;                    \
-        (_engine)->client = NULL;                    \
-        (_engine)->num_max_servers = 0;              \
-        (_engine)->num_servers = 0;                  \
-        (_engine)->servers = NULL;                   \
-        (_engine)->self_econtext = NULL;             \
-        (_engine)->ucp_worker = NULL;                \
-        (_engine)->ucp_context = NULL;               \
-        (_engine)->self_ep = NULL;                   \
-        (_engine)->num_inter_dpus_clients = 0;       \
-        (_engine)->num_max_inter_dpus_clients = 0;   \
-        (_engine)->inter_dpus_clients = NULL;        \
-        (_engine)->num_registered_ops = 0;           \
-        (_engine)->registered_ops = NULL;            \
-        (_engine)->free_op_descs = NULL;             \
-        (_engine)->free_cache_entry_requests = NULL; \
-        (_engine)->pool_conn_params = NULL;          \
-        (_engine)->on_dpu = false;                   \
-        (_engine)->num_dpus = 0;                     \
-        (_engine)->num_connected_dpus = 0;           \
-        (_engine)->default_notifications = NULL;     \
-        (_engine)->num_default_notifications = 0;    \
+#define RESET_ENGINE(_engine, _ret)                                                                                 \
+    do                                                                                                              \
+    {                                                                                                               \
+        _ret = pthread_mutex_init(&((_engine)->mutex), NULL);                                                       \
+        if (_ret)                                                                                                   \
+        {                                                                                                           \
+            ERR_MSG("pthread_mutex_init() failed: %s", strerror(errno));                                            \
+            break;                                                                                                  \
+        }                                                                                                           \
+        (_engine)->done = false;                                                                                    \
+        (_engine)->config = NULL;                                                                                   \
+        (_engine)->client = NULL;                                                                                   \
+        (_engine)->num_max_servers = DEFAULT_MAX_NUM_SERVERS;                                                       \
+        (_engine)->num_servers = 0;                                                                                 \
+        (_engine)->servers = DPU_OFFLOAD_MALLOC((_engine)->num_max_servers * sizeof(dpu_offload_server_t *));       \
+        if ((_engine)->servers == NULL)                                                                             \
+            break;                                                                                                  \
+        memset((_engine)->servers, 0, (_engine)->num_max_servers * sizeof(dpu_offload_server_t *));                 \
+        (_engine)->self_econtext = NULL;                                                                            \
+        (_engine)->ucp_worker = NULL;                                                                               \
+        (_engine)->ucp_context = NULL;                                                                              \
+        (_engine)->self_ep = NULL;                                                                                  \
+        (_engine)->num_inter_service_proc_clients = 0;                                                              \
+        (_engine)->num_max_inter_service_proc_clients = DEFAULT_MAX_NUM_SERVERS;                                    \
+        (_engine)->inter_service_proc_clients = DPU_OFFLOAD_MALLOC((_engine)->num_max_inter_service_proc_clients *  \
+                                                                   sizeof(remote_service_procs_connect_tracker_t)); \
+        if ((_engine)->inter_service_proc_clients == NULL)                                                          \
+            break;                                                                                                  \
+        (_engine)->num_registered_ops = 0;                                                                          \
+        DYN_LIST_ALLOC((_engine)->free_op_descs, 8, op_desc_t, item);                                               \
+        if ((_engine)->registered_ops == NULL)                                                                      \
+            break;                                                                                                  \
+        GROUPS_CACHE_INIT(&((_engine)->procs_cache));                                                               \
+        DYN_LIST_ALLOC((_engine)->free_cache_entry_requests, DEFAULT_NUM_PEERS, cache_entry_request_t, item);       \
+        if ((_engine)->free_cache_entry_requests == NULL)                                                           \
+            break;                                                                                                  \
+        DYN_LIST_ALLOC((_engine)->pool_conn_params, 32, conn_params_t, item);                                       \
+        if ((_engine)->pool_conn_params == NULL)                                                                    \
+            break;                                                                                                  \
+        DYN_LIST_ALLOC_WITH_INIT_CALLBACK((_engine)->pool_remote_dpu_info,                                          \
+                                          32,                                                                       \
+                                          remote_dpu_info_t,                                                        \
+                                          item,                                                                     \
+                                          init_remote_dpu_info_struct);                                             \
+        if ((_engine)->pool_remote_dpu_info == NULL)                                                                \
+            break;                                                                                                  \
+        (_engine)->on_dpu = false;                                                                                  \
+        /* Note that engine->dpus is a vector of remote_dpu_info_t pointers. */                                     \
+        /* The actual object are from pool_remote_dpu_info */                                                       \
+        DYN_ARRAY_ALLOC(&((_engine)->dpus), 32, remote_dpu_info_t *);                                               \
+        DYN_ARRAY_ALLOC(&((_engine)->service_procs), 256, remote_service_proc_info_t);                              \
+        (_engine)->num_dpus = 0;                                                                                    \
+        (_engine)->num_service_procs = 0;                                                                           \
+        (_engine)->num_connected_service_procs = 0;                                                                 \
+        (_engine)->default_notifications = NULL;                                                                    \
+        (_engine)->num_default_notifications = 0;                                                                   \
+    } while (0)
+
+/**
+ * @brief Data structure used when parsing a configuration file.
+ */
+typedef struct dpu_config_data
+{
+    union
+    {
+        struct
+        {
+            char *hostname;
+            char *addr;
+            size_t num_host_ports;
+            dyn_array_t host_ports;     // Type: int
+            size_t num_interdpu_ports;
+            dyn_array_t interdpu_ports; // Type: int
+        } version_1;
+    };
+} dpu_config_data_t;
+
+typedef struct service_proc_config_data
+{
+    union
+    {
+        struct
+        {
+            char *hostname;
+            char *addr;
+            int host_port;
+            int intersp_port;
+        } version_1;
+    };
+} service_proc_config_data_t;
+
+/**
+ * @brief remote_dpu_info_t gathers all the data necessary to track and connect to other DPUs.
+ */
+typedef struct remote_dpu_info
+{
+    ucs_list_link_t item;
+
+    // idx is the index in the engine's list of known DPUs
+    size_t idx;
+
+    // DPU's hostname
+    char *hostname;
+
+    dpu_config_data_t *config;
+
+    // engine associated to the remote DPU
+    offloading_engine_t *engine;
+
+    // Array of service processes running on the remote DPU
+    // Type: remote_service_proc_info_t
+    ucs_list_link_t remote_service_procs;
+} remote_dpu_info_t;
+
+#define RESET_REMOTE_DPU_INFO(_info)                          \
+    do                                                        \
+    {                                                         \
+        (_info)->idx = 0;                                     \
+        (_info)->hostname = NULL;                             \
+        (_info)->engine = NULL;                               \
+        ucs_list_head_init(&((_info)->remote_service_procs)); \
     } while (0)
 
 /***************************/
@@ -1592,9 +1710,9 @@ typedef struct pending_notification
         (_notif)->econtext = NULL;  \
     } while (0)
 
-/*********************/
-/* DPU CONFIGURATION */
-/*********************/
+/***********************************/
+/* DPU/SERVICE PROCS CONFIGURATION */
+/***********************************/
 
 /**
  * @brief LIST_DPUS_FROM_ENGINE returns the pointer to the array of remote_dpu_info_t structures
@@ -1613,7 +1731,7 @@ typedef struct pending_notification
 
 /**
  * @brief LIST_DPUS_FROM_ENGINE returns the pointer to the array of remote_dpu_info_t structures
- * representing the list of known DPU, based on a execution context. This is relevant mainly on DPUs
+ * representing the list of known DPU, based on a execution context. This is relevant mainly on DPUs.
  *
  * @parma[in] econtext
  */
@@ -1626,62 +1744,73 @@ typedef struct pending_notification
     _list;                                                  \
 })
 
-#define ECONTEXT_FOR_DPU_COMMUNICATION(_engine, _dpu_idx) ({    \
-    execution_context_t *_e = NULL;                             \
-    remote_dpu_info_t **_list = LIST_DPUS_FROM_ENGINE(_engine); \
-    if (_list != NULL && _list[_dpu_idx] != NULL)               \
-    {                                                           \
-        _e = _list[_dpu_idx]->econtext;                         \
-    }                                                           \
-    _e;                                                         \
+#define ECONTEXT_FOR_SERVICE_PROC_COMMUNICATION(_engine, _service_proc_idx) ({ \
+    execution_context_t *_e = NULL;                                            \
+    remote_service_proc_info_t *_sp;                                           \
+        _sp = DYN_ARRAY_GET_ELT(&((_engine)->service_procs),                   \
+                                _service_proc_idx,                             \
+                                remote_service_proc_info_t);                   \
+    if (_sp != NULL)                                                           \
+    {                                                                          \
+        _e = _sp->econtext;                                                    \
+    }                                                                          \
+    _e;                                                                        \
 })
 
-#define GET_REMOTE_DPU_ECONTEXT(_engine, _idx) ({                                          \
-    remote_dpu_info_t **_list_dpus = LIST_DPUS_FROM_ENGINE(_engine);                       \
-    execution_context_t *_e = NULL;                                                        \
-    if (_idx <= (_engine)->num_connected_dpus)                                             \
-    {                                                                                      \
-        if (_list_dpus[_idx]->econtext == NULL && _idx == (_engine)->config->local_dpu.id) \
-        {                                                                                  \
-            _list_dpus[_idx]->econtext = (_engine)->self_econtext;                         \
-        }                                                                                  \
-        if (_list_dpus[_idx]->econtext != NULL)                                            \
-        {                                                                                  \
-            _e = _list_dpus[_idx]->econtext;                                               \
-        }                                                                                  \
-    }                                                                                      \
-    _e;                                                                                    \
+#define GET_REMOTE_SERVICE_PROC_ECONTEXT(_engine, _service_proc_idx) ({                \
+    execution_context_t *_e = NULL;                                                    \
+    if ((_service_proc_idx) <= (_engine)->num_connected_service_procs)                 \
+    {                                                                                  \
+        remote_service_proc_info_t *_sp;                                               \
+        _sp = DYN_ARRAY_GET_ELT(&((_engine)->service_procs),                           \
+                                _service_proc_idx,                                     \
+                                remote_service_proc_info_t);                           \
+        if (_sp->econtext == NULL &&                                                   \
+            _service_proc_idx == (_engine)->config->local_service_proc.info.global_id) \
+        {                                                                              \
+            _sp->econtext = (_engine)->self_econtext;                                  \
+        }                                                                              \
+        if (_sp->econtext != NULL)                                                     \
+        {                                                                              \
+            _e = _sp->econtext;                                                        \
+        }                                                                              \
+    }                                                                                  \
+    _e;                                                                                \
 })
 
-#define GET_REMOTE_DPU_EP(_engine, _idx) ({                                   \
-    remote_dpu_info_t **_list_dpus = LIST_DPUS_FROM_ENGINE(_engine);          \
-    ucp_ep_h __ep = NULL;                                                     \
-    if (_idx <= (_engine)->num_connected_dpus)                                \
-    {                                                                         \
-        if (_list_dpus[_idx]->ep != NULL)                                     \
-        {                                                                     \
-            __ep = _list_dpus[_idx]->ep;                                      \
-        }                                                                     \
-        else                                                                  \
-        {                                                                     \
-            if (_list_dpus[_idx]->peer_addr != NULL)                          \
-            {                                                                 \
-                /* Generate the endpoint with the data we have */             \
-                ucp_ep_params_t _ep_params;                                   \
-                _ep_params.field_mask = UCP_EP_PARAM_FIELD_REMOTE_ADDRESS;    \
-                _ep_params.address = _list_dpus[_idx]->peer_addr;             \
-                ucs_status_t status = ucp_ep_create((_engine)->ucp_worker,    \
-                                                    &_ep_params,              \
-                                                    &(_list_dpus[_idx]->ep)); \
-                CHECK_ERR_RETURN((status != UCS_OK), DO_ERROR,                \
-                                 "ucp_ep_create() failed: %s",                \
-                                 ucs_status_string(status));                  \
-                assert(_list_dpus[_idx]->ep);                                 \
-                __ep = _list_dpus[_idx]->ep;                                  \
-            }                                                                 \
-        }                                                                     \
-    }                                                                         \
-    __ep;                                                                     \
+#define GET_REMOTE_SERVICE_PROC_EP(_engine, _idx) ({                       \
+        ucp_ep_h __ep = NULL;                                              \
+    if (_idx <= (_engine)->num_connected_service_procs)                    \
+    {                                                                      \
+        remote_service_proc_info_t *_sp;                                   \
+        _sp = DYN_ARRAY_GET_ELT(&((_engine)->service_procs),               \
+                                _idx,                                      \
+                                remote_service_proc_info_t);               \
+        assert(_sp);                                                       \
+        if (_sp->ep != NULL)                                               \
+        {                                                                  \
+            __ep = _sp->ep;                                                \
+        }                                                                  \
+        else                                                               \
+        {                                                                  \
+            if (_sp->peer_addr != NULL)                                    \
+            {                                                              \
+                /* Generate the endpoint with the data we have */          \
+                ucp_ep_params_t _ep_params;                                \
+                _ep_params.field_mask = UCP_EP_PARAM_FIELD_REMOTE_ADDRESS; \
+                _ep_params.address = _sp->peer_addr;                       \
+                ucs_status_t status = ucp_ep_create((_engine)->ucp_worker, \
+                                                    &_ep_params,           \
+                                                    &(_sp->ep));           \
+                CHECK_ERR_RETURN((status != UCS_OK), DO_ERROR,             \
+                                 "ucp_ep_create() failed: %s",             \
+                                 ucs_status_string(status));               \
+                assert(_sp->ep);                                           \
+                __ep = _sp->ep;                                            \
+            }                                                              \
+        }                                                                  \
+    }                                                                      \
+    __ep;                                                                  \
 })
 
 typedef enum
@@ -1691,21 +1820,59 @@ typedef enum
     CONNECT_STATUS_DISCONNECTED
 } connect_status_t;
 
+typedef struct service_proc
+{
+    // Identifier of the DPU where the service process is running
+    uint64_t dpu;
+
+    // local unique identifier based on how many service processes are running on
+    // the DPU
+    uint64_t local_id;
+
+    //
+    char *local_id_str;
+
+    // global unique identifier based on how many service processes are available
+    // for offloading
+    uint64_t global_id;
+
+    // String version of global_id, used to point at environment variable
+    char *global_id_str;
+} service_proc_t;
+
+#define RESET_SERVICE_PROC(_p)        \
+    do                                \
+    {                                 \
+        (_p)->dpu = UINT64_MAX;       \
+        (_p)->local_id = UINT64_MAX;  \
+        (_p)->local_id_str = NULL;    \
+        (_p)->global_id = UINT64_MAX; \
+        (_p)->global_id_str = NULL;   \
+    } while (0)
+
 /**
- * @brief remote_dpu_info_t gathers all the data necessary to track and connect to other DPUs.
+ * @brief Datatstructure representing a remote service process that is running on
+ * a specific DPU. A service process is identified by both its local unique identifier
+ * based on how many service processes are running on the DPU and a global unique
+ * identifier based on how many service processes are available for offloading.
  */
-typedef struct remote_dpu_info
+typedef struct remote_service_proc_info
 {
     ucs_list_link_t item;
 
-    // idx is the index in the engine's list of known DPUs
+    // Index in the array of known service processes
     size_t idx;
+
+    service_proc_config_data_t *config;
+
+    // Associated physical DPU
+    remote_dpu_info_t *dpu;
+
+    // Traget service process
+    service_proc_t service_proc;
 
     // Associated client_id when applicable
     uint64_t client_id;
-
-    // DPU's hostname
-    char *hostname;
 
     // Pointer to the address. Used for example to create new endpoint
     void *peer_addr;
@@ -1730,13 +1897,16 @@ typedef struct remote_dpu_info
 
     // Pointer to the endpoint to communicate with the DPU
     ucp_ep_h ep;
-} remote_dpu_info_t;
+} remote_service_proc_info_t;
 
-#define RESET_REMOTE_DPU_INFO(_info)                        \
+#define RESET_REMOTE_SERVICE_PROC(_info)                    \
     do                                                      \
     {                                                       \
-        (_info)->idx = 0;                                   \
-        (_info)->hostname = NULL;                           \
+        (_info)->idx = UINT64_MAX;                          \
+        (_info)->config = NULL;                             \
+        RESET_REMOTE_DPU_INFO(&((_info).dpu));              \
+        RESET_SERVICE_PROC(&((_info).service_proc));        \
+        (_info)->client_id = UINT64_MAX;                    \
         (_info)->peer_addr = NULL;                          \
         RESET_INIT_PARAMS(&((_info)->init_params));         \
         (_info)->conn_status = CONNECT_STATUS_DISCONNECTED; \
@@ -1748,29 +1918,41 @@ typedef struct remote_dpu_info
     } while (0)
 
 /**
- * @brief Data structure used when parsing a configuration file.
- *
+ * @brief While the remote_service_proc_info_t structure is ready to be used
+ * as a list item, list items can only be on one list at a time and we need
+ * to track both the service processes per DPU, as well as the service processes
+ * to connect to. To avoid any problem, connect_to_service_proc is a container
+ * to be used with the list of service procs to connect to that holds a pointer
+ * to the service process structure that belongs to a remote_dpu_info_t element.
  */
-typedef struct dpu_config_data
+typedef struct connect_to_service_proc
 {
-    union
-    {
-        struct
-        {
-            char *hostname;
-            char *addr;
-            dyn_array_t host_ports;     // Type: int
-            dyn_array_t interdpu_ports; // Type: int
-        } version_1;
-    };
-} dpu_config_data_t;
+    ucs_list_link_t item;
+    remote_service_proc_info_t *sp;
+} connect_to_service_proc_t;
 
-typedef struct dpu_inter_connect_info
+typedef struct service_proc_inter_connect_info
 {
-    dyn_list_t *pool_remote_dpu_info;
-    ucs_list_link_t connect_to;
+    dyn_list_t *pool_remote_sp_connect_to; // Pool of connect_to_service_proc_t structures
+    ucs_list_link_t sps_connect_to;        // List of connect_to_service_proc_t structures
+    ucs_list_link_t dpus_connect_to;       // List of  structures
+
+    // Number of physical DPUs to connect to
+    size_t num_dpus;
+
+    // Total number of service processes to connect to.
     size_t num_connect_to;
-} dpu_inter_connect_info_t;
+} service_procs_inter_connect_info_t;
+
+#define RESET_INFO_CONNECTING_TO(_i)                                                           \
+    do                                                                                         \
+    {                                                                                          \
+        ucs_list_head_init(&((_i)->dpus_connect_to));                                          \
+        ucs_list_head_init(&((_i)->sps_connect_to));                                           \
+        DYN_LIST_ALLOC((_i)->pool_remote_sp_connect_to, 256, connect_to_service_proc_t, item); \
+        (_i)->num_dpus = 0;                                                                    \
+        (_i)->num_connect_to = 0;                                                              \
+    } while (0)
 
 /**
  * @brief offloading_config_t represents the configuration that will be used by the offloading infrastructure.
@@ -1785,6 +1967,13 @@ typedef struct offloading_config
     // Path to the configuration file (NULL when no configuration file is used).
     char *config_file;
 
+    // String pointing at environment variable that specifies the number of
+    // service processes per DPU
+    char *num_service_procs_per_dpu_str;
+
+    // Number of service processes per DPU, assumed to be the same on all DPUs
+    uint64_t num_service_procs_per_dpu;
+
     // Version of the format of the configuration file when config_file is not NULL.
     int format_version;
 
@@ -1792,33 +1981,78 @@ typedef struct offloading_config
     offloading_engine_t *offloading_engine;
 
     // Specifies whether the local DPU has been found in the configuration
-    bool dpu_found;
+    bool service_proc_found;
 
-    // Number of DPUs to connect to (only valid on DPUs), used for inter-DPUs connections
-    size_t num_connecting_dpus;
+    // Number of service processes that are connecting to the current service proc
+    // (only valid on DPUs), used for inter-service-processes connections
+    size_t num_connecting_service_procs;
 
-    // Data related to the DPUs that the infrastructure needs to connect to (only valid on DPUs)
-    dpu_inter_connect_info_t info_connecting_to;
+    // Data related to the service processes that the infrastructure needs to connect to (only valid on DPUs)
+    service_procs_inter_connect_info_t info_connecting_to;
 
     // Total number of DPUs to be used
     size_t num_dpus;
 
+    // Total number of service processes to be used
+    size_t num_service_procs;
+
     // Configuration of all the DPUs (type: dpu_config_data_t)
+    // This is where the DPUs' data is initially stored and then used to help
+    // populate the list of DPUs maintained at the engine level.
     dyn_array_t dpus_config;
+
+    // Configuration of all the service processes (type: service_proc_config_data_t)
+    dyn_array_t sps_configs;
 
     // Configuration of the local DPU (only valid on DPUs)
     struct
     {
-        // id is the unique identifier This will be used to set the context ID for the server on the DPU
-        uint64_t id;
-        dpu_config_data_t *config;
+        service_proc_t info;
+        service_proc_config_data_t *config;
         char hostname[1024];
-        conn_params_t interdpu_conn_params;
+
+        // Connection parameters for the service processes to connect to each other
+        conn_params_t inter_service_procs_conn_params;
+
+        // Connection parameters for processes on the host connect to the service process
         conn_params_t host_conn_params;
-        init_params_t interdpu_init_params; // Parameters used to connect to other DPUs, or other DPUS connect to the DPU
-        init_params_t host_init_params;     // Parameters used to let the host connect to the DPU
-    } local_dpu;
+
+        // Parameters used to connect to other service processes, or other service processes connect to the current service process
+        init_params_t inter_service_procs_init_params;
+
+        // Parameters used to let the host connect to the service process
+        init_params_t host_init_params;
+    } local_service_proc;
 } offloading_config_t;
+
+#define INIT_DPU_CONFIG_DATA(_data)                                                                                 \
+    do                                                                                                              \
+    {                                                                                                               \
+        (_data)->list_dpus = NULL;                                                                                  \
+        (_data)->config_file = NULL;                                                                                \
+        (_data)->num_service_procs_per_dpu_str = NULL;                                                              \
+        (_data)->num_service_procs_per_dpu = 0;                                                                     \
+        (_data)->format_version = 0;                                                                                \
+        (_data)->offloading_engine = NULL;                                                                          \
+        (_data)->service_proc_found = false;                                                                        \
+        (_data)->num_connecting_service_procs = 0;                                                                  \
+        RESET_INFO_CONNECTING_TO(&((_data)->info_connecting_to));                                                   \
+        (_data)->num_dpus = 0;                                                                                      \
+        (_data)->num_service_procs = 0;                                                                             \
+        DYN_ARRAY_ALLOC(&((_data)->dpus_config), 32, dpu_config_data_t);                                            \
+        DYN_ARRAY_ALLOC(&((_data)->sps_configs), 256, service_proc_config_data_t);                                  \
+        RESET_SERVICE_PROC(&((_data)->local_service_proc.info));                                                    \
+        (_data)->local_service_proc.config = NULL;                                                                  \
+        (_data)->local_service_proc.hostname[1023] = '\0';                                                          \
+        RESET_INIT_PARAMS(&((_data)->local_service_proc.host_init_params));                                         \
+        RESET_INIT_PARAMS(&((_data)->local_service_proc.inter_service_procs_init_params));                          \
+        RESET_CONN_PARAMS(&((_data)->local_service_proc.host_conn_params));                                         \
+        RESET_CONN_PARAMS(&((_data)->local_service_proc.inter_service_procs_conn_params));                          \
+        (_data)->local_service_proc.inter_service_procs_init_params.scope_id = SCOPE_INTER_SERVICE_PROCS;           \
+        (_data)->local_service_proc.host_init_params.conn_params = &((_data)->local_service_proc.host_conn_params); \
+        (_data)->local_service_proc.inter_service_procs_init_params.conn_params =                                   \
+            &((_data)->local_service_proc.inter_service_procs_conn_params);                                         \
+    } while (0)
 
 /**
  * @brief Get the DPU config object based on the content of the configuration file.
@@ -1833,33 +2067,6 @@ dpu_offload_status_t get_host_config(offloading_config_t *);
 dpu_offload_status_t find_dpu_config_from_platform_configfile(char *, offloading_config_t *);
 dpu_offload_status_t find_config_from_platform_configfile(char *, char *, offloading_config_t *);
 
-#define INIT_DPU_CONFIG_DATA(_data)                                                                       \
-    do                                                                                                    \
-    {                                                                                                     \
-        (_data)->offloading_engine = NULL;                                                                \
-        (_data)->num_dpus = 0;                                                                            \
-        (_data)->dpu_found = false;                                                                       \
-        (_data)->info_connecting_to.num_connect_to = 0;                                                   \
-        (_data)->num_connecting_dpus = 0;                                                                 \
-        (_data)->local_dpu.config = NULL;                                                                 \
-        (_data)->local_dpu.hostname[0] = '\0';                                                            \
-        RESET_INIT_PARAMS(&((_data)->local_dpu.interdpu_init_params));                                    \
-        RESET_INIT_PARAMS(&((_data)->local_dpu.host_init_params));                                        \
-        (_data)->local_dpu.interdpu_conn_params.port = -1;                                                \
-        (_data)->local_dpu.interdpu_conn_params.port_str = NULL;                                          \
-        (_data)->local_dpu.interdpu_conn_params.addr_str = NULL;                                          \
-        (_data)->local_dpu.host_conn_params.port = -1;                                                    \
-        (_data)->local_dpu.host_conn_params.port_str = NULL;                                              \
-        (_data)->local_dpu.host_conn_params.addr_str = NULL;                                              \
-        dyn_array_t *array = &((_data)->dpus_config);                                                     \
-        DYN_ARRAY_ALLOC(array, 32, dpu_config_data_t);                                                    \
-        (_data)->local_dpu.interdpu_init_params.conn_params = &((_data)->local_dpu.interdpu_conn_params); \
-        (_data)->local_dpu.host_init_params.conn_params = &((_data)->local_dpu.host_conn_params);         \
-        ucs_list_link_t *_list = &((_data)->info_connecting_to.connect_to);                               \
-        ucs_list_head_init(_list);                                                                        \
-        DYN_LIST_ALLOC((_data)->info_connecting_to.pool_remote_dpu_info, 32, remote_dpu_info_t, item);    \
-    } while (0)
-
 /**********************/
 /* ACTIVE MESSAGE IDS */
 /**********************/
@@ -1867,7 +2074,7 @@ dpu_offload_status_t find_config_from_platform_configfile(char *, char *, offloa
 typedef enum
 {
     META_EVENT_TYPE = 32, // 32 to make it easier to see corruptions (dbg)
-    AM_TERM_MSG_ID = 33, 
+    AM_TERM_MSG_ID = 33,
     AM_EVENT_MSG_ID,
     AM_EVENT_MSG_HDR_ID, // 35
     AM_OP_START_MSG_ID,

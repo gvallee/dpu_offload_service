@@ -245,7 +245,7 @@ static inline dpu_offload_status_t oob_server_ucx_client_connection_step3(execut
     ucs_status_t status = ucp_ep_create(worker, &ep_params, &client_ep);
     CHECK_ERR_GOTO((status != UCS_OK), error_out, "ucp_ep_create() failed: %s", ucs_status_string(status));
     client_info->ep = client_ep;
-    DBG("endpoint successfully created");
+    DBG("endpoint %p successfully created", client_ep);
 
     // receive the rank/group data
     DBG("Ready to receive peer data\n");
@@ -371,13 +371,13 @@ static dpu_offload_status_t oob_server_accept(execution_context_t *econtext, cha
         setsockopt(econtext->server->conn_data.oob.listenfd, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval));
 
         rc = bind(econtext->server->conn_data.oob.listenfd, (struct sockaddr *)&servaddr, sizeof(servaddr));
-        CHECK_ERR_GOTO((rc), error_out, "bind() failed: %s", strerror(errno));
+        CHECK_ERR_GOTO((rc), error_out, "bind() failed on port %d: %s", server_port, strerror(errno));
         rc = listen(econtext->server->conn_data.oob.listenfd, 1024);
         CHECK_ERR_GOTO((rc), error_out, "listen() failed: %s", strerror(errno));
 
         // fixme: debug when multi-connections are required
-        DBG("Listening for connections on port %" PRIu16 "... (server: %" PRIu64 ")",
-            server_port, econtext->server->id);
+        DBG("Listening for connections on port %" PRIu16 "... (server: %" PRIu64 ", econtext: %p, scope_id=%d)",
+            server_port, econtext->server->id, econtext, econtext->scope_id);
     }
     else
     {
@@ -386,6 +386,7 @@ static dpu_offload_status_t oob_server_accept(execution_context_t *econtext, cha
     ECONTEXT_UNLOCK(econtext);
     accept_sock = accept(econtext->server->conn_data.oob.listenfd, (struct sockaddr *)&addr, &addr_len);
     ECONTEXT_LOCK(econtext);
+    CHECK_ERR_GOTO((accept_sock == -1), error_out, "accept failed: %s", strerror(errno));
     econtext->server->conn_data.oob.sock = accept_sock;
     struct in_addr ipAddr = addr.sin_addr;
     inet_ntop(AF_INET, &ipAddr, client_addr, INET_ADDRSTRLEN);
@@ -506,48 +507,50 @@ static void send_cb(void *request, ucs_status_t status, void *user_data)
     common_cb(user_data, "send_cb");
 }
 
-#define DO_INIT_WORKER(_econtext, _init_params)                                                                    \
-    do                                                                                                             \
-    {                                                                                                              \
-        ucp_worker_h _econtext_worker;                                                                             \
-        bool _worker_set = true;                                                                                   \
-        if ((_init_params) == NULL || (_init_params)->worker == NULL)                                              \
-        {                                                                                                          \
-            if ((_econtext)->engine->ucp_context == NULL)                                                          \
-            {                                                                                                      \
-                (_econtext)->engine->ucp_context = INIT_UCX();                                                     \
-            }                                                                                                      \
-            if ((_econtext)->engine->ucp_worker == NULL)                                                           \
-            {                                                                                                      \
-                dpu_offload_status_t _ret = init_context(&((_econtext)->engine->ucp_context),                      \
-                                                         &(_econtext_worker));                                     \
-                CHECK_ERR_RETURN((_ret != 0), DO_ERROR, "init_context() failed");                                  \
-                SET_WORKER((_econtext), _econtext_worker);                                                         \
-                _worker_set = true;                                                                                \
-                DBG("context successfully initialized (worker=%p)", _econtext_worker);                             \
-            }                                                                                                      \
-        }                                                                                                          \
-        if ((_init_params) != NULL && (_init_params)->worker != NULL)                                              \
-        {                                                                                                          \
-            DBG("re-using UCP worker for new execution context");                                                  \
-            /* Notes: the context usually imposes different requirements:                                       */ \
-            /* - on DPUs, we know there is no external UCX context and worker so they are initialized early on, */ \
-            /*   during the initialization of the engine so we can establish connections to other DPUs and set  */ \
-            /*   the self endpoint that is required to maintain the endpoint cache.                             */ \
-            /* - on the host, it depends on the calling code: if the UCX context and worker are available when  */ \
-            /*   the engine is initialized, they can be passed in then; but in other cases like UCC, they are   */ \
-            /*   not available at the time and set during the creation of the execution contexts.               */ \
-            if ((_econtext)->engine->ucp_context == NULL)                                                          \
-                (_econtext)->engine->ucp_context = (_init_params)->ucp_context;                                    \
-            assert(GET_WORKER(_econtext) == NULL);                                                                 \
-            SET_WORKER(_econtext, (_init_params)->worker);                                                         \
-            _worker_set = true;                                                                                    \
-        }                                                                                                          \
-        if (_worker_set == true)                                                                                   \
-        {                                                                                                          \
-            /* As soon as the worker is set, we can finish to initialize notifications to self */                  \
-            progress_self_event_recv((_econtext)->engine->self_econtext);                                          \
-        }                                                                                                          \
+#define DO_INIT_WORKER(_econtext, _init_params)                                                   \
+    do                                                                                            \
+    {                                                                                             \
+        ucp_worker_h _econtext_worker;                                                            \
+        bool _worker_set = true;                                                                  \
+        if ((_init_params) == NULL || (_init_params)->worker == NULL)                             \
+        {                                                                                         \
+            if ((_econtext)->engine->ucp_context == NULL)                                         \
+            {                                                                                     \
+                (_econtext)->engine->ucp_context = INIT_UCX();                                    \
+            }                                                                                     \
+            if ((_econtext)->engine->ucp_worker == NULL)                                          \
+            {                                                                                     \
+                dpu_offload_status_t _ret = init_context(&((_econtext)->engine->ucp_context),     \
+                                                         &(_econtext_worker));                    \
+                CHECK_ERR_RETURN((_ret != 0), DO_ERROR, "init_context() failed");                 \
+                SET_WORKER((_econtext), _econtext_worker);                                        \
+                _worker_set = true;                                                               \
+                DBG("context successfully initialized (worker=%p)", _econtext_worker);            \
+            }                                                                                     \
+        }                                                                                         \
+        if ((_init_params) != NULL && (_init_params)->worker != NULL)                             \
+        {                                                                                         \
+            DBG("re-using UCP worker for new execution context");                                 \
+            /* Notes: the context usually imposes different requirements:                   */    \
+            /* - on DPUs, we know there is no external UCX context and worker so they are   */    \
+            /*   initialized early on, during the initialization of the engine so we can    */    \
+            /*   establish connections to other service processes and set                   */    \
+            /*   the self endpoint that is required to maintain the endpoint cache.         */    \
+            /* - on the host, it depends on the calling code: if the UCX context and worker */    \
+            /*   are available when the engine is initialized, they can be passed in then;  */    \
+            /*   but in other cases like UCC, they are not available at the time and set    */    \
+            /*   during the creation of the execution contexts.                             */    \
+            if ((_econtext)->engine->ucp_context == NULL)                                         \
+                (_econtext)->engine->ucp_context = (_init_params)->ucp_context;                   \
+            assert(GET_WORKER(_econtext) == NULL);                                                \
+            SET_WORKER(_econtext, (_init_params)->worker);                                        \
+            _worker_set = true;                                                                   \
+        }                                                                                         \
+        if (_worker_set == true)                                                                  \
+        {                                                                                         \
+            /* As soon as the worker is set, we can finish to initialize notifications to self */ \
+            progress_self_event_recv((_econtext)->engine->self_econtext);                         \
+        }                                                                                         \
     } while (0)
 
 dpu_offload_status_t client_init_context(execution_context_t *econtext, init_params_t *init_params)
@@ -771,6 +774,7 @@ static dpu_offload_status_t client_ucx_bootstrap_step1(execution_context_t *econ
 
     ucs_status_t status = ucp_ep_create(GET_WORKER(econtext), &ep_params, &(econtext->client->server_ep));
     CHECK_ERR_GOTO((status != UCS_OK), error_out, "ucp_ep_create() failed");
+    DBG("Endpoint %p successfully created", econtext->client->server_ep);
 
     ucp_request_param_t send_param = {0};
     send_param.op_attr_mask = UCP_OP_ATTR_FIELD_CALLBACK |
@@ -839,30 +843,35 @@ error_out:
     return DO_ERROR;
 }
 
-dpu_offload_status_t finalize_connection_to_remote_dpu(offloading_engine_t *offload_engine, remote_dpu_info_t *remote_dpu_info, execution_context_t *client)
+dpu_offload_status_t finalize_connection_to_remote_service_proc(offloading_engine_t *offload_engine, remote_service_proc_info_t *remote_sp, execution_context_t *client)
 {
-    DBG("Connection successfully established to DPU #%" PRIu64 " (num DPUs: %ld, number of connection with other DPUs: %ld)",
-        remote_dpu_info->idx,
-        offload_engine->num_dpus,
-        offload_engine->num_connected_dpus);
     ENGINE_LOCK(offload_engine);
-    remote_dpu_info_t **list_dpus = LIST_DPUS_FROM_ENGINE(offload_engine);
-    assert(list_dpus);
-    list_dpus[remote_dpu_info->idx]->ep = client->client->server_ep;
-    list_dpus[remote_dpu_info->idx]->econtext = client;
-    list_dpus[remote_dpu_info->idx]->peer_addr = client->client->conn_data.oob.peer_addr;
-    list_dpus[remote_dpu_info->idx]->ucp_worker = GET_WORKER(client);
-    assert(list_dpus[remote_dpu_info->idx]->peer_addr);
-    DBG("-> DPU #%ld: addr=%s, port=%d, ep=%p, econtext=%p, client_id=%" PRIu64 ", server_id=%" PRIu64,
-        remote_dpu_info->idx,
-        list_dpus[remote_dpu_info->idx]->init_params.conn_params->addr_str,
-        list_dpus[remote_dpu_info->idx]->init_params.conn_params->port,
-        list_dpus[remote_dpu_info->idx]->ep,
-        list_dpus[remote_dpu_info->idx]->econtext,
+    remote_service_proc_info_t *sp = DYN_ARRAY_GET_ELT(&(offload_engine->service_procs),
+                                                          remote_sp->idx,
+                                                          remote_service_proc_info_t);
+    assert(sp);
+    sp->ep = client->client->server_ep;
+    sp->econtext = client;
+    sp->peer_addr = client->client->conn_data.oob.peer_addr;
+    sp->ucp_worker = GET_WORKER(client);
+    DBG("Connection successfully established to service process #%" PRIu64 
+        " running on DPU #%" PRIu64 " (num service processes: %ld, number of connection with other service processes: %ld)",
+        remote_sp->idx,
+        remote_sp->service_proc.dpu,
+        offload_engine->num_service_procs,
+        offload_engine->num_connected_service_procs);
+    assert(sp->peer_addr);
+    assert(sp->init_params.conn_params);
+    DBG("-> Service process #%ld: addr=%s, port=%d, ep=%p, econtext=%p, client_id=%" PRIu64 ", server_id=%" PRIu64,
+        remote_sp->idx,
+        sp->init_params.conn_params->addr_str,
+        sp->init_params.conn_params->port,
+        sp->ep,
+        sp->econtext,
         client->client->id,
         client->client->server_id);
     // Do not increment num_connected_dpus, it is already done in the callback invoked when the connection goes through
-    DBG("we now have %ld connections with other DPUs", offload_engine->num_connected_dpus);
+    DBG("we now have %ld connections with other service processes", offload_engine->num_connected_service_procs);
     ENGINE_UNLOCK(offload_engine);
     return DO_SUCCESS;
 }
@@ -897,15 +906,15 @@ dpu_offload_status_t offload_engine_progress(offloading_engine_t *engine)
 
     if (on_dpu)
     {
-        // Progress connections between DPUs when necessary
-        size_t c, num_inter_dpus_clients;
+        // Progress connections between service processes when necessary
+        size_t c, num_inter_service_proc_clients;
         ENGINE_LOCK(engine);
-        num_inter_dpus_clients = engine->num_inter_dpus_clients;
+        num_inter_service_proc_clients = engine->num_inter_service_proc_clients;
         ENGINE_UNLOCK(engine);
-        for (c = 0; c < num_inter_dpus_clients; c++)
+        for (c = 0; c < num_inter_service_proc_clients; c++)
         {
             ENGINE_LOCK(engine);
-            execution_context_t *c_econtext = engine->inter_dpus_clients[c].client_econtext;
+            execution_context_t *c_econtext = engine->inter_service_proc_clients[c].client_econtext;
             ENGINE_UNLOCK(engine);
             ECONTEXT_LOCK(c_econtext);
             int initial_state = c_econtext->client->bootstrapping.phase;
@@ -918,26 +927,31 @@ dpu_offload_status_t offload_engine_progress(offloading_engine_t *engine)
             int new_state = c_econtext->client->bootstrapping.phase;
             if (initial_state != BOOTSTRAP_DONE && new_state == BOOTSTRAP_DONE)
             {
-                DBG("DPU client #%ld just finished its connection to server #%" PRIu64 ", updating data",
+                DBG("service proc client #%ld just finished its connection to server #%" PRIu64 ", updating data",
                     c, c_econtext->client->server_id);
                 ECONTEXT_UNLOCK(c_econtext);
-                dpu_offload_status_t rc = finalize_connection_to_remote_dpu(engine, engine->inter_dpus_clients[c].remote_dpu_info, engine->inter_dpus_clients[c].client_econtext);
-                CHECK_ERR_RETURN((rc), DO_ERROR, "finalize_connection_to_remote_dpu() failed");
+                dpu_offload_status_t rc = finalize_connection_to_remote_service_proc(engine,
+                                                                                     engine->inter_service_proc_clients[c].remote_service_proc_info,
+                                                                                     engine->inter_service_proc_clients[c].client_econtext);
+                CHECK_ERR_RETURN((rc), DO_ERROR, "finalize_connection_to_remote_service_proc() failed");
                 ECONTEXT_UNLOCK(c_econtext);
             }
             ECONTEXT_UNLOCK(c_econtext);
         }
         progress_servers(engine);
 
-        // Progress all the execution context in the engine
+        // Progress all the execution context used to connect to other service processes
+        assert(engine->num_service_procs);
         size_t i;
-        remote_dpu_info_t **list_dpus = LIST_DPUS_FROM_ENGINE(engine);
-        for (i = 0; i < engine->num_dpus; i++)
+        for (i = 0; i < engine->num_service_procs; i++)
         {
-            if (list_dpus[i] == NULL)
+            remote_service_proc_info_t *sp;
+            sp = DYN_ARRAY_GET_ELT(&(engine->service_procs), i, remote_service_proc_info_t);
+            assert(sp);
+            if (sp == NULL)
                 continue;
 
-            execution_context_t *econtext = list_dpus[i]->econtext;
+            execution_context_t *econtext = sp->econtext;
             if (econtext == NULL || econtext->progress == NULL)
                 continue;
 
@@ -964,30 +978,29 @@ dpu_offload_status_t lib_progress(execution_context_t *econtext)
     return DO_SUCCESS;
 }
 
+void init_remote_dpu_info_struct(void *data)
+{
+    assert(data);
+    remote_dpu_info_t *d = (remote_dpu_info_t *)data;
+    RESET_REMOTE_DPU_INFO(d);
+}
+
 dpu_offload_status_t offload_engine_init(offloading_engine_t **engine)
 {
+    int ret;
     offloading_engine_t *d = DPU_OFFLOAD_MALLOC(sizeof(offloading_engine_t));
     CHECK_ERR_GOTO((d == NULL), error_out, "Unable to allocate resources");
-    RESET_ENGINE(d);
-    int ret = pthread_mutex_init(&(d->mutex), NULL);
-    CHECK_ERR_GOTO((ret), error_out, "pthread_mutex_init() failed: %s", strerror(errno));
-    d->num_max_servers = DEFAULT_MAX_NUM_SERVERS;
-    d->servers = DPU_OFFLOAD_MALLOC(d->num_max_servers * sizeof(dpu_offload_server_t *));
+    RESET_ENGINE(d, ret);
+    // Check that everthing is fine
+#if !NDEBUG
+    CHECK_ERR_GOTO((ret != 0), error_out, "Engine initialization failed");
     CHECK_ERR_GOTO((d->servers == NULL), error_out, "unable to allocate memory to track servers");
-    memset(d->servers, 0, d->num_max_servers * sizeof(dpu_offload_server_t *));
-    d->num_max_inter_dpus_clients = DEFAULT_MAX_NUM_SERVERS;
-    d->inter_dpus_clients = DPU_OFFLOAD_MALLOC(d->num_max_inter_dpus_clients * sizeof(remote_dpu_connect_tracker_t));
     CHECK_ERR_GOTO((d->servers == NULL), error_out, "unable to allocate resources");
-    DYN_LIST_ALLOC(d->free_op_descs, 8, op_desc_t, item);
     CHECK_ERR_GOTO((d->free_op_descs == NULL), error_out, "Allocation of pool of free operation descriptors failed");
-    DYN_LIST_ALLOC(d->free_cache_entry_requests, DEFAULT_NUM_PEERS, cache_entry_request_t, item);
     CHECK_ERR_GOTO((d->free_cache_entry_requests == NULL), error_out, "Allocations of pool of descriptions for cache queries failed");
-    DYN_LIST_ALLOC(d->pool_conn_params, 32, conn_params_t, item);
     CHECK_ERR_GOTO((d->pool_conn_params == NULL), error_out, "Allocation of pool of connection parameter descriptors failed");
-    // Note that engine->dpus is a vector of remote_dpu_info_t pointers.
-    // The actual object are from a dynamic array when parsing the configuration file
-    DYN_ARRAY_ALLOC(&(d->dpus), 32, remote_dpu_info_t*);
-    GROUPS_CACHE_INIT(&(d->procs_cache));
+#endif
+
     dpu_offload_status_t rc = ev_channels_init(&(d->default_notifications));
     CHECK_ERR_GOTO((rc), error_out, "ev_channels_init() failed");
 
@@ -1013,8 +1026,8 @@ dpu_offload_status_t offload_engine_init(offloading_engine_t **engine)
 error_out:
     if (d->servers)
         free(d->servers);
-    if (d->inter_dpus_clients)
-        free(d->inter_dpus_clients);
+    if (d->inter_service_proc_clients)
+        free(d->inter_service_proc_clients);
     if (d->free_op_descs)
         DYN_LIST_FREE(d->free_op_descs, op_desc_t, item);
     if (d->free_cache_entry_requests)
@@ -1053,15 +1066,15 @@ static void progress_server_event_recv(execution_context_t *econtext)
                 client_info->rank_data.group_rank);
 
 #if !NDEBUG
-            if (econtext->engine->on_dpu && econtext->scope_id == SCOPE_INTER_DPU)
+            if (econtext->engine->on_dpu && econtext->scope_id == SCOPE_INTER_SERVICE_PROCS)
             {
-                if (client_info->id >= econtext->engine->num_dpus)
+                if (client_info->id >= econtext->engine->num_service_procs)
                     ERR_MSG("requested client ID is invalid: %" PRIu64, client_info->id);
-                assert(client_info->id < econtext->engine->num_dpus);
+                assert(client_info->id < econtext->engine->num_service_procs);
             }
 #endif
 
-            // Always use the unique DPU ID from the list otherwise we can have a server and a client with the same ID
+            // Always use the unique global service process ID from the list otherwise we can have a server and a client with the same ID
             // and receives would not work as expected since they are posted on the same worker with ultimately the same
             // tag
             PREP_NOTIF_RECV(client_info->notif_recv.ctx,
@@ -1109,12 +1122,12 @@ static void progress_client_event_recv(execution_context_t *econtext)
             econtext->client->server_id);
 
 #if !NDEBUG
-            if (econtext->engine->on_dpu && econtext->scope_id == SCOPE_INTER_DPU)
-            {
-                if (econtext->client->id >= econtext->engine->num_dpus)
-                    ERR_MSG("requested client ID is invalid: %" PRIu64, econtext->client->id);
-                assert(econtext->client->id < econtext->engine->num_dpus);
-            }
+        if (econtext->engine->on_dpu && econtext->scope_id == SCOPE_INTER_SERVICE_PROCS)
+        {
+            if (econtext->client->id >= econtext->engine->num_service_procs)
+                ERR_MSG("requested client ID is invalid: %" PRIu64, econtext->client->id);
+            assert(econtext->client->id < econtext->engine->num_service_procs);
+        }
 #endif
 
         PREP_NOTIF_RECV(econtext->event_channels->notif_recv.ctx,
@@ -1202,12 +1215,11 @@ static void progress_event_recv(execution_context_t *econtext)
 }
 
 /**
- * @brief callback that servers on DPUs can set (server->connected_cb) to have
- * implicit management of caches, especially when all the ranks of the group
- * are on the local host. In such a situation, it will be detected when the last
- * ranks connects, the group cache therefore completes and the cache is then sent
- * back to local ranks.
- *
+ * @brief callback that servers (service processes acting as servers) on DPUs can
+ * set (server->connected_cb) to have implicit management of caches, especially
+ * when all the ranks of the group are on the local host. In such a situation,
+ * it will be detected when the last ranks connects, the group cache therefore
+ * completes and the cache is then sent back to local ranks.
  */
 void local_rank_connect_default_callback(void *data)
 {
@@ -1269,13 +1281,13 @@ static int add_cache_entry_for_new_client(peer_info_t *client_info, execution_co
         cache_entry = GET_GROUP_RANK_CACHE_ENTRY(&(ctx->engine->procs_cache), client_info->rank_data.group_id, client_info->rank_data.group_rank, client_info->rank_data.group_size);
         assert(cache_entry);
         COPY_RANK_INFO(&(client_info->rank_data), &(cache_entry->peer.proc_info));
-        cache_entry->num_shadow_dpus = 1;
+        cache_entry->num_shadow_service_procs = 1;
         if (ctx->engine->on_dpu)
         {
-            cache_entry->shadow_dpus[0] = ctx->engine->config->local_dpu.id;
+            cache_entry->shadow_service_procs[0] = ctx->engine->config->local_service_proc.info.global_id;
         }
         else
-            cache_entry->shadow_dpus[0] = ECONTEXT_ID(ctx);
+            cache_entry->shadow_service_procs[0] = ECONTEXT_ID(ctx);
         cache_entry->set = true;
 
         group_cache_t *gp_cache = GET_GROUP_CACHE(&(ctx->engine->procs_cache), client_info->rank_data.group_id);
@@ -1398,27 +1410,23 @@ static void progress_server_econtext(execution_context_t *ctx)
                         return;
                     }
 
-                    if (ECONTEXT_ON_DPU(ctx) && ctx->scope_id == SCOPE_INTER_DPU)
+                    if (ECONTEXT_ON_DPU(ctx) && ctx->scope_id == SCOPE_INTER_SERVICE_PROCS)
                     {
-                        /* Check if it is a DPU we are expecting to connect to us */
-                        size_t dpu = client_info->rank_data.group_rank;
-                        remote_dpu_info_t **list_dpus = LIST_DPUS_FROM_ECONTEXT(ctx);
-                        if (list_dpus == NULL)
-                        {
-                            ERR_MSG("unable to get list of DPUs");
-                            ECONTEXT_UNLOCK(ctx);
-                            return;
-                        }
-                        assert(dpu < ctx->engine->num_dpus);
+                        size_t service_proc = client_info->rank_data.group_rank;
+                        remote_service_proc_info_t *sp = DYN_ARRAY_GET_ELT(&(ctx->engine->service_procs),
+                                                          service_proc,
+                                                          remote_service_proc_info_t);
+                        assert(sp);
+                        assert(service_proc < ctx->engine->num_service_procs);
                         assert(ctx->engine);
-                        // Set the endpoint to communicate with that remote DPU
-                        list_dpus[dpu]->ep = client_info->ep;
-                        // Set the pointer to the execution context in the list of know DPUs. Used for notifications with the remote DPU.
-                        list_dpus[dpu]->econtext = ctx;
-                        DBG("-> DPU #%ld: addr=%s, port=%d, ep=%p, econtext=%p, client_id=%" PRIu64", server_id=%" PRIu64"", dpu,
-                            list_dpus[dpu]->init_params.conn_params->addr_str,
-                            list_dpus[dpu]->init_params.conn_params->port,
-                            list_dpus[dpu]->ep,
+                        // Set the endpoint to communicate with that remote service process
+                        sp->ep = client_info->ep;
+                        // Set the pointer to the execution context in the list of know service processes. Used for notifications with the remote service process.
+                        sp->econtext = ctx;
+                        DBG("-> Service process #%ld: addr=%s, port=%d, ep=%p, econtext=%p, client_id=%" PRIu64 ", server_id=%" PRIu64 "", service_proc,
+                            sp->init_params.conn_params->addr_str,
+                            sp->init_params.conn_params->port,
+                            sp->ep,
                             ctx,
                             client_info->id,
                             ctx->server->id);
@@ -1428,13 +1436,13 @@ static void progress_server_econtext(execution_context_t *ctx)
                     ctx->server->connected_clients.num_ongoing_connections--;
                     ctx->server->connected_clients.num_connected_clients++;
                     ctx->server->connected_clients.num_total_connected_clients++;
-                    DBG("****** Bootstrapping of client #%ld now completed, %ld are now connected (connected DPUs: %ld)",
+                    DBG("****** Bootstrapping of client #%ld now completed, %ld are now connected (connected service processes: %ld)",
                         idx,
                         ctx->server->connected_clients.num_connected_clients,
-                        ctx->engine->num_connected_dpus);
+                        ctx->engine->num_connected_service_procs);
 
-                    // Trigger the exchange of the cache between DPUs when all the local ranks are connected
-                    // Do not check for errors, it may fail at this point (if all DPUs are not connected) and it is okay
+                    // Trigger the exchange of the cache between service processes when all the local ranks are connected
+                    // Do not check for errors, it may fail at this point (if all service processes are not connected) and it is okay
                     if (ECONTEXT_ON_DPU(ctx) &&
                         ctx->scope_id == SCOPE_HOST_DPU &&
                         client_info->rank_data.group_id != INVALID_GROUP &&
@@ -1453,13 +1461,13 @@ static void progress_server_econtext(execution_context_t *ctx)
                         }
                         // Check if the cache is fully populated
                         bool group_cache_now_full = false;
-                        if (gp_cache->group_size == gp_cache->num_local_entries + 1)
+                        if (gp_cache->group_size == gp_cache-> num_local_entries)
                         {
                             // The cache is above to be fully populated
                             DBG("Cache is complete for group %ld (gp size: %ld, local entries: %ld)\n",
                                 client_info->rank_data.group_id,
                                 gp_cache->group_size,
-                                gp_cache->num_local_entries + 1);
+                                gp_cache->num_local_entries);
                             group_cache_now_full = true;
                         }
                         if (group_cache_now_full && gp_cache->group_size > 0 && gp_cache->num_local_entries == gp_cache->group_size)
@@ -1619,7 +1627,7 @@ static dpu_offload_status_t execution_context_init(offloading_engine_t *offload_
     ctx->type = type;
     ctx->engine = offload_engine;
     ctx->progress = execution_context_progress;
-    // scope_id is overwritten when the inter-DPU connection manager sets inter-DPU connections
+    // scope_id is overwritten when the inter-service-processes connection manager sets inter-service-processes connections
     ctx->scope_id = SCOPE_HOST_DPU;
     ucs_list_head_init(&(ctx->ongoing_events));
     DYN_LIST_ALLOC(ctx->free_pending_rdv_recv, 32, pending_am_rdv_recv_t, item);
@@ -1736,7 +1744,7 @@ execution_context_t *client_init(offloading_engine_t *offload_engine, init_param
     ECONTEXT_UNLOCK(ctx);
     CHECK_ERR_GOTO((rc), error_out, "register_default_notfications() failed");
 
-    // We add ourselves to the local EP cache
+    // We add ourselves to the local EP cache as shadow service process
     if (ctx->rank.group_id != INVALID_GROUP &&
         ctx->rank.group_rank != INVALID_RANK &&
         !is_in_cache(&(offload_engine->procs_cache), ctx->rank.group_id, ctx->rank.group_rank, ctx->rank.group_size))
@@ -1748,12 +1756,12 @@ execution_context_t *client_init(offloading_engine_t *offload_engine, init_param
         group_cache_t *gp_cache = GET_GROUP_CACHE(&(offload_engine->procs_cache), ctx->rank.group_id);
         assert(cache_entry);
         assert(gp_cache);
-        cache_entry->shadow_dpus[cache_entry->num_shadow_dpus] = ctx->client->server_global_id;
+        cache_entry->shadow_service_procs[cache_entry->num_shadow_service_procs] = ctx->engine->config->local_service_proc.info.global_id;
         cache_entry->peer.proc_info.group_id = ctx->rank.group_id;
         cache_entry->peer.proc_info.group_rank = ctx->rank.group_rank;
         cache_entry->peer.proc_info.group_size = ctx->rank.group_size;
         cache_entry->peer.proc_info.n_local_ranks = ctx->rank.n_local_ranks;
-        cache_entry->num_shadow_dpus++;
+        cache_entry->num_shadow_service_procs++;
         cache_entry->set = true;
         gp_cache->num_local_entries++;
     }
@@ -1782,9 +1790,9 @@ void offload_engine_fini(offloading_engine_t **offload_engine)
     {
         // server_fini() fixme
     }
-    for (i = 0; i < (*offload_engine)->num_inter_dpus_clients; i++)
+    for (i = 0; i < (*offload_engine)->num_inter_service_proc_clients; i++)
     {
-        client_fini(&((*offload_engine)->inter_dpus_clients[i].client_econtext));
+        client_fini(&((*offload_engine)->inter_service_proc_clients[i].client_econtext));
     }
     free((*offload_engine)->servers);
 
@@ -1825,11 +1833,16 @@ void client_fini(execution_context_t **exec_ctx)
     dpu_offload_client_t *client = context->client;
     ucs_status_ptr_t request = ucp_am_send_nbx(client->server_ep, AM_TERM_MSG_ID, NULL, 0ul, term_msg,
                                                msg_length, &params);
-    if (request == NULL) {
+    if (request == NULL)
+    {
         DBG("ucp_am_send_nbx() completed immediately");
-    } else if (UCS_PTR_IS_ERR(request)) {
+    }
+    else if (UCS_PTR_IS_ERR(request))
+    {
         ERR_MSG("ucp_am_send_nbx() failed with %d", UCS_PTR_STATUS(request));
-    } else {
+    }
+    else
+    {
         DBG("ucp_am_send_nbx() in progress");
     }
     // request_finalize(GET_WORKER(*exec_ctx), request, &ctx);
@@ -1875,15 +1888,15 @@ static void server_conn_handle_cb(ucp_conn_request_h conn_request, void *arg)
 {
     ucx_server_ctx_t *context = arg;
     ucp_conn_request_attr_t attr;
-    //char ip_str[IP_STRING_LEN];
-    //char port_str[PORT_STRING_LEN];
+    // char ip_str[IP_STRING_LEN];
+    // char port_str[PORT_STRING_LEN];
     ucs_status_t status;
     DBG("Connection handler invoked");
     attr.field_mask = UCP_CONN_REQUEST_ATTR_FIELD_CLIENT_ADDR;
     status = ucp_conn_request_query(conn_request, &attr);
     if (status == UCS_OK)
     {
-        //DBG("Server received a connection request from client at address %s:%s", ip_str, port_str);
+        // DBG("Server received a connection request from client at address %s:%s", ip_str, port_str);
     }
     else if (status != UCS_ERR_UNSUPPORTED)
     {
@@ -1911,7 +1924,7 @@ static dpu_offload_status_t ucx_listener_server(dpu_offload_server_t *server)
     ucp_listener_params_t params = {0};
     ucp_listener_attr_t attr;
     ucs_status_t status;
-    //char *port_str;
+    // char *port_str;
     set_sock_addr(server->conn_params.addr_str, server->conn_params.port, &(server->conn_params.saddr));
     params.field_mask = UCP_LISTENER_PARAM_FIELD_SOCK_ADDR |
                         UCP_LISTENER_PARAM_FIELD_CONN_HANDLER;
@@ -1920,7 +1933,7 @@ static dpu_offload_status_t ucx_listener_server(dpu_offload_server_t *server)
     params.conn_handler.cb = server_conn_handle_cb;
     params.conn_handler.arg = &(server->conn_data.ucx_listener.context);
     /* Create a listener on the server side to listen on the given address.*/
-    //DBG("Creating listener on %s:%s", server->conn_params.addr_str, port_str);
+    // DBG("Creating listener on %s:%s", server->conn_params.addr_str, port_str);
     status = ucp_listener_create(GET_WORKER(server->econtext), &params, &(server->conn_data.ucx_listener.context.listener));
     CHECK_ERR_RETURN((status != UCS_OK), DO_ERROR, "failed to listen (%s)", ucs_status_string(status));
 
@@ -1933,7 +1946,7 @@ static dpu_offload_status_t ucx_listener_server(dpu_offload_server_t *server)
         ucp_listener_destroy(server->conn_data.ucx_listener.context.listener);
         return DO_ERROR;
     }
-    //DBG("server is listening on IP %s port %s", server->conn_params.addr_str, port_str);
+    // DBG("server is listening on IP %s port %s", server->conn_params.addr_str, port_str);
     return DO_SUCCESS;
 }
 
@@ -1986,7 +1999,7 @@ static dpu_offload_status_t oob_server_listen(execution_context_t *econtext)
                              &(econtext->server->conn_data.oob.local_addr_len),
                              sizeof(econtext->server->conn_data.oob.local_addr_len),
                              0);
-    DBG("Addr length send (len: %ld)", size_sent);
+    DBG("Addr length sent (len: %ld)", size_sent);
     size_sent = send(econtext->server->conn_data.oob.sock,
                      econtext->server->conn_data.oob.local_addr,
                      econtext->server->conn_data.oob.local_addr_len,
@@ -1999,23 +2012,23 @@ static dpu_offload_status_t oob_server_listen(execution_context_t *econtext)
     DBG("Server ID sent (len: %ld, id: %" PRIu64 ")", size_sent, econtext->server->id);
     if (econtext->engine->on_dpu)
         size_sent = send(econtext->server->conn_data.oob.sock,
-                         &(econtext->engine->config->local_dpu.id),
-                         sizeof(econtext->engine->config->local_dpu.id),
+                         &(econtext->engine->config->local_service_proc.info.global_id),
+                         sizeof(econtext->engine->config->local_service_proc.info.global_id),
                          0);
     else
     {
         uint64_t val = UINT64_MAX;
         size_sent = send(econtext->server->conn_data.oob.sock,
                          &val,
-                         sizeof(econtext->engine->config->local_dpu.id),
+                         sizeof(econtext->engine->config->local_service_proc.info.global_id),
                          0);
     }
     DBG("Global ID sent (len: %ld)", size_sent);
     uint64_t client_id = generate_unique_client_id(econtext);
 #if !NDEBUG
-    if (econtext->engine->on_dpu && econtext->scope_id == SCOPE_INTER_DPU)
+    if (econtext->engine->on_dpu && econtext->scope_id == SCOPE_INTER_SERVICE_PROCS)
     {
-        assert(client_id < econtext->engine->num_dpus);
+        assert(client_id < econtext->engine->num_service_procs);
     }
 #endif
     size_sent = send(econtext->server->conn_data.oob.sock, &client_id, sizeof(uint64_t), 0);
@@ -2177,7 +2190,8 @@ dpu_offload_status_t server_init_context(execution_context_t *econtext, init_par
     default:
     {
         // OOB
-        DBG("server initialized with OOB backend");
+        DBG("server %" PRIu64 " initialized with OOB backend (econtext: %p, scope_id: %d)",
+            econtext->server->id, econtext, econtext->scope_id);
         econtext->server->conn_data.oob.tag = OOB_DEFAULT_TAG;
         econtext->server->conn_data.oob.tag_mask = UINT64_MAX;
         econtext->server->conn_data.oob.addr_msg_str = strdup(UCX_ADDR_MSG); // fixme: correctly free
@@ -2247,11 +2261,11 @@ execution_context_t *server_init(offloading_engine_t *offloading_engine, init_pa
         GET_WORKER(execution_context),
         execution_context,
         execution_context->scope_id);
-    // Note: on DPUs, for inter-DPUs communications, we want the server to have the unique DPU ID based on
-    // the configuration, the same for client DPUs. So when a client DPU sends a message to a server DPU,
-    // we can create a unique tag that identify the server-client connection. 
-    if (offloading_engine->on_dpu && init_params != NULL && init_params->scope_id == SCOPE_INTER_DPU)
-        execution_context->server->id = offloading_engine->config->local_dpu.id;
+    // Note: on DPUs, for inter-service-processes communications, we want the server to have the unique global ID based on
+    // the configuration, the same for client service processes. So when a client service process sends a message to a server
+    // service process, we can create a unique tag that identify the server-client connection.
+    if (offloading_engine->on_dpu && init_params != NULL && init_params->scope_id == SCOPE_INTER_SERVICE_PROCS)
+        execution_context->server->id = offloading_engine->config->local_service_proc.info.global_id;
     else if (init_params != NULL && init_params->id_set)
         execution_context->server->id = init_params->id;
     else
@@ -2279,11 +2293,14 @@ execution_context_t *server_init(offloading_engine_t *offloading_engine, init_pa
 
 #if !NDEBUG
     if (init_params != NULL && init_params->conn_params != NULL)
-        DBG("Server created on %s:%d (econtext: %p, scope_id=%d)",
+    {
+        DBG("Server initiated on %s:%d (econtext: %p, scope_id=%d)",
             init_params->conn_params->addr_str,
             init_params->conn_params->port,
             execution_context,
             execution_context->scope_id);
+        assert(init_params->conn_params->addr_str);
+    }
 #endif
 
     ECONTEXT_LOCK(execution_context);

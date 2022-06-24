@@ -467,13 +467,13 @@ static int post_new_notif_recv(ucp_worker_h worker, hdr_notif_req_t *ctx, execut
 {
     int rc = EVENT_INPROGRESS;
 #if !NDEBUG
-    if (econtext->engine->on_dpu && econtext->scope_id == SCOPE_INTER_DPU)
+    if (econtext->engine->on_dpu && econtext->scope_id == SCOPE_INTER_SERVICE_PROCS)
     {
-        if (ctx->client_id >= econtext->engine->num_dpus)
+        if (ctx->client_id >= econtext->engine->num_service_procs)
         {
             ERR_MSG("requested client ID is invalid: %" PRIu64, ctx->client_id);
         }
-        assert(ctx->client_id < econtext->engine->num_dpus);
+        assert(ctx->client_id < econtext->engine->num_service_procs);
     }
 #endif
 

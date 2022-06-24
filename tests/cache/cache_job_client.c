@@ -86,7 +86,7 @@ int main(int argc, char **argv)
 
     dpu_offload_event_t *ev;
     int64_t shadow_dpu_id;
-    rc = get_dpu_id_by_group_rank(offload_engine, 0, target, 0, &shadow_dpu_id, &ev);
+    rc = get_sp_id_by_group_rank(offload_engine, 0, target, 0, &shadow_dpu_id, &ev);
     if (rc != DO_SUCCESS)
     {
         fprintf(stderr, "get_dpu_id_by_host_rank() failed\n");
@@ -105,7 +105,7 @@ int main(int argc, char **argv)
             goto error_out;
         }
 
-        rc = get_dpu_id_by_group_rank(offload_engine, 0, target, 0, &shadow_dpu_id, &ev);
+        rc = get_sp_id_by_group_rank(offload_engine, 0, target, 0, &shadow_dpu_id, &ev);
         if (rc != DO_SUCCESS)
         {
             fprintf(stderr, "get_dpu_id_by_host_rank() failed\n");
@@ -121,7 +121,7 @@ int main(int argc, char **argv)
     ucp_ep_h target_dpu_ep;
     execution_context_t *comm_econtext;
     uint64_t notif_dest_id;
-    rc = get_dpu_ep_by_id(offload_engine, shadow_dpu_id, &target_dpu_ep, &comm_econtext, &notif_dest_id);
+    rc = get_sp_ep_by_id(offload_engine, shadow_dpu_id, &target_dpu_ep, &comm_econtext, &notif_dest_id);
     if (rc)
     {
         fprintf(stderr, "get_dpu_ep_by_id() failed\n");
