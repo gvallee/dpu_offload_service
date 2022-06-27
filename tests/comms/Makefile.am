@@ -13,4 +13,5 @@ bin_PROGRAMS = self_comm
 
 self_comm_SOURCES = self_comm.c
 AM_LDFLAGS = -ldpuoffloaddaemon -lucp
-AM_CFLAGS = -I@top_srcdir@/include -L@top_builddir@/src/.libs
+AM_CFLAGS = -L@top_builddir@/src/.libs
+AM_CPPFLAGS = -I@top_srcdir@/include

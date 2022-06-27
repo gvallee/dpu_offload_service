@@ -13,4 +13,5 @@ bin_PROGRAMS = dyn_structs_test
 
 dyn_structs_test_SOURCES = dyn_structs_test.c
 AM_LDFLAGS = -lucp
-AM_CFLAGS = -I@top_srcdir@/include -L@top_builddir@/src/.libs
+AM_CPPFLAGS = -I@top_srcdir@/include
+AM_CFLAGS = -L@top_builddir@/src/.libs

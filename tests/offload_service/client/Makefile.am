@@ -8,13 +8,12 @@
 #
 # $HEADER$
 #
-AM_CPPFLAGS = -I@top_srcdir@/include
-
 bin_PROGRAMS = client client_external_worker simple fake_mpi_rank
 
 # Flags used by all the tests
 AM_LDFLAGS = -ldpuoffloaddaemon
-AM_CFLAGS = -I@top_srcdir@/include -L@top_builddir@/src/.libs
+AM_CPPFLAGS = -I@top_srcdir@/include
+AM_CFLAGS = -L@top_builddir@/src/.libs
 
 client_SOURCES = client.c ../common_test_params.h client_common.h
 

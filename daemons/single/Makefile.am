@@ -13,4 +13,5 @@ bin_PROGRAMS = single
 
 single_SOURCES = single.c
 AM_LDFLAGS = -ldpuoffloaddaemon
-AM_CFLAGS = -I@top_srcdir@/include -L@top_builddir@/src/.libs
+AM_CPPFLAGS = -I@top_srcdir@/include
+AM_CFLAGS = -L@top_builddir@/src/.libs

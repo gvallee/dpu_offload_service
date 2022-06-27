@@ -13,7 +13,8 @@ bin_PROGRAMS = default_dpu_daemon_client default_dpu_daemon_server
 
 # Flags for all the tests
 AM_LDFLAGS = -ldpuoffloaddaemon
-AM_CFLAGS = -I@top_srcdir@/include -L@top_builddir@/src/.libs
+AM_CPPFLAGS = -I@top_srcdir@/include
+AM_CFLAGS = -L@top_builddir@/src/.libs
 
 default_dpu_daemon_client_SOURCES = default_dpu_daemon_client.c
 
