@@ -98,3 +98,7 @@ configure~
 
 # Vi/vim stuff
 *.swp
+
+# Oxygen generated files
+doc/html/
+doc/latex/
