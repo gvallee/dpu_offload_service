@@ -11,7 +11,8 @@
 
 SUBDIRS = 
 AM_LDFLAGS = -ldpuoffloaddaemon
-AM_CFLAGS = -I@top_srcdir@/include -L@top_builddir@/src/.libs
+AM_CPPFLAGS = -I@top_srcdir@/include 
+AM_CFLAGS = -L@top_builddir@/src/.libs
 
 bin_PROGRAMS = test_cache cache_server cache_client cache_job_client cache_dpu_daemon
 
