@@ -105,7 +105,11 @@ dpu_offload_status_t engine_register_default_notification_handler(offloading_eng
  * @param dest_id The unique identifier to be used to send the event. It is used to identify the source of the event.
  * @param dest_ep Endpoint of the target of the event.
  * @param ctx User-defined context to help identify the context of the event upon local completion.
- * @return result of UCS_PTR_STATUS in the context of errors, EVENT_DONE if the emittion completed right away, EVENT_INPROGRESS if emitting the event is still in progress (e.g., communication not completed). One can check on completion using ev->req.
+ * @return result of UCS_PTR_STATUS in the context of errors, 
+ * @return EVENT_DONE if the emittion completed right away, 
+ * @return EVENT_INPROGRESS if emitting the event is still in progress (e.g., communication not completed). 
+ * 
+ * One can check on completion using ev->req.
  */
 int event_channel_emit(dpu_offload_event_t **ev, uint64_t type, ucp_ep_h dest_ep, uint64_t dest_id, void *ctx);
 
@@ -128,6 +132,7 @@ int event_channel_emit(dpu_offload_event_t **ev, uint64_t type, ucp_ep_h dest_ep
  * @return EVENT_INPROGRESS if emitting the event is still in progress (e.g., communication not completed). One can check on completion using event_completed().
  *
  * Example: the user uses the ongoing events list so that the event is implicitly returned when completed, with an event payload managed outside of the offloading library.
+ * @code{.unparsed}
  *      dpu_offload_event_t *my_ev;
  *      event_get(ev_sys, NULL, &my_ev);
  *      int rc = event_channel_emit_with_payload(my_ev, my_notification_type, dest_ep, dest_id, NULL, &my_global_static_object, object_size);
@@ -138,6 +143,7 @@ int event_channel_emit(dpu_offload_event_t **ev, uint64_t type, ucp_ep_h dest_ep
  *          // Error case
  *          return -1;
  *      }
+ * @endcode
  */
 int event_channel_emit_with_payload(dpu_offload_event_t **ev, uint64_t type, ucp_ep_h dest_ep, uint64_t dest_id, void *ctx, void *payload, size_t payload_size);
 
@@ -154,8 +160,11 @@ int event_channel_emit_with_payload(dpu_offload_event_t **ev, uint64_t type, ucp
  *
  * Examples:
  *  - get an event that does not require a payload.
+ * @code{.unparsed}
  *      event_get(ev_sys, NULL, &myev);
+ * @endcode
  *  - get and emit an event with a payload that the caller entirely control.
+ * @code{.unparsed}
  *      event_get(ev_sys, NULL, &myev);
  *      int rc = event_channel_emit_with_payload(myev, dest_ep, dest_id, NULL, my_payload, my_payload_size);
  *      if (rc == EVENT_DONE)
@@ -167,7 +176,9 @@ int event_channel_emit_with_payload(dpu_offload_event_t **ev, uint64_t type, ucp
  *          // Error
  *          return -1;
  *      }
+ * @endcode
  * - get an event and let the library gives me a buffer for the payload; the library will free the payload when the event is returned.
+ * @code{.unparsed}
  *      dpu_offload_event_info_t ev_info = {
  *          .payload_size = my_payload_size,
  *      };
@@ -178,6 +189,7 @@ int event_channel_emit_with_payload(dpu_offload_event_t **ev, uint64_t type, ucp
  *          // Error
  *          return -1;
  *      }
+ * @endcode
  */
 dpu_offload_status_t event_get(dpu_offload_ev_sys_t *ev_sys, dpu_offload_event_info_t *info, dpu_offload_event_t **ev);
 dpu_offload_status_t event_return(dpu_offload_event_t **ev);
