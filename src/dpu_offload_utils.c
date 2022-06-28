@@ -1365,6 +1365,9 @@ void offload_config_free(offloading_config_t *cfg)
             free(list_dpus[i].version_1.addr);
             list_dpus[i].version_1.addr = NULL;
         }
+
+        DYN_ARRAY_FREE(&(list_dpus[i].version_1.interdpu_ports));
+        DYN_ARRAY_FREE(&(list_dpus[i].version_1.host_ports));
     }
 }
 
