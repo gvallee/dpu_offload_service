@@ -21,6 +21,28 @@
 #define DEFAULT_NUM_EVTS (32)
 #define DEFAULT_NUM_NOTIFICATION_CALLBACKS (5000)
 
+#define DISPLAY_ECONTEXT_ONGOING_EVTS(_ec)                          \
+    do                                                              \
+    {                                                               \
+        INFO_MSG("econtext %p: %ld ongoing events",                 \
+                 (_ec), ucs_list_length(&((_ec)->ongoing_events))); \
+    } while(0)
+
+#define DISPLAY_ONGOING_EVENTS_INFO(_e)                         \
+    do                                                          \
+    {                                                           \
+        size_t _i;                                              \
+        for (_i = 0; _i < (_e)->num_servers; _i++)              \
+        {                                                       \
+            DISPLAY_ECONTEXT_ONGOING_EVTS((_e)->servers[_i]);   \
+        }                                                       \
+                                                                \
+        if ((_e)->client)                                       \
+        {                                                       \
+            DISPLAY_ECONTEXT_ONGOING_EVTS((_e)->client);        \
+        }                                                       \
+    } while(0)
+
 #if USE_AM_IMPLEM
 /**
  * @brief Note that the function assumes the execution context is not locked before it is invoked.
@@ -466,6 +488,7 @@ int do_tag_send_event_msg(dpu_offload_event_t *event)
             {
                 ucs_status_t send_status = UCS_PTR_STATUS(payload_request);
                 ERR_MSG("ucp_tag_send_nbx() failed: %s", ucs_status_string(send_status));
+                DISPLAY_ONGOING_EVENTS_INFO(event->event_system->econtext->engine);
                 abort();
                 return send_status;
             }
