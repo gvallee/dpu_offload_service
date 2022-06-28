@@ -17,7 +17,8 @@ lib_LTLIBRARIES = libdpuoffloadservice.la libdpuoffloaddaemon.la
 libdpuoffloadservice_la_SOURCES = host_dpu_offload_service.c 
 libdpuoffloadservice_la_LIBADD =  -lpthread 
 libdpuoffloadservice_la_LDFLAGS = -version-info 0:0:0
-libdpuoffloadservice_la_CFLAGS = -I@top_srcdir@/include -L@top_builddir@/src/.libs
+libdpuoffloadservice_la_CPPFLAGS = -I@top_srcdir@/include
+libdpuoffloadservice_la_CFLAGS = -L@top_builddir@/src/.libs
 
 libdpuoffloaddaemon_la_SOURCES = dpu_offload_service_daemon.c \
                                 dpu_offload_event_channels.c \
@@ -29,6 +30,6 @@ libdpuoffloaddaemon_la_SOURCES = dpu_offload_service_daemon.c \
                                 dpu_offload_utils.c \
                                 dpu_offload_comms.h
 libdpuoffloaddaemon_la_LDFLAGS = -version-info 0:0:0 
-libdpuoffloaddaemon_la_CFLAGS = -I@top_srcdir@/include
+libdpuoffloaddaemon_la_CPPFLAGS = -I@top_srcdir@/include
 
 

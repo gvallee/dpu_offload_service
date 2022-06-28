@@ -12,7 +12,8 @@
 bin_PROGRAMS = config_file_dpu config_file_host
 
 AM_LDFLAGS = -ldpuoffloaddaemon -lucp
-AM_CFLAGS = -I@top_srcdir@/include -L@top_builddir@/src/.libs
+AM_CPPFLAGS = -I@top_srcdir@/include
+AM_CFLAGS = -L@top_builddir@/src/.libs
 
 config_file_dpu_SOURCES = config_file_dpu.c
 

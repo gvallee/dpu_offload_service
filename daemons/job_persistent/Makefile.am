@@ -13,4 +13,5 @@ bin_PROGRAMS = job_persistent_dpu_daemon
 
 job_persistent_dpu_daemon_SOURCES = job_persistent_dpu_daemon.c
 AM_LDFLAGS = -ldpuoffloaddaemon
-AM_CFLAGS = -I@top_srcdir@/include -L@top_builddir@/src/.libs
+AM_CFLAGS = -L@top_builddir@/src/.libs
+AM_CPPFLAGS = -I@top_srcdir@/include
