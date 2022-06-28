@@ -1802,6 +1802,18 @@ void offload_engine_fini(offloading_engine_t **offload_engine)
         // engine->config is usually not allocate with malloc, no need to free it here
     }
 
+    if ((*offload_engine)->ucp_worker)
+    {
+        ucp_worker_destroy((*offload_engine)->ucp_worker);
+        (*offload_engine)->ucp_worker = NULL;
+    }
+
+    if ((*offload_engine)->ucp_context)
+    {
+        ucp_cleanup((*offload_engine)->ucp_context);
+        (*offload_engine)->ucp_context = NULL;
+    }
+
     free(*offload_engine);
     *offload_engine = NULL;
 }
