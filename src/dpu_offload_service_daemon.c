@@ -1657,6 +1657,11 @@ static void execution_context_fini(execution_context_t **ctx)
     }
 
     DYN_LIST_FREE((*ctx)->free_pending_rdv_recv, pending_am_rdv_recv_t, item);
+
+    if ((*ctx)->event_channels)
+    {
+        event_channels_fini(&((*ctx)->event_channels));
+    }
     free(*ctx);
     *ctx = NULL;
 }
@@ -1779,12 +1784,21 @@ error_out:
 
 void offload_engine_fini(offloading_engine_t **offload_engine)
 {
+    assert(offload_engine);
+    assert(*offload_engine);
     event_channels_fini(&((*offload_engine)->default_notifications));
     GROUPS_CACHE_FINI(&((*offload_engine)->procs_cache));
     DYN_LIST_FREE((*offload_engine)->free_op_descs, op_desc_t, item);
     DYN_LIST_FREE((*offload_engine)->free_cache_entry_requests, cache_entry_request_t, item);
     DYN_ARRAY_FREE(&((*offload_engine)->dpus));
-    free((*offload_engine)->client);
+    assert((*offload_engine)->self_econtext);
+    execution_context_fini(&((*offload_engine)->self_econtext));
+
+    if ((*offload_engine)->client)
+    {
+        client_fini(&((*offload_engine)->client));
+    }
+
     int i;
     for (i = 0; i < (*offload_engine)->num_servers; i++)
     {
@@ -1800,6 +1814,18 @@ void offload_engine_fini(offloading_engine_t **offload_engine)
     {
         offload_config_free((*offload_engine)->config);
         // engine->config is usually not allocate with malloc, no need to free it here
+    }
+
+    if ((*offload_engine)->ucp_worker)
+    {
+        ucp_worker_destroy((*offload_engine)->ucp_worker);
+        (*offload_engine)->ucp_worker = NULL;
+    }
+
+    if ((*offload_engine)->ucp_context)
+    {
+        ucp_cleanup((*offload_engine)->ucp_context);
+        (*offload_engine)->ucp_context = NULL;
     }
 
     free(*offload_engine);

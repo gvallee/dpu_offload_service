@@ -218,27 +218,30 @@ typedef struct dyn_list
         }                                                                                 \
     } while (0)
 
-#define DYN_LIST_FREE(_dyn_list, _type, _elt)                                                             \
-    do                                                                                                    \
-    {                                                                                                     \
-        /* Release the list */                                                                            \
-        while (!ucs_list_is_empty(&((_dyn_list)->list)))                                                  \
-        {                                                                                                 \
-            _type *_item = ucs_list_extract_head(&((_dyn_list)->list), _type, _elt);                      \
-            assert(_item);                                                                                \
-            ucs_list_del(&(_item->_elt));                                                                 \
-        }                                                                                                 \
-        /* Free the underlying memory chunks */                                                           \
-        size_t _i;                                                                                        \
-        for (_i = 0; _i < (_dyn_list)->num_mem_chunks; _i++)                                              \
-        {                                                                                                 \
-            mem_chunk_t *_mem_chunk_ptr = DYN_ARRAY_GET_ELT(&((_dyn_list)->mem_chunks), _i, mem_chunk_t); \
-            assert(_mem_chunk_ptr);                                                                       \
-            free(_mem_chunk_ptr->ptr);                                                                    \
-            _mem_chunk_ptr->ptr = NULL;                                                                   \
-        }                                                                                                 \
-        DYN_ARRAY_FREE(&((_dyn_list)->mem_chunks));                                                       \
-        _dyn_list = NULL;                                                                                 \
+#define DYN_LIST_FREE(_dyn_list, _type, _elt)                                           \
+    do                                                                                  \
+    {                                                                                   \
+        /* Release the list */                                                          \
+        while (!ucs_list_is_empty(&((_dyn_list)->list)))                                \
+        {                                                                               \
+            _type *_item = ucs_list_extract_head(&((_dyn_list)->list), _type, _elt);    \
+            assert(_item);                                                              \
+            ucs_list_del(&(_item->_elt));                                               \
+        }                                                                               \
+        /* Free the underlying memory chunks */                                         \
+        size_t _i;                                                                      \
+        for (_i = 0; _i < (_dyn_list)->num_mem_chunks; _i++)                            \
+        {                                                                               \
+            mem_chunk_t *_mem_chunk_ptr = DYN_ARRAY_GET_ELT(&((_dyn_list)->mem_chunks), \
+                                                            _i,                         \
+                                                            mem_chunk_t);               \
+            assert(_mem_chunk_ptr);                                                     \
+            free(_mem_chunk_ptr->ptr);                                                  \
+            _mem_chunk_ptr->ptr = NULL;                                                 \
+        }                                                                               \
+        DYN_ARRAY_FREE(&((_dyn_list)->mem_chunks));                                     \
+        free(_dyn_list);                                                                \
+        _dyn_list = NULL;                                                               \
     } while (0)
 
 #define DYN_LIST_GET(_dyn_list, _type, _elt, _item)                       \

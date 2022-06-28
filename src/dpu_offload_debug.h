@@ -68,6 +68,17 @@ extern debug_config_t dbg_cfg;
                 getpid() __VA_OPT__(, ) __VA_ARGS__);                     \
     } while (0)
 
+#define INFO_MSG(_info_fmt, ...)                                          \
+    do                                                                    \
+    {                                                                     \
+        char myhostname[1024];                                            \
+        myhostname[1023] = '\0';                                          \
+        gethostname(myhostname, 1023);                                    \
+        fprintf(stderr, "[%s:l.%d:%s():%s:pid=%d] INFO: " _info_fmt "\n", \
+                __FILE__, __LINE__, __func__, myhostname,                 \
+                getpid() __VA_OPT__(, ) __VA_ARGS__);                     \
+    } while (0)
+
 #if !NDEBUG
 #define CHECK_ERR_GOTO(_exp, _label, _check_fmt, ...) \
     do                                                \

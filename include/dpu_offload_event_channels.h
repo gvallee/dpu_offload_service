@@ -192,15 +192,25 @@ int event_channel_emit_with_payload(dpu_offload_event_t **ev, uint64_t type, ucp
  * @endcode
  */
 dpu_offload_status_t event_get(dpu_offload_ev_sys_t *ev_sys, dpu_offload_event_info_t *info, dpu_offload_event_t **ev);
+
+/**
+ * @brief Return an event once completed
+ * 
+ * @param ev Pointer to the event to return. The event is set to NULL upon success so the event handle cannot be used anymore.
+ * @return DO_SUCCESS
+ * @return DO_ERROR
+ */
 dpu_offload_status_t event_return(dpu_offload_event_t **ev);
 
 /**
- * @brief event_completed checks whether an event is completed or not. If the event is completed,
- * it is also implicitly returned.
+ * @brief event_completed is a helper function to check whether an event is completed
+ * The function is aware of sub-events. If all the sub-events are completed and the
+ * request of the event is NULL, the event is reported as completed. The caller is
+ * responsible for returning the event when reported as completed.
  *
- * @param ev Event to check
- * @return true
- * @return false
+ * @param ev Event to check for completion.
+ * @return true when the event is completed
+ * @return false when the event is still in progress
  */
 bool event_completed(dpu_offload_event_t *ev);
 

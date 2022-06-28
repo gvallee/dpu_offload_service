@@ -21,6 +21,28 @@
 #define DEFAULT_NUM_EVTS (32)
 #define DEFAULT_NUM_NOTIFICATION_CALLBACKS (5000)
 
+#define DISPLAY_ECONTEXT_ONGOING_EVTS(_ec)                          \
+    do                                                              \
+    {                                                               \
+        INFO_MSG("econtext %p: %ld ongoing events",                 \
+                 (_ec), ucs_list_length(&((_ec)->ongoing_events))); \
+    } while(0)
+
+#define DISPLAY_ONGOING_EVENTS_INFO(_e)                         \
+    do                                                          \
+    {                                                           \
+        size_t _i;                                              \
+        for (_i = 0; _i < (_e)->num_servers; _i++)              \
+        {                                                       \
+            DISPLAY_ECONTEXT_ONGOING_EVTS((_e)->servers[_i]);   \
+        }                                                       \
+                                                                \
+        if ((_e)->client)                                       \
+        {                                                       \
+            DISPLAY_ECONTEXT_ONGOING_EVTS((_e)->client);        \
+        }                                                       \
+    } while(0)
+
 #if USE_AM_IMPLEM
 /**
  * @brief Note that the function assumes the execution context is not locked before it is invoked.
@@ -466,6 +488,7 @@ int do_tag_send_event_msg(dpu_offload_event_t *event)
             {
                 ucs_status_t send_status = UCS_PTR_STATUS(payload_request);
                 ERR_MSG("ucp_tag_send_nbx() failed: %s", ucs_status_string(send_status));
+                DISPLAY_ONGOING_EVENTS_INFO(event->event_system->econtext->engine);
                 abort();
                 return send_status;
             }
@@ -594,7 +617,20 @@ int event_channel_emit_with_payload(dpu_offload_event_t **event, uint64_t type, 
         if (ret != EVENT_DONE)
         {
             ERR_MSG("local delivery of event did not complete");
-            assert(0);
+#if !NDEBUG
+            abort();
+#endif
+            return DO_ERROR;
+        }
+
+        dpu_offload_status_t return_rc = event_return(event);
+        if (return_rc != DO_SUCCESS)
+        {
+            ERR_MSG("event_return() failed");
+#if !NDEBUG
+            abort();
+#endif
+            return DO_ERROR;
         }
         return ret;
     }
@@ -643,8 +679,22 @@ int event_channel_emit(dpu_offload_event_t **event, uint64_t type, ucp_ep_h dest
         if (ret != EVENT_DONE)
         {
             ERR_MSG("local delivery of event did not complete");
-            assert(0);
+#if !NDEBUG
+            abort();
+#endif
+            return DO_ERROR;
         }
+
+                dpu_offload_status_t return_rc = event_return(event);
+        if (return_rc != DO_SUCCESS)
+        {
+            ERR_MSG("event_return() failed");
+#if !NDEBUG
+            abort();
+#endif
+            return DO_ERROR;
+        }
+
         return ret;
     }
 
@@ -663,6 +713,9 @@ int event_channel_emit(dpu_offload_event_t **event, uint64_t type, ucp_ep_h dest
 
 void event_channels_fini(dpu_offload_ev_sys_t **ev_sys)
 {
+    if (ev_sys == NULL || *ev_sys == NULL)
+        return;
+
     SYS_EVENT_LOCK(*ev_sys);
     if ((*ev_sys)->num_used_evs > 0)
     {
@@ -685,6 +738,7 @@ void event_channels_fini(dpu_offload_ev_sys_t **ev_sys)
 
     DYN_LIST_FREE((*ev_sys)->free_evs, dpu_offload_event_t, item);
     DYN_LIST_FREE((*ev_sys)->free_pending_notifications, pending_notification_t, item);
+    DYN_ARRAY_FREE(&((*ev_sys)->notification_callbacks));
     SYS_EVENT_UNLOCK(*ev_sys);
     free(*ev_sys);
     *ev_sys = NULL;
