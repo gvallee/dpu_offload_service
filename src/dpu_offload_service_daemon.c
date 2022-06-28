@@ -822,17 +822,22 @@ static dpu_offload_status_t oob_connect(execution_context_t *econtext)
     CHECK_ERR_GOTO((rc), error_out, "oob_client_connect() failed");
     ssize_t size_recvd = recv(client->conn_data.oob.sock, &addr_len, sizeof(addr_len), MSG_WAITALL);
     DBG("Addr len received (len: %ld): %ld", size_recvd, addr_len);
+    assert(size_recvd == sizeof(addr_len));
     client->conn_data.oob.peer_addr_len = addr_len;
     client->conn_data.oob.peer_addr = DPU_OFFLOAD_MALLOC(client->conn_data.oob.peer_addr_len);
     CHECK_ERR_GOTO((client->conn_data.oob.peer_addr == NULL), error_out, "Unable to allocate memory");
     size_recvd = recv(client->conn_data.oob.sock, client->conn_data.oob.peer_addr, client->conn_data.oob.peer_addr_len, MSG_WAITALL);
     DBG("Received the address (size: %ld)", size_recvd);
+    assert(size_recvd == client->conn_data.oob.peer_addr_len);
     size_recvd = recv(client->conn_data.oob.sock, &(client->server_id), sizeof(client->server_id), MSG_WAITALL);
     DBG("Received the server ID (size: %ld, id: %" PRIu64 ")", size_recvd, client->server_id);
-    size_recvd = recv(client->conn_data.oob.sock, &(client->server_global_id), sizeof(client->server_id), MSG_WAITALL);
+    assert(size_recvd == sizeof(client->server_id));
+    size_recvd = recv(client->conn_data.oob.sock, &(client->server_global_id), sizeof(client->server_global_id), MSG_WAITALL);
     DBG("Received the server global ID (size: %ld, id: %" PRIu64 ")", size_recvd, client->server_global_id);
+    assert(size_recvd == sizeof(client->server_global_id));
     size_recvd = recv(client->conn_data.oob.sock, &(client->id), sizeof(client->id), MSG_WAITALL);
     DBG("Received the client ID: %" PRIu64 " (size: %ld)", client->id, size_recvd);
+    assert(size_recvd == sizeof(client->id));
     econtext->client->bootstrapping.phase = OOB_CONNECT_DONE;
     ECONTEXT_UNLOCK(econtext);
     DBG("%s() done", __func__);
@@ -2000,21 +2005,26 @@ static dpu_offload_status_t oob_server_listen(execution_context_t *econtext)
                              sizeof(econtext->server->conn_data.oob.local_addr_len),
                              0);
     DBG("Addr length sent (len: %ld)", size_sent);
+    assert(size_sent == sizeof(econtext->server->conn_data.oob.local_addr_len));
     size_sent = send(econtext->server->conn_data.oob.sock,
                      econtext->server->conn_data.oob.local_addr,
                      econtext->server->conn_data.oob.local_addr_len,
                      0);
     DBG("Address sent (len: %ld)", size_sent);
+    assert(size_sent == econtext->server->conn_data.oob.local_addr_len);
     size_sent = send(econtext->server->conn_data.oob.sock,
                      &(econtext->server->id),
                      sizeof(econtext->server->id),
                      0);
     DBG("Server ID sent (len: %ld, id: %" PRIu64 ")", size_sent, econtext->server->id);
     if (econtext->engine->on_dpu)
+    {
         size_sent = send(econtext->server->conn_data.oob.sock,
                          &(econtext->engine->config->local_service_proc.info.global_id),
                          sizeof(econtext->engine->config->local_service_proc.info.global_id),
                          0);
+        assert(size_sent == sizeof(econtext->engine->config->local_service_proc.info.global_id));
+    }
     else
     {
         uint64_t val = UINT64_MAX;
@@ -2022,6 +2032,7 @@ static dpu_offload_status_t oob_server_listen(execution_context_t *econtext)
                          &val,
                          sizeof(econtext->engine->config->local_service_proc.info.global_id),
                          0);
+        assert(size_sent == sizeof(econtext->engine->config->local_service_proc.info.global_id));
     }
     DBG("Global ID sent (len: %ld)", size_sent);
     uint64_t client_id = generate_unique_client_id(econtext);
@@ -2033,6 +2044,7 @@ static dpu_offload_status_t oob_server_listen(execution_context_t *econtext)
 #endif
     size_sent = send(econtext->server->conn_data.oob.sock, &client_id, sizeof(uint64_t), 0);
     DBG("Client ID sent (len: %ld, value: %" PRIu64 ")", size_sent, client_id);
+    assert(size_sent == sizeof(uint64_t));
 
     /* All done, the rest is done when progressing the execution contexts */
     peer_info_t *client_info = DYN_ARRAY_GET_ELT(&(econtext->server->connected_clients.clients), client_id, peer_info_t);
