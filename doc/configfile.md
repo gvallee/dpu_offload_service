@@ -1,6 +1,32 @@
 # Configuration file
 
-TODO
+The overall format of the configuration file is as follow:
+
+```
+# Format version: 1
+# <host name>,<dpu1_hostname:dpu_conn_addr:interdpu-port1&interdpu-port2:rank-conn-port1&rank-conn-port2>,...
+```
+
+Note that the first comment specifying the version of the format being used is **mandatory**.
+At the moment, only one format is supported.
+
+A single configuration file can be used by platform; it does not need to be tailored to the job
+configuration. In other words, when running a job, the infrastructure is capable of extracting
+only the required data from the configuration file.
+
+Examples of configuration files are available in `etc/platforms`.
+
+Each line must describe a host and its associated DPU(s):
+
+1. the first token must be the full hostname of the host followed by a `,` and
+1. the list of DPUs to use; it is allowed to have a single DPU,
+1. for each DPU:
+
+        * The full DPU hostname, followed by a comma.
+        * The IP address to use for boostrapping, followed by a comma.
+        * A list of ports, separated by the & symbol and followed by a comma, defining the ports to use for connections between service processes. Note it also specifies the number of service processes per DPU, one per port.
+        * A list of ports for connections with processes running on the host. This list **must** have
+        the same number of ports as the previous list.
 
 ## Start multiple service processes on DPUs using a configuration file
 
