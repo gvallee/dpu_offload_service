@@ -617,7 +617,20 @@ int event_channel_emit_with_payload(dpu_offload_event_t **event, uint64_t type, 
         if (ret != EVENT_DONE)
         {
             ERR_MSG("local delivery of event did not complete");
-            assert(0);
+#if !NDEBUG
+            abort();
+#endif
+            return DO_ERROR;
+        }
+
+        dpu_offload_status_t return_rc = event_return(event);
+        if (return_rc != DO_SUCCESS)
+        {
+            ERR_MSG("event_return() failed");
+#if !NDEBUG
+            abort();
+#endif
+            return DO_ERROR;
         }
         return ret;
     }
@@ -666,8 +679,22 @@ int event_channel_emit(dpu_offload_event_t **event, uint64_t type, ucp_ep_h dest
         if (ret != EVENT_DONE)
         {
             ERR_MSG("local delivery of event did not complete");
-            assert(0);
+#if !NDEBUG
+            abort();
+#endif
+            return DO_ERROR;
         }
+
+                dpu_offload_status_t return_rc = event_return(event);
+        if (return_rc != DO_SUCCESS)
+        {
+            ERR_MSG("event_return() failed");
+#if !NDEBUG
+            abort();
+#endif
+            return DO_ERROR;
+        }
+
         return ret;
     }
 
