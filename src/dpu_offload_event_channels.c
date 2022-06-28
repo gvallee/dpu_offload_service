@@ -713,6 +713,9 @@ int event_channel_emit(dpu_offload_event_t **event, uint64_t type, ucp_ep_h dest
 
 void event_channels_fini(dpu_offload_ev_sys_t **ev_sys)
 {
+    if (ev_sys == NULL || *ev_sys == NULL)
+        return;
+
     SYS_EVENT_LOCK(*ev_sys);
     if ((*ev_sys)->num_used_evs > 0)
     {
@@ -735,6 +738,7 @@ void event_channels_fini(dpu_offload_ev_sys_t **ev_sys)
 
     DYN_LIST_FREE((*ev_sys)->free_evs, dpu_offload_event_t, item);
     DYN_LIST_FREE((*ev_sys)->free_pending_notifications, pending_notification_t, item);
+    DYN_ARRAY_FREE(&((*ev_sys)->notification_callbacks));
     SYS_EVENT_UNLOCK(*ev_sys);
     free(*ev_sys);
     *ev_sys = NULL;
