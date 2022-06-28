@@ -22,9 +22,9 @@ Each line must describe a host and its associated DPU(s):
 1. the list of DPUs to use; it is allowed to have a single DPU,
 1. for each DPU:
 
-        * The full DPU hostname, followed by a comma.
-        * The IP address to use for boostrapping, followed by a comma.
-        * A list of ports, separated by the & symbol and followed by a comma, defining the ports to use for connections between service processes. Note it also specifies the number of service processes per DPU, one per port.
+        * The full DPU hostname, followed by the character ':'.
+        * The IP address to use for boostrapping, followed by the character ':'.
+        * A list of ports, separated by the & symbol and followed by the character ':', defining the ports to use for connections between service processes. Note it also specifies the number of service processes per DPU, one per port.
         * A list of ports for connections with processes running on the host. This list **must** have
         the same number of ports as the previous list.
 
@@ -38,7 +38,7 @@ configuration. For example:
 
 ```
 # Format version: 1
-# <host name>,<dpu1_hostname:dpu_conn_addr:interdpu-port:rank-conn-port>,...
+# <host name>,<dpu1_hostname:dpu_conn_addr:interdpu-port1&interdpu-port2:rank-conn-port1&rank-conn-port2>,...
 node001.hpcadvisorycouncil.com,nodebf001.hpcadvisorycouncil.com:192.168.129.101:7010&7011:9010&9011
 node002.hpcadvisorycouncil.com,nodebf002.hpcadvisorycouncil.com:192.168.129.102:7010&7011:9010&9011
 node003.hpcadvisorycouncil.com,nodebf003.hpcadvisorycouncil.com:192.168.129.103:7010&7011:9010&9011
