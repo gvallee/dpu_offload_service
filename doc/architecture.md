@@ -15,7 +15,7 @@ Additional capabilities are under development:
 
 ## Offloading engine
 
-An offloading engine (type: *offloading_engine_t*) is the object that instantiates a given offloading 
+An offloading engine (type: `offloading_engine_t`) is the object that instantiates a given offloading 
 service on both the host and the service processes running on the DPU. A service running on the DPU 
 therefore has a single engine and an application using the offloading infrastructure has as many 
 engine as the number of offloading services that are being used.
@@ -28,7 +28,7 @@ Please refer to [configfile.md](./configfile.md).
 
 ## DPU service processes
 
-Service processes (type: *remote_service_proc_info_t*), also called *daemons* are running on the DPUs
+Service processes (type: `remote_service_proc_info_t`), also called *daemons* are running on the DPUs
 to provide a offloading service. New daemons can be implemented to tailor applications'
 needs and separate daemons for the offloading of MPI collectives are under
 development.
@@ -65,7 +65,7 @@ contexts, wherever their location.
 
 ## Execution context
 
-An execution context (type: *execution_context_t*) is an object that abstract the details for 
+An execution context (type: `execution_context_t`) is an object that abstract the details for 
 interactions between two processes.
 In other words, the object is available once the bootstrapping on the service between two entities,
 e.g., host-service-process or inter-service-processes, and abstract the technical details of the
@@ -80,7 +80,7 @@ Once an execution context is created, a set of capabilities are available:
 ## Notifications and events
 
 Notifications, also called events, aims at facilitating the implementation of the control path of a
-given algorithm (type: *dpu_offload_event_t*). In other words, it is only a capability to send 
+given algorithm (type: `dpu_offload_event_t`). In other words, it is only a capability to send 
 notifications between execution contexts and while the associated interfaces offer similarities with 
 an active message communication layer, it is not meant to be one mainly because missing advanced 
 memory management capabilities. 
@@ -104,7 +104,7 @@ In such a situation, the event containing sub-events must be a local event, i.e.
 to send a notification to a remote execution context and is identified as a *meta-event*. A 
 meta-event completes only when all the sub-events are completed.
 
-The notification system (type: *dpu_offload_ev_sys_t*) is the core object used to implement the 
+The notification system (type: `dpu_offload_ev_sys_t`) is the core object used to implement the 
 notification system. It provides a pool of free event that are available for use (using the `event_get
 ()` function). Note that it is possible to request specific features when getting an event, such as
 requesting from the library an allocated buffer, by using a *dpu_offload_event_info_t* object.
@@ -127,6 +127,8 @@ Please see the doxygen documentation for details about the datastructures and fu
 the notification system.
 
 ## Example
+
+### Service bootstrapping between a service process on a DPU and the host process
 
 Here is an example of a service process code that reads the configuration 
 file and create all the execution contexts:
