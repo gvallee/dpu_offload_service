@@ -555,15 +555,13 @@ static void send_cb(void *request, ucs_status_t status, void *user_data)
 
 dpu_offload_status_t client_init_context(execution_context_t *econtext, init_params_t *init_params)
 {
-    int ret;
     dpu_offload_status_t rc;
     econtext->type = CONTEXT_CLIENT;
     econtext->client = DPU_OFFLOAD_MALLOC(sizeof(dpu_offload_client_t));
     CHECK_ERR_RETURN((econtext->client == NULL), DO_ERROR, "Unable to allocate client handle\n");
     RESET_CLIENT(econtext->client);
     econtext->client->econtext = (struct execution_context *)econtext;
-    ret = pthread_mutex_init(&(econtext->client->mutex), NULL);
-    CHECK_ERR_RETURN((ret), DO_ERROR, "pthread_mutex_init() failed: %s", strerror(errno));
+    econtext->client->mutex = (pthread_mutex_t)PTHREAD_ERRORCHECK_MUTEX_INITIALIZER_NP;
 
     // If the connection parameters were not passed in, we get everything using environment variables
     if (init_params == NULL || init_params->conn_params == NULL)
@@ -1622,8 +1620,7 @@ static dpu_offload_status_t execution_context_init(offloading_engine_t *offload_
     execution_context_t *ctx = DPU_OFFLOAD_MALLOC(sizeof(execution_context_t));
     CHECK_ERR_GOTO((ctx == NULL), error_out, "unable to allocate execution context");
     RESET_ECONTEXT(ctx);
-    int ret = pthread_mutex_init(&(ctx->mutex), NULL);
-    CHECK_ERR_GOTO((ret), error_out, "pthread_mutex_init() failed: %s", strerror(errno));
+    ctx->mutex = (pthread_mutex_t)PTHREAD_ERRORCHECK_MUTEX_INITIALIZER_NP;
     ctx->type = type;
     ctx->engine = offload_engine;
     ctx->progress = execution_context_progress;
@@ -2199,8 +2196,7 @@ dpu_offload_status_t server_init_context(execution_context_t *econtext, init_par
         econtext->server->connected_cb = init_params->connected_cb;
     }
 
-    ret = pthread_mutex_init(&(econtext->server->mutex), NULL);
-    CHECK_ERR_RETURN((ret), DO_ERROR, "pthread_mutex_init() failed: %s", strerror(errno));
+    econtext->server->mutex = (pthread_mutex_t)PTHREAD_ERRORCHECK_MUTEX_INITIALIZER_NP;
 
     // Make sure we correctly handle whether the UCX context/worker is provided
     DO_INIT_WORKER(econtext, init_params);

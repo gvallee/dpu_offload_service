@@ -171,8 +171,7 @@ dpu_offload_status_t ev_channels_init(dpu_offload_ev_sys_t **ev_channels)
     ucs_list_head_init(&(event_channels->pending_notifications));
     DYN_ARRAY_ALLOC(&(event_channels->notification_callbacks), DEFAULT_NUM_NOTIFICATION_CALLBACKS, notification_callback_entry_t);
     CHECK_ERR_RETURN((event_channels->notification_callbacks.base == NULL), DO_ERROR, "Resource allocation failed");
-    int ret = pthread_mutex_init(&(event_channels->mutex), NULL);
-    CHECK_ERR_RETURN((ret), DO_ERROR, "pthread_mutex_init() failed: %s", strerror(errno));
+    event_channels->mutex = (pthread_mutex_t)PTHREAD_ERRORCHECK_MUTEX_INITIALIZER_NP;
     *ev_channels = event_channels;
     return DO_SUCCESS;
 }
