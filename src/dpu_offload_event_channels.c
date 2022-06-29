@@ -861,16 +861,6 @@ dpu_offload_status_t event_return(dpu_offload_event_t **ev)
     return DO_SUCCESS;
 }
 
-/**
- * @brief event_completed is a helper function to check whether an event is completed
- * The function is aware of sub-events. If all the sub-events are completed and the
- * request of the event is NULL, the event is reported as completed. The caller is
- * responsible for returning the event when reported as completed.
- *
- * @param ev Event to check for completion.
- * @return true when the event is completed
- * @return false when the event is still in progress
- */
 bool event_completed(dpu_offload_event_t *ev)
 {
 #if USE_AM_IMPLEM
