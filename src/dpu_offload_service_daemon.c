@@ -1917,7 +1917,7 @@ void client_fini(execution_context_t **exec_ctx)
     while (context->client->bootstrapping.phase != DISCONNECTED)
         context->progress(context);
 
-    event_channels_fini(&(client->event_channels));
+    event_channels_fini(&(context->client->event_channels));
     ucp_worker_destroy(GET_WORKER(*exec_ctx));
 
     free((*exec_ctx)->client);
