@@ -23,7 +23,7 @@ extern "C"
 {
 #endif
 
-    //typedef pmix_info_t dpu_offload_info_t;
+    // typedef pmix_info_t dpu_offload_info_t;
 
 #define DPU_OFFLOAD_INFO_CREATE PMIX_INFO_CREATE
 #define DPU_OFFLOAD_INFO_LOAD PMIX_INFO_LOAD
@@ -33,9 +33,9 @@ extern "C"
 
     typedef enum
     {
-        DO_ERROR = UCS_ERR_NO_MESSAGE, // DPU offload generic error
-        DO_SUCCESS = UCS_OK, // DPU offload ok
-        DO_NOT_APPLICABLE = UCS_ERR_LAST - 1 // DPU offload not applicable feature
+        DO_ERROR = UCS_ERR_NO_MESSAGE,       // DPU Offload Error: generic error
+        DO_SUCCESS = UCS_OK,                 // DPU Offload Success: success
+        DO_NOT_APPLICABLE = UCS_ERR_LAST - 1 // DPU Offload Not Applicable: not applicable feature
     } dpu_offload_status_t;
 
 #define DPU_OFFLOAD_SUCCESS DO_SUCCESS
