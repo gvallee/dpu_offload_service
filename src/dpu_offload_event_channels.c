@@ -1173,7 +1173,9 @@ static dpu_offload_status_t add_group_rank_recv_cb(struct dpu_offload_ev_sys *ev
 static dpu_offload_status_t term_msg_cb(struct dpu_offload_ev_sys *ev_sys, execution_context_t *econtext, am_header_t *hdr, size_t hdr_size, void *data, size_t data_len)
 {
     assert(econtext);
-    assert(data);
+    // Termination messages never have a payload
+    assert(data == NULL);
+    assert(data_len == 0);
     assert(hdr);
 
     DBG("Recv'd a termination message from %" PRIu64, hdr->id);
