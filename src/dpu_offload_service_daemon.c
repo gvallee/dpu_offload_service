@@ -15,7 +15,6 @@
 #include <errno.h>
 
 #include "dpu_offload_service_daemon.h"
-#include "dpu_offload_comm_channels.h"
 #include "dpu_offload_event_channels.h"
 #include "dpu_offload_envvars.h"
 #include "dynamic_structs.h"
@@ -1580,40 +1579,87 @@ static void progress_client_econtext(execution_context_t *ctx)
     }
 }
 
-static void execution_context_progress(execution_context_t *ctx)
+
+/**
+ * @brief term_notification_completed is the funtion invoked once we get the completion of the term notification.
+ * Upon completion, we know we can safely
+ * 
+ * @param econtext 
+ */
+static void term_notification_completed(execution_context_t *econtext)
 {
-    assert(ctx);
+    ep_close(GET_WORKER(econtext), econtext->client->server_ep);
+
+    switch (econtext->client->mode)
+    {
+    case UCX_LISTENER:
+        break;
+    default:
+        // OOB
+        if (econtext->client->conn_data.oob.sock > 0)
+        {
+            close(econtext->client->conn_data.oob.sock);
+            econtext->client->conn_data.oob.sock = -1;
+        }
+        if (econtext->client->conn_data.oob.addr_msg_str != NULL)
+        {
+            free(econtext->client->conn_data.oob.addr_msg_str);
+            econtext->client->conn_data.oob.addr_msg_str = NULL;
+        }
+        if (econtext->client->conn_data.oob.peer_addr != NULL)
+        {
+            free(econtext->client->conn_data.oob.peer_addr);
+            econtext->client->conn_data.oob.peer_addr = NULL;
+        }
+        ucp_worker_release_address(GET_WORKER(econtext), econtext->client->conn_data.oob.local_addr);
+    }
+    EXECUTION_CONTEXT_DONE(econtext);
+}
+
+static void execution_context_progress(execution_context_t *econtext)
+{
+    assert(econtext);
 
     // Progress the UCX worker to eventually complete some communications
-    ucp_worker_h worker = GET_WORKER(ctx);
+    ucp_worker_h worker = GET_WORKER(econtext);
     ucp_worker_progress(worker);
 
-    switch (ctx->type)
+    switch (econtext->type)
     {
     case CONTEXT_SERVER:
-        progress_server_econtext(ctx);
+        progress_server_econtext(econtext);
         break;
     case CONTEXT_CLIENT:
-        progress_client_econtext(ctx);
+        progress_client_econtext(econtext);
         break;
     default:
         break;
     }
 
     // Progress reception of events
-    progress_event_recv(ctx);
+    progress_event_recv(econtext);
 
     // Progress the ongoing events
-    ECONTEXT_LOCK(ctx);
-    progress_econtext_sends(ctx);
+    ECONTEXT_LOCK(econtext);
+    progress_econtext_sends(econtext);
 
     // Progress all active operations
-    dpu_offload_status_t rc = progress_active_ops(ctx);
+    dpu_offload_status_t rc = progress_active_ops(econtext);
     if (rc)
     {
         ERR_MSG("progress_active_ops() failed");
     }
-    ECONTEXT_UNLOCK(ctx);
+    ECONTEXT_UNLOCK(econtext);
+
+    // Check for termination
+    if (econtext->term.ev != NULL)
+    {
+        if (event_completed(econtext->term.ev))
+        {
+            event_return(&(econtext->term.ev));
+            term_notification_completed(econtext);
+        }
+    }
     return;
 }
 
@@ -1722,11 +1768,6 @@ execution_context_t *client_init(offloading_engine_t *offload_engine, init_param
     ctx->client->event_channels->econtext = (struct execution_context *)ctx;
     DBG("event channels successfully initialized");
 
-    /* Initialize Active Message data handler */
-    dpu_offload_status_t ret = dpu_offload_set_am_recv_handlers(ctx);
-    CHECK_ERR_GOTO((ret), error_out, "dpu_offload_set_am_recv_handlers() failed");
-    DBG("Active messages successfully initialized");
-
     switch (ctx->client->mode)
     {
     case UCX_LISTENER:
@@ -1736,7 +1777,7 @@ execution_context_t *client_init(offloading_engine_t *offload_engine, init_param
     }
     default:
     {
-        ret = oob_connect(ctx);
+        dpu_offload_status_t ret = oob_connect(ctx);
         CHECK_ERR_GOTO((ret), error_out, "oob_connect() failed");
     }
     }
@@ -1834,10 +1875,14 @@ void offload_engine_fini(offloading_engine_t **offload_engine)
 
 void client_fini(execution_context_t **exec_ctx)
 {
+    execution_context_t *context;
+    dpu_offload_status_t rc;
+    dest_client_t dest_info;
+
     if (exec_ctx == NULL || *exec_ctx == NULL)
         return;
 
-    execution_context_t *context = *exec_ctx;
+    context = *exec_ctx;
     if (context->type != CONTEXT_CLIENT)
     {
         ERR_MSG("invalid type");
@@ -1845,69 +1890,15 @@ void client_fini(execution_context_t **exec_ctx)
     }
 
     DBG("Sending termination message to associated server...");
-    void *term_msg = NULL;
-    size_t msg_length = 0;
-    ucp_request_param_t params = {0};
-    am_req_t ctx;
-    ctx.complete = 0;
-    params.op_attr_mask = UCP_OP_ATTR_FIELD_CALLBACK |
-                          UCP_OP_ATTR_FIELD_DATATYPE |
-                          UCP_OP_ATTR_FIELD_USER_DATA;
-    params.datatype = ucp_dt_make_contig(1);
-    params.user_data = &ctx;
-    params.cb.send = (ucp_send_nbx_callback_t)send_cb;
-    dpu_offload_client_t *client = context->client;
-    ucs_status_ptr_t request = ucp_am_send_nbx(client->server_ep, AM_TERM_MSG_ID, NULL, 0ul, term_msg,
-                                               msg_length, &params);
-    if (request == NULL)
+    dest_info.id = context->client->server_id;
+    dest_info.ep = context->client->server_ep;
+    rc = send_term_msg(context, &dest_info);
+    if (rc != DO_SUCCESS)
     {
-        DBG("ucp_am_send_nbx() completed immediately");
+        ERR_MSG("send_term_msg() failed");
+        return;
     }
-    else if (UCS_PTR_IS_ERR(request))
-    {
-        ERR_MSG("ucp_am_send_nbx() failed with %d", UCS_PTR_STATUS(request));
-    }
-    else
-    {
-        DBG("ucp_am_send_nbx() in progress");
-    }
-    // request_finalize(GET_WORKER(*exec_ctx), request, &ctx);
-    DBG("Termination message successfully sent");
-
-    ep_close(GET_WORKER(*exec_ctx), client->server_ep);
-    dpu_offload_set_am_recv_handlers(context);
-
-    switch (context->client->mode)
-    {
-    case UCX_LISTENER:
-        break;
-    default:
-        // OOB
-        if (client->conn_data.oob.sock > 0)
-        {
-            close(client->conn_data.oob.sock);
-            client->conn_data.oob.sock = -1;
-        }
-        if (client->conn_data.oob.addr_msg_str != NULL)
-        {
-            free(client->conn_data.oob.addr_msg_str);
-            client->conn_data.oob.addr_msg_str = NULL;
-        }
-        if (client->conn_data.oob.peer_addr != NULL)
-        {
-            free(client->conn_data.oob.peer_addr);
-            client->conn_data.oob.peer_addr = NULL;
-        }
-        ucp_worker_release_address(GET_WORKER(*exec_ctx), client->conn_data.oob.local_addr);
-    }
-
-    event_channels_fini(&(client->event_channels));
-    ucp_worker_destroy(GET_WORKER(*exec_ctx));
-
-    free(context->client);
-    context->client = NULL;
-
-    execution_context_fini(&context);
+    DBG("Termination message successfully emitted");
 }
 
 static void server_conn_handle_cb(ucp_conn_request_h conn_request, void *arg)
@@ -2135,20 +2126,6 @@ static dpu_offload_status_t start_server(execution_context_t *econtext)
 
     int rc = pthread_create(&econtext->server->connect_tid, NULL, &connect_thread, econtext);
     CHECK_ERR_RETURN((rc), DO_ERROR, "unable to start connection thread");
-
-#if 0
-    // Wait for at least one client to connect
-    DBG("Waiting for at least one client to connect...");
-    bool client_connected = false;
-    while (!client_connected)
-    {
-        econtext->progress(econtext);
-        if (econtext->server->connected_clients.num_connected_clients > 0)
-            client_connected++;
-    }
-    DBG("At least one client is now connected");
-#endif
-
     return DO_SUCCESS;
 }
 
@@ -2309,10 +2286,6 @@ execution_context_t *server_init(offloading_engine_t *offloading_engine, init_pa
     execution_context->server->event_channels = execution_context->event_channels;
     execution_context->server->event_channels->econtext = (struct execution_context *)execution_context;
 
-    /* Initialize Active Message data handler */
-    rc = dpu_offload_set_am_recv_handlers(execution_context);
-    CHECK_ERR_GOTO((rc), error_out, "dpu_offload_set_am_recv_handlers() failed");
-
     /* Start the server to accept connections */
     ucs_status_t status = start_server(execution_context);
     CHECK_ERR_GOTO((status != UCS_OK), error_out, "start_server() failed");
@@ -2375,8 +2348,6 @@ void server_fini(execution_context_t **exec_ctx)
         assert(peer_info);
         ep_close(GET_WORKER(*exec_ctx), peer_info->ep);
     }
-
-    dpu_offload_set_am_recv_handlers(context);
 
     switch (server->mode)
     {

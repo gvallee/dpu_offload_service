@@ -214,4 +214,6 @@ dpu_offload_status_t event_return(dpu_offload_event_t **ev);
  */
 bool event_completed(dpu_offload_event_t *ev);
 
+dpu_offload_status_t send_term_msg(execution_context_t *ctx, dest_client_t *dest_info);
+
 #endif // DPU_OFFLOAD_EVENT_CHANNELS_H_
