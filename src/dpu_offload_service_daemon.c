@@ -2371,7 +2371,11 @@ void server_fini(execution_context_t **exec_ctx)
     {
         peer_info_t *peer_info = DYN_ARRAY_GET_ELT(&(server->connected_clients.clients), i, peer_info_t);
         assert(peer_info);
-        ep_close(GET_WORKER(*exec_ctx), peer_info->ep);
+        if (peer_info->ep != NULL)
+        {
+            ep_close(GET_WORKER(*exec_ctx), peer_info->ep);
+            peer_info->ep = NULL;
+        }
     }
 
     switch (server->mode)
