@@ -1588,7 +1588,14 @@ static void progress_client_econtext(execution_context_t *ctx)
  */
 static void term_notification_completed(execution_context_t *econtext)
 {
-    ep_close(GET_WORKER(econtext), econtext->client->server_ep);
+    // Only clients are supposed to send the term message
+    assert(econtext->type == CONTEXT_CLIENT);
+
+    if (econtext->client->server_ep)
+    {
+        ep_close(GET_WORKER(econtext), econtext->client->server_ep);
+        econtext->client->server_ep = NULL;
+    }
 
     switch (econtext->client->mode)
     {
@@ -1611,8 +1618,14 @@ static void term_notification_completed(execution_context_t *econtext)
             free(econtext->client->conn_data.oob.peer_addr);
             econtext->client->conn_data.oob.peer_addr = NULL;
         }
-        ucp_worker_release_address(GET_WORKER(econtext), econtext->client->conn_data.oob.local_addr);
+
+        if (econtext->client->conn_data.oob.local_addr)
+        {
+            ucp_worker_release_address(GET_WORKER(econtext), econtext->client->conn_data.oob.local_addr);
+            econtext->client->conn_data.oob.local_addr = NULL;
+        }
     }
+
     EXECUTION_CONTEXT_DONE(econtext);
 }
 
@@ -1899,6 +1912,18 @@ void client_fini(execution_context_t **exec_ctx)
         return;
     }
     DBG("Termination message successfully emitted");
+
+    // Loop until the term message completes
+    while (context->client->bootstrapping.phase != DISCONNECTED)
+        context->progress(context);
+
+    event_channels_fini(&(client->event_channels));
+    ucp_worker_destroy(GET_WORKER(*exec_ctx));
+
+    free((*exec_ctx)->client);
+    (*exec_ctx)->client = NULL;
+
+    execution_context_fini(exec_ctx);
 }
 
 static void server_conn_handle_cb(ucp_conn_request_h conn_request, void *arg)

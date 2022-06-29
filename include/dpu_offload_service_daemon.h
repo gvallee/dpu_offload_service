@@ -73,8 +73,26 @@ dpu_offload_status_t lib_progress(execution_context_t *econtext);
 execution_context_t *server_init(offloading_engine_t *, init_params_t *);
 void server_fini(execution_context_t **);
 
-execution_context_t *client_init(offloading_engine_t *, init_params_t *);
-void client_fini(execution_context_t **);
+/**
+ * @brief client_init creates and returns a new execution context object that can later on be used as a client. Trying to use it as a server is invalid.
+ * 
+ * @param[in] engine Pointer to the engine in the context of which we need to create the client execution context.
+ * @param[in] init_params Initialization parameters to use during the creation of the client execution context; can be NULL
+ * 
+ * @return execution_context_t* Pointer to the new execution context or NULL in case of error.
+ */
+execution_context_t *client_init(offloading_engine_t *engine, init_params_t *init_params);
+
+/**
+ * @brief client_fini finalizes an execution context that is being used as a client. 
+ * Practically, a termination message is sent to the associated server (if any) vi a notification and the function will block until
+ * the notification completes. Then the object is entirely freed. In other words, upon returning from the function, the execution context
+ * is guaranteed to have been terminated, completely freed and the potential associated server notified of the termination.
+ * 
+ * @param[in,out] ctx Pointer of pointer to the execution to finalize. Upon success the execution context is set to NULL so it cannot be used any longer.
+ * 
+ */
+void client_fini(execution_context_t **ctx);
 
 void offload_config_free(offloading_config_t *cfg);
 
