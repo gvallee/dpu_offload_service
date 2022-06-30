@@ -10,7 +10,7 @@ As a result, in order to perform the offloading, all ranks in a team need to con
 to a service process running on a local DPU that implements the offloading capability.
 
 Since it is possible to have multiple service processes per DPU and to support XGVMI,
-we need to map which rank is connected to which service process (to support XGVMI
+we need to create a map of which rank is connected to which service process.
 operations).
 Since that mapping, called endpoint cache, needs to be distributed amongst all the
 service processes and all the ranks in the group, one of the difficulties is to know
