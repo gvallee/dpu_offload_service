@@ -18,3 +18,26 @@ It is also very easy to check for memory leaks while using notifications with Va
 ```
 $ valgrind --log-file=./self_comm.log --leak-check=full --show-leak-kinds=all ./tests/comms/.libs/lt-self_comm
 ```
+
+To find memory leaks in the context of a full job (not only self notifications), it is possible
+to execute a run such as:
+```
+mpirun \
+--hostfile $HOSTFILE \
+--np 2 \
+--map-by ppr:40:node \
+--bind-to core \
+--rank-by core \
+--display bind \
+--mca pml ucx \
+-x UCX_NET_DEVICES=mlx5_4:1 \
+-x UCX_TLS=rc_x \
+-x OFFLOAD_CONFIG_FILE_PATH \
+valgrind --leak-check=full --show-reachable=yes --log-file=a2av_ext.vg.%p \
+/global/home/users/geoffroy/scratch/projects/dpu_offload/x86_64/ucc-priv/tools/perf/.libs/lt-ucc_perftest -c alltoallv_ext -F -n 1 -w 0 -b 64 -e 64
+```
+
+Then use `grep` to isolate output specific to the offloading library:
+```
+grep "dpu_offload_" a2av_ext.vg.3163914
+```
