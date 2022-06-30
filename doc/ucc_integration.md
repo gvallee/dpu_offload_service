@@ -6,7 +6,7 @@ This document aims at giving high-level description of how the integration was d
 ## UCC team
 
 UCC teams ultimately represent MPI communciators to perform a collective operations.
-As a result, in order to perform the offloading, all ranks in the team need to connect
+As a result, in order to perform the offloading, all ranks in a team need to connect
 to a service process running on a local DPU that implements the offloading capability.
 
 Since it is possible to have multiple service processes per DPU and also because
