@@ -792,7 +792,12 @@ static dpu_offload_status_t do_event_return(dpu_offload_event_t *ev)
 {
     assert(ev);
     assert(ev->event_system);
-    assert(ev->was_posted == false);
+#if !NDEBUG
+    if (!ev->explicit_return)
+    {
+        assert(ev->was_posted == false);
+    }
+#endif
     if (ev->req)
     {
         WARN_MSG("returning event %p but it is still in progress", ev);
