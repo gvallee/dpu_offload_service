@@ -23,7 +23,6 @@ libdpuoffloadservice_la_CFLAGS = -L@top_builddir@/src/.libs
 libdpuoffloaddaemon_la_SOURCES = dpu_offload_service_daemon.c \
                                 dpu_offload_event_channels.c \
                                 dpu_offload_ops.c \
-                                dpu_offload_comm_channels.h \
                                 dpu_off_mem_mgt.h \
                                 dpu_offload_xgvmi.c \
                                 inter_dpus_comm.c \

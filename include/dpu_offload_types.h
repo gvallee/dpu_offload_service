@@ -109,6 +109,7 @@ typedef enum
     _ep;                                                                                        \
 })
 
+// Todo: rename the structure, it is not limited to clients
 typedef struct dest_client
 {
     ucp_ep_h ep;
@@ -1064,11 +1065,25 @@ struct offloading_engine; // forward declaration
 
 typedef enum
 {
+    // Bootstrapping is not yet initiated but bootstrapping can be initiated any time.
     BOOTSTRAP_NOT_INITIATED = 0,
+
+    // Bootstrapping OOB connection has been completed.
     OOB_CONNECT_DONE,
+
+    // UCX connection has been completed.
     UCX_CONNECT_DONE,
+
+    // The entire bootstrapping phase has been completed.
     BOOTSTRAP_DONE,
+
+    // All connections are now disconnected, a new bootstrapping is necessary to communicate again with the remote entity.
+    // The state may not be suitable to initiate a new bootstrapping.
+    DISCONNECTED,
 } bootstrap_phase_t;
+
+// Forward declaration
+struct dpu_offload_event;
 
 /**
  * @brief execution_context_t is the structure holding all the information related to DPU offloading, both on the hosts and DPUs.
@@ -1118,8 +1133,15 @@ typedef struct execution_context
     // Once completed, the element is returned to free_pending_rdv_recv.
     ucs_list_link_t pending_rdv_recvs;
 
-    /* Active operations that are running in the execution context */
+    // Active operations that are running in the execution context
     ucs_list_link_t active_ops;
+
+    // Termination is asynchronous so we need to be able to track the associated event, so we can 
+    // check for completion and invoke to final step of the execution context termination (which
+    // ends the notification system).
+    struct {
+        struct dpu_offload_event *ev;
+    } term;
 
     // During bootstrapping, the execution context acts either as a client or server.
     union
@@ -1140,6 +1162,7 @@ typedef struct execution_context
         (_e)->progress = NULL;              \
         RESET_RANK_INFO(&((_e)->rank));     \
         (_e)->free_pending_rdv_recv = NULL; \
+        (_e)->term.ev = NULL;               \
     } while (0)
 
 typedef struct pending_am_rdv_recv
@@ -1471,8 +1494,14 @@ typedef struct offloading_engine
     // Engine's worker
     ucp_worker_h ucp_worker;
 
+    // ucp_worker_allocated tracks whether the library allocated the worker. If so, it is freed when the engine is being finalized.
+    bool ucp_worker_allocated;
+
     // Engine's UCP context
     ucp_context_h ucp_context;
+
+    // ucp_context_allocated tracks whether the library allocated the UCP context. If so, it is freed when the engine is being finalized.
+    bool ucp_context_allocated;
 
     // Self endpoint
     ucp_ep_h self_ep;
@@ -1544,7 +1573,9 @@ typedef struct offloading_engine
         memset((_engine)->servers, 0, (_engine)->num_max_servers * sizeof(dpu_offload_server_t *));                 \
         (_engine)->self_econtext = NULL;                                                                            \
         (_engine)->ucp_worker = NULL;                                                                               \
+        (_engine)->ucp_worker_allocated = false;                                                                    \
         (_engine)->ucp_context = NULL;                                                                              \
+        (_engine)->ucp_context_allocated = false;                                                                   \
         (_engine)->self_ep = NULL;                                                                                  \
         (_engine)->num_inter_service_proc_clients = 0;                                                              \
         (_engine)->num_max_inter_service_proc_clients = DEFAULT_MAX_NUM_SERVERS;                                    \

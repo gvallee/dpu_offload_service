@@ -327,6 +327,11 @@ static void notif_payload_recv_handler(void *request, ucs_status_t status, const
         ucp_request_free(ctx->payload_ctx.req);
         ctx->payload_ctx.req = NULL;
     }
+    if (ctx->payload_ctx.buffer != NULL)
+    {
+        free(ctx->payload_ctx.buffer);
+        ctx->payload_ctx.buffer = NULL;
+    }
     ctx->payload_ctx.complete = true;
 }
 
@@ -412,6 +417,11 @@ static int post_recv_for_notif_payload(hdr_notif_req_t *ctx, execution_context_t
                 ucp_request_free(ctx->payload_ctx.req);
                 ctx->payload_ctx.req = NULL;
             }
+            if (ctx->payload_ctx.buffer != NULL)
+            {
+                free(ctx->payload_ctx.buffer);
+                ctx->payload_ctx.buffer = NULL;
+            }
             rc = EVENT_DONE;
         }
         else
@@ -476,6 +486,11 @@ static int post_new_notif_recv(ucp_worker_h worker, hdr_notif_req_t *ctx, execut
         assert(ctx->client_id < econtext->engine->num_service_procs);
     }
 #endif
+
+    // If the execution context is in the process of finalizing, do not post a new receive.
+    // Only valid when the execution context is a client or a server.
+    if ((econtext->type == CONTEXT_SERVER || econtext->type == CONTEXT_CLIENT) && EXECUTION_CONTEXT_DONE(econtext) == true)
+        return EVENT_INPROGRESS;
 
     // Post a new receive only if we are not already in the middle of receiving a notification
     if (ctx->complete == true && ctx->payload_ctx.complete == true)

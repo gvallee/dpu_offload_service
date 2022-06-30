@@ -566,7 +566,7 @@ int tag_send_event_msg(dpu_offload_event_t **event)
 #endif
 
     rc = do_tag_send_event_msg(*event);
-    if (rc == EVENT_DONE)
+    if (rc == EVENT_DONE && !((*event)->explicit_return))
     {
         COMPLETE_EVENT(*event);
         DBG("event %p send immediately completed", (*event));
@@ -684,7 +684,7 @@ int event_channel_emit(dpu_offload_event_t **event, uint64_t type, ucp_ep_h dest
             return DO_ERROR;
         }
 
-                dpu_offload_status_t return_rc = event_return(event);
+        dpu_offload_status_t return_rc = event_return(event);
         if (return_rc != DO_SUCCESS)
         {
             ERR_MSG("event_return() failed");
@@ -702,7 +702,6 @@ int event_channel_emit(dpu_offload_event_t **event, uint64_t type, ucp_ep_h dest
 #else
     rc = tag_send_event_msg(event);
 #endif // USE_AM_IMPLEM
-
     if (rc == EVENT_INPROGRESS)
     {
         QUEUE_EVENT(*event);
@@ -715,7 +714,6 @@ void event_channels_fini(dpu_offload_ev_sys_t **ev_sys)
     if (ev_sys == NULL || *ev_sys == NULL)
         return;
 
-    SYS_EVENT_LOCK(*ev_sys);
     if ((*ev_sys)->num_used_evs > 0)
     {
         WARN_MSG("%ld events objects have not been returned", (*ev_sys)->num_used_evs);
@@ -735,10 +733,11 @@ void event_channels_fini(dpu_offload_ev_sys_t **ev_sys)
     // CHECK_ERR_RETURN((status != UCS_OK), DO_ERROR, "unable to reset UCX AM recv handler");
 #endif // USE_AM_IMPLEM
 
+    assert((*ev_sys)->free_evs);
+    assert((*ev_sys)->free_pending_notifications);
     DYN_LIST_FREE((*ev_sys)->free_evs, dpu_offload_event_t, item);
     DYN_LIST_FREE((*ev_sys)->free_pending_notifications, pending_notification_t, item);
     DYN_ARRAY_FREE(&((*ev_sys)->notification_callbacks));
-    SYS_EVENT_UNLOCK(*ev_sys);
     free(*ev_sys);
     *ev_sys = NULL;
 }
@@ -792,7 +791,12 @@ static dpu_offload_status_t do_event_return(dpu_offload_event_t *ev)
 {
     assert(ev);
     assert(ev->event_system);
-    assert(ev->was_posted == false);
+#if !NDEBUG
+    if (!ev->explicit_return)
+    {
+        assert(ev->was_posted == false);
+    }
+#endif
     if (ev->req)
     {
         WARN_MSG("returning event %p but it is still in progress", ev);
@@ -1169,6 +1173,47 @@ static dpu_offload_status_t add_group_rank_recv_cb(struct dpu_offload_ev_sys *ev
     return DO_SUCCESS;
 }
 
+static dpu_offload_status_t term_msg_cb(struct dpu_offload_ev_sys *ev_sys, execution_context_t *econtext, am_header_t *hdr, size_t hdr_size, void *data, size_t data_len)
+{
+    assert(econtext);
+    // Termination messages never have a payload
+    assert(data == NULL);
+    assert(data_len == 0);
+    assert(hdr);
+
+    DBG("Recv'd a termination message from %" PRIu64, hdr->id);
+    switch(econtext->type) {
+        case CONTEXT_SERVER:
+        {
+            peer_info_t *client;
+            client = DYN_ARRAY_GET_ELT(&(econtext->server->connected_clients.clients), hdr->id, peer_info_t);
+            client->bootstrapping.phase = DISCONNECTED;
+            econtext->server->connected_clients.num_connected_clients--;
+            DBG("Remaining number of connected clients: %ld, ongoing connections: %ld",
+                econtext->server->connected_clients.num_connected_clients,
+                econtext->server->connected_clients.num_ongoing_connections);
+            if (econtext->server->connected_clients.num_connected_clients == 0 && econtext->server->connected_clients.num_ongoing_connections == 0)
+            {
+                DBG("server is now done");
+                econtext->server->done = true;
+            }
+            break;
+        }
+        case CONTEXT_CLIENT:
+        {
+            // The server sent us a termination message, we immediatly switch our state to done
+            econtext->client->done = true;
+            break;
+        }
+        default:
+        {
+            ERR_MSG("Recv'd a termination message on execution context of type %d", econtext->type);
+            return DO_ERROR;
+        }
+    }
+    return DO_SUCCESS;
+}
+
 /*************************************/
 /* Registration of all the callbacks */
 /*************************************/
@@ -1178,7 +1223,10 @@ dpu_offload_status_t register_default_notifications(dpu_offload_ev_sys_t *ev_sys
     CHECK_ERR_RETURN((ev_sys == NULL), DO_ERROR, "Undefined event channels");
     SYS_EVENT_LOCK(ev_sys);
 
-    int rc = event_channel_register(ev_sys, AM_OP_START_MSG_ID, op_start_cb);
+    int rc = event_channel_register(ev_sys, AM_TERM_MSG_ID, term_msg_cb);
+    CHECK_ERR_GOTO(rc, error_out, "cannot register handler to the term notification");
+    
+    rc = event_channel_register(ev_sys, AM_OP_START_MSG_ID, op_start_cb);
     CHECK_ERR_GOTO(rc, error_out, "cannot register handler to start operations");
 
     rc = event_channel_register(ev_sys, AM_OP_COMPLETION_MSG_ID, op_completion_cb);
@@ -1204,4 +1252,29 @@ dpu_offload_status_t register_default_notifications(dpu_offload_ev_sys_t *ev_sys
 error_out:
     SYS_EVENT_UNLOCK(ev_sys);
     return DO_ERROR;
+}
+
+/****************************************/
+/* Termination message util function(s) */
+/****************************************/
+
+dpu_offload_status_t send_term_msg(execution_context_t *ctx, dest_client_t *dest_info)
+{
+    dpu_offload_event_t *ev;
+    dpu_offload_status_t rc;
+
+    CHECK_ERR_RETURN((ctx == NULL), DO_ERROR, "undefined execution context");
+    CHECK_ERR_RETURN((dest_info == NULL), DO_ERROR, "undefined destination");
+
+    rc = event_get(ctx->event_channels, NULL, &ev);
+    CHECK_ERR_RETURN((rc), DO_ERROR, "event_get() failed");
+    assert(ev);
+    ev->explicit_return = true;
+
+    rc = event_channel_emit(&ev, AM_TERM_MSG_ID, dest_info->ep, dest_info->id, NULL);
+    // We explicitly manage the event so the return code must be EVENT_INPROGRESS
+    CHECK_ERR_RETURN((rc != EVENT_INPROGRESS), DO_ERROR, "event_channel_emit() failed");
+
+    ctx->term.ev = ev;
+    return DO_SUCCESS;
 }
