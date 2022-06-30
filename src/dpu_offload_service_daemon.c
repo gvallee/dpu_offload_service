@@ -516,6 +516,7 @@ static void send_cb(void *request, ucs_status_t status, void *user_data)
             if ((_econtext)->engine->ucp_context == NULL)                                         \
             {                                                                                     \
                 (_econtext)->engine->ucp_context = INIT_UCX();                                    \
+                (_econtext)->engine->ucp_context_allocated = true;                                \
             }                                                                                     \
             if ((_econtext)->engine->ucp_worker == NULL)                                          \
             {                                                                                     \
@@ -523,6 +524,7 @@ static void send_cb(void *request, ucs_status_t status, void *user_data)
                                                          &(_econtext_worker));                    \
                 CHECK_ERR_RETURN((_ret != 0), DO_ERROR, "init_context() failed");                 \
                 SET_WORKER((_econtext), _econtext_worker);                                        \
+                (_econtext)->engine->ucp_worker_allocated = true;                                 \
                 _worker_set = true;                                                               \
                 DBG("context successfully initialized (worker=%p)", _econtext_worker);            \
             }                                                                                     \
@@ -1593,10 +1595,12 @@ static void term_notification_completed(execution_context_t *econtext)
 
     if (econtext->client->server_ep)
     {
-        ep_close(GET_WORKER(econtext), econtext->client->server_ep);
+        // FIXME: this is creating a crash
+        //ep_close(GET_WORKER(econtext), econtext->client->server_ep);
         econtext->client->server_ep = NULL;
     }
 
+    // Free memory allocated during bootstrapping
     switch (econtext->client->mode)
     {
     case UCX_LISTENER:
@@ -1626,7 +1630,42 @@ static void term_notification_completed(execution_context_t *econtext)
         }
     }
 
-    EXECUTION_CONTEXT_DONE(econtext);
+
+    switch(econtext->type)
+    {
+        case CONTEXT_CLIENT:
+        {
+            // Free resources to receive notifications
+#if !USE_AM_IMPLEM
+            if (econtext->event_channels->notif_recv.ctx.req != NULL)
+            {
+                ucp_request_cancel(GET_WORKER(econtext), &(econtext->event_channels->notif_recv.ctx.req));
+                ucp_request_release(econtext->event_channels->notif_recv.ctx.req);
+                econtext->event_channels->notif_recv.ctx.req = NULL;
+            }
+            if (econtext->event_channels->notif_recv.ctx.payload_ctx.req != NULL)
+            {
+                ucp_request_cancel(GET_WORKER(econtext), &(econtext->event_channels->notif_recv.ctx.payload_ctx.req));
+                ucp_request_release(econtext->event_channels->notif_recv.ctx.payload_ctx.req);
+                econtext->event_channels->notif_recv.ctx.payload_ctx.req = NULL;
+            }
+#endif
+            econtext->client->done = true;
+            break;
+        }
+        case CONTEXT_SERVER:
+        {
+            // Free resources to receive notifications
+            #if !USE_AM_IMPLEM
+            #endif
+            econtext->server->done = true;
+            break;
+        }
+        default:
+        {
+            ERR_MSG("invalid execution context type (%d)", econtext->type);
+        }
+    }
 }
 
 static void execution_context_progress(execution_context_t *econtext)
@@ -1700,8 +1739,8 @@ error_out:
 
 static void execution_context_fini(execution_context_t **ctx)
 {
+#if USE_AM_IMPLEM
     size_t i;
-    assert(ucs_list_is_empty(&((*ctx)->pending_rdv_recvs)));
     for (i = 0; i < (*ctx)->free_pending_rdv_recv->num_elts; i++)
     {
         pending_am_rdv_recv_t *elt;
@@ -1716,6 +1755,7 @@ static void execution_context_fini(execution_context_t **ctx)
     }
 
     DYN_LIST_FREE((*ctx)->free_pending_rdv_recv, pending_am_rdv_recv_t, item);
+#endif
 
     if ((*ctx)->event_channels)
     {
@@ -1840,7 +1880,8 @@ void offload_engine_fini(offloading_engine_t **offload_engine)
 {
     assert(offload_engine);
     assert(*offload_engine);
-    event_channels_fini(&((*offload_engine)->default_notifications));
+    // FIXME: this creates a segfault
+    //event_channels_fini(&((*offload_engine)->default_notifications));
     GROUPS_CACHE_FINI(&((*offload_engine)->procs_cache));
     DYN_LIST_FREE((*offload_engine)->free_op_descs, op_desc_t, item);
     DYN_LIST_FREE((*offload_engine)->free_cache_entry_requests, cache_entry_request_t, item);
@@ -1870,13 +1911,13 @@ void offload_engine_fini(offloading_engine_t **offload_engine)
         // engine->config is usually not allocate with malloc, no need to free it here
     }
 
-    if ((*offload_engine)->ucp_worker)
+    if ((*offload_engine)->ucp_worker_allocated && (*offload_engine)->ucp_worker)
     {
         ucp_worker_destroy((*offload_engine)->ucp_worker);
         (*offload_engine)->ucp_worker = NULL;
     }
 
-    if ((*offload_engine)->ucp_context)
+    if ((*offload_engine)->ucp_context_allocated && (*offload_engine)->ucp_context)
     {
         ucp_cleanup((*offload_engine)->ucp_context);
         (*offload_engine)->ucp_context = NULL;
@@ -1911,13 +1952,17 @@ void client_fini(execution_context_t **exec_ctx)
         ERR_MSG("send_term_msg() failed");
         return;
     }
+    assert(context->term.ev);
     DBG("Termination message successfully emitted");
 
     // Loop until the term message completes
-    while (context->client->bootstrapping.phase != DISCONNECTED)
+    while (context->client->done == false)
+    {
+        // We explicitly manage the event so we need to progress it here
         context->progress(context);
+    }
 
-    event_channels_fini(&(context->client->event_channels));
+    // The event system is finalized when we finalize the execution context object.
     ucp_worker_destroy(GET_WORKER(*exec_ctx));
 
     free((*exec_ctx)->client);
@@ -2396,7 +2441,7 @@ void server_fini(execution_context_t **exec_ctx)
         }
     }
 
-    event_channels_fini(&(server->event_channels));
+    // The event system is freed when the execution context object is finalized
     ucp_worker_destroy(GET_WORKER(*exec_ctx));
 
     DYN_ARRAY_FREE(&(server->local_groups_sent_to_host));

@@ -1494,8 +1494,14 @@ typedef struct offloading_engine
     // Engine's worker
     ucp_worker_h ucp_worker;
 
+    // ucp_worker_allocated tracks whether the library allocated the worker. If so, it is freed when the engine is being finalized.
+    bool ucp_worker_allocated;
+
     // Engine's UCP context
     ucp_context_h ucp_context;
+
+    // ucp_context_allocated tracks whether the library allocated the UCP context. If so, it is freed when the engine is being finalized.
+    bool ucp_context_allocated;
 
     // Self endpoint
     ucp_ep_h self_ep;
@@ -1571,7 +1577,9 @@ typedef struct offloading_engine
         memset((_engine)->servers, 0, (_engine)->num_max_servers * sizeof(dpu_offload_server_t *));                 \
         (_engine)->self_econtext = NULL;                                                                            \
         (_engine)->ucp_worker = NULL;                                                                               \
+        (_engine)->ucp_worker_allocated = false;                                                                    \
         (_engine)->ucp_context = NULL;                                                                              \
+        (_engine)->ucp_context_allocated = false;                                                                   \
         (_engine)->self_ep = NULL;                                                                                  \
         (_engine)->num_inter_service_proc_clients = 0;                                                              \
         (_engine)->num_max_inter_service_proc_clients = DEFAULT_MAX_NUM_SERVERS;                                    \
