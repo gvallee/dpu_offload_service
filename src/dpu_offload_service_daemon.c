@@ -1642,13 +1642,13 @@ static void term_notification_completed(execution_context_t *econtext)
 #if !USE_AM_IMPLEM
             if (econtext->event_channels->notif_recv.ctx.req != NULL)
             {
-                ucp_request_cancel(GET_WORKER(econtext), &(econtext->event_channels->notif_recv.ctx.req));
+                ucp_request_cancel(GET_WORKER(econtext), econtext->event_channels->notif_recv.ctx.req);
                 ucp_request_release(econtext->event_channels->notif_recv.ctx.req);
                 econtext->event_channels->notif_recv.ctx.req = NULL;
             }
             if (econtext->event_channels->notif_recv.ctx.payload_ctx.req != NULL)
             {
-                ucp_request_cancel(GET_WORKER(econtext), &(econtext->event_channels->notif_recv.ctx.payload_ctx.req));
+                ucp_request_cancel(GET_WORKER(econtext), econtext->event_channels->notif_recv.ctx.payload_ctx.req);
                 ucp_request_release(econtext->event_channels->notif_recv.ctx.payload_ctx.req);
                 econtext->event_channels->notif_recv.ctx.payload_ctx.req = NULL;
             }
