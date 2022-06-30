@@ -1889,6 +1889,23 @@ void offload_engine_fini(offloading_engine_t **offload_engine)
     DYN_LIST_FREE((*offload_engine)->free_cache_entry_requests, cache_entry_request_t, item);
     DYN_ARRAY_FREE(&((*offload_engine)->dpus));
     assert((*offload_engine)->self_econtext);
+#if !USE_AM_IMPLEM
+    // Before finalizing the self execution context, clean up the pending recvs for notifications
+    if ((*offload_engine)->self_econtext->event_channels->notif_recv.ctx.req != NULL)
+    {
+        ucp_request_cancel(GET_WORKER((*offload_engine)->self_econtext),
+                           (*offload_engine)->self_econtext->event_channels->notif_recv.ctx.req);
+        ucp_request_release((*offload_engine)->self_econtext->event_channels->notif_recv.ctx.req);
+        (*offload_engine)->self_econtext->event_channels->notif_recv.ctx.req = NULL;
+    }
+    if ((*offload_engine)->self_econtext->event_channels->notif_recv.ctx.payload_ctx.req != NULL)
+    {
+        ucp_request_cancel(GET_WORKER((*offload_engine)->self_econtext),
+                           (*offload_engine)->self_econtext->event_channels->notif_recv.ctx.payload_ctx.req);
+        ucp_request_release((*offload_engine)->self_econtext->event_channels->notif_recv.ctx.payload_ctx.req);
+        (*offload_engine)->self_econtext->event_channels->notif_recv.ctx.payload_ctx.req = NULL;
+    }
+#endif
     execution_context_fini(&((*offload_engine)->self_econtext));
 
     if ((*offload_engine)->client)
