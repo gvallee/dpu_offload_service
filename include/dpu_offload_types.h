@@ -1531,12 +1531,8 @@ typedef struct offloading_engine
 #define RESET_ENGINE(_engine, _ret)                                                                                 \
     do                                                                                                              \
     {                                                                                                               \
-        _ret = pthread_mutex_init(&((_engine)->mutex), NULL);                                                       \
-        if (_ret)                                                                                                   \
-        {                                                                                                           \
-            ERR_MSG("pthread_mutex_init() failed: %s", strerror(errno));                                            \
-            break;                                                                                                  \
-        }                                                                                                           \
+        _ret = 0;                                                                                                   \
+        (_engine)->mutex = (pthread_mutex_t)PTHREAD_ERRORCHECK_MUTEX_INITIALIZER_NP;                                \
         (_engine)->done = false;                                                                                    \
         (_engine)->config = NULL;                                                                                   \
         (_engine)->client = NULL;                                                                                   \

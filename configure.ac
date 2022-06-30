@@ -45,6 +45,7 @@ LT_INIT
 dnl # pthread
 
 AC_CHECK_HEADERS(pthread.h,, [AC_MSG_ERROR([pthread.h required])])
+AC_SUBST([CPPFLAGS],["$CPPFLAGS -D_GNU_SOURCE"])
 AC_SUBST([LIBS],["$LIBS -lpthread"])
 AC_CHECK_LIB(pthread, pthread_create,,AC_MSG_ERROR([Cannot use pthread lib]))
 
