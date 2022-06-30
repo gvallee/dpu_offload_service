@@ -327,6 +327,11 @@ static void notif_payload_recv_handler(void *request, ucs_status_t status, const
         ucp_request_free(ctx->payload_ctx.req);
         ctx->payload_ctx.req = NULL;
     }
+    if (ctx->payload_ctx.buffer != NULL)
+    {
+        free(ctx->payload_ctx.buffer);
+        ctx->payload_ctx.buffer = NULL;
+    }
     ctx->payload_ctx.complete = true;
 }
 
@@ -411,6 +416,11 @@ static int post_recv_for_notif_payload(hdr_notif_req_t *ctx, execution_context_t
                 assert(ctx->payload_ctx.complete == true);
                 ucp_request_free(ctx->payload_ctx.req);
                 ctx->payload_ctx.req = NULL;
+            }
+            if (ctx->payload_ctx.buffer != NULL)
+            {
+                free(ctx->payload_ctx.buffer);
+                ctx->payload_ctx.buffer = NULL;
             }
             rc = EVENT_DONE;
         }
