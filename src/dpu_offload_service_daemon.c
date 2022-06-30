@@ -1963,7 +1963,7 @@ void client_fini(execution_context_t **exec_ctx)
     }
 
     // The event system is finalized when we finalize the execution context object.
-    ucp_worker_destroy(GET_WORKER(*exec_ctx));
+    // The worker is freed when the engine is finalized.
 
     free((*exec_ctx)->client);
     (*exec_ctx)->client = NULL;
@@ -2442,7 +2442,7 @@ void server_fini(execution_context_t **exec_ctx)
     }
 
     // The event system is freed when the execution context object is finalized
-    ucp_worker_destroy(GET_WORKER(*exec_ctx));
+    // The worker is freed when the engine is finalized
 
     DYN_ARRAY_FREE(&(server->local_groups_sent_to_host));
 
