@@ -11,7 +11,7 @@ to a service process running on a local DPU that implements the offloading capab
 
 Since it is possible to have multiple service processes per DPU and to support XGVMI,
 we need to create a map of which rank is connected to which service process.
-Since that mapping, called endpoint cache, needs to be distributed amongst all the
+Since that mapping, implemented through a endpoint cache, needs to be distributed amongst all the
 service processes and all the ranks in the group, one of the difficulties is to know
 when all the ranks that are supposed to connect to a given service process are ready
 so the service processes can exchange their cache entries for their ranks with other
