@@ -16,16 +16,23 @@
 // Set to 1 to use the AM implementaton; 0 to use tag send/recv implementation
 #define USE_AM_IMPLEM (0)
 
-#define QUEUE_EVENT(__ev)                                                        \
-    do                                                                           \
-    {                                                                            \
-        if((__ev)->is_subevent == false)                                         \
-        {                                                                        \
-            assert((__ev)->is_ongoing_event == false);                           \
-            ucs_list_add_tail(&((__ev)->event_system->econtext->ongoing_events), \
-                              &((__ev)->item));                                  \
-            (__ev)->is_ongoing_event = true;                                     \
-        }                                                                        \
+#define QUEUE_EVENT(__ev)                                                            \
+    do                                                                               \
+    {                                                                                \
+        if((__ev)->explicit_return)                                                  \
+        {                                                                            \
+            /* The event is flagged for manual management, do not queue */           \
+        }                                                                            \
+        else                                                                         \
+        {                                                                            \
+            if((__ev)->is_subevent == false)                                         \
+            {                                                                        \
+                assert((__ev)->is_ongoing_event == false);                           \
+                ucs_list_add_tail(&((__ev)->event_system->econtext->ongoing_events), \
+                                  &((__ev)->item));                                  \
+                (__ev)->is_ongoing_event = true;                                     \
+            }                                                                        \
+        }                                                                            \
     } while(0)
 
 #define QUEUE_SUBEVENT(_metaev, _ev)                                   \
