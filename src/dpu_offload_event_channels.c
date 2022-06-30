@@ -567,7 +567,7 @@ int tag_send_event_msg(dpu_offload_event_t **event)
 #endif
 
     rc = do_tag_send_event_msg(*event);
-    if (rc == EVENT_DONE)
+    if (rc == EVENT_DONE && !((*event)->explicit_return))
     {
         COMPLETE_EVENT(*event);
         DBG("event %p send immediately completed", (*event));
@@ -685,7 +685,7 @@ int event_channel_emit(dpu_offload_event_t **event, uint64_t type, ucp_ep_h dest
             return DO_ERROR;
         }
 
-                dpu_offload_status_t return_rc = event_return(event);
+        dpu_offload_status_t return_rc = event_return(event);
         if (return_rc != DO_SUCCESS)
         {
             ERR_MSG("event_return() failed");
@@ -703,7 +703,6 @@ int event_channel_emit(dpu_offload_event_t **event, uint64_t type, ucp_ep_h dest
 #else
     rc = tag_send_event_msg(event);
 #endif // USE_AM_IMPLEM
-
     if (rc == EVENT_INPROGRESS)
     {
         QUEUE_EVENT(*event);
@@ -716,7 +715,6 @@ void event_channels_fini(dpu_offload_ev_sys_t **ev_sys)
     if (ev_sys == NULL || *ev_sys == NULL)
         return;
 
-    SYS_EVENT_LOCK(*ev_sys);
     if ((*ev_sys)->num_used_evs > 0)
     {
         WARN_MSG("%ld events objects have not been returned", (*ev_sys)->num_used_evs);
@@ -736,10 +734,11 @@ void event_channels_fini(dpu_offload_ev_sys_t **ev_sys)
     // CHECK_ERR_RETURN((status != UCS_OK), DO_ERROR, "unable to reset UCX AM recv handler");
 #endif // USE_AM_IMPLEM
 
+    assert((*ev_sys)->free_evs);
+    assert((*ev_sys)->free_pending_notifications);
     DYN_LIST_FREE((*ev_sys)->free_evs, dpu_offload_event_t, item);
     DYN_LIST_FREE((*ev_sys)->free_pending_notifications, pending_notification_t, item);
     DYN_ARRAY_FREE(&((*ev_sys)->notification_callbacks));
-    SYS_EVENT_UNLOCK(*ev_sys);
     free(*ev_sys);
     *ev_sys = NULL;
 }
@@ -1265,13 +1264,13 @@ dpu_offload_status_t send_term_msg(execution_context_t *ctx, dest_client_t *dest
 
     rc = event_get(ctx->event_channels, NULL, &ev);
     CHECK_ERR_RETURN((rc), DO_ERROR, "event_get() failed");
-
-    ev->explicit_return = true;
-    ctx->term.ev = ev;
-
     assert(ev);
-    rc = event_channel_emit(&ev, AM_TERM_MSG_ID, dest_info->ep, dest_info->id, NULL);
-    CHECK_ERR_RETURN((rc), DO_ERROR, "event_channel_emit() failed");
+    ev->explicit_return = true;
 
+    rc = event_channel_emit(&ev, AM_TERM_MSG_ID, dest_info->ep, dest_info->id, NULL);
+    // We explicitly manage the event so the return code must be EVENT_INPROGRESS
+    CHECK_ERR_RETURN((rc != EVENT_INPROGRESS), DO_ERROR, "event_channel_emit() failed");
+
+    ctx->term.ev = ev;
     return DO_SUCCESS;
 }
