@@ -31,5 +31,5 @@ Finally, note that the current implementation starts offloading operations only 
 the endpoint cache is fully populated, mainly to ensure that all the data required
 to perform any XGVMI operations between any rank and any service process is possible.
 In other words, the current implementation has a synchronization point on the host to
-make sure that the cache is populated, which also implies that the cache is also
+make sure that the cache is populated, which also implies that the cache is 
 virtually populated on all service processes.
