@@ -297,8 +297,14 @@ error_out:
 static void notif_payload_recv_handler(void *request, ucs_status_t status, const ucp_tag_recv_info_t *tag_info, void *user_data)
 {
     int rc;
+    hdr_notif_req_t *ctx;
+    if (status == UCS_ERR_CANCELED)
+    {
+        // Callback was invoked during finalization when the notification recv is canceled. Do nothing.
+        return;
+    }
     assert(status == UCS_OK);
-    hdr_notif_req_t *ctx = (hdr_notif_req_t *)user_data;
+    ctx = (hdr_notif_req_t *)user_data;
     assert(ctx);
     assert(ctx->econtext);
     DBG("Notification payload received, ctx=%p econtext=%p type=%ld", ctx, ctx->econtext, ctx->hdr.type);
@@ -531,6 +537,11 @@ static int post_new_notif_recv(ucp_worker_h worker, hdr_notif_req_t *ctx, execut
 static void notif_hdr_recv_handler(void *request, ucs_status_t status, const ucp_tag_recv_info_t *tag_info, void *user_data)
 {
     hdr_notif_req_t *ctx = (hdr_notif_req_t *)user_data;
+    if (status == UCS_ERR_CANCELED)
+    {
+        // Callback was invoked during finalization when the notification recv is canceled. Do nothing.
+        return;
+    }
     assert(status == UCS_OK);
     assert(tag_info->length == sizeof(am_header_t));
 #if !NDEBUG
