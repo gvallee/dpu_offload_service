@@ -477,6 +477,11 @@ static int post_new_notif_recv(ucp_worker_h worker, hdr_notif_req_t *ctx, execut
     }
 #endif
 
+    // If the execution context is in the process of finalizing, do not post a new receive.
+    // Only valid when the execution context is a client or a server.
+    if ((econtext->type == CONTEXT_SERVER || econtext->type == CONTEXT_CLIENT) && EXECUTION_CONTEXT_DONE(econtext) == true)
+        return EVENT_INPROGRESS;
+
     // Post a new receive only if we are not already in the middle of receiving a notification
     if (ctx->complete == true && ctx->payload_ctx.complete == true)
     {
