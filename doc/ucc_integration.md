@@ -9,7 +9,7 @@ UCC teams ultimately represent MPI communciators to perform a collective operati
 As a result, in order to perform the offloading, all ranks in a team need to connect
 to a service process running on a local DPU that implements the offloading capability.
 
-Since it is possible to have multiple service processes per DPU and also because
+Since it is possible to have multiple service processes per DPU and to support XGVMI,
 we need to map which rank is connected to which service process (to support XGVMI
 operations).
 Since that mapping, called endpoint cache, needs to be distributed amongst all the
