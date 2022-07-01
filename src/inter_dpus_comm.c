@@ -195,7 +195,7 @@ dpu_offload_parse_list_dpus(offloading_engine_t *engine, offloading_config_t *co
                                  config_data->local_service_proc.info.local_id -
                                  1;
 
-            // Update the list of SP we need to connect to with the other SPs on the same DPU that require me to
+            // Update the list of SPs we need to connect to with the other SPs on the same DPU that require me to
             // connect to them
             if (n_sp_connecting_to > 0)
             {
@@ -309,7 +309,7 @@ void connected_to_server_dpu(void *data)
     bool can_exchange_cache = false;
     connected_peer_data_t *connected_peer = (connected_peer_data_t *)data;
 
-    DBG("Successfully connected to remote service process %" PRIu64 " running in the context server DPU #%" PRIu64 " at %s (econtext: %p)\n",
+    DBG("Successfully connected to remote service process %" PRIu64 " running in the context server SP #%" PRIu64 " at %s (econtext: %p)",
         connected_peer->global_peer_id, connected_peer->peer_id, connected_peer->peer_addr, connected_peer->econtext);
     set_default_econtext(connected_peer);
 

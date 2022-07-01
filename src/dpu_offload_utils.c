@@ -295,11 +295,10 @@ dpu_offload_status_t send_local_rank_group_cache(execution_context_t *econtext, 
     bool idx_start_set = false;
     bool idx_end_set = false;
 #endif
-    assert(gp_cache->n_local_ranks_populated == gp_cache->n_local_ranks);
-    DBG("Sending group cache %ld for local ranks: %ld entries", gp_id, gp_cache->n_local_ranks);
+    DBG("Sending group cache %ld for local ranks: %ld entries", gp_id, gp_cache->n_local_ranks_populated);
     count = 0;
     idx = 0;
-    while (count < gp_cache->n_local_ranks)
+    while (count < gp_cache->n_local_ranks_populated)
     {
         size_t n_entries_to_send;
         size_t idx_start;
@@ -1312,6 +1311,19 @@ execution_context_t *get_server_servicing_host(offloading_engine_t *engine)
     }
 
     return NULL;
+}
+
+dpu_offload_status_t get_num_connecting_ranks(uint64_t num_service_procs_per_dpu, int64_t n_local_ranks, uint64_t sp_lid, uint64_t *n_ranks)
+{
+    uint64_t base = (uint64_t) n_local_ranks / num_service_procs_per_dpu;
+    uint64_t rest = (uint64_t) n_local_ranks - (num_service_procs_per_dpu * base);
+    if (sp_lid < rest)
+    {
+        *n_ranks = base + 1;
+        return DO_SUCCESS;
+    }
+    *n_ranks = base;
+    return DO_SUCCESS;
 }
 
 dpu_offload_status_t get_local_service_proc_connect_info(offloading_config_t *cfg, rank_info_t *rank_info, init_params_t *init_params)

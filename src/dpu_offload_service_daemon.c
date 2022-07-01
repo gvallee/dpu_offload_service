@@ -247,7 +247,6 @@ static inline dpu_offload_status_t oob_server_ucx_client_connection_step3(execut
     DBG("endpoint %p successfully created", client_ep);
 
     // receive the rank/group data
-    DBG("Ready to receive peer data\n");
     ucp_tag_t ucp_tag, ucp_tag_mask;
     ucp_request_param_t recv_param = {0};
     recv_param.op_attr_mask = UCP_OP_ATTR_FIELD_CALLBACK |
@@ -256,7 +255,6 @@ static inline dpu_offload_status_t oob_server_ucx_client_connection_step3(execut
     recv_param.datatype = ucp_dt_make_contig(1);
     recv_param.user_data = &(client_info->bootstrapping.rank_ctx);
     recv_param.cb.recv = oob_recv_addr_handler_2;
-    DBG("Tag: %d; scope_id: %d\n", econtext->server->conn_data.oob.tag, econtext->scope_id);
     MAKE_RECV_TAG(ucp_tag,
                   ucp_tag_mask,
                   econtext->server->conn_data.oob.tag,
@@ -1452,8 +1450,13 @@ static void progress_server_econtext(execution_context_t *ctx)
                         client_info->rank_data.group_id != INVALID_GROUP &&
                         client_info->rank_data.group_rank != INVALID_RANK)
                     {
+                        uint64_t n_connecting_ranks;
+                        get_num_connecting_ranks(ctx->engine->config->num_service_procs_per_dpu,
+                                                 client_info->rank_data.n_local_ranks,
+                                                 ctx->engine->config->local_service_proc.info.local_id,
+                                                 &n_connecting_ranks);
                         group_cache_t *gp_cache = GET_GROUP_CACHE(&(ctx->engine->procs_cache), client_info->rank_data.group_id);
-                        if (gp_cache->n_local_ranks > 0 && gp_cache->n_local_ranks_populated == gp_cache->n_local_ranks)
+                        if (gp_cache->n_local_ranks > 0 && gp_cache->n_local_ranks_populated == n_connecting_ranks)
                         {
                             DBG("We now have a connection with all the local ranks, we can broadcast the group cache at once");
                             broadcast_group_cache(ctx->engine, client_info->rank_data.group_id);
@@ -1578,6 +1581,9 @@ static void progress_client_econtext(execution_context_t *ctx)
                 assert(ctx->client->conn_params.addr_str);
                 cb_data.peer_addr = ctx->client->conn_params.addr_str;
                 cb_data.econtext = ctx;
+                cb_data.peer_id = ctx->client->server_id;
+                cb_data.global_peer_id = ctx->client->server_global_id;
+                cb_data.rank_info = ctx->rank;
                 ctx->client->connected_cb(&cb_data);
             }
         }
