@@ -64,9 +64,9 @@ extern debug_config_t dbg_cfg;
         gethostname(myhostname, 1023);                                                      \
         if (getenv(DPU_OFFLOAD_SERVICE_PROCESS_GLOBAL_ID_ENVVAR))                           \
         {                                                                                   \
-            int sp = atoi(getenv(DPU_OFFLOAD_SERVICE_PROCESS_GLOBAL_ID_ENVVAR));            \
+            int __sp = atoi(getenv(DPU_OFFLOAD_SERVICE_PROCESS_GLOBAL_ID_ENVVAR));          \
             fprintf(stderr, "[%s:l.%d:%s:pid=%d:SP=%d] ERROR: %s() failed. " _err_fmt "\n", \
-                    __FILE__, __LINE__, myhostname, getpid(), sp,                           \
+                    __FILE__, __LINE__, myhostname, getpid(), __sp,                         \
                     __func__ __VA_OPT__(, ) __VA_ARGS__);                                   \
         }                                                                                   \
         else                                                                                \
@@ -85,10 +85,10 @@ extern debug_config_t dbg_cfg;
         gethostname(myhostname, 1023);                                              \
         if (getenv(DPU_OFFLOAD_SERVICE_PROCESS_GLOBAL_ID_ENVVAR))                   \
         {                                                                           \
-            int sp = atoi(getenv(DPU_OFFLOAD_SERVICE_PROCESS_GLOBAL_ID_ENVVAR));    \
+            int __sp = atoi(getenv(DPU_OFFLOAD_SERVICE_PROCESS_GLOBAL_ID_ENVVAR));  \
             fprintf(stderr, "[%s:l.%d:%s():%s:pid=%d:SP=%d] WARN: " _warn_fmt "\n", \
                     __FILE__, __LINE__, __func__, myhostname,                       \
-                    getpid(), sp __VA_OPT__(, ) __VA_ARGS__);                       \
+                    getpid(), __sp __VA_OPT__(, ) __VA_ARGS__);                     \
         }                                                                           \
         else                                                                        \
         {                                                                           \
@@ -106,10 +106,10 @@ extern debug_config_t dbg_cfg;
         gethostname(myhostname, 1023);                                              \
         if (getenv(DPU_OFFLOAD_SERVICE_PROCESS_GLOBAL_ID_ENVVAR))                   \
         {                                                                           \
-            int sp = atoi(getenv(DPU_OFFLOAD_SERVICE_PROCESS_GLOBAL_ID_ENVVAR));    \
+            int __sp = atoi(getenv(DPU_OFFLOAD_SERVICE_PROCESS_GLOBAL_ID_ENVVAR));  \
             fprintf(stderr, "[%s:l.%d:%s():%s:pid=%d:SP=%d] INFO: " _info_fmt "\n", \
                     __FILE__, __LINE__, __func__, myhostname,                       \
-                    getpid(), sp __VA_OPT__(, ) __VA_ARGS__);                       \
+                    getpid(), __sp __VA_OPT__(, ) __VA_ARGS__);                     \
         }                                                                           \
         else                                                                        \
         {                                                                           \
