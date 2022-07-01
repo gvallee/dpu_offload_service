@@ -68,15 +68,25 @@ extern debug_config_t dbg_cfg;
                 getpid() __VA_OPT__(, ) __VA_ARGS__);                     \
     } while (0)
 
-#define INFO_MSG(_info_fmt, ...)                                          \
-    do                                                                    \
-    {                                                                     \
-        char myhostname[1024];                                            \
-        myhostname[1023] = '\0';                                          \
-        gethostname(myhostname, 1023);                                    \
-        fprintf(stderr, "[%s:l.%d:%s():%s:pid=%d] INFO: " _info_fmt "\n", \
-                __FILE__, __LINE__, __func__, myhostname,                 \
-                getpid() __VA_OPT__(, ) __VA_ARGS__);                     \
+#define INFO_MSG(_info_fmt, ...)                                                    \
+    do                                                                              \
+    {                                                                               \
+        char myhostname[1024];                                                      \
+        myhostname[1023] = '\0';                                                    \
+        gethostname(myhostname, 1023);                                              \
+        if (getenv(DPU_OFFLOAD_SERVICE_PROCESS_GLOBAL_ID_ENVVAR))                   \
+        {                                                                           \
+            int sp = atoi(getenv(DPU_OFFLOAD_SERVICE_PROCESS_GLOBAL_ID_ENVVAR));    \
+            fprintf(stderr, "[%s:l.%d:%s():%s:pid=%d:SP=%d] INFO: " _info_fmt "\n", \
+                    __FILE__, __LINE__, __func__, myhostname,                       \
+                    getpid(), sp __VA_OPT__(, ) __VA_ARGS__);                       \
+        }                                                                           \
+        else                                                                        \
+        {                                                                           \
+            fprintf(stderr, "[%s:l.%d:%s():%s:pid=%d] INFO: " _info_fmt "\n",       \
+                    __FILE__, __LINE__, __func__, myhostname,                       \
+                    getpid() __VA_OPT__(, ) __VA_ARGS__);                           \
+        }                                                                           \
     } while (0)
 
 #if !NDEBUG
