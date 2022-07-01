@@ -2,20 +2,7 @@
 
 ## Format of the configuration file.
 
-Example of configuration files are in `etc/platforms/`.
-
-All configuration files must start with a line such as `# Format version: 1`, which specifies the format version that is used throughout the configuration file.
-This is used by the infrastructure to determine how to extract the required data from the configuration file.
-
-Them, each line represents the configuration of a host, i.e., information about the host itself and all the DPUs local to the host.
-Each line has the following format:
-```
-<[full host name],[first DPU full hostname]:[first DPU UP ADDRESS]:[PORT FOR INTER-DPU CONNECTION]:[PORT FOR CONNECTION WITH LOCAL HOST],[...]>
-```
-
-It is recommanded to create a configuration file per platform. In other words, there is no need to customize configuration files for a specific job.
-The infrastructure is capable of excluding the data from the configuration file that is not required for the execution of the job based on the configuration of the job.
-Examples of configuration files for entire systems are available in `etc/platforms`.
+Please refer to [doc/configfile.md](./doc/configfile.md) for details.
 
 ## Execution of the DPU daemon
 
@@ -26,6 +13,9 @@ export DPU_OFFLOAD_LIST_DPUS="thor-bf21,thor-bf22"
 ./daemons/job_persistent/job_persistent_dpu_daemon
 ```
 The offloading service daemon will then start and DPUs will connect to each other.
+
+[doc/configfile.md](./doc/configfile.md) includes details for the implementation of a script to start
+multiple service processes per DPU.
 
 # Manual start of the daemons on the DPUs using environment variables
 

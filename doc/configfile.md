@@ -8,6 +8,8 @@ The overall format of the configuration file is as follow:
 ```
 
 Note that the first comment specifying the version of the format being used is **mandatory**.
+This is used by the infrastructure to determine how to extract the required data from the configuration 
+file.
 At the moment, only one format is supported.
 
 A single configuration file can be used by platform; it does not need to be tailored to the job
@@ -16,7 +18,7 @@ only the required data from the configuration file.
 
 Examples of configuration files are available in `etc/platforms`.
 
-Each line must describe a host and its associated DPU(s):
+Then, each line must describe a host and its associated DPU(s):
 
 1. the first token must be the full hostname of the host followed by a `,` and
 1. the list of DPUs to use; it is allowed to have a single DPU,

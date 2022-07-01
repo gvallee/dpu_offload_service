@@ -2,11 +2,12 @@
 
 To enable the offloading of operations to the DPU, we provide a set of core 
 capabilities:
-- A *configuration file* that describes the entire platform (so not only the job) and provide basic data about the configuration of the infrastructure.
-- A *offloading engine* that is the instantiation of a implementation of the offloading library. It is used both on the hosts and DPUs and are the core handle to store all the information related to a given offloading service. In other words, an engine is specific to a single offloading service.
-- *Service processes* that are running on DPUs and available for the offloading of operations. They provide a service for offloading on a specific DPU.
-- *Execution contexts* to abstract the bootstrapping of the offloading service and it associated communications and notifications.
-- *Notifications and events* to asynchronously interact with service processes running on DPUs.
+- A [configuration file](#configuration-file) that describes the entire platform (so not only the job) and provide basic data about the configuration of the infrastructure.
+- A [offloading engine](#offloading-engine) that is the instantiation of a implementation of the offloading library. It is used both on the hosts and DPUs and are the core handle to store all the information related to a given offloading service. In other words, an engine is specific to a single offloading service.
+- [Service processes](#dpu-service-processes) that are running on DPUs and available for the offloading of operations. They provide a service for offloading on a specific DPU.
+- [Execution contexts](#execution-context) to abstract the bootstrapping of the offloading service and it associated communications and notifications.
+- [Notifications and events](#notifications-and-events) to asynchronously interact with service processes running on DPUs.
+- A [endpoint cache](#endpoint-cache) to know which service processes are associated to any rank in a group.
 
 Additional capabilities are under development:
 - *Offloaded operations* to ease the implementation and execution of offloaded operation.
@@ -125,6 +126,10 @@ function.
 
 Please see the doxygen documentation for details about the datastructures and functions related to
 the notification system.
+
+## Endpoint cache
+
+Please refer to [./endpoint_cache.md](./endpoint_cache.md) for details.
 
 ## Example
 
