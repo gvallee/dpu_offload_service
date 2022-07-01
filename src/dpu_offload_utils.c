@@ -74,7 +74,7 @@ bool group_cache_populated(offloading_engine_t *engine, int64_t gp_id)
     return false;
 }
 
-// Translate the local DPU ID received in the header of a notification to a global ID
+// Translate the local SP ID received in the header of a notification to a global ID
 uint64_t LOCAL_ID_TO_GLOBAL(execution_context_t *econtext, uint64_t local_id)
 {
     uint64_t global_id = UINT64_MAX;
@@ -302,7 +302,7 @@ dpu_offload_status_t send_local_rank_group_cache(execution_context_t *econtext, 
     {
         size_t n_entries_to_send;
         size_t idx_start;
-        find_range_local_ranks(econtext, gp_id, gp_cache->group_size, idx, gp_cache->n_local_ranks, count, &idx_start, &n_entries_to_send, &idx);
+        find_range_local_ranks(econtext, gp_id, gp_cache->group_size, idx, gp_cache->n_local_ranks_populated, count, &idx_start, &n_entries_to_send, &idx);
         dpu_offload_event_t *e;
         peer_cache_entry_t *first_entry = GET_GROUP_RANK_CACHE_ENTRY(&(econtext->engine->procs_cache), gp_id, idx_start, gp_cache->group_size);
         rc = event_get(econtext->event_channels, NULL, &e);
@@ -339,7 +339,8 @@ dpu_offload_status_t send_gp_cache_to_host(execution_context_t *econtext, int64_
                                                  group_id, bool);
     if (*cache_sent_to_host == false)
     {
-        DBG("Cache is complete, sending it to the local ranks (number of connected clients: %ld, total: %ld)",
+        DBG("Cache is complete, sending it to the local ranks (econtext: %p, number of connected clients: %ld, total: %ld)",
+            econtext,
             econtext->server->connected_clients.num_connected_clients,
             econtext->server->connected_clients.num_total_connected_clients);
         while (n < econtext->server->connected_clients.num_connected_clients)

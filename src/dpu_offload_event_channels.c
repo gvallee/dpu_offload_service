@@ -1121,7 +1121,10 @@ static dpu_offload_status_t peer_cache_entries_recv_cb(struct dpu_offload_ev_sys
     {
         // If all the ranks are on the local hosts, the case is handled in the callback that deals with the
         // final step of the connecting with the ranks.
-        if (gp_cache->group_size > 0 && gp_cache->num_local_entries == gp_cache->group_size && gp_cache->group_size != gp_cache->n_local_ranks)
+        bool all_ranks_are_local = false;
+        if (econtext->engine->config->num_service_procs_per_dpu == 1 && gp_cache->group_size == gp_cache->n_local_ranks)
+            all_ranks_are_local = true;
+        if (gp_cache->group_size > 0 && gp_cache->num_local_entries == gp_cache->group_size && !all_ranks_are_local)
         {
             execution_context_t *server = get_server_servicing_host(engine);
             assert(server->scope_id == SCOPE_HOST_DPU);

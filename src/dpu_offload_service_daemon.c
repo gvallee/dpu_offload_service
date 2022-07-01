@@ -1438,8 +1438,10 @@ static void progress_server_econtext(execution_context_t *ctx)
                     ctx->server->connected_clients.num_ongoing_connections--;
                     ctx->server->connected_clients.num_connected_clients++;
                     ctx->server->connected_clients.num_total_connected_clients++;
-                    DBG("****** Bootstrapping of client #%ld now completed, %ld are now connected (connected service processes: %ld)",
+                    DBG("****** Bootstrapping of client #%ld now completed in scope %d (econtext: %p), %ld are now connected (connected service processes: %ld)",
                         idx,
+                        ctx->scope_id,
+                        ctx,
                         ctx->server->connected_clients.num_connected_clients,
                         ctx->engine->num_connected_service_procs);
 
