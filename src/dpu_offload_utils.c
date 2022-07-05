@@ -674,7 +674,7 @@ dpu_offload_status_t get_sp_id_by_group_rank(offloading_engine_t *engine, int64_
 dpu_offload_status_t get_sp_ep_by_id(offloading_engine_t *engine, uint64_t sp_id, ucp_ep_h *sp_ep, execution_context_t **econtext_comm, uint64_t *comm_id)
 {
     CHECK_ERR_RETURN((engine == NULL), DO_ERROR, "engine is undefined");
-    CHECK_ERR_RETURN((sp_id >= engine->num_dpus),
+    CHECK_ERR_RETURN((sp_id >= engine->num_service_procs),
                      DO_ERROR,
                      "request service process #%ld but only %ld service processes are known",
                      sp_id, engine->num_service_procs);
