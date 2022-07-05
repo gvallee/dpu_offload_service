@@ -1428,6 +1428,14 @@ typedef struct group_cache
     _c;                                                               \
 })
 
+/**
+ * @brief GET_GROUP_RANK_CACHE_ENTRY is a macro that looks up the cache entry for
+ * a given rank in a group. Also, group caches are populated in a lazy way since
+ * we only get data on the DPU when ranks are connecting. So the macro is also
+ * in charge is initialization the cache if the group and the rank entry do not
+ * exist. Of course, I means that the data passed in is assumed accurate, i.e.,
+ * the group identifier, rank and group size are the actual value and won't change.
+ */
 #define GET_GROUP_RANK_CACHE_ENTRY(_cache, _gp_id, _rank, _gp_size)              \
     ({                                                                           \
         peer_cache_entry_t *_entry = NULL;                                       \

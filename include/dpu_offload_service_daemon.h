@@ -221,6 +221,8 @@ execution_context_t *get_server_servicing_host(offloading_engine_t *engine);
 
 dpu_offload_status_t get_local_service_proc_connect_info(offloading_config_t *cfg, rank_info_t *rank_info, init_params_t *init_params);
 
+dpu_offload_status_t get_num_connecting_ranks(uint64_t num_service_procs_per_dpu, int64_t n_local_ranks, uint64_t sp_lid, uint64_t *n_ranks);
+
 bool all_service_procs_connected(offloading_engine_t *engine);
 
 #define SET_DEFAULT_DPU_HOST_SERVER_CALLBACKS(_init_params)                 \
