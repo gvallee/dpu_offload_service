@@ -266,7 +266,7 @@ bool find_range_local_ranks(execution_context_t *econtext, int64_t gp_id, int64_
 
         if (found_begining && idx > *range_start && INVALID_RANK != cache_entry->peer.proc_info.group_rank)
         {
-            // We reached a element where the group ID is not the one we are looking for
+            // We reached a element that is not valid. It happens with groups with a sparse set of local ranks
             break;
         }
 
