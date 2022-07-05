@@ -264,6 +264,12 @@ bool find_range_local_ranks(execution_context_t *econtext, int64_t gp_id, int64_
             *range_start = idx;
         }
 
+        if (found_begining && idx > *range_start && INVALID_RANK != cache_entry->peer.proc_info.group_rank)
+        {
+            // We reached a element where the group ID is not the one we are looking for
+            break;
+        }
+
         if (found_begining == true && cache_entry->shadow_service_procs[0] == econtext->engine->config->local_service_proc.info.global_id)
             count++;
 
