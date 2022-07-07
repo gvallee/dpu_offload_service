@@ -1418,14 +1418,9 @@ typedef struct group_cache
     dyn_array_t ranks;
 } group_cache_t;
 
-#define GET_GROUP_CACHE(_cache, _gp_id) ({                            \
-    group_cache_t *_gps_cache = (group_cache_t *)(_cache)->data.base; \
-    group_cache_t *_c = NULL;                                         \
-    if (_gps_cache != NULL)                                           \
-    {                                                                 \
-        _c = &(_gps_cache[_gp_id]);                                   \
-    }                                                                 \
-    _c;                                                               \
+#define GET_GROUP_CACHE(_cache, _gp_id) ({                                                      \
+    group_cache_t *_gp_cache = DYN_ARRAY_GET_ELT(&((_cache)->data), _gp_id, group_cache_t);  \
+    _gp_cache;                                                                   \
 })
 
 /**
@@ -1436,32 +1431,28 @@ typedef struct group_cache
  * exist. Of course, I means that the data passed in is assumed accurate, i.e.,
  * the group identifier, rank and group size are the actual value and won't change.
  */
-#define GET_GROUP_RANK_CACHE_ENTRY(_cache, _gp_id, _rank, _gp_size)              \
-    ({                                                                           \
-        peer_cache_entry_t *_entry = NULL;                                       \
-        group_cache_t *_gp_cache = (group_cache_t *)(_cache)->data.base;         \
-        dyn_array_t *_rank_cache = &(_gp_cache[_gp_id].ranks);                   \
-        if (_gp_cache[_gp_id].initialized == false)                              \
+#define GET_GROUP_RANK_CACHE_ENTRY(_cache, _gp_id, _rank, _gp_size)                             \
+    ({                                                                                    \
+        peer_cache_entry_t *_entry = NULL;                                                      \
+        group_cache_t *_gp_cache = DYN_ARRAY_GET_ELT(&((_cache)->data), _gp_id, group_cache_t); \
+        dyn_array_t *_rank_cache = &(_gp_cache->ranks);                   \
+        if (_gp_cache->initialized == false)                              \
         {                                                                        \
             /* Cache for the group is empty, lazy initialization */              \
             DYN_ARRAY_ALLOC(_rank_cache, DEFAULT_NUM_PEERS, peer_cache_entry_t); \
-            _gp_cache[_gp_id].initialized = true;                                \
+            _gp_cache->initialized = true;                                \
             if (_gp_size >= 0)                                                   \
-                _gp_cache[_gp_id].group_size = _gp_size;                         \
+                _gp_cache->group_size = _gp_size;                         \
             (_cache)->size++;                                                    \
         }                                                                        \
-        if (_gp_cache[_gp_id].initialized &&                                     \
-            _gp_cache[_gp_id].group_size <= 0 &&                                 \
+        if (_gp_cache->initialized &&                                     \
+            _gp_cache->group_size <= 0 &&                                 \
             _gp_size >= 0)                                                       \
         {                                                                        \
             /* the cache was initialized with a group size but we now know it */ \
-            _gp_cache[_gp_id].group_size = _gp_size;                             \
+            _gp_cache->group_size = _gp_size;                             \
         }                                                                        \
-        if (_rank >= _rank_cache->num_elts)                                      \
-            DYN_ARRAY_GROW(_rank_cache, peer_cache_entry_t, _rank);              \
-        assert(_rank < _rank_cache->num_elts);                                   \
-        peer_cache_entry_t *_ptr = (peer_cache_entry_t *)_rank_cache->base;      \
-        _entry = &(_ptr[_rank]);                                                 \
+        _entry = DYN_ARRAY_GET_ELT(_rank_cache, _rank, peer_cache_entry_t);      \
         _entry;                                                                  \
     })
 
