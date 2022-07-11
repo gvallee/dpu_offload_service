@@ -1419,6 +1419,14 @@ typedef struct dpu_offload_event_info
     notification_info_t pool;
 } dpu_offload_event_info_t;
 
+#define RESET_EVENT_INFO(__info)             \
+    do                                       \
+    {                                        \
+        (__info)->payload_size = 0;          \
+        (__info)->explicit_return = false;   \
+        RESET_NOTIF_INFO(&((__info)->pool)); \
+    } while(0)
+
 typedef enum
 {
     EVENT_DONE = UCS_OK,
