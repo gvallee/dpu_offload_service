@@ -376,7 +376,16 @@ static int post_recv_for_notif_payload(hdr_notif_req_t *ctx, execution_context_t
         ucp_worker_h worker;
 
         ucp_tag_t payload_ucp_tag, payload_ucp_tag_mask;
-        ctx->payload_ctx.buffer = DPU_OFFLOAD_MALLOC(ctx->hdr.payload_size);
+        // If the notification type is already registered and is associated to a memory pool, we use a buffer from than pool
+        void *buf_from_pool = get_notif_buf(econtext->event_channels, ctx->hdr.type);
+        if (buf_from_pool)
+        {
+            ctx->payload_ctx.buffer = buf_from_pool;
+        }
+        else
+        {
+            ctx->payload_ctx.buffer = DPU_OFFLOAD_MALLOC(ctx->hdr.payload_size);
+        }
         assert(ctx->payload_ctx.buffer);
         worker = GET_WORKER(econtext);
         assert(worker);
