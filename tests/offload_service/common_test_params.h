@@ -67,7 +67,8 @@ static uint64_t payload_explicit_mgt_notif_expected_value = 0;
         fprintf(stderr, "Registering callback for notifications of type %d\n", USE_ONGOING_LIST_NOTIF_ID);     \
         dpu_offload_status_t _rc = event_channel_register(_econtext->event_channels,                           \
                                                           USE_ONGOING_LIST_NOTIF_ID,                           \
-                                                          use_ongoing_list_notification_cb);                   \
+                                                          use_ongoing_list_notification_cb,                    \
+                                                          NULL);                                               \
         if (_rc)                                                                                               \
         {                                                                                                      \
             fprintf(stderr, "event_channel_register() failed\n");                                              \
@@ -77,7 +78,8 @@ static uint64_t payload_explicit_mgt_notif_expected_value = 0;
         fprintf(stderr, "Registering callback for notifications of type %d\n", PAYLOAD_EXPLICIT_MGT_NOTIF_ID); \
         _rc = event_channel_register(_econtext->event_channels,                                                \
                                      PAYLOAD_EXPLICIT_MGT_NOTIF_ID,                                            \
-                                     payload_explicit_mgt_notification_cb);                                    \
+                                     payload_explicit_mgt_notification_cb,                                     \
+                                     NULL);                                                                    \
         if (_rc)                                                                                               \
         {                                                                                                      \
             fprintf(stderr, "event_channel_register() failed\n");                                              \
@@ -87,7 +89,10 @@ static uint64_t payload_explicit_mgt_notif_expected_value = 0;
         /* Register a custom callback type, i.e., an ID that is not predefined and it is used for the */       \
         /* ping-pong notification test. */                                                                     \
         fprintf(stderr, "Registering callback for notifications of custom type %d\n", PINGPONG_NOTIF_ID);      \
-        _rc = event_channel_register(_econtext->event_channels, PINGPONG_NOTIF_ID, pingpong_notification_cb);  \
+        _rc = event_channel_register(_econtext->event_channels,                                                \
+                                     PINGPONG_NOTIF_ID,                                                        \
+                                     pingpong_notification_cb,                                                 \
+                                     NULL);                                                                    \
         if (_rc)                                                                                               \
         {                                                                                                      \
             fprintf(stderr, "event_channel_register() failed\n");                                              \

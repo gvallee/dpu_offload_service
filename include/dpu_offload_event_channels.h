@@ -19,13 +19,13 @@
 #define QUEUE_EVENT(__ev)                                                            \
     do                                                                               \
     {                                                                                \
-        if((__ev)->explicit_return)                                                  \
+        if ((__ev)->explicit_return)                                                 \
         {                                                                            \
             /* The event is flagged for manual management, do not queue */           \
         }                                                                            \
         else                                                                         \
         {                                                                            \
-            if((__ev)->is_subevent == false)                                         \
+            if ((__ev)->is_subevent == false)                                        \
             {                                                                        \
                 assert((__ev)->is_ongoing_event == false);                           \
                 ucs_list_add_tail(&((__ev)->event_system->econtext->ongoing_events), \
@@ -33,22 +33,21 @@
                 (__ev)->is_ongoing_event = true;                                     \
             }                                                                        \
         }                                                                            \
-    } while(0)
+    } while (0)
 
-#define QUEUE_SUBEVENT(_metaev, _ev)                                   \
-    do                                                                 \
-    {                                                                  \
-        assert((_ev)->is_subevent == true);                            \
-        assert((_ev)->is_ongoing_event == false);                      \
-        if (!(_metaev)->sub_events_initialized)                        \
-        {                                                              \
-            ucs_list_head_init(&((_metaev)->sub_events));              \
-            (_metaev)->sub_events_initialized = true;                  \
-        }                                                              \
-        ucs_list_add_tail(&((_metaev)->sub_events), &((_ev)->item));   \
-        DBG("sub-event %p added to main event %p", (_ev), (_metaev));  \
-    } while(0)
-
+#define QUEUE_SUBEVENT(_metaev, _ev)                                  \
+    do                                                                \
+    {                                                                 \
+        assert((_ev)->is_subevent == true);                           \
+        assert((_ev)->is_ongoing_event == false);                     \
+        if (!(_metaev)->sub_events_initialized)                       \
+        {                                                             \
+            ucs_list_head_init(&((_metaev)->sub_events));             \
+            (_metaev)->sub_events_initialized = true;                 \
+        }                                                             \
+        ucs_list_add_tail(&((_metaev)->sub_events), &((_ev)->item));  \
+        DBG("sub-event %p added to main event %p", (_ev), (_metaev)); \
+    } while (0)
 
 #if USE_AM_IMPLEM
 #define COMPLETE_EVENT(__ev)                                          \
@@ -89,8 +88,24 @@ dpu_offload_status_t event_channels_init(execution_context_t *);
 dpu_offload_status_t ev_channels_init(dpu_offload_ev_sys_t **ev_channels);
 void event_channels_fini(dpu_offload_ev_sys_t **);
 
-dpu_offload_status_t event_channel_register(dpu_offload_ev_sys_t *ev_sys, uint64_t type, notification_cb cb);
+/**
+ * @brief Register a handler in the context of an event system for a specific type of notifications.
+ * Only one handler can be registered per notification type. It is safe to emit a new event from a handler.
+ * Note: the function assumes the event system is locked before it is invoked
+ *
+ * @param ev_sys Event system to use to register the notification handler.
+ * @param type Notification type.
+ * @param cb Callback to invoke upon reception of the notification.
+ * @param info Optional information related to the handling of the notification (can be set to NULL).
+ * @return dpu_offload_status_t
+ */
+dpu_offload_status_t event_channel_register(dpu_offload_ev_sys_t *ev_sys, uint64_t type, notification_cb cb, notification_info_t *info);
+
 dpu_offload_status_t event_channel_deregister(dpu_offload_ev_sys_t *ev_sys, uint64_t type);
+
+void *get_notif_buf(dpu_offload_ev_sys_t *ev_sys, uint64_t type);
+
+notification_callback_entry_t *get_notif_callback_entry(dpu_offload_ev_sys_t *ev_sys, uint64_t type);
 
 /**
  * @brief Registers a default handler at the engine level. After the registration, the handler will be
@@ -100,9 +115,10 @@ dpu_offload_status_t event_channel_deregister(dpu_offload_ev_sys_t *ev_sys, uint
  * @param engine Engine to which the default handler applies.
  * @param type Event type, i.e., identifier of the callback to invoke when the event is delivered at destination.
  * @param cb Callback to invoke upon reception of the notification.
+ * @param info Optional information related to the handling of the notification (can be set to NULL).
  * @return dpu_offload_status_t
  */
-dpu_offload_status_t engine_register_default_notification_handler(offloading_engine_t *engine, uint64_t type, notification_cb cb);
+dpu_offload_status_t engine_register_default_notification_handler(offloading_engine_t *engine, uint64_t type, notification_cb cb, notification_info_t *info);
 
 /**
  * @brief event_channel_emit triggers the communication associated to a previously locally defined event.
@@ -112,10 +128,10 @@ dpu_offload_status_t engine_register_default_notification_handler(offloading_eng
  * @param dest_id The unique identifier to be used to send the event. It is used to identify the source of the event.
  * @param dest_ep Endpoint of the target of the event.
  * @param ctx User-defined context to help identify the context of the event upon local completion.
- * @return result of UCS_PTR_STATUS in the context of errors, 
- * @return EVENT_DONE if the emittion completed right away, 
- * @return EVENT_INPROGRESS if emitting the event is still in progress (e.g., communication not completed). 
- * 
+ * @return result of UCS_PTR_STATUS in the context of errors,
+ * @return EVENT_DONE if the emittion completed right away,
+ * @return EVENT_INPROGRESS if emitting the event is still in progress (e.g., communication not completed).
+ *
  * One can check on completion using ev->req.
  */
 int event_channel_emit(dpu_offload_event_t **ev, uint64_t type, ucp_ep_h dest_ep, uint64_t dest_id, void *ctx);
@@ -178,7 +194,7 @@ int event_channel_emit_with_payload(dpu_offload_event_t **ev, uint64_t type, ucp
  *      {
  *          // Event completed right away
  *          free(my_payload);
- *      } 
+ *      }
  *      else if (rc != EVENT_INPROGRESS)
  *          // Error
  *          return -1;
@@ -202,7 +218,7 @@ dpu_offload_status_t event_get(dpu_offload_ev_sys_t *ev_sys, dpu_offload_event_i
 
 /**
  * @brief Return an event once completed
- * 
+ *
  * @param ev Pointer to the event to return. The event is set to NULL upon success so the event handle cannot be used anymore.
  * @return DO_SUCCESS
  * @return DO_ERROR

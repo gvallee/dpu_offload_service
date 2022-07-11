@@ -149,6 +149,23 @@ static ucs_status_t am_notification_msg_cb(void *arg, const void *header, size_t
 }
 #endif // USE_AM_IMPLEM
 
+void *get_notif_buf(dpu_offload_ev_sys_t *ev_sys, uint64_t type)
+{
+    notification_callback_entry_t *entry;
+    entry = DYN_ARRAY_GET_ELT(&(ev_sys->notification_callbacks), type, notification_callback_entry_t);
+    if (entry == NULL || entry->get_buf == NULL)
+        return NULL;
+    assert(entry->buf_pool);
+    return (entry->get_buf(entry->buf_pool));
+}
+
+notification_callback_entry_t* get_notif_callback_entry(dpu_offload_ev_sys_t *ev_sys, uint64_t type)
+{
+    notification_callback_entry_t *entry;
+    entry = DYN_ARRAY_GET_ELT(&(ev_sys->notification_callbacks), type, notification_callback_entry_t);
+    return entry;
+}
+
 void init_event(void *ev_ptr)
 {
     assert(ev_ptr);
@@ -215,25 +232,27 @@ dpu_offload_status_t event_channels_init(execution_context_t *econtext)
     return DO_SUCCESS;
 }
 
-/**
- * @brief Note: the function assumes the event system is locked before it is invoked
- *
- * @param ev_sys
- * @param type
- * @param cb
- * @return dpu_offload_status_t
- */
-dpu_offload_status_t event_channel_register(dpu_offload_ev_sys_t *ev_sys, uint64_t type, notification_cb cb)
+
+dpu_offload_status_t event_channel_register(dpu_offload_ev_sys_t *ev_sys, uint64_t type, notification_cb cb, notification_info_t *info)
 {
     CHECK_ERR_RETURN((cb == NULL), DO_ERROR, "Undefined callback");
     CHECK_ERR_RETURN((ev_sys == NULL), DO_ERROR, "undefined event system");
     notification_callback_entry_t *entry = DYN_ARRAY_GET_ELT(&(ev_sys->notification_callbacks), type, notification_callback_entry_t);
     CHECK_ERR_RETURN((entry == NULL), DO_ERROR, "unable to get callback %ld", type);
     CHECK_ERR_RETURN((entry->set == true), DO_ERROR, "type %" PRIu64 " is already set", type);
-
+    RESET_NOTIF_CB_ENTRY(entry);
     entry->cb = cb;
     entry->set = true;
     entry->ev_sys = (struct dpu_offload_ev_sys *)ev_sys;
+    if (info)
+    {
+        if (info->mem_pool)
+            entry->buf_pool = info->mem_pool;
+        if (info->get_buf)
+            entry->get_buf = info->get_buf;
+        if (info->return_buf)
+            entry->return_buf = info->return_buf;
+    }
     DBG("Callback for notification of type %" PRIu64 " is now registered on event system %p (econtext: %p)",
         type, ev_sys, ev_sys->econtext);
 
@@ -266,7 +285,7 @@ dpu_offload_status_t event_channel_register(dpu_offload_ev_sys_t *ev_sys, uint64
     return DO_SUCCESS;
 }
 
-dpu_offload_status_t engine_register_default_notification_handler(offloading_engine_t *engine, uint64_t type, notification_cb cb)
+dpu_offload_status_t engine_register_default_notification_handler(offloading_engine_t *engine, uint64_t type, notification_cb cb, notification_info_t *info)
 {
     CHECK_ERR_RETURN((cb == NULL), DO_ERROR, "Undefined callback");
     CHECK_ERR_RETURN((engine == NULL), DO_ERROR, "Undefine engine");
@@ -279,12 +298,24 @@ dpu_offload_status_t engine_register_default_notification_handler(offloading_eng
 
     // Make sure the self_econtext gets the notification handler registered as well
     assert(engine->self_econtext);
-    dpu_offload_status_t rc = event_channel_register(engine->self_econtext->event_channels, type, cb);
+    dpu_offload_status_t rc = event_channel_register(engine->self_econtext->event_channels, type, cb, info);
     CHECK_ERR_RETURN((rc), DO_ERROR, "event_channel_register() failed");
 
     entry->cb = cb;
     entry->set = true;
     entry->ev_sys = (struct dpu_offload_ev_sys *)engine->default_notifications;
+    if (info)
+    {
+        if (info->mem_pool || info->get_buf || info->return_buf)
+        {
+            assert(info->mem_pool);
+            assert(info->get_buf);
+            assert(info->return_buf);
+            entry->buf_pool = info->mem_pool;
+            entry->get_buf = info->get_buf;
+            entry->return_buf = info->return_buf;
+        }
+    }
     engine->num_default_notifications++;
     return DO_SUCCESS;
 }
@@ -777,7 +808,20 @@ dpu_offload_status_t event_get(dpu_offload_ev_sys_t *ev_sys, dpu_offload_event_i
         // If we get here, it means that we need to manage a payload buffer for that event
         _ev->manage_payload_buf = true;
         EVENT_HDR_PAYLOAD_SIZE(_ev) = info->payload_size;
-        _ev->payload = DPU_OFFLOAD_MALLOC(info->payload_size); // No advanced memory management at the moment, just malloc
+        notification_callback_entry_t *entry = get_notif_callback_entry(ev_sys, EVENT_HDR_TYPE(_ev));
+        if (entry->get_buf(entry->buf_pool))
+        {
+            void *payload_buf_from_pool = entry->get_buf(entry->buf_pool);
+            assert(payload_buf_from_pool);
+            _ev->payload = payload_buf_from_pool;
+            _ev->info.mem_pool = entry->buf_pool;
+            _ev->info.get_buf = entry->get_buf;
+            _ev->info.return_buf = entry->return_buf;
+        }
+        else
+        {
+            _ev->payload = DPU_OFFLOAD_MALLOC(info->payload_size);
+        }
         assert(_ev->payload);
     }
 
@@ -809,7 +853,17 @@ static dpu_offload_status_t do_event_return(dpu_offload_event_t *ev)
     // If the event has a payload buffer that the library is managing, free that buffer
     if (ev->manage_payload_buf && ev->payload != NULL)
     {
-        free(ev->payload);
+        if (ev->info.return_buf == NULL)
+        {
+            // Buffer is managed by the library
+            free(ev->payload);
+        }
+        else
+        {
+            // Return the buffer to the pool from calling library
+            assert(ev->info.mem_pool);
+            ev->info.return_buf(ev->info.mem_pool, ev->payload);
+        }
         ev->payload = NULL;
         EVENT_HDR_PAYLOAD_SIZE(ev) = 0;
     }
@@ -1226,28 +1280,28 @@ dpu_offload_status_t register_default_notifications(dpu_offload_ev_sys_t *ev_sys
     CHECK_ERR_RETURN((ev_sys == NULL), DO_ERROR, "Undefined event channels");
     SYS_EVENT_LOCK(ev_sys);
 
-    int rc = event_channel_register(ev_sys, AM_TERM_MSG_ID, term_msg_cb);
+    int rc = event_channel_register(ev_sys, AM_TERM_MSG_ID, term_msg_cb, NULL);
     CHECK_ERR_GOTO(rc, error_out, "cannot register handler to the term notification");
     
-    rc = event_channel_register(ev_sys, AM_OP_START_MSG_ID, op_start_cb);
+    rc = event_channel_register(ev_sys, AM_OP_START_MSG_ID, op_start_cb, NULL);
     CHECK_ERR_GOTO(rc, error_out, "cannot register handler to start operations");
 
-    rc = event_channel_register(ev_sys, AM_OP_COMPLETION_MSG_ID, op_completion_cb);
+    rc = event_channel_register(ev_sys, AM_OP_COMPLETION_MSG_ID, op_completion_cb, NULL);
     CHECK_ERR_GOTO(rc, error_out, "cannot register handler for operation completion");
 
-    rc = event_channel_register(ev_sys, AM_XGVMI_ADD_MSG_ID, xgvmi_key_recv_cb);
+    rc = event_channel_register(ev_sys, AM_XGVMI_ADD_MSG_ID, xgvmi_key_recv_cb, NULL);
     CHECK_ERR_GOTO(rc, error_out, "cannot register handler for receiving XGVMI keys");
 
-    rc = event_channel_register(ev_sys, AM_XGVMI_DEL_MSG_ID, xgvmi_key_revoke_cb);
+    rc = event_channel_register(ev_sys, AM_XGVMI_DEL_MSG_ID, xgvmi_key_revoke_cb, NULL);
     CHECK_ERR_GOTO(rc, error_out, "cannot register handler for revoke XGVMI keys");
 
-    rc = event_channel_register(ev_sys, AM_PEER_CACHE_ENTRIES_MSG_ID, peer_cache_entries_recv_cb);
+    rc = event_channel_register(ev_sys, AM_PEER_CACHE_ENTRIES_MSG_ID, peer_cache_entries_recv_cb, NULL);
     CHECK_ERR_GOTO(rc, error_out, "cannot register handler for receiving peer cache entries");
 
-    rc = event_channel_register(ev_sys, AM_PEER_CACHE_ENTRIES_REQUEST_MSG_ID, peer_cache_entries_request_recv_cb);
+    rc = event_channel_register(ev_sys, AM_PEER_CACHE_ENTRIES_REQUEST_MSG_ID, peer_cache_entries_request_recv_cb, NULL);
     CHECK_ERR_GOTO(rc, error_out, "cannot register handler for receiving peer cache requests");
 
-    rc = event_channel_register(ev_sys, AM_ADD_GP_RANK_MSG_ID, add_group_rank_recv_cb);
+    rc = event_channel_register(ev_sys, AM_ADD_GP_RANK_MSG_ID, add_group_rank_recv_cb, NULL);
     CHECK_ERR_GOTO(rc, error_out, "cannot register handler for receiving requests to add a group/rank");
     SYS_EVENT_UNLOCK(ev_sys);
 

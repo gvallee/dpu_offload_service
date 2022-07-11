@@ -1136,10 +1136,11 @@ typedef struct execution_context
     // Active operations that are running in the execution context
     ucs_list_link_t active_ops;
 
-    // Termination is asynchronous so we need to be able to track the associated event, so we can 
+    // Termination is asynchronous so we need to be able to track the associated event, so we can
     // check for completion and invoke to final step of the execution context termination (which
     // ends the notification system).
-    struct {
+    struct
+    {
         struct dpu_offload_event *ev;
     } term;
 
@@ -1189,6 +1190,36 @@ typedef struct pending_am_rdv_recv
         (_rdv_recv)->desc = NULL;                                                                          \
         /* Do not reset user_data and buff_size as it is used over time as a buffer to minimize mallocs */ \
     } while (0)
+
+typedef void *(*get_buf_fn)(dyn_list_t *dlist);
+typedef void (*return_buf_fn)(dyn_list_t *dlist, void *buf);
+
+typedef struct notification_info
+{
+    // Optional function to get a buffer from a pool
+    get_buf_fn get_buf;
+    // Optional function to return a buffer to a pool
+    return_buf_fn return_buf;
+    // Memory pool to get notification payload buffer
+    dyn_list_t *mem_pool;
+} notification_info_t;
+
+#define RESET_NOTIF_INFO(__info)     \
+    do                               \
+    {                                \
+        (__info)->get_buf = NULL;    \
+        (__info)->return_buf = NULL; \
+        (__info)->mem_pool = NULL;   \
+    } while (0)
+
+#define CHECK_NOTIF_INFO(__info)             \
+    do                                       \
+    {                                        \
+        assert((__info)->get_buf == NULL);    \
+        assert((__info)->return_buf == NULL); \
+        assert((__info)->mem_pool == NULL);   \
+    } while (0)
+
 
 /**
  * @brief dpu_offload_event_t represents an event, i.e., the implementation of a notification
@@ -1262,6 +1293,8 @@ typedef struct dpu_offload_event
 
     // event_system is the event system the event was initially from
     dpu_offload_ev_sys_t *event_system;
+
+    notification_info_t info;
 } dpu_offload_event_t;
 
 #define EVENT_HDR_ID(_ev) (_ev)->ctx.hdr.id
@@ -1301,6 +1334,7 @@ typedef struct dpu_offload_event
         (__ev)->is_subevent = false;          \
         (__ev)->is_ongoing_event = false;     \
         (__ev)->was_posted = false;           \
+        RESET_NOTIF_INFO(&((__ev)->info));    \
     } while (0)
 #else
 #define RESET_EVENT(__ev)                      \
@@ -1327,6 +1361,7 @@ typedef struct dpu_offload_event
         (__ev)->is_subevent = false;           \
         (__ev)->is_ongoing_event = false;      \
         (__ev)->was_posted = false;            \
+        RESET_NOTIF_INFO(&((__ev)->info));     \
     } while (0)
 #endif
 
@@ -1349,6 +1384,7 @@ typedef struct dpu_offload_event
         assert((__ev)->is_subevent == false);                 \
         assert((__ev)->is_ongoing_event == false);            \
         assert((__ev)->was_posted == false);                  \
+        CHECK_NOTIF_INFO(&((__ev)->info));                    \
     } while (0)
 #else
 #define CHECK_EVENT(__ev)                                     \
@@ -1368,6 +1404,7 @@ typedef struct dpu_offload_event
             assert(ucs_list_is_empty(&((__ev)->sub_events))); \
         }                                                     \
         assert((__ev)->was_posted == false);                  \
+        CHECK_NOTIF_INFO(&((__ev)->info));                    \
     } while (0)
 #endif
 
@@ -1378,6 +1415,8 @@ typedef struct dpu_offload_event_info
 
     // Specify whether the user will explicitely return the event once done or not
     bool explicit_return;
+
+    notification_info_t pool;
 } dpu_offload_event_info_t;
 
 typedef enum
@@ -1418,9 +1457,9 @@ typedef struct group_cache
     dyn_array_t ranks;
 } group_cache_t;
 
-#define GET_GROUP_CACHE(_cache, _gp_id) ({                                                      \
-    group_cache_t *_gp_cache = DYN_ARRAY_GET_ELT(&((_cache)->data), _gp_id, group_cache_t);  \
-    _gp_cache;                                                                   \
+#define GET_GROUP_CACHE(_cache, _gp_id) ({                                                  \
+    group_cache_t *_gp_cache = DYN_ARRAY_GET_ELT(&((_cache)->data), _gp_id, group_cache_t); \
+    _gp_cache;                                                                              \
 })
 
 /**
@@ -1432,28 +1471,28 @@ typedef struct group_cache
  * the group identifier, rank and group size are the actual value and won't change.
  */
 #define GET_GROUP_RANK_CACHE_ENTRY(_cache, _gp_id, _rank, _gp_size)                             \
-    ({                                                                                    \
+    ({                                                                                          \
         peer_cache_entry_t *_entry = NULL;                                                      \
         group_cache_t *_gp_cache = DYN_ARRAY_GET_ELT(&((_cache)->data), _gp_id, group_cache_t); \
-        dyn_array_t *_rank_cache = &(_gp_cache->ranks);                   \
-        if (_gp_cache->initialized == false)                              \
-        {                                                                        \
-            /* Cache for the group is empty, lazy initialization */              \
-            DYN_ARRAY_ALLOC(_rank_cache, DEFAULT_NUM_PEERS, peer_cache_entry_t); \
-            _gp_cache->initialized = true;                                \
-            if (_gp_size >= 0)                                                   \
-                _gp_cache->group_size = _gp_size;                         \
-            (_cache)->size++;                                                    \
-        }                                                                        \
-        if (_gp_cache->initialized &&                                     \
-            _gp_cache->group_size <= 0 &&                                 \
-            _gp_size >= 0)                                                       \
-        {                                                                        \
-            /* the cache was initialized with a group size but we now know it */ \
-            _gp_cache->group_size = _gp_size;                             \
-        }                                                                        \
-        _entry = DYN_ARRAY_GET_ELT(_rank_cache, _rank, peer_cache_entry_t);      \
-        _entry;                                                                  \
+        dyn_array_t *_rank_cache = &(_gp_cache->ranks);                                         \
+        if (_gp_cache->initialized == false)                                                    \
+        {                                                                                       \
+            /* Cache for the group is empty, lazy initialization */                             \
+            DYN_ARRAY_ALLOC(_rank_cache, DEFAULT_NUM_PEERS, peer_cache_entry_t);                \
+            _gp_cache->initialized = true;                                                      \
+            if (_gp_size >= 0)                                                                  \
+                _gp_cache->group_size = _gp_size;                                               \
+            (_cache)->size++;                                                                   \
+        }                                                                                       \
+        if (_gp_cache->initialized &&                                                           \
+            _gp_cache->group_size <= 0 &&                                                       \
+            _gp_size >= 0)                                                                      \
+        {                                                                                       \
+            /* the cache was initialized with a group size but we now know it */                \
+            _gp_cache->group_size = _gp_size;                                                   \
+        }                                                                                       \
+        _entry = DYN_ARRAY_GET_ELT(_rank_cache, _rank, peer_cache_entry_t);                     \
+        _entry;                                                                                 \
     })
 
 struct remote_service_proc_info; // Forward declaration
@@ -1624,7 +1663,7 @@ typedef struct dpu_config_data
             char *hostname;
             char *addr;
             size_t num_host_ports;
-            dyn_array_t host_ports;     // Type: int
+            dyn_array_t host_ports; // Type: int
             size_t num_interdpu_ports;
             dyn_array_t interdpu_ports; // Type: int
         } version_1;
@@ -1682,6 +1721,7 @@ typedef struct remote_dpu_info
 /***************************/
 
 struct dpu_offload_ev_sys;
+
 // notification_cb is the signature of all notification callbacks that are invoked when receiving a notification via the event system
 typedef int (*notification_cb)(struct dpu_offload_ev_sys *ev_sys, execution_context_t *context, am_header_t *hdr, size_t hdr_size, void *data, size_t data_size);
 
@@ -1698,7 +1738,24 @@ typedef struct notification_callback_entry
     struct dpu_offload_ev_sys *ev_sys;
     // Actually callback function
     notification_cb cb;
+    // Optional function to get a buffer from a pool
+    get_buf_fn get_buf;
+    // Optional function to return a buffer to a pool
+    return_buf_fn return_buf;
+    // Optional pool of buffer associated to the notification's type
+    dyn_list_t *buf_pool;
 } notification_callback_entry_t;
+
+#define RESET_NOTIF_CB_ENTRY(_entry) \
+    do                               \
+    {                                \
+        (_entry)->set = false;       \
+        (_entry)->ev_sys = NULL;     \
+        (_entry)->cb = NULL;         \
+        (_entry)->get_buf = NULL;    \
+        (_entry)->return_buf = NULL; \
+        (_entry)->buf_pool = NULL;   \
+    } while (0)
 
 /**
  * @brief pending_notification_t is the structure used to capture the data related to a event that
@@ -1773,9 +1830,9 @@ typedef struct pending_notification
 #define ECONTEXT_FOR_SERVICE_PROC_COMMUNICATION(_engine, _service_proc_idx) ({ \
     execution_context_t *_e = NULL;                                            \
     remote_service_proc_info_t *_sp;                                           \
-        _sp = DYN_ARRAY_GET_ELT(&((_engine)->service_procs),                   \
-                                _service_proc_idx,                             \
-                                remote_service_proc_info_t);                   \
+    _sp = DYN_ARRAY_GET_ELT(&((_engine)->service_procs),                       \
+                            _service_proc_idx,                                 \
+                            remote_service_proc_info_t);                       \
     if (_sp != NULL)                                                           \
     {                                                                          \
         _e = _sp->econtext;                                                    \
@@ -1805,7 +1862,7 @@ typedef struct pending_notification
 })
 
 #define GET_REMOTE_SERVICE_PROC_EP(_engine, _idx) ({                       \
-        ucp_ep_h __ep = NULL;                                              \
+    ucp_ep_h __ep = NULL;                                                  \
     if (_idx <= (_engine)->num_connected_service_procs)                    \
     {                                                                      \
         remote_service_proc_info_t *_sp;                                   \
