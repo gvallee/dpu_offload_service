@@ -1801,12 +1801,18 @@ execution_context_t *client_init(offloading_engine_t *offload_engine, init_param
             ctx->rank.group_size = init_params->proc_info->group_size;
             ctx->rank.n_local_ranks = init_params->proc_info->n_local_ranks;
 
-            /* Update the local cache for consistency */
-            group_cache_t *gp_cache = GET_GROUP_CACHE(&(offload_engine->procs_cache), ctx->rank.group_id);
-            if (gp_cache->group_size <= 0)
+            // In the context of inter-SP connections and situations without groups,
+            // the group ID is set to INVALID_GROUP and we should not try to update
+            // the cache.
+            if (ctx->rank.group_id != INVALID_GROUP)
             {
-                gp_cache->group_size = init_params->proc_info->group_size;
-                gp_cache->n_local_ranks = init_params->proc_info->n_local_ranks;
+                /* Update the local cache for consistency */
+                group_cache_t *gp_cache = GET_GROUP_CACHE(&(offload_engine->procs_cache), ctx->rank.group_id);
+                if (gp_cache->group_size <= 0)
+                {
+                    gp_cache->group_size = init_params->proc_info->group_size;
+                    gp_cache->n_local_ranks = init_params->proc_info->n_local_ranks;
+                }
             }
         }
     }
