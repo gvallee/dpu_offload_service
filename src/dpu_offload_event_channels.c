@@ -808,15 +808,16 @@ dpu_offload_status_t event_get(dpu_offload_ev_sys_t *ev_sys, dpu_offload_event_i
         // If we get here, it means that we need to manage a payload buffer for that event
         _ev->manage_payload_buf = true;
         EVENT_HDR_PAYLOAD_SIZE(_ev) = info->payload_size;
-        notification_callback_entry_t *entry = get_notif_callback_entry(ev_sys, EVENT_HDR_TYPE(_ev));
-        if (entry->get_buf(entry->buf_pool))
+        if (info != NULL && info->pool.mem_pool != NULL)
         {
-            void *payload_buf_from_pool = entry->get_buf(entry->buf_pool);
+            assert(info->pool.get_buf);
+            assert(info->pool.return_buf);
+            void *payload_buf_from_pool = info->pool.get_buf(info->pool.mem_pool);
             assert(payload_buf_from_pool);
             _ev->payload = payload_buf_from_pool;
-            _ev->info.mem_pool = entry->buf_pool;
-            _ev->info.get_buf = entry->get_buf;
-            _ev->info.return_buf = entry->return_buf;
+            _ev->info.mem_pool = info->pool.mem_pool;
+            _ev->info.get_buf = info->pool.get_buf;
+            _ev->info.return_buf = info->pool.return_buf;
         }
         else
         {
