@@ -49,10 +49,6 @@ function dpu_create_configfile
 		exit 1
 	fi
 
-	# Instead use a static file
-	#cp $HOME/workspace/poc-dpu-xgvmi/dpu_offload_service/etc/platforms/helios.cfg $OFFLOAD_CONFIG_FILE_PATH
-	#export OFFLOAD_CONFIG_FILE_PATH="$HOME/workspace/poc-dpu-xgvmi/dpu_offload_service/etc/platforms/helios.cfg"
-
 	# Create the config file
 	rm -f /tmp/bws-dpu-cfg.*
 	DPU_OFFLOAD_LIST_DPUS="$dpulist"
@@ -120,7 +116,6 @@ function dpu_start_daemons
 	for dpu in $(echo $dpulist |sed "s/,/ /g"); do
 		daemonlog="$HOME/daemonlog-${SLURM_JOBID}-${dpu}.out"
 	        ssh "$dpu" "${daemonenv} nohup $daemonexe &> $daemonlog &"
-	        #echo ssh "$dpu" "${daemonenv} gdb $daemonexe &> $daemonlog &"
 		echo "Daemon ($daemonexe) start status: $?"
 	done
 
@@ -136,7 +131,7 @@ function dpu_start_daemons
 function dpu_stop_daemons {
 	local dpulist=$1
 
-	# Killall the daemons
+	# Kill all the daemons
 	for dpu in $(echo $dpulist |sed "s/,/ /g"); do
         	ssh $dpu "pkill -f ucc_offload_dpu_daemon; [ "\$?" == "0" ] && echo \"$dpu: Daemon stopped\""
 	done
