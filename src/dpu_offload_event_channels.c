@@ -802,8 +802,11 @@ dpu_offload_status_t event_get(dpu_offload_ev_sys_t *ev_sys, dpu_offload_event_i
             _ev->explicit_return = info->explicit_return;
         }
 
-        if (info == NULL || info->payload_size == 0)
+        if (info == NULL || (info->pool.mem_pool == NULL && info->payload_size == 0))
+        {
+            // The library does not need to do anything for the payload buffer
             goto out;
+        }
 
         // If we get here, it means that we need to manage a payload buffer for that event
         _ev->manage_payload_buf = true;
