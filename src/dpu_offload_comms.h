@@ -335,7 +335,13 @@ static void notif_payload_recv_handler(void *request, ucs_status_t status, const
     }
     if (ctx->payload_ctx.buffer != NULL)
     {
-        free(ctx->payload_ctx.buffer);
+        if (ctx->payload_ctx.pool.mem_pool != NULL)
+        {
+            assert(ctx->payload_ctx.pool.return_buf);
+            ctx->payload_ctx.pool.return_buf(ctx->payload_ctx.pool.mem_pool, ctx->payload_ctx.buffer);
+        }
+        else
+            free(ctx->payload_ctx.buffer);
         ctx->payload_ctx.buffer = NULL;
     }
     ctx->payload_ctx.complete = true;
@@ -371,16 +377,25 @@ static int post_recv_for_notif_payload(hdr_notif_req_t *ctx, execution_context_t
 
     if (ctx->hdr.payload_size > 0)
     {
+        ucp_tag_t payload_ucp_tag, payload_ucp_tag_mask;
+        notification_callback_entry_t *entry;
         DBG("Posting recv for notif payload of size %ld for peer %ld (client_id: %" PRIu64 ", server_id: %" PRIu64 ")",
             ctx->hdr.payload_size, peer_id, ctx->client_id, ctx->server_id);
         ucp_worker_h worker;
 
-        ucp_tag_t payload_ucp_tag, payload_ucp_tag_mask;
         // If the notification type is already registered and is associated to a memory pool, we use a buffer from than pool
-        void *buf_from_pool = get_notif_buf(econtext->event_channels, ctx->hdr.type);
-        if (buf_from_pool)
+        entry = DYN_ARRAY_GET_ELT(&(econtext->event_channels->notification_callbacks), ctx->hdr.type, notification_callback_entry_t);
+        if (entry->buf_pool)
         {
+            notification_callback_entry_t *entry;
+            void *buf_from_pool = get_notif_buf(econtext->event_channels, ctx->hdr.type);
+            assert(buf_from_pool);
+            entry = DYN_ARRAY_GET_ELT(&(econtext->event_channels->notification_callbacks), ctx->hdr.type, notification_callback_entry_t);
+            assert(entry);
             ctx->payload_ctx.buffer = buf_from_pool;
+            ctx->payload_ctx.pool.mem_pool = entry->buf_pool;
+            ctx->payload_ctx.pool.get_buf = entry->get_buf;
+            ctx->payload_ctx.pool.return_buf = entry->return_buf;
         }
         else
         {

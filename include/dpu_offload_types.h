@@ -521,20 +521,37 @@ typedef struct event_req
 // Forward declaration
 struct execution_context;
 
+typedef void *(*get_buf_fn)(dyn_list_t *dlist);
+typedef void (*return_buf_fn)(dyn_list_t *dlist, void *buf);
+
+typedef struct notification_info
+{
+    // Optional function to get a buffer from a pool
+    get_buf_fn get_buf;
+    // Optional function to return a buffer to a pool
+    return_buf_fn return_buf;
+    // Memory pool to get notification payload buffer
+    dyn_list_t *mem_pool;
+    // Size of the elements in the list
+    size_t element_size;
+} notification_info_t;
+
 typedef struct payload_notif_req
 {
     bool complete;
     ucp_request_param_t recv_params;
+    notification_info_t pool;
     void *buffer;
     struct ucx_context *req;
 } payload_notif_req_t;
 
-#define RESET_PAYLOAD_NOTIF_REQ(_r) \
-    do                              \
-    {                               \
-        (_r)->complete = false;     \
-        (_r)->buffer = NULL;        \
-        (_r)->req = NULL;           \
+#define RESET_PAYLOAD_NOTIF_REQ(_r)      \
+    do                                   \
+    {                                    \
+        (_r)->complete = false;          \
+        (_r)->buffer = NULL;             \
+        (_r)->req = NULL;                \
+        RESET_NOTIF_INFO(&((_r)->pool)); \
     } while (0)
 
 typedef struct hdr_notif_req
@@ -1190,21 +1207,6 @@ typedef struct pending_am_rdv_recv
         (_rdv_recv)->desc = NULL;                                                                          \
         /* Do not reset user_data and buff_size as it is used over time as a buffer to minimize mallocs */ \
     } while (0)
-
-typedef void *(*get_buf_fn)(dyn_list_t *dlist);
-typedef void (*return_buf_fn)(dyn_list_t *dlist, void *buf);
-
-typedef struct notification_info
-{
-    // Optional function to get a buffer from a pool
-    get_buf_fn get_buf;
-    // Optional function to return a buffer to a pool
-    return_buf_fn return_buf;
-    // Memory pool to get notification payload buffer
-    dyn_list_t *mem_pool;
-    // Size of the elements in the list
-    size_t element_size;
-} notification_info_t;
 
 #define RESET_NOTIF_INFO(__info)     \
     do                               \
