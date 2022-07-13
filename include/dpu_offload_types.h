@@ -1202,6 +1202,8 @@ typedef struct notification_info
     return_buf_fn return_buf;
     // Memory pool to get notification payload buffer
     dyn_list_t *mem_pool;
+    // Size of the elements in the list
+    size_t element_size;
 } notification_info_t;
 
 #define RESET_NOTIF_INFO(__info)     \
