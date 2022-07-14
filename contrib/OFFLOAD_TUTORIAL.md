@@ -19,7 +19,7 @@ The primary challenge in integrating the DPU-offloaded MPI stack is the requirem
 These instructions will create several environment variables (PLATFORM, SWHOME), several directories (`$SWHOME`, `$SWHOME/modulefiles`, `~/bin`, `~/srun`, `~/workspace`), module files and shell scripts. As you proceed through these instructions you will understand why each step is required to construct the environment. It will likely be useful to read the entire instructions once before proceeding.
 
 ## Planning for Capacity Constraints
-Many home spaces have insufficient capacity to handle the very large build environments needed to support the large number of code repositories we will simultaneously have active. To move these spaces to a larger scratch file system we will use symbolic links. Please confirm with your administrator that the scratch file system you are moving files to is not automatically purged.
+Many home spaces have insufficient capacity to handle the very large build environments needed to support the large numbaer of code repositories we will simultaneously have active. To move these spaces to a larger scratch file system we will use symbolic links. Please confirm with your administrator that the scratch file system you are moving files to is not automatically purged.
 
 Execute the following commands to create the symbolic links:
 ```
@@ -78,7 +78,7 @@ Finally, be sure to reload your current environment with the variables modified 
 exec $SHELL
 ```
 
-At this point you should have a valid build environment to begin code development. See Appendix A.1 for a complete version of this shell environment.
+At this point you should have a valid build environment to begin code development. See [Appendix A.1](#appendix-a.1-shell-file-contents) for a complete version of this shell environment.
 
 ## Creating a Proof-of-Concept (POC) Sandbox
 As a research software developer, it may be necessary to have multiple POC builds available that are simple to activate at any particular time. This means we need to have separate sandboxes for building and installing each of these POC demonstrations. To keep this straight, we will use modulefiles. The general naming of the pieces is `poc-<user supplied name>`. In this case the POC will be the dpu-alltoallv, and thus the POC will be called `poc-dpu-alltoallv`.
@@ -89,7 +89,7 @@ mkdir -p ~/sw/modulefiles/poc-dpu-alltoallv
 cd ~/sw/modulefiles/poc-dpu-alltoallv
 ```
 
-Now create a file named 1.0 with the contents shown in [Appendix A.2](appendix-a.2-module-file-contents).
+Now create a file named 1.0 with the contents shown in [Appendix A.2](#appendix-a.2-module-file-contents).
 
 To activate the sandbox, type the following:
 ```
@@ -114,7 +114,7 @@ git clone git@github.com:gvallee/mpi_tests
 Now you need to build these repositories. While this is simple enough to do, our build script can make it easier. It is important to note that we are going to use out of tree builds – this is important so that the same code base can be built for two different target architectures. For each repository, we will build a version into build_x86 and a version into build_aarch64. In the beginning you may lose track of this detail multiple times and it may be a source of difficulty. Just get used to this and try to remain diligent.
 Also note that UCC requires OpenMPI and OpenMPI requires UCC. You will need to build OpenMPI at least once without UCC in order to bootstrap the UCC build the first time. (Running the build script without specifying a particular target will build and link the entire infrastructure from scratch and take care of this for you).
 
-Create a script called `build.sh` with the contents shown in Appendix A.3. (Note: You may wish to remove the `-–enable-debug` flags)
+Create a script called `build.sh` with the contents shown in [Appendix A.3](#appendix-a.3-build-script). (Note: You may wish to remove the `-–enable-debug` flags)
 
 You will undoubtedly edit this script many times during the development of proof-of-concept code, it’s just a starting point. To build the POC execute the following command once:
 ```
@@ -152,9 +152,9 @@ poc
 As you gain familiarity with the stack you will come to understand which things must be rebuilt for the changes you have made.
 Now it is necessary to run the software stack. For this, you will need a SLURM script to run which will create all of the DPU config files and start/stop daemons as required.
 
-In your srun directory, first create `~/srun/dpu_utils.sh` with contents as shown in Appendix A.5.
+In your srun directory, first create `~/srun/dpu_utils.sh` with contents as shown in [Appendix A.5](#appendix-a.5-slurm-dpu-utility-script).
 
-Next, create `~/srun/dpu_ucc-perf-alltoallv.sh` with contents as shown in Appendix A.6.
+Next, create `~/srun/dpu_ucc-perf-alltoallv.sh` with contents as shown in [Appendix A.6](#appendix-a.6-slurm-dpu-command-script).
 
 Now, we are ready to run an example Alltoallv collective test.
 
