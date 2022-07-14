@@ -447,7 +447,15 @@ static int post_recv_for_notif_payload(hdr_notif_req_t *ctx, execution_context_t
             }
             if (ctx->payload_ctx.buffer != NULL)
             {
-                free(ctx->payload_ctx.buffer);
+                if (ctx->payload_ctx.pool.mem_pool == NULL)
+                {
+                    // Free the buffer if the library allocated it.
+                    free(ctx->payload_ctx.buffer);
+                }
+                if (ctx->payload_ctx.pool.mem_pool != NULL && ctx->payload_ctx.pool.return_buf != NULL)
+                {
+                    ctx->payload_ctx.pool.return_buf(ctx->payload_ctx.pool.mem_pool, ctx->payload_ctx.buffer);
+                }
                 ctx->payload_ctx.buffer = NULL;
             }
             rc = EVENT_DONE;
