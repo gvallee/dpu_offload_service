@@ -206,7 +206,7 @@ export PKG_CONFIG_PATH="$SWHOME/lib:$PKG_CONFIG_PATH"
 export PATH="$HOME/bin:$SWHOME/bin:$PATH"
 ```
 
-## A.2 Module File Contents
+### A.2 Module File Contents
 ```
 #%Module
 
