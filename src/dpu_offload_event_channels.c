@@ -308,7 +308,6 @@ dpu_offload_status_t engine_register_default_notification_handler(offloading_eng
             // return_buf can be NULL when the calling library explicitly manages
             // life cycle of the buffer, especially when it is returned
             COPY_NOTIF_INFO(info, &(entry->info));
-            INFO_MSG("Default handler details - type: %" PRIu64 ", return fn: %p", type, entry->info.return_buf);
         }
     }
     engine->num_default_notifications++;
