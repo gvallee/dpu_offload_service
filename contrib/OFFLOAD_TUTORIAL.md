@@ -89,7 +89,7 @@ mkdir -p ~/sw/modulefiles/poc-dpu-alltoallv
 cd ~/sw/modulefiles/poc-dpu-alltoallv
 ```
 
-Now create a file named 1.0 with the contents shown in Appendix A.2.
+Now create a file named 1.0 with the contents shown in [Appendix A.2](appendix-a.2-module-file-contents).
 
 To activate the sandbox, type the following:
 ```
