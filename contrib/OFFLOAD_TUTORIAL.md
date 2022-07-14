@@ -36,7 +36,7 @@ ln -s /global/scratch/users/$USER/workspace workspace
 ## Creating a Multi-Platform Build Environment
 The first step in building an environment is creating environment variables that describe the current platform. In general, we need the instruction set and the binary versions captured in this environment.
 
-Add the following to your shell resource file to set an environment variable describing the platform (usually add this to .bashrc):
+Add the following to your shell resource file to set an environment variable describing the platform (usually add this to `.bashrc`):
 ```
 #
 # Platform detection
