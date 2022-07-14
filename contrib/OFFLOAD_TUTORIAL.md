@@ -428,7 +428,7 @@ else
 fi
 ```
 
-## A.5 Slurm DPU Utility Script
+### A.5 Slurm DPU Utility Script
 ```
 #!/usr/bin/bash
 #
