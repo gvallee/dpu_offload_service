@@ -237,7 +237,7 @@ set-alias sw "echo ${swhome}"
 ### A.3 Build Script
 ```
 #!/bin/sh
-# Environment setup stuff
+# Environment setup
 module load poc-dpu-alltoallv
 os=$(uname -r |grep -o -E '[a-z]+.' |head -n 1)
 mtype=$(uname -m)
