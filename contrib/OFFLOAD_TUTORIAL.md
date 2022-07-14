@@ -59,7 +59,7 @@ After execution of the above your PLATFORM environment variable should be set si
 
 Second, we use this platform value to set the platform default binary location.
 
-Add the following to your shell’s sourced environment (usually .bashrc):
+Add the following to your shell’s sourced environment (usually `.bashrc`):
 
 ```
 export SWHOME=~/sw/$PLATFORM
