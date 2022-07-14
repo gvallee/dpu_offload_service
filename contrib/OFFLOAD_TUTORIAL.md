@@ -18,7 +18,7 @@ The primary challenge in integrating the DPU-offloaded MPI stack is the requirem
 
 These instructions will create several environment variables (PLATFORM, SWHOME), several directories ($SWHOME, $SWHOME/modulefiles, ~/bin, ~/srun, ~/workspace), module files and shell scripts. As you proceed through these instructions you will understand why each step is required to construct the environment. It will likely be useful to read the entire instructions once before proceeding.
 
-# Planning for Capacity Constraints
+## Planning for Capacity Constraints
 Many home spaces have insufficient capacity to handle the very large build environments needed to support the large number of code repositories we will simultaneously have active. To move these spaces to a larger scratch file system we will use symbolic links. Please confirm with your administrator that the scratch file system you are moving files to is not automatically purged.
 
 Execute the following commands to create the symbolic links:
