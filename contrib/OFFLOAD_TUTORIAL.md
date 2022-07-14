@@ -356,7 +356,7 @@ done
 echo "Completed building targets:${targets}"
 ```
 
-## A.4 salloc Helper Script
+### A.4 salloc Helper Script
 ```
 # Get an allocation for hosts and their DPUs
 #
