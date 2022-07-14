@@ -234,7 +234,7 @@ set-alias poc "cd ${home}/workspace/${pocname}"
 set-alias sw "echo ${swhome}"
 ```
 
-## A.3 Build Script
+### A.3 Build Script
 ```
 #!/bin/sh
 # Environment setup stuff
