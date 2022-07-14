@@ -152,7 +152,7 @@ poc
 As you gain familiarity with the stack you will come to understand which things must be rebuilt for the changes you have made.
 Now it is necessary to run the software stack. For this, you will need a SLURM script to run which will create all of the DPU config files and start/stop daemons as required.
 
-In your srun directory, first create ~/srun/dpu_utils.sh with contents as shown in Appendix A.5.
+In your srun directory, first create `~/srun/dpu_utils.sh` with contents as shown in Appendix A.5.
 
 Next, create `~/srun/dpu_ucc-perf-alltoallv.sh` with contents as shown in Appendix A.6.
 
