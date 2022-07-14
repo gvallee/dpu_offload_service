@@ -1,6 +1,6 @@
 # Getting Started with the DPU Offload Service
 
-# Prerequisites:
+## Prerequisites:
 1. Access to the following repositories:
   - UCX (the most up-to-date dpu_offload branch)
   - UCC-priv (the most up-to-date dpu_offload branch)
