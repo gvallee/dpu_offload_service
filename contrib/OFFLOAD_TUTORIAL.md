@@ -569,7 +569,7 @@ function dpu_stop_daemons {
 }
 ```
 
-## A.6 Slurm DPU Command Script
+### A.6 Slurm DPU Command Script
 ```
 #!/usr/bin/bash
 #
