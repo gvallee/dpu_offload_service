@@ -13,7 +13,7 @@
 
 Note: You must use the Santa Clara VPN at NVIDIA to access the gateway to these clusters.
 
-# Theory of Operation
+## Theory of Operation
 The primary challenge in integrating the DPU-offloaded MPI stack is the requirement to have multiple binary types (aarch64 and x86_64) active and up-to-date at the same time. Mechanisms like Spack do not currently support this in a way that makes life easier rather than harder. To that end, we are going to use a mix of environment variables, shell scripts, and module files to support keeping these binaries straight and up-to-date, but this is simply one mechanism for accomplishing this task and other methods may be preferred. We suggest following these instructions precisely before modifying your methods to use a better approach.
 
 These instructions will create several environment variables (PLATFORM, SWHOME), several directories ($SWHOME, $SWHOME/modulefiles, ~/bin, ~/srun, ~/workspace), module files and shell scripts. As you proceed through these instructions you will understand why each step is required to construct the environment. It will likely be useful to read the entire instructions once before proceeding.
