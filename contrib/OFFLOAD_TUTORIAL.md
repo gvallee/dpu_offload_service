@@ -154,7 +154,7 @@ Now it is necessary to run the software stack. For this, you will need a SLURM s
 
 In your srun directory, first create ~/srun/dpu_utils.sh with contents as shown in Appendix A.5.
 
-Next, create ~/srun/dpu_ucc-perf-alltoallv.sh with contents as shown in Appendix A.6.
+Next, create `~/srun/dpu_ucc-perf-alltoallv.sh` with contents as shown in Appendix A.6.
 
 Now, we are ready to run an example Alltoallv collective test.
 
