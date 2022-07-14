@@ -114,7 +114,7 @@ git clone git@github.com:gvallee/mpi_tests
 Now you need to build these repositories. While this is simple enough to do, our build script can make it easier. It is important to note that we are going to use out of tree builds – this is important so that the same code base can be built for two different target architectures. For each repository, we will build a version into build_x86 and a version into build_aarch64. In the beginning you may lose track of this detail multiple times and it may be a source of difficulty. Just get used to this and try to remain diligent.
 Also note that UCC requires OpenMPI and OpenMPI requires UCC. You will need to build OpenMPI at least once without UCC in order to bootstrap the UCC build the first time. (Running the build script without specifying a particular target will build and link the entire infrastructure from scratch and take care of this for you).
 
-Create a script called build.sh with the contents shown in Appendix A.3. (Note: You may wish to remove the -–enable-debug flags)
+Create a script called `build.sh` with the contents shown in Appendix A.3. (Note: You may wish to remove the `-–enable-debug` flags)
 
 You will undoubtedly edit this script many times during the development of proof-of-concept code, it’s just a starting point. To build the POC execute the following command once:
 ```
