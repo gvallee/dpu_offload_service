@@ -89,7 +89,7 @@ mkdir -p ~/sw/modulefiles/poc-dpu-alltoallv
 cd ~/sw/modulefiles/poc-dpu-alltoallv
 ```
 
-Now create a file named 1.0 with the contents shown in [Appendix A.2](#appendix-a.2-module-file-contents).
+Now create a file named 1.0 with the contents shown in [Appendix A.2](#a2-module-file-contents).
 
 To activate the sandbox, type the following:
 ```
@@ -114,7 +114,7 @@ git clone git@github.com:gvallee/mpi_tests
 Now you need to build these repositories. While this is simple enough to do, our build script can make it easier. It is important to note that we are going to use out of tree builds – this is important so that the same code base can be built for two different target architectures. For each repository, we will build a version into build_x86 and a version into build_aarch64. In the beginning you may lose track of this detail multiple times and it may be a source of difficulty. Just get used to this and try to remain diligent.
 Also note that UCC requires OpenMPI and OpenMPI requires UCC. You will need to build OpenMPI at least once without UCC in order to bootstrap the UCC build the first time. (Running the build script without specifying a particular target will build and link the entire infrastructure from scratch and take care of this for you).
 
-Create a script called `build.sh` with the contents shown in [Appendix A.3](#appendix-a.3-build-script). (Note: You may wish to remove the `-–enable-debug` flags)
+Create a script called `build.sh` with the contents shown in [Appendix A.3](#a3-build-script). (Note: You may wish to remove the `-–enable-debug` flags)
 
 You will undoubtedly edit this script many times during the development of proof-of-concept code, it’s just a starting point. To build the POC execute the following command once:
 ```
@@ -128,7 +128,7 @@ And run the script on each platform type that you require (likely an x86 host an
 ## Running the POC Software Stack
 Note that to run the DPU prototype on a Slurm-based system we will need an allocation that includes both hosts and DPUs. There is nothing tricky to doing this, but we also provide a utility script that will help you formulate these commands.
 
-Create a file in `~/bin` named `dpu-salloc-bfdev.sh` with contents as shown in [Appendix A.4](#appendix-a.4-salloc-helper-script).
+Create a file in `~/bin` named `dpu-salloc-bfdev.sh` with contents as shown in [Appendix A.4](#a4-salloc-helper-script).
 
 This script will ensure you get an allocation of hosts and their DPUs. To print an salloc command to run type the following:
 ```
@@ -152,9 +152,9 @@ poc
 As you gain familiarity with the stack you will come to understand which things must be rebuilt for the changes you have made.
 Now it is necessary to run the software stack. For this, you will need a SLURM script to run which will create all of the DPU config files and start/stop daemons as required.
 
-In your srun directory, first create `~/srun/dpu_utils.sh` with contents as shown in [Appendix A.5](#appendix-a.5-slurm-dpu-utility-script).
+In your srun directory, first create `~/srun/dpu_utils.sh` with contents as shown in [Appendix A.5](#a5-slurm-dpu-utility-script).
 
-Next, create `~/srun/dpu_ucc-perf-alltoallv.sh` with contents as shown in [Appendix A.6](#appendix-a.6-slurm-dpu-command-script).
+Next, create `~/srun/dpu_ucc-perf-alltoallv.sh` with contents as shown in [Appendix A.6](#a6-slurm-dpu-command-script).
 
 Now, we are ready to run an example Alltoallv collective test.
 
