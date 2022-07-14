@@ -78,7 +78,7 @@ Finally, be sure to reload your current environment with the variables modified 
 exec $SHELL
 ```
 
-At this point you should have a valid build environment to begin code development. See [Appendix A.1](#appendix-a.1-shell-file-contents) for a complete version of this shell environment.
+At this point you should have a valid build environment to begin code development. See [Appendix A.1](#appendix-a1-shell-file-contents) for a complete version of this shell environment.
 
 ## Creating a Proof-of-Concept (POC) Sandbox
 As a research software developer, it may be necessary to have multiple POC builds available that are simple to activate at any particular time. This means we need to have separate sandboxes for building and installing each of these POC demonstrations. To keep this straight, we will use modulefiles. The general naming of the pieces is `poc-<user supplied name>`. In this case the POC will be the dpu-alltoallv, and thus the POC will be called `poc-dpu-alltoallv`.
