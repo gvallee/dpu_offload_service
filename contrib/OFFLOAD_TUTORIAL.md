@@ -170,7 +170,7 @@ sbatch -N 2 -p thor --nodelist=<n> ~/srun/dpu_alltoallv.sbatch
 where `<n>` is an available host/dpu pair of the form “thor001, thorbf001”
 
 ## Appendix A: Files
-## A.1 Shell File Contents
+### A.1 Shell File Contents
 ```
 #
 # Platform stuff
