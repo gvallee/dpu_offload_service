@@ -125,7 +125,7 @@ And run the script on each platform type that you require (likely an x86 host an
 ./build.sh
 ```
 
-# Running the POC Software Stack
+## Running the POC Software Stack
 Note that to run the DPU prototype on a Slurm-based system we will need an allocation that includes both hosts and DPUs. There is nothing tricky to doing this, but we also provide a utility script that will help you formulate these commands.
 
 Create a file in ~/bin named dpu-salloc-bfdev.sh with contents as shown in Appendix A.4.
