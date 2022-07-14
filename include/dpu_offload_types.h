@@ -536,6 +536,36 @@ typedef struct notification_info
     size_t element_size;
 } notification_info_t;
 
+#define RESET_NOTIF_INFO(__info)     \
+    do                               \
+    {                                \
+        (__info)->get_buf = NULL;    \
+        (__info)->return_buf = NULL; \
+        (__info)->mem_pool = NULL;   \
+        (__info)->element_size = 0;  \
+    } while (0)
+
+#define COPY_NOTIF_INFO(_src, _dst)                  \
+    do                                               \
+    {                                                \
+        (_dst)->get_buf = (_src)->get_buf;           \
+        (_dst)->return_buf = (_src)->return_buf;     \
+        (_dst)->mem_pool = (_src)->mem_pool;         \
+        (_dst)->element_size = (_src)->element_size; \
+    } while (0)
+
+
+#define CHECK_NOTIF_INFO(__info)              \
+    do                                        \
+    {                                         \
+        assert((__info)->get_buf == NULL);    \
+        assert((__info)->return_buf == NULL); \
+        assert((__info)->mem_pool == NULL);   \
+        assert((__info)->element_size == 0);  \
+    } while (0)
+
+
+
 typedef struct payload_notif_req
 {
     bool complete;
@@ -1208,23 +1238,6 @@ typedef struct pending_am_rdv_recv
         /* Do not reset user_data and buff_size as it is used over time as a buffer to minimize mallocs */ \
     } while (0)
 
-#define RESET_NOTIF_INFO(__info)     \
-    do                               \
-    {                                \
-        (__info)->get_buf = NULL;    \
-        (__info)->return_buf = NULL; \
-        (__info)->mem_pool = NULL;   \
-    } while (0)
-
-#define CHECK_NOTIF_INFO(__info)             \
-    do                                       \
-    {                                        \
-        assert((__info)->get_buf == NULL);    \
-        assert((__info)->return_buf == NULL); \
-        assert((__info)->mem_pool == NULL);   \
-    } while (0)
-
-
 /**
  * @brief dpu_offload_event_t represents an event, i.e., the implementation of a notification
  */
@@ -1750,23 +1763,17 @@ typedef struct notification_callback_entry
     struct dpu_offload_ev_sys *ev_sys;
     // Actually callback function
     notification_cb cb;
-    // Optional function to get a buffer from a pool
-    get_buf_fn get_buf;
-    // Optional function to return a buffer to a pool
-    return_buf_fn return_buf;
-    // Optional pool of buffer associated to the notification's type
-    dyn_list_t *buf_pool;
+    // Optional info associated to the entry
+    notification_info_t info;
 } notification_callback_entry_t;
 
-#define RESET_NOTIF_CB_ENTRY(_entry) \
-    do                               \
-    {                                \
-        (_entry)->set = false;       \
-        (_entry)->ev_sys = NULL;     \
-        (_entry)->cb = NULL;         \
-        (_entry)->get_buf = NULL;    \
-        (_entry)->return_buf = NULL; \
-        (_entry)->buf_pool = NULL;   \
+#define RESET_NOTIF_CB_ENTRY(_entry)         \
+    do                                       \
+    {                                        \
+        (_entry)->set = false;               \
+        (_entry)->ev_sys = NULL;             \
+        (_entry)->cb = NULL;                 \
+        RESET_NOTIF_INFO(&((_entry)->info)); \
     } while (0)
 
 /**

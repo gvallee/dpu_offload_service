@@ -153,10 +153,10 @@ void *get_notif_buf(dpu_offload_ev_sys_t *ev_sys, uint64_t type)
 {
     notification_callback_entry_t *entry;
     entry = DYN_ARRAY_GET_ELT(&(ev_sys->notification_callbacks), type, notification_callback_entry_t);
-    if (entry == NULL || entry->get_buf == NULL)
+    if (entry == NULL || entry->info.get_buf == NULL)
         return NULL;
-    assert(entry->buf_pool);
-    return (entry->get_buf(entry->buf_pool));
+    assert(entry->info.mem_pool);
+    return (entry->info.get_buf(entry->info.mem_pool));
 }
 
 notification_callback_entry_t* get_notif_callback_entry(dpu_offload_ev_sys_t *ev_sys, uint64_t type)
@@ -246,12 +246,7 @@ dpu_offload_status_t event_channel_register(dpu_offload_ev_sys_t *ev_sys, uint64
     entry->ev_sys = (struct dpu_offload_ev_sys *)ev_sys;
     if (info)
     {
-        if (info->mem_pool)
-            entry->buf_pool = info->mem_pool;
-        if (info->get_buf)
-            entry->get_buf = info->get_buf;
-        if (info->return_buf)
-            entry->return_buf = info->return_buf;
+        COPY_NOTIF_INFO(info, &(entry->info));
     }
     DBG("Callback for notification of type %" PRIu64 " is now registered on event system %p (econtext: %p)",
         type, ev_sys, ev_sys->econtext);
@@ -310,10 +305,10 @@ dpu_offload_status_t engine_register_default_notification_handler(offloading_eng
         {
             assert(info->mem_pool);
             assert(info->get_buf);
-            assert(info->return_buf);
-            entry->buf_pool = info->mem_pool;
-            entry->get_buf = info->get_buf;
-            entry->return_buf = info->return_buf;
+            // return_buf can be NULL when the calling library explicitly manages
+            // life cycle of the buffer, especially when it is returned
+            COPY_NOTIF_INFO(info, &(entry->info));
+            INFO_MSG("Default handler details - type: %" PRIu64 ", return fn: %p", type, entry->info.return_buf);
         }
     }
     engine->num_default_notifications++;
@@ -814,7 +809,6 @@ dpu_offload_status_t event_get(dpu_offload_ev_sys_t *ev_sys, dpu_offload_event_i
         if (info != NULL && info->pool.mem_pool != NULL)
         {
             assert(info->pool.get_buf);
-            assert(info->pool.return_buf);
             void *payload_buf_from_pool = info->pool.get_buf(info->pool.mem_pool);
             assert(payload_buf_from_pool);
             _ev->payload = payload_buf_from_pool;
@@ -859,16 +853,22 @@ static dpu_offload_status_t do_event_return(dpu_offload_event_t *ev)
     // If the event has a payload buffer that the library is managing, free that buffer
     if (ev->manage_payload_buf && ev->payload != NULL)
     {
-        if (ev->info.return_buf == NULL)
+        if (ev->info.mem_pool == NULL)
         {
             // Buffer is managed by the library
             free(ev->payload);
         }
         else
         {
-            // Return the buffer to the pool from calling library
-            assert(ev->info.mem_pool);
-            ev->info.return_buf(ev->info.mem_pool, ev->payload);
+            // If a memory pool is specified by the return_buf() function pointer
+            // is NULL, it means the calling library will return the buffer to
+            // the pool, there is nothing to do.
+            if (ev->info.return_buf != NULL)
+            {
+                // Return the buffer to the pool from calling library
+                assert(ev->info.mem_pool);
+                ev->info.return_buf(ev->info.mem_pool, ev->payload);
+            }
         }
         ev->payload = NULL;
         EVENT_HDR_PAYLOAD_SIZE(ev) = 0;

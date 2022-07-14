@@ -57,29 +57,48 @@ struct oob_msg
     uint64_t len;
 };
 
-#define ADD_DEFAULT_ENGINE_CALLBACKS(_engine, _econtext)                                                                                                     \
-    do                                                                                                                                                       \
-    {                                                                                                                                                        \
-        if ((_engine)->num_default_notifications > 0)                                                                                                        \
-        {                                                                                                                                                    \
-            notification_callback_entry_t *_list_callbacks = (notification_callback_entry_t *)(_engine)->default_notifications->notification_callbacks.base; \
-            size_t _i;                                                                                                                                       \
-            size_t _n = 0;                                                                                                                                   \
-            for (_i = 0; _i < (_engine)->default_notifications->notification_callbacks.num_elts; _i++)                                                       \
-            {                                                                                                                                                \
-                if (_list_callbacks[_i].set)                                                                                                                 \
-                {                                                                                                                                            \
-                    dpu_offload_status_t _rc = event_channel_register((_econtext)->event_channels, _i, _list_callbacks[_i].cb, NULL);                        \
-                    CHECK_ERR_GOTO((_rc), error_out, "unable to register engine's default notification to new execution context (type: %ld)", _i);           \
-                    _n++;                                                                                                                                    \
-                }                                                                                                                                            \
-                if (_n == (_engine)->num_default_notifications)                                                                                              \
-                {                                                                                                                                            \
-                    /* All done, no need to continue parsing the array. */                                                                                   \
-                    break;                                                                                                                                   \
-                }                                                                                                                                            \
-            }                                                                                                                                                \
-        }                                                                                                                                                    \
+#define ADD_DEFAULT_ENGINE_CALLBACKS(_engine, _econtext)                                                                        \
+    do                                                                                                                          \
+    {                                                                                                                           \
+        if ((_engine)->num_default_notifications > 0)                                                                           \
+        {                                                                                                                       \
+            notification_callback_entry_t *_list_callbacks;                                                                     \
+            _list_callbacks = (notification_callback_entry_t *)(_engine)->default_notifications->notification_callbacks.base;   \
+            size_t _i;                                                                                                          \
+            size_t _n = 0;                                                                                                      \
+            for (_i = 0; _i < (_engine)->default_notifications->notification_callbacks.num_elts; _i++)                          \
+            {                                                                                                                   \
+                if (_list_callbacks[_i].set)                                                                                    \
+                {                                                                                                               \
+                    if (_list_callbacks[_i].info.mem_pool == NULL)                                                              \
+                    {                                                                                                           \
+                        dpu_offload_status_t _rc = event_channel_register((_econtext)->event_channels,                          \
+                                                                          _i,                                                   \
+                                                                          _list_callbacks[_i].cb,                               \
+                                                                          NULL);                                                \
+                        CHECK_ERR_GOTO((_rc), error_out,                                                                        \
+                                       "unable to register engine's default notification to new execution context (type: %ld)", \
+                                       _i);                                                                                     \
+                    }                                                                                                           \
+                    else                                                                                                        \
+                    {                                                                                                           \
+                        dpu_offload_status_t _rc = event_channel_register((_econtext)->event_channels,                          \
+                                                                           _i,                                                  \
+                                                                           _list_callbacks[_i].cb,                              \
+                                                                           &(_list_callbacks[_i].info));                        \
+                        CHECK_ERR_GOTO((_rc), error_out,                                                                        \
+                                       "unable to register engine's default notification to new execution context (type: %ld)", \
+                                       _i);                                                                                     \
+                    }                                                                                                           \
+                    _n++;                                                                                                       \
+                }                                                                                                               \
+                if (_n == (_engine)->num_default_notifications)                                                                 \
+                {                                                                                                               \
+                    /* All done, no need to continue parsing the array. */                                                      \
+                    break;                                                                                                      \
+                }                                                                                                               \
+            }                                                                                                                   \
+        }                                                                                                                       \
     } while (0)
 
 extern dpu_offload_status_t get_env_config(conn_params_t *params);
