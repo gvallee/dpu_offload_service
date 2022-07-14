@@ -494,7 +494,7 @@ function dpu_create_configfile
 	export DPU_OFFLOAD_LIST_DPUS
 }
 
-# Distribute the DPU config file to al hosts
+# Distribute the DPU config file to all hosts
 #
 # Param configfile
 #
