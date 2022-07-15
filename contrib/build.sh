@@ -90,7 +90,7 @@ for t in $targets; do
 			echo "Daemon dirs: <$UCC_SRC_DIR> <${DPU_DAEMON_BUILD}> <${DPU_DAEMON_SRC_DIR}>"
 			cd ${DPU_DAEMON_BUILD}
 			gcc ${DPU_DAEMON_SRC_DIR}/offload_dpu_daemon.c -O0 -g -I${DPU_DAEMON_SRC_DIR} -I${SWHOME}/include -L${SWHOME}/lib -ldpuoffloaddaemon -l ucp -l ucs -o ucc_offload_dpu_daemon
-			[ $? != 0] && exit 1
+			[ $? != 0 ] && exit 1
 			cp ucc_offload_dpu_daemon $SWHOME/bin
 			cd ${WORKSPACE}
 			;;
