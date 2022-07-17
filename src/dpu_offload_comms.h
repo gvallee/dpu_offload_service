@@ -397,7 +397,10 @@ static int post_recv_for_notif_payload(hdr_notif_req_t *ctx, execution_context_t
         }
         else
         {
-            ctx->payload_ctx.buffer = DPU_OFFLOAD_MALLOC(ctx->hdr.payload_size);
+            // Get a buffer from the smart buffer system to avoid allocating memory
+            ctx->payload_ctx.smart_buf = SMART_BUFF_GET(&(econtext->engine->smart_buffer_sys), ctx->hdr.payload_size);
+            assert(ctx->payload_ctx.smart_buf);
+            ctx->payload_ctx.buffer = ctx->payload_ctx.smart_buf->base;
         }
         assert(ctx->payload_ctx.buffer);
         worker = GET_WORKER(econtext);
@@ -449,8 +452,12 @@ static int post_recv_for_notif_payload(hdr_notif_req_t *ctx, execution_context_t
             {
                 if (ctx->payload_ctx.pool.mem_pool == NULL)
                 {
-                    // Free the buffer if the library allocated it.
-                    free(ctx->payload_ctx.buffer);
+                    // Return the smart chunk to the smart buffer system.
+                    assert(ctx->payload_ctx.smart_buf);
+                    SMART_BUFF_RETURN(&(econtext->engine->smart_buffer_sys),
+                                      ctx->hdr.payload_size,
+                                      ctx->payload_ctx.smart_buf);
+                    ctx->payload_ctx.smart_buf = NULL;
                 }
                 if (ctx->payload_ctx.pool.mem_pool != NULL && ctx->payload_ctx.pool.return_buf != NULL)
                 {

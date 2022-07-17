@@ -1973,6 +1973,8 @@ void offload_engine_fini(offloading_engine_t **offload_engine)
         (*offload_engine)->ucp_context = NULL;
     }
 
+    SMART_BUFFS_FINI(&((*offload_engine)->smart_buffer_sys));
+
     free(*offload_engine);
     *offload_engine = NULL;
 }

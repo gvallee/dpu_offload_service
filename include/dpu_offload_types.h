@@ -554,7 +554,6 @@ typedef struct notification_info
         (_dst)->element_size = (_src)->element_size; \
     } while (0)
 
-
 #define CHECK_NOTIF_INFO(__info)              \
     do                                        \
     {                                         \
@@ -564,13 +563,12 @@ typedef struct notification_info
         assert((__info)->element_size == 0);  \
     } while (0)
 
-
-
 typedef struct payload_notif_req
 {
     bool complete;
     ucp_request_param_t recv_params;
     notification_info_t pool;
+    smart_chunk_t *smart_buf;
     void *buffer;
     struct ucx_context *req;
 } payload_notif_req_t;
@@ -579,6 +577,7 @@ typedef struct payload_notif_req
     do                                   \
     {                                    \
         (_r)->complete = false;          \
+        (_r)->smart_buf = NULL;          \
         (_r)->buffer = NULL;             \
         (_r)->req = NULL;                \
         RESET_NOTIF_INFO(&((_r)->pool)); \
@@ -1442,7 +1441,7 @@ typedef struct dpu_offload_event_info
         (__info)->payload_size = 0;          \
         (__info)->explicit_return = false;   \
         RESET_NOTIF_INFO(&((__info)->pool)); \
-    } while(0)
+    } while (0)
 
 typedef enum
 {
@@ -1618,6 +1617,9 @@ typedef struct offloading_engine
 
     // Current number of default notifications that have been registered
     size_t num_default_notifications;
+
+    // Smart buffer system associated to the engine
+    smart_buffers_t smart_buffer_sys;
 } offloading_engine_t;
 
 #define RESET_ENGINE(_engine, _ret)                                                                                 \
@@ -1674,6 +1676,7 @@ typedef struct offloading_engine
         (_engine)->num_connected_service_procs = 0;                                                                 \
         (_engine)->default_notifications = NULL;                                                                    \
         (_engine)->num_default_notifications = 0;                                                                   \
+        SMART_BUFFS_INIT(&((_engine)->smart_buffer_sys), NULL);                                                     \
     } while (0)
 
 /**

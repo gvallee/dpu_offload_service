@@ -9,8 +9,10 @@
 #include <stddef.h>
 #include <string.h>
 #include <stdint.h>
+#include <stdio.h>
 
 #include <ucs/datastruct/list.h>
+#include <ucs/sys/compiler_def.h>
 
 #ifndef DPU_OFFLOAD_DYNAMIC_LIST_H
 #define DPU_OFFLOAD_DYNAMIC_LIST_H
@@ -34,37 +36,39 @@ typedef struct dyn_array
     void *base;
     size_t num_elts;
     size_t num_elts_alloc;
+    size_t type_size;
     dyn_struct_elt_init_fn element_init_fn;
 } dyn_array_t;
 
-#define DYN_ARRAY_ALLOC(_dyn_array, _num_elts_alloc, _type)             \
-    do                                                                  \
-    {                                                                   \
-        assert(_num_elts_alloc);                                        \
-        (_dyn_array)->num_elts_alloc = _num_elts_alloc;                 \
-        (_dyn_array)->num_elts = _num_elts_alloc;                       \
-        (_dyn_array)->element_init_fn = NULL;                           \
-        (_dyn_array)->base = malloc(_num_elts_alloc * sizeof(_type));   \
-        assert((_dyn_array)->base);                                     \
-        memset((_dyn_array)->base, 0, _num_elts_alloc * sizeof(_type)); \
+#define DYN_ARRAY_ALLOC(_dyn_array_alloc, _da_alloc_num_elts_alloc, _da_alloc_type)                             \
+    do                                                                                                          \
+    {                                                                                                           \
+        assert(_da_alloc_num_elts_alloc);                                                                       \
+        (_dyn_array_alloc)->num_elts_alloc = _da_alloc_num_elts_alloc;                                          \
+        (_dyn_array_alloc)->num_elts = _da_alloc_num_elts_alloc;                                                \
+        (_dyn_array_alloc)->type_size = sizeof(_da_alloc_type);                                                 \
+        (_dyn_array_alloc)->element_init_fn = NULL;                                                             \
+        (_dyn_array_alloc)->base = malloc((_dyn_array_alloc)->num_elts_alloc * (_dyn_array_alloc)->type_size);  \
+        assert((_dyn_array_alloc)->base);                                                                       \
+        memset((_dyn_array_alloc)->base, 0, (_dyn_array_alloc)->num_elts_alloc *(_dyn_array_alloc)->type_size); \
     } while (0)
 
-#define DYN_ARRAY_ALLOC_WITH_INIT_FN(_dyn_array, _num_elts_alloc, _type, _fn) \
-    do                                                                        \
-    {                                                                         \
-        size_t _x;                                                            \
-        assert(_num_elts_alloc);                                              \
-        (_dyn_array)->num_elts_alloc = _num_elts_alloc;                       \
-        (_dyn_array)->num_elts = _num_elts_alloc;                             \
-        (_dyn_array)->element_init_fn = _fn;                                  \
-        (_dyn_array)->base = malloc(_num_elts_alloc * sizeof(_type));         \
-        assert((_dyn_array)->base);                                           \
-        memset((_dyn_array)->base, 0, _num_elts_alloc * sizeof(_type));       \
-        _type *_a = (_type *)(_dyn_array)->base;                              \
-        for (_x = 0; _x < (_dyn_array)->num_elts; _x++)                       \
-        {                                                                     \
-            _fn(_a[_x]);                                                      \
-        }                                                                     \
+#define DYN_ARRAY_ALLOC_WITH_INIT_FN(_dyn_array, _num_elts_alloc, _type, _fn)      \
+    do                                                                             \
+    {                                                                              \
+        size_t _da_alloc_x;                                                        \
+        assert(_num_elts_alloc);                                                   \
+        (_dyn_array)->num_elts_alloc = _num_elts_alloc;                            \
+        (_dyn_array)->num_elts = _num_elts_alloc;                                  \
+        (_dyn_array)->element_init_fn = _fn;                                       \
+        (_dyn_array)->base = malloc(_num_elts_alloc * sizeof(_type));              \
+        assert((_dyn_array)->base);                                                \
+        memset((_dyn_array)->base, 0, _num_elts_alloc * sizeof(_type));            \
+        _type *_da_alloc_a = (_type *)(_dyn_array)->base;                          \
+        for (_da_alloc_x = 0; _da_alloc_x < (_dyn_array)->num_elts; _da_alloc_x++) \
+        {                                                                          \
+            _fn(_da_alloc_a[_da_alloc_x]);                                         \
+        }                                                                          \
     } while (0)
 
 #define DYN_ARRAY_FREE(_dyn_array)            \
@@ -322,14 +326,14 @@ typedef struct smart_bucket
     ucs_list_link_t pool;
 } smart_bucket_t;
 
-#define RESET_SMART_BUCKET(__sb)        \
-    do                                  \
-    {                                   \
-        (__sb)->sys = NULL;             \
-        (__sb)->initial_size = 0;       \
-        (__sb)->min_size = 0;           \
-        (__sb)->max_size = 0;           \
-        ucs_list_init(&((__sb)->pool)); \
+#define RESET_SMART_BUCKET(__sb)             \
+    do                                       \
+    {                                        \
+        (__sb)->sys = NULL;                  \
+        (__sb)->initial_size = 0;            \
+        (__sb)->min_size = 0;                \
+        (__sb)->max_size = 0;                \
+        ucs_list_head_init(&((__sb)->pool)); \
     } while (0)
 
 typedef struct smart_buffers
@@ -469,161 +473,190 @@ typedef struct
         }                                                                                   \
     } while (0)
 
-#define SMART_BUFFS_INIT(__ptr, __info_in)                                                                      \
-    do                                                                                                          \
-    {                                                                                                           \
-        smart_buffers_info_t *__info;                                                                           \
-        /* Default buckets, sizes in bytes */                                                                   \
-        const size_t _smart_bufs_default_buckets[10] = {8, 16, 64, 128, 512, 1024, 4096, 8192, 65536, 1048576}; \
-        const size_t _smart_bufs_default_total_size = 20 * 1024 * 1024;                                         \
-        if (__info_in == NULL)                                                                                  \
-        {                                                                                                       \
-            smart_buffers_info_t __sb_default_info;                                                             \
-            __sb_default_info.buckets = (size_t *)_smart_bufs_default_buckets;                                  \
-            __sb_default_info.num_buckets = 10;                                                                 \
-            __info = &__sb_default_info;                                                                        \
-        }                                                                                                       \
-        else                                                                                                    \
-        {                                                                                                       \
-            __info = __info_in;                                                                                 \
-        }                                                                                                       \
-        if (__ptr != NULL && __info != NULL)                                                                    \
-        {                                                                                                       \
-            /* Initialize internals */                                                                          \
-            DYN_ARRAY_ALLOC(&((__ptr)->bucket_sizes), (__info)->num_buckets, size_t);                           \
-            DYN_ARRAY_ALLOC(&((__ptr)->buckets), (__info)->num_buckets + 1, smart_bucket_t);                    \
-            /* Allocate the base memory chunk that will be used to populate the buckets */                      \
-            DYN_ARRAY_ALLOC(&((__ptr)->base_mem_chunks), 1, mem_chunk_t);                                       \
-            /* Allocate the two pool of descriptors */                                                          \
-            size_t __n_descs = 10 * 1024 * 1024;                                                                \
-            DYN_LIST_ALLOC((__ptr)->smart_chunk_desc_pool, __n_descs, smart_chunk_t, super);                    \
-            mem_chunk_t *_base_mem_chunk = DYN_ARRAY_GET_ELT(&((__ptr)->base_mem_chunks), 1, mem_chunk_t);      \
-            size_t _total_mem = _smart_bufs_default_total_size;                                                 \
-            _base_mem_chunk->ptr = calloc(_total_mem, sizeof(char));                                            \
-            (__ptr)->num_base_mem_chunks = 1;                                                                   \
-            size_t _bucket_mem_size = _total_mem / (__info)->num_buckets;                                       \
-                                                                                                                \
-            /* Copy meta-data from info object */                                                               \
-            (__ptr)->num_buckets = (__info)->num_buckets;                                                       \
-            size_t _i;                                                                                          \
-            uint64_t _bucket_min_size = 0;                                                                      \
-            for (_i = 0; _i < (__info)->num_buckets; _i++)                                                      \
-            {                                                                                                   \
-                size_t *_bucket_max_size = DYN_ARRAY_GET_ELT(&((__ptr)->bucket_sizes), _i, size_t);             \
-                assert(_bucket_max_size);                                                                       \
-                *_bucket_max_size = (__info)->buckets[_i];                                                      \
-                smart_bucket_t *_smart_bucket = DYN_ARRAY_GET_ELT(&((__ptr)->buckets), _i, smart_bucket_t);     \
-                assert(_smart_bucket);                                                                          \
-                _smart_bucket->min_size = (uint64_t)_bucket_min_size;                                           \
-                _smart_bucket->max_size = (uint64_t)*_bucket_max_size;                                          \
-                _bucket_min_size = (uint64_t)((*_bucket_max_size) + 1);                                         \
-                /* Add the smart chunks */                                                                      \
-                size_t _j, _n = 0;                                                                              \
-                void *_ptr_base = (void *)((ptrdiff_t)_base_mem_chunk->ptr + _i * _bucket_mem_size);            \
-                for (_j = 0; _j < (_bucket_mem_size / _smart_bucket->max_size); _j++)                           \
-                {                                                                                               \
-                    void *_mem_ptr = (void *)((ptrdiff_t)_ptr_base + _j * _smart_bucket->max_size);             \
-                    smart_chunk_t *_smart_chunk;                                                                \
-                    DYN_LIST_GET((__ptr)->smart_chunk_desc_pool, smart_chunk_t, super, _smart_chunk);           \
-                    assert(_smart_chunk);                                                                       \
-                    RESET_SMART_CHUNK(_smart_chunk);                                                            \
-                    _smart_chunk->base = _mem_ptr;                                                              \
-                    _smart_chunk->size = _smart_bucket->max_size;                                               \
-                    _smart_chunk->bucket = (struct smart_bucket *)_smart_bucket;                                \
-                    _n++;                                                                                       \
-                }                                                                                               \
-                _smart_bucket->initial_size = _n;                                                               \
-            }                                                                                                   \
-            /* Initialize last bucket */                                                                        \
-            smart_bucket_t *_last_smart_bucket = DYN_ARRAY_GET_ELT(&((__ptr)->buckets), _i, smart_bucket_t);    \
-            assert(_last_smart_bucket);                                                                         \
-            _last_smart_bucket->min_size = (uint64_t)_bucket_min_size;                                          \
-            _last_smart_bucket->max_size = UINT64_MAX;                                                          \
-            /* The last bucket does not have a known size and is populated on demand */                         \
-        }                                                                                                       \
+#define SMART_BUFFERS_DEFAULT_MEM_ALLOC_SIZE ((20 * 1024 * 1024))
+
+#define SMART_BUFFERS_ALLOC_SMART_CHUNKS(__sb_sys, _smart_bucket_to_populate, __bucket_allocated_mem_size, __sc_ptr_base, __num_chunks) \
+    do                                                                                                                                  \
+    {                                                                                                                                   \
+        size_t __sb_sc_idx;                                                                                                             \
+        for (__sb_sc_idx = 0; __sb_sc_idx < (__bucket_allocated_mem_size / _smart_bucket_to_populate->max_size); __sb_sc_idx++)         \
+        {                                                                                                                               \
+            void *__sb_sc_mem_ptr = (void *)((ptrdiff_t)__sc_ptr_base + __sb_sc_idx * _smart_bucket_to_populate->max_size);             \
+            smart_chunk_t *_smart_chunk;                                                                                                \
+            DYN_LIST_GET((__sb_sys)->smart_chunk_desc_pool, smart_chunk_t, super, _smart_chunk);                                        \
+            assert(_smart_chunk);                                                                                                       \
+            RESET_SMART_CHUNK(_smart_chunk);                                                                                            \
+            _smart_chunk->base = __sb_sc_mem_ptr;                                                                                       \
+            _smart_chunk->size = _smart_bucket_to_populate->max_size;                                                                   \
+            _smart_chunk->bucket = (struct smart_bucket *)_smart_bucket_to_populate;                                                    \
+            ucs_list_add_tail(&(_smart_bucket_to_populate->pool), &(_smart_chunk->super));                                              \
+            __num_chunks++;                                                                                                             \
+        }                                                                                                                               \
     } while (0)
 
-#define SMART_BUFF_GET(__sys, __sz, __bf) ({                                                                      \
-    size_t _i;                                                                                                    \
-    smart_bucket_t *_target_bucket = NULL;                                                                        \
-    smart_chunk_t *_target_chunk = NULL;                                                                          \
-    for (_i = 0; _i < (__sys)->num_buckets; _i++)                                                                 \
-    {                                                                                                             \
-        smart_bucket_t *__b = DYN_ARRAY_GET_ELT((__sys)->buckets, i, smart_bucket_t);                             \
-        assert(__b);                                                                                              \
-        if ((__b)->min_size <= __sz && __sz <= (__b)->max_size)                                                   \
-        {                                                                                                         \
-            _target_bucket = __b;                                                                                 \
-            break;                                                                                                \
-        }                                                                                                         \
-    }                                                                                                             \
-    if (_target_bucket == NULL || _target_bucket->max_size == UINT64_MAX)                                         \
-    {                                                                                                             \
-        /* Need to create a new bucket, the size is bigger than anything we handle right now */                   \
-        uint64_t _new_bucket_max_size = ((__sz / 4096) + 1) * 4096;                                               \
-        size_t *__new_bucket_sz, *__prev_bucket_sz;                                                               \
-        smart_bucket_t *__new_bucket;                                                                             \
-        __new_bucket_sz = DYN_ARRAY_GET_ELT(&((__sys)->bucket_sizes), (__sys)->num_buckets, smart_bucket_t);      \
-        assert(__new_bucket_sz);                                                                                  \
-        __prev_bucket_sz = DYN_ARRAY_GET_ELT(&((__sys)->bucket_sizes), (__sys)->num_buckets - 1, smart_bucket_t); \
-        assert(__prev_bucket_sz);                                                                                 \
-        *__new_bucket_sz = _new_bucket_max_size;                                                                  \
-        __new_bucket = DYN_ARRAY_GET_ELT(&((__sys)->buckets), (__sys)->num_buckets, super);                       \
-        assert(_new_bucket);                                                                                      \
-        _new_bucket->min_size = __prev_bucket_sz + 1;                                                             \
-        _new_bucket->max_size = __new_bucket_sz;                                                                  \
-        _mem_chunk_desc = DYN_ARRAY_GET_ELT((__sys)->base_mem_chunks, (__sys)->num_base_mem_chunks, mem_chunk_t); \
-        assert(_mem_chunk_desc);                                                                                  \
-        size_t _bucket_mem_size = 10 * _new_bucket_max_size;                                                      \
-        _mem_chunk_desc->ptr = calloc(_bucket_mem_size, sizeof(char));                                            \
-        (__sys)->num_base_mem_chunks++;                                                                           \
-        /* Add the smart chunks */                                                                                \
-        size_t _j, __n = 0;                                                                                       \
-        for (_j = 0; _j < (_bucket_mem_size / _new_bucket->max_size); _j++)                                       \
-        {                                                                                                         \
-            void *_mem_ptr = (void *)((ptrdiff_t)_mem_chunk_desc->ptr + _j * _new_bucket->max_size);              \
-            smart_chunk_t *_smart_chunk;                                                                          \
-            DYN_LIST_GET(&((__ptr)->smart_chunk_desc_pool), smart_chunk_t, super, _smart_chunk);                  \
-            assert(_smart_chunk);                                                                                 \
-            RESET_SMART_CHUNK(_smart_chunk);                                                                      \
-            _smart_chunk->base = _mem_ptr;                                                                        \
-            _smart_chunk->size = _new_bucket->max_size;                                                           \
-            ucs_list_add_tail(&(__new_bucket->pool), &(_smart_chunk->super));                                     \
-            __n++;                                                                                                \
-        }                                                                                                         \
-        __new_bucket->initial_size = __n;                                                                         \
-        _target_bucket = __new_bucket;                                                                            \
-    }                                                                                                             \
-    assert(_target_bucket);                                                                                       \
-    _target_chunk = ucs_list_extract_head(&(_target_bucket->pool), smart_chunk_t, super);                         \
-    _target_chunk->is_use = true;                                                                                 \
-    __bf = _target_chunk->base;                                                                                   \
-})
+#define SMART_BUFFS_HANDLE_INFO(__smart_bufs_sys, _info_in)                                                                     \
+    do                                                                                                                          \
+    {                                                                                                                           \
+        if (_info_in == NULL)                                                                                                   \
+        {                                                                                                                       \
+            /* Default buckets, sizes in bytes */                                                                               \
+            size_t _smart_bufs_default_buckets[10] = {8, 16, 64, 128, 512, 1024, 4096, 8192, 65536, 1048576};                   \
+            size_t _info_n_bucket;                                                                                              \
+            /* Copy meta-data from info object */                                                                               \
+            (__smart_bufs_sys)->num_buckets = 10;                                                                               \
+            DYN_ARRAY_ALLOC(&((__smart_bufs_sys)->bucket_sizes), (__smart_bufs_sys)->num_buckets, size_t);                      \
+            for (_info_n_bucket = 0; _info_n_bucket < 10; _info_n_bucket++)                                                     \
+            {                                                                                                                   \
+                size_t *_bucket_max_size = DYN_ARRAY_GET_ELT(&((__smart_bufs_sys)->bucket_sizes), _info_n_bucket, size_t);      \
+                *_bucket_max_size = _smart_bufs_default_buckets[_info_n_bucket];                                                \
+            }                                                                                                                   \
+        }                                                                                                                       \
+        else                                                                                                                    \
+        {                                                                                                                       \
+            size_t _info_copy_n_bucket; /* Copy meta-data from info object */                                                   \
+            smart_buffers_info_t *__info_in = (smart_buffers_info_t *)(_info_in);                                               \
+            (__smart_bufs_sys)->num_buckets = (__info_in)->num_buckets;                                                         \
+            DYN_ARRAY_ALLOC(&((__smart_bufs_sys)->bucket_sizes), (__smart_bufs_sys)->num_buckets, size_t);                      \
+            for (_info_copy_n_bucket = 0; _info_copy_n_bucket < (__smart_bufs_sys)->num_buckets; _info_copy_n_bucket++)         \
+            {                                                                                                                   \
+                size_t *_bucket_max_size = DYN_ARRAY_GET_ELT(&((__smart_bufs_sys)->bucket_sizes), _info_copy_n_bucket, size_t); \
+                *_bucket_max_size = (__info_in)->buckets[_info_copy_n_bucket];                                                  \
+            }                                                                                                                   \
+        }                                                                                                                       \
+    } while (0)
 
-#define SMART_BUFF_RETURN(__sys, __sz, __bf) ({                                                  \
-    size_t _i;                                                                                   \
-    smart_chunk_t *_sc = ucs_derived_of(__bf);                                                   \
-    assert(_sc->in_use == true);                                                                 \
-    /* Find the associated bucket */                                                             \
-    for (_i = 0; _i < (__sys)->num_buckets; _i++)                                                \
-    {                                                                                            \
-        smart_bucket_t *__b = DYN_ARRAY_GET_ELT((__sys)->buckets, i, smart_bucket_t);            \
-        assert(__b);                                                                             \
-        if ((__b)->min_size <= __sz && __sz <= (__b)->max_size)                                  \
-        {                                                                                        \
-            _target_bucket = __b;                                                                \
-            break;                                                                               \
-        }                                                                                        \
-    }                                                                                            \
-    assert(_target_bucket);                                                                      \
-    _sc->in_use = false;                                                                         \
-    ucs_list_add_tail(&(_target_bucket->pool), &(_sc->super));                                   \
-    /* Check if it makes sense to try to recycle smart buffers */                                \
-    size_t _recycle_threshold = _target_bucket->initial_size + _target_bucket->initial_size / 2; \
-    if (ucs_list_length(&(_target_bucket->pool)) > _recycle_threshold)                           \
-        SMART_BUFFS_RECYCLE_SMART_CHUNK(_sc);                                                    \
-    /* Make sure the pointer cannot be used anymore */                                           \
-    __bf = NULL;                                                                                 \
+#define SMART_BUFFS_INIT(__smart_bufs_sys, _info_in)                                                                           \
+    do                                                                                                                         \
+    {                                                                                                                          \
+        size_t _n_bucket;                                                                                                      \
+        uint64_t _bucket_min_size = 0;                                                                                         \
+        SMART_BUFFS_HANDLE_INFO(__smart_bufs_sys, _info_in);                                                                   \
+        /* Initialize internals */                                                                                             \
+        DYN_ARRAY_ALLOC(&((__smart_bufs_sys)->buckets), (__smart_bufs_sys)->num_buckets + 1, smart_bucket_t);                  \
+        /* Allocate the base memory chunk that will be used to populate the buckets */                                         \
+        DYN_ARRAY_ALLOC(&((__smart_bufs_sys)->base_mem_chunks), 8, mem_chunk_t);                                               \
+        /* Allocate the pool of descriptors */                                                                                 \
+        size_t __n_descs = SMART_BUFFERS_DEFAULT_MEM_ALLOC_SIZE / 2;                                                           \
+        DYN_LIST_ALLOC((__smart_bufs_sys)->smart_chunk_desc_pool, __n_descs, smart_chunk_t, super);                            \
+        mem_chunk_t *_base_mem_chunk = DYN_ARRAY_GET_ELT(&((__smart_bufs_sys)->base_mem_chunks), 0, mem_chunk_t);              \
+        _base_mem_chunk->ptr = calloc(SMART_BUFFERS_DEFAULT_MEM_ALLOC_SIZE, sizeof(char));                                     \
+        _base_mem_chunk->size = SMART_BUFFERS_DEFAULT_MEM_ALLOC_SIZE;                                                          \
+        (__smart_bufs_sys)->num_base_mem_chunks = 1;                                                                           \
+        size_t _bucket_mem_size = SMART_BUFFERS_DEFAULT_MEM_ALLOC_SIZE / (__smart_bufs_sys)->num_buckets;                      \
+        for (_n_bucket = 0; _n_bucket < (__smart_bufs_sys)->num_buckets; _n_bucket++)                                          \
+        {                                                                                                                      \
+            size_t *_bucket_max_size = DYN_ARRAY_GET_ELT(&((__smart_bufs_sys)->bucket_sizes), _n_bucket, size_t);              \
+            assert(_bucket_max_size);                                                                                          \
+            smart_bucket_t *_smart_bucket = DYN_ARRAY_GET_ELT(&((__smart_bufs_sys)->buckets), _n_bucket, smart_bucket_t);      \
+            assert(_smart_bucket);                                                                                             \
+            RESET_SMART_BUCKET(_smart_bucket);                                                                                 \
+            _smart_bucket->min_size = (uint64_t)_bucket_min_size;                                                              \
+            _smart_bucket->max_size = (uint64_t)(*_bucket_max_size);                                                           \
+            _bucket_min_size = (uint64_t)((*_bucket_max_size) + 1);                                                            \
+            /* Add the smart chunks */                                                                                         \
+            size_t _sb_allocated_chunks = 0;                                                                                   \
+            void *_sc_alloc_ptr_base = (void *)((ptrdiff_t)_base_mem_chunk->ptr + _n_bucket * _bucket_mem_size);               \
+            SMART_BUFFERS_ALLOC_SMART_CHUNKS(__smart_bufs_sys,                                                                 \
+                                             _smart_bucket,                                                                    \
+                                             _bucket_mem_size,                                                                 \
+                                             _sc_alloc_ptr_base,                                                               \
+                                             _sb_allocated_chunks);                                                            \
+            _smart_bucket->initial_size = _sb_allocated_chunks;                                                                \
+        }                                                                                                                      \
+        /* Initialize last bucket */                                                                                           \
+        smart_bucket_t *_last_smart_bucket = DYN_ARRAY_GET_ELT(&((__smart_bufs_sys)->buckets), _n_bucket, smart_bucket_t);     \
+        assert(_last_smart_bucket);                                                                                            \
+        _last_smart_bucket->min_size = (uint64_t)_bucket_min_size;                                                             \
+        _last_smart_bucket->max_size = UINT64_MAX; /* The last bucket does not have a known size and is populated on demand */ \
+    } while (0)
+
+#define SMART_BUFF_GET(__sys, __sz)                                                                       \
+    ({                                                                                                    \
+        size_t _i;                                                                                        \
+        smart_bucket_t *_target_bucket = NULL;                                                            \
+        smart_chunk_t *_target_chunk = NULL;                                                              \
+        for (_i = 0; _i < (__sys)->num_buckets; _i++)                                                     \
+        {                                                                                                 \
+            smart_bucket_t *__b = DYN_ARRAY_GET_ELT(&((__sys)->buckets), _i, smart_bucket_t);             \
+            assert(__b);                                                                                  \
+            if ((__b)->min_size <= (__sz) && (__sz) <= (__b)->max_size)                                   \
+            {                                                                                             \
+                _target_bucket = __b;                                                                     \
+                break;                                                                                    \
+            }                                                                                             \
+        }                                                                                                 \
+        if (_target_bucket == NULL || _target_bucket->max_size == UINT64_MAX)                             \
+        {                                                                                                 \
+            /* Need to create a new bucket, the size is bigger than anything we handle right now */       \
+            uint64_t _new_bucket_max_size = (((__sz) / 4096) + 1) * 4096;                                 \
+            size_t *__new_bucket_sz, *__prev_bucket_sz;                                                   \
+            smart_bucket_t *__new_bucket;                                                                 \
+            mem_chunk_t *_mem_chunk_desc;                                                                 \
+            __new_bucket_sz = DYN_ARRAY_GET_ELT(&((__sys)->bucket_sizes), (__sys)->num_buckets, size_t);  \
+            assert(__new_bucket_sz);                                                                      \
+            __prev_bucket_sz = DYN_ARRAY_GET_ELT(&((__sys)->bucket_sizes),                                \
+                                                 (__sys)->num_buckets - 1,                                \
+                                                 size_t);                                                 \
+            assert(__prev_bucket_sz);                                                                     \
+            *__new_bucket_sz = _new_bucket_max_size;                                                      \
+            __new_bucket = DYN_ARRAY_GET_ELT(&((__sys)->buckets), (__sys)->num_buckets, smart_bucket_t);  \
+            assert(__new_bucket);                                                                         \
+            __new_bucket->min_size = (uint64_t)(__prev_bucket_sz + 1);                                    \
+            __new_bucket->max_size = *__new_bucket_sz;                                                    \
+            _mem_chunk_desc = DYN_ARRAY_GET_ELT(&((__sys)->base_mem_chunks),                              \
+                                                (__sys)->num_base_mem_chunks,                             \
+                                                mem_chunk_t);                                             \
+            assert(_mem_chunk_desc);                                                                      \
+            size_t _bucket_mem_size = 10 * _new_bucket_max_size;                                          \
+            _mem_chunk_desc->ptr = calloc(_bucket_mem_size, sizeof(char));                                \
+            (__sys)->num_base_mem_chunks++;                                                               \
+            /* Add the smart chunks */                                                                    \
+            size_t _j, __n = 0;                                                                           \
+            for (_j = 0; _j < (_bucket_mem_size / __new_bucket->max_size); _j++)                          \
+            {                                                                                             \
+                void *_mem_ptr = (void *)((ptrdiff_t)_mem_chunk_desc->ptr + _j * __new_bucket->max_size); \
+                smart_chunk_t *_smart_chunk;                                                              \
+                DYN_LIST_GET((__sys)->smart_chunk_desc_pool, smart_chunk_t, super, _smart_chunk);         \
+                assert(_smart_chunk);                                                                     \
+                RESET_SMART_CHUNK(_smart_chunk);                                                          \
+                _smart_chunk->base = _mem_ptr;                                                            \
+                _smart_chunk->size = __new_bucket->max_size;                                              \
+                ucs_list_add_tail(&(__new_bucket->pool), &(_smart_chunk->super));                         \
+                __n++;                                                                                    \
+            }                                                                                             \
+            __new_bucket->initial_size = __n;                                                             \
+            _target_bucket = __new_bucket;                                                                \
+        }                                                                                                 \
+        assert(_target_bucket);                                                                           \
+        _target_chunk = ucs_list_extract_head(&(_target_bucket->pool), smart_chunk_t, super);             \
+        _target_chunk->in_use = true;                                                                     \
+        _target_chunk;                                                                                    \
+    })
+
+#define SMART_BUFF_RETURN(__sys, __sz, __sc) ({                                                     \
+    size_t _sb_return_i;                                                                            \
+    smart_bucket_t *_target_bucket = NULL;                                                          \
+    assert(__sc->in_use == true);                                                                   \
+    /* Find the associated bucket */                                                                \
+    for (_sb_return_i = 0; _sb_return_i < (__sys)->num_buckets; _sb_return_i++)                     \
+    {                                                                                               \
+        smart_bucket_t *__b = DYN_ARRAY_GET_ELT(&((__sys)->buckets), _sb_return_i, smart_bucket_t); \
+        assert(__b);                                                                                \
+        if ((__b)->min_size <= __sz && __sz <= (__b)->max_size)                                     \
+        {                                                                                           \
+            _target_bucket = __b;                                                                   \
+            break;                                                                                  \
+        }                                                                                           \
+    }                                                                                               \
+    assert(_target_bucket);                                                                         \
+    __sc->in_use = false;                                                                           \
+    ucs_list_add_tail(&(_target_bucket->pool), &(__sc->super));                                     \
+    /* Check if it makes sense to try to recycle smart buffers */                                   \
+    size_t _recycle_threshold = _target_bucket->initial_size + _target_bucket->initial_size / 2;    \
+    if (ucs_list_length(&(_target_bucket->pool)) > _recycle_threshold)                              \
+        SMART_BUFFS_RECYCLE_SMART_CHUNK(__sc);                                                      \
+    /* Make sure the pointer cannot be used anymore */                                              \
+    __sc = NULL;                                                                                    \
 })
 
 #define SMART_BUFFS_FINI(__sys)                                                                   \
@@ -634,6 +667,7 @@ typedef struct
         for (__i = 0; __i < (__sys)->num_buckets; __i++)                                          \
         {                                                                                         \
             smart_bucket_t *__sb = DYN_ARRAY_GET_ELT(&((__sys)->buckets), __i, smart_bucket_t);   \
+            assert(__sb);                                                                         \
             while (!ucs_list_is_empty(&(__sb->pool)))                                             \
             {                                                                                     \
                 smart_chunk_t *__sc;                                                              \
