@@ -464,8 +464,6 @@ static int post_recv_for_notif_payload(hdr_notif_req_t *ctx, execution_context_t
                 {
                     if (ctx->payload_ctx.pool.return_buf != NULL)
                     {
-                        INFO_MSG("Using caller's return function - mem_pool: %p - type: %"PRIu64,
-                                 ctx->payload_ctx.pool.mem_pool, ctx->hdr.type);
                         // The calling library as its own pool of objects to handle notifications.
                         // Call the return function.
                         ctx->payload_ctx.pool.return_buf(ctx->payload_ctx.pool.mem_pool, ctx->payload_ctx.buffer);
