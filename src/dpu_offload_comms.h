@@ -341,7 +341,12 @@ static void notif_payload_recv_handler(void *request, ucs_status_t status, const
             ctx->payload_ctx.pool.return_buf(ctx->payload_ctx.pool.mem_pool, ctx->payload_ctx.buffer);
         }
         else
-            free(ctx->payload_ctx.buffer);
+        {
+            assert(ctx->payload_ctx.smart_buf);
+            SMART_BUFF_RETURN(&(ctx->econtext->engine->smart_buffer_sys),
+                              ctx->hdr.payload_size,
+                              ctx->payload_ctx.smart_buf);
+        }
         ctx->payload_ctx.buffer = NULL;
     }
     ctx->payload_ctx.complete = true;
