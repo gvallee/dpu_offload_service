@@ -1677,6 +1677,13 @@ static void term_notification_completed(execution_context_t *econtext)
             ucp_request_release(econtext->event_channels->notif_recv.ctx.payload_ctx.req);
             econtext->event_channels->notif_recv.ctx.payload_ctx.req = NULL;
         }
+        if (econtext->event_channels->notif_recv.ctx.payload_ctx.smart_buf != NULL)
+        {
+            SMART_BUFF_RETURN(&(econtext->engine->smart_buffer_sys),
+                              econtext->event_channels->notif_recv.ctx.hdr.payload_size,
+                              econtext->event_channels->notif_recv.ctx.payload_ctx.smart_buf);
+            econtext->event_channels->notif_recv.ctx.payload_ctx.smart_buf = NULL;
+        }
 #endif
         econtext->client->done = true;
         break;
@@ -1898,7 +1905,6 @@ execution_context_t *client_init(offloading_engine_t *offload_engine, init_param
         gp_cache->num_local_entries++;
     }
 
-    DBG("%s() done", __func__);
     return ctx;
 error_out:
     if (offload_engine->client != NULL)
@@ -1935,6 +1941,13 @@ void offload_engine_fini(offloading_engine_t **offload_engine)
                            (*offload_engine)->self_econtext->event_channels->notif_recv.ctx.payload_ctx.req);
         ucp_request_release((*offload_engine)->self_econtext->event_channels->notif_recv.ctx.payload_ctx.req);
         (*offload_engine)->self_econtext->event_channels->notif_recv.ctx.payload_ctx.req = NULL;
+    }
+    if ((*offload_engine)->self_econtext->event_channels->notif_recv.ctx.payload_ctx.smart_buf != NULL)
+    {
+        SMART_BUFF_RETURN(&((*offload_engine)->self_econtext->engine->smart_buffer_sys),
+                          (*offload_engine)->self_econtext->event_channels->notif_recv.ctx.hdr.payload_size,
+                          (*offload_engine)->self_econtext->event_channels->notif_recv.ctx.payload_ctx.smart_buf);
+        (*offload_engine)->self_econtext->event_channels->notif_recv.ctx.payload_ctx.smart_buf = NULL;
     }
 #endif
     execution_context_fini(&((*offload_engine)->self_econtext));
