@@ -104,7 +104,7 @@ First, retrieve all the required repositories as shown below (Yong will grant ac
 module load poc-dpu-alltoallv
 poc # this will switch you to the POC build directory
 
-git clone -b topic/dpu_offload_v3 git@github.com:yqin/ucx
+git clone -b topic/dpu_offload_v4 git@github.com:yqin/ucx
 git clone git@github.com:gvallee/dpu_offload_service.git
 git clone -b topic/dpu_offload git@github.com:yqin/ucc-priv
 git clone --recurse-submodules https://github.com/open-mpi/ompi.git
