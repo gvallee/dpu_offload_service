@@ -51,16 +51,24 @@ int main(int argc, char **argv)
     fprintf(stdout, "Getting 10 smart chunks from the first smart bucket and checking the address of the buffers\n");
     ucs_list_link_t buffers;
     ucs_list_head_init(&buffers);
+    size_t queried_size = 1;
     void *addr = NULL;
     for (i = 0; i < 10; i++)
     {
-        size_t queried_size = 1;
         smart_chunk_t *sc = SMART_BUFF_GET(&smart_buffer_system, queried_size);
         assert(sc);
         if (addr == NULL)
             addr = sc->base;
         else
             assert(sc->base == (void *)((ptrdiff_t)addr + (i * sc->bucket->max_size)));
+        ucs_list_add_tail(&buffers, &(sc->super));
+    }
+    while (!ucs_list_is_empty(&buffers))
+    {
+        smart_chunk_t *chunk = ucs_list_extract_head(&buffers, smart_chunk_t, super);
+        assert(chunk);
+        SMART_BUFF_RETURN(&smart_buffer_system, queried_size, chunk);
+        assert(chunk == NULL);
     }
     fprintf(stdout, "\t-> ok\n");
 
