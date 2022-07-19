@@ -98,7 +98,7 @@ module load poc-dpu-alltoallv
 
 ## Building the POC Software Stack
 Note that you will have to build the software stack on all architectures you are using (e.g. in the case of a DPU offload you will need to build for the host (x86) and the DPU (aarch64).
-First, retrieve all the required repositories as shown below (Yong will grant access to UCX and UCC-priv, Geoffroy will grant access to DPU Offload service and MPI tests):
+First, retrieve all the required repositories as shown below (Yong will grant access to UCC-priv, Geoffroy will grant access to DPU Offload service and MPI tests):
 
 ```
 module load poc-dpu-alltoallv
