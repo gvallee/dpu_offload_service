@@ -521,7 +521,7 @@ typedef struct event_req
 // Forward declaration
 struct execution_context;
 
-typedef void *(*get_buf_fn)(void *pool);
+typedef void *(*get_buf_fn)(void *pool, void *args);
 typedef void (*return_buf_fn)(void *pool, void *buf);
 
 typedef struct notification_info
@@ -532,17 +532,20 @@ typedef struct notification_info
     return_buf_fn return_buf;
     // Memory pool to get notification payload buffer
     void *mem_pool;
+    // Optional arguments to pass to the get function
+    void *get_buf_args;
     // Size of the elements in the list
     size_t element_size;
 } notification_info_t;
 
-#define RESET_NOTIF_INFO(__info)     \
-    do                               \
-    {                                \
-        (__info)->get_buf = NULL;    \
-        (__info)->return_buf = NULL; \
-        (__info)->mem_pool = NULL;   \
-        (__info)->element_size = 0;  \
+#define RESET_NOTIF_INFO(__info)       \
+    do                                 \
+    {                                  \
+        (__info)->get_buf = NULL;      \
+        (__info)->return_buf = NULL;   \
+        (__info)->mem_pool = NULL;     \
+        (__info)->get_buf_args = NULL; \
+        (__info)->element_size = 0;    \
     } while (0)
 
 #define COPY_NOTIF_INFO(_src, _dst)                  \
@@ -551,16 +554,18 @@ typedef struct notification_info
         (_dst)->get_buf = (_src)->get_buf;           \
         (_dst)->return_buf = (_src)->return_buf;     \
         (_dst)->mem_pool = (_src)->mem_pool;         \
+        (_dst)->get_buf_args = (_src)->get_buf_args; \
         (_dst)->element_size = (_src)->element_size; \
     } while (0)
 
-#define CHECK_NOTIF_INFO(__info)              \
-    do                                        \
-    {                                         \
-        assert((__info)->get_buf == NULL);    \
-        assert((__info)->return_buf == NULL); \
-        assert((__info)->mem_pool == NULL);   \
-        assert((__info)->element_size == 0);  \
+#define CHECK_NOTIF_INFO(__info)                \
+    do                                          \
+    {                                           \
+        assert((__info)->get_buf == NULL);      \
+        assert((__info)->return_buf == NULL);   \
+        assert((__info)->mem_pool == NULL);     \
+        assert((__info)->get_buf_args == NULL); \
+        assert((__info)->element_size == 0);    \
     } while (0)
 
 typedef struct payload_notif_req

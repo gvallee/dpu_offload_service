@@ -156,7 +156,7 @@ void *get_notif_buf(dpu_offload_ev_sys_t *ev_sys, uint64_t type)
     if (entry == NULL || entry->info.get_buf == NULL)
         return NULL;
     assert(entry->info.mem_pool);
-    return (entry->info.get_buf(entry->info.mem_pool));
+    return (entry->info.get_buf(entry->info.mem_pool, entry->info.get_buf_args));
 }
 
 notification_callback_entry_t* get_notif_callback_entry(dpu_offload_ev_sys_t *ev_sys, uint64_t type)
@@ -830,7 +830,8 @@ dpu_offload_status_t event_get(dpu_offload_ev_sys_t *ev_sys, dpu_offload_event_i
         if (info != NULL && info->pool.mem_pool != NULL)
         {
             assert(info->pool.get_buf);
-            void *payload_buf_from_pool = info->pool.get_buf(info->pool.mem_pool);
+            void *payload_buf_from_pool = info->pool.get_buf(info->pool.mem_pool,
+                                                             info->pool.get_buf_args);
             assert(payload_buf_from_pool);
             _ev->payload = payload_buf_from_pool;
             _ev->info.mem_pool = info->pool.mem_pool;

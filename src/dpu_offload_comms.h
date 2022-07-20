@@ -340,7 +340,8 @@ static void notif_payload_recv_handler(void *request, ucs_status_t status, const
             {
                 // Call the return function specified by the caller library.
                 assert(ctx->payload_ctx.pool.return_buf);
-                ctx->payload_ctx.pool.return_buf(ctx->payload_ctx.pool.mem_pool, ctx->payload_ctx.buffer);
+                ctx->payload_ctx.pool.return_buf(ctx->payload_ctx.pool.mem_pool,
+                                                 ctx->payload_ctx.buffer);
             }
             ctx->payload_ctx.pool.mem_pool = NULL;
         }
