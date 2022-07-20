@@ -154,7 +154,7 @@ typedef struct dyn_list
         void *_new_chunk_buf = malloc(_chunk_size);                                                                              \
         if (_new_chunk_buf != NULL)                                                                                              \
         {                                                                                                                        \
-            size_t _i;                                                                                                           \
+            size_t _gdl_idx;                                                                                                     \
             void *_ptr;                                                                                                          \
             mem_chunk_t *_chunk_ptr = DYN_ARRAY_GET_ELT(&((__dyn_list)->mem_chunks), (__dyn_list)->num_mem_chunks, mem_chunk_t); \
             assert(_chunk_ptr);                                                                                                  \
@@ -162,14 +162,14 @@ typedef struct dyn_list
             _chunk_ptr->size = _chunk_size;                                                                                      \
             (__dyn_list)->num_mem_chunks++;                                                                                      \
             __type *_e = (__type *)(_new_chunk_buf);                                                                             \
-            for (_i = 0; _i < (__dyn_list)->num_elts_alloc; _i++)                                                                \
+            for (_gdl_idx = 0; _gdl_idx < (__dyn_list)->num_elts_alloc; _gdl_idx++)                                              \
             {                                                                                                                    \
                 if ((__dyn_list)->element_init_cb != NULL)                                                                       \
                 {                                                                                                                \
-                    (__dyn_list)->element_init_cb((void *)&(_e[_i]));                                                            \
+                    (__dyn_list)->element_init_cb((void *)&(_e[_gdl_idx]));                                                      \
                 }                                                                                                                \
-                ucs_list_add_tail(&((__dyn_list)->list), &(_e[_i].__elt));                                                       \
-                _ptr = &(_e[_i]);                                                                                                \
+                ucs_list_add_tail(&((__dyn_list)->list), &(_e[_gdl_idx].__elt));                                                 \
+                _ptr = &(_e[_gdl_idx]);                                                                                          \
             }                                                                                                                    \
             assert(ucs_list_length(&((__dyn_list)->list)) == (_initial_list_size + (__dyn_list)->num_elts_alloc));               \
             assert((((ptrdiff_t)_ptr + sizeof(__type)) - ((ptrdiff_t)_new_chunk_buf + _chunk_size)) == 0);                       \
