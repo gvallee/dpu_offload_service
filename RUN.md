@@ -3,6 +3,8 @@
 ## Format of the configuration file.
 
 Please refer to [doc/configfile.md](./doc/configfile.md) for details.
+Please make sure your configuration file reflects the number of service processes
+that you want to execute on each DPU.
 
 ## Execution of the DPU daemon
 
