@@ -2,6 +2,15 @@
 
 Here are some notes to test and debugging the offloading infrastructure code.
 
+## Configuration-time options
+
+The library provides the `--enable-debug` option to enable the debug mode.
+Once enabled, it is possible to the enable debug output by using the `DPU_OFFLOAD_DBG_VERBOSE`.
+It can be used both on the hosts and DPUs.
+
+**Note that it is mandatory to use the same debug mode everywhere, i.e., on hosts and DPUs.**
+In other words, the `--enable-debug` option must be used everywhere or nowhere.
+
 ## Notifications
 
 ### Self-notifications
