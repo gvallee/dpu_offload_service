@@ -9,9 +9,12 @@
 # $HEADER$
 #
 
-bin_PROGRAMS = dyn_structs_test
+bin_PROGRAMS = dyn_structs_test smart_buffers_test
 
-dyn_structs_test_SOURCES = dyn_structs_test.c
 AM_LDFLAGS = -lucp
 AM_CPPFLAGS = -I@top_srcdir@/include
 AM_CFLAGS = -L@top_builddir@/src/.libs
+
+dyn_structs_test_SOURCES = dyn_structs_test.c
+
+smart_buffers_test_SOURCES = smart_buffers_test.c

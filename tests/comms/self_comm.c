@@ -70,7 +70,7 @@ int main(int argc, char **argv)
     }
 
     fprintf(stderr, "Registering callback for the many notifications test %d\n", MY_TEST_MANY_NOTIFS_ID);
-    rc = engine_register_default_notification_handler(engine, MY_TEST_MANY_NOTIFS_ID, self_many_notifs_cb);
+    rc = engine_register_default_notification_handler(engine, MY_TEST_MANY_NOTIFS_ID, self_many_notifs_cb, NULL);
     if (rc)
     {
         fprintf(stderr, "[ERROR] engine_register_default_notification_handler() failed\n");
@@ -78,7 +78,7 @@ int main(int argc, char **argv)
     }
 
     fprintf(stderr, "Registering callback for notifications of test completion %d\n", MY_TEST_NOTIF_ID);
-    rc = engine_register_default_notification_handler(engine, MY_TEST_NOTIF_ID, self_notification_cb);
+    rc = engine_register_default_notification_handler(engine, MY_TEST_NOTIF_ID, self_notification_cb, NULL);
     if (rc)
     {
         fprintf(stderr, "[ERROR] engine_register_default_notification_handler() failed\n");
