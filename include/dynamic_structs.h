@@ -696,4 +696,217 @@ typedef struct
         DYN_ARRAY_FREE(&((__sys)->base_mem_chunks));                                              \
     } while (0)
 
+/*********************************************************************************************/
+/* SMART ARRAYS: SIMILAR TO DYN_ARRAY BUT BASED ON SMART_BUFFERS. ALSO BASED ON SIZES RATHER */
+/* THAN TYPES                                                                                */
+/*********************************************************************************************/
+
+typedef struct smart_array
+{
+    void *base;
+    size_t num_elts;
+    size_t num_elts_alloc;
+    size_t elt_size;
+    // Underlying smart chunk used to provide the buffer
+    smart_chunk_t *smart_chunk;
+} smart_array_t;
+
+#define SMART_ARRAY_ALLOC(_smart_buffer_sys, _smart_array_alloc, _sa_alloc_num_elts_alloc, _sa_alloc_elt_sz)                       \
+    do                                                                                                                             \
+    {                                                                                                                              \
+        assert(_sa_alloc_num_elts_alloc);                                                                                          \
+        (_smart_array_alloc)->num_elts_alloc = _sa_alloc_num_elts_alloc;                                                           \
+        (_smart_array_alloc)->num_elts = _sa_alloc_num_elts_alloc;                                                                 \
+        (_smart_array_alloc)->elt_size = _sa_alloc_elt_sz;                                                                         \
+        (_smart_array_alloc)->smart_chunk = SMART_BUFF_GET(_smart_buffer_sys,                                                      \
+                                                           (_smart_array_alloc)->num_elts_alloc * (_smart_array_alloc)->elt_size); \
+        (_smart_array_alloc)->base = (_smart_array_alloc)->smart_chunk->base;                                                      \
+        assert((_smart_array_alloc)->base);                                                                                        \
+        memset((_smart_array_alloc)->base, 0, (_smart_array_alloc)->num_elts_alloc *(_smart_array_alloc)->elt_size);               \
+    } while (0)
+
+#define SMART_ARRAY_FREE(_smart_buffer_sys, _smart_array)                           \
+    do                                                                              \
+    {                                                                               \
+        assert((_smart_array)->base);                                               \
+        assert((_smart_array)->smart_chunk);                                        \
+        SMART_BUFF_RETURN(_smart_buffer_sys,                                        \
+                          (_smart_array)->num_elts_alloc *(_smart_array)->elt_size, \
+                          (_smart_array)->smart_chunk);                             \
+        assert((_smart_array)->smart_chunk == NULL);                                \
+        (_smart_array)->base = NULL;                                                \
+        (_smart_array)->element_init_fn = NULL;                                     \
+        (_smart_array)->elt_size = 0;                                               \
+    } while (0)
+
+#define SMART_ARRAY_GROW(_smart_buffer_sys, _smart_array, _requested_new_elts)                                    \
+    do                                                                                                            \
+    {                                                                                                             \
+        size_t _initial_num_elts, _new_num_elts;                                                                  \
+        _initial_num_elts = _new_num_elts = (_dyn_array)->num_elts;                                               \
+        while (_new_num_elts * (_smart_array)->elt_size <= _requested_new_elts * (_smart_array)->elt_size)        \
+        {                                                                                                         \
+            _new_num_elts += (_smart_array)->num_elts_alloc;                                                      \
+        }                                                                                                         \
+        /* Because of the nature of the smart buffers, the only option is to request a new bigger chunk of */     \
+        /* memory and copy the data */                                                                            \
+        smart_chunk_t *_new_smart_chunk;                                                                          \
+        _new_smart_chunk = SMART_BUFF_GET((_smart_buffer_sys), _new_num_elts * (_smart_array)->elt_size);         \
+        assert(_new_smart_chunk);                                                                                 \
+        memcpy(_new_smart_chunk->base, (_smart_array)->smart_chunk->base, (_smart_array)->smart_chunk->max_size); \
+        SMART_BUFF_RETURN((_smart_buffer_sys),                                                                    \
+                          (_smart_array)->num_elts_alloc *(_smart_array)->elt_size,                               \
+                          (_smart_array)->smart_chunk);                                                           \
+        (_smart_array)->smart_chunk = _new_smart_chunk;                                                           \
+        (_smart_array)->base = (_smart_array)->smart_chunk->base;                                                 \
+        (_smart_array)->num_elts = _new_num_elts;                                                                 \
+    } while (0)
+
+#define SMART_ARRAY_GET_ELT(_smart_buffer_sys, _sa_get, _sa_get_idx) ({                \
+    assert(_sa_get);                                                                   \
+    assert((_sa_get)->num_elts);                                                       \
+    void *_ptr = NULL;                                                                 \
+    if ((_sa_get)->num_elts <= (_sa_get_idx))                                          \
+    {                                                                                  \
+        SMART_ARRAY_GROW((_smart_buffer_sys), (_sa_get), (_sa_get_idx));               \
+    }                                                                                  \
+    _ptr = (void *)((ptrdiff_t)(_sa_get)->base + (_sa_get_idx) * (_sa_get)->elt_size); \
+    _ptr;                                                                              \
+})
+
+/****************************************************************/
+/* SMART LISTS: SIMILAR TO DYN_LIST BUT BASED ON SMART_BUFFERS. */
+/****************************************************************/
+
+typedef struct smart_list
+{
+    size_t num_elts;
+    size_t num_elts_alloc;
+    size_t elt_size;
+    // Smart chunk used to store the object of the smart list itself
+    // When initializing, the smart list buffer is invalid and during
+    // initialization, we grab a smart chunk and use it to store this
+    // type, the update this pointer to be able to return it when the
+    // smart list is freed.
+    smart_chunk_t *base_smart_chunk;
+    ucs_list_link_t list;
+    // Array of smart chunks used for the elements of the list
+    size_t num_smart_chunks;
+    // Array of pointers of pointers of smart chunks, the smart chunks
+    // themselves come from the smart buffer system (type: smart_chunk_t*)
+    smart_array_t smart_chunks;
+} smart_list_t;
+
+#define SMART_LIST_GROW(__smart_buf_sys, __smart_list, __type, __elt)                                      \
+    do                                                                                                     \
+    {                                                                                                      \
+        assert(__smart_buf_sys);                                                                           \
+        assert(__smart_list);                                                                              \
+        size_t _initial_list_size = ucs_list_length(&((__smart_list)->list));                              \
+        /* Get a new buffer from the smart buffer system, no allocation */                                 \
+        size_t _chunk_size = (__smart_list)->num_elts_alloc * (__smart_list)->elt_size;                    \
+        smart_chunk_t *_new_smart_chunk = (smart_chunk_t *)SMART_BUFF_GET((__smart_buf_sys), _chunk_size); \
+        if (_new_smart_chunk != NULL)                                                                      \
+        {                                                                                                  \
+            size_t _i;                                                                                     \
+            void *_ptr;                                                                                    \
+            /* Save the pointer to that chunk so we can return it when we free the smart list */           \
+            smart_chunk_t **_chunk_ptr;                                                                    \
+            _chunk_ptr = (smart_chunk_t **)SMART_ARRAY_GET_ELT(&((__smart_list)->mem_chunks),              \
+                                                               (__smart_list)->num_mem_chunks,             \
+                                                               smart_chunk_t *);                           \
+            assert(_chunk_ptr);                                                                            \
+            *_chunk_ptr = _new_smart_chunk;                                                                \
+            (__smart_list)->num_mem_chunks++;                                                              \
+            /* Based on the new smart chunk, use the associated buffer to add elements to the list */      \
+            __type *_e = (__type *)(_new_smart_chunk->base);                                               \
+            for (_i = 0; _i < (__smart_list)->num_elts_alloc; _i++)                                        \
+            {                                                                                              \
+                ucs_list_add_tail(&((__smart_list)->list), &(_e[_i].__elt));                               \
+                _ptr = &(_e[_i]);                                                                          \
+            }                                                                                              \
+            assert(ucs_list_length(&((__smart_list)->list)) ==                                             \
+                   (_initial_list_size + (__smart_list)->num_elts_alloc));                                 \
+            /* All the new elements are added to the list, update the number of elements in the list*/     \
+            (__smart_list)->num_elts += (__smart_list)->num_elts_alloc;                                    \
+        }                                                                                                  \
+        else                                                                                               \
+        {                                                                                                  \
+            fprintf(stderr, "[ERROR] unable to grow smart list, unable to allocate buffer\n");             \
+        }                                                                                                  \
+    } while (0)
+
+#define SMART_LIST_ALLOC(_smart_buf_sys, _smart_list, _num_elts_alloc, _type, _elt)               \
+    do                                                                                            \
+    {                                                                                             \
+        /* Get a small buffer to store the smart_list_t object */                                 \
+        smart_chunk_t *_list_smart_chunk = SMART_BUFF_GET(_smart_buf_sys, sizeof(smart_list_t));  \
+        (_smart_list) = (smart_list_t *)(_list_smart_chunk->base);                                \
+        /* Cycle of pointers so we can track that initial smart chunk to be able to return it */  \
+        /* when the smart list is freed. */                                                       \
+        (_smart_list)->base_smart_chunk = _list_smart_chunk;                                      \
+        if ((_smart_list) != NULL)                                                                \
+        {                                                                                         \
+            /* Create a smart array of pointer of pointer to smart_chunk_t so we can track the */ \
+            /* smart chunks used to create the list. */                                           \
+            SMART_ARRAY_ALLOC((_smart_buf_sys),                                                   \
+                              &((_smart_list)->smart_chunks),                                     \
+                              DEFAULT_MEM_CHUNKS,                                                 \
+                              smart_chunk_t *);                                                   \
+            (_dyn_list)->num_smart_chunks = 0;                                                    \
+            (_dyn_list)->num_elts = 0;                                                            \
+            (_dyn_list)->num_elts_alloc = _num_elts_alloc;                                        \
+            (_dyn_list)->element_init_cb = NULL;                                                  \
+            ucs_list_head_init(&((_dyn_list)->list));                                             \
+            GROW_DYN_LIST((_dyn_list), _type, _elt);                                              \
+        }                                                                                         \
+        else                                                                                      \
+        {                                                                                         \
+            fprintf(stderr, "[ERROR] unable to allocate dynamic list\n");                         \
+            (_dyn_list) = NULL;                                                                   \
+        }                                                                                         \
+    } while (0)
+
+#define SMART_LIST_FREE(_smart_buf_sys, _smart_list, _type, _elt)                                \
+    do                                                                                           \
+    {                                                                                            \
+        /* Release the list, not the underlying buffers */                                       \
+        while (!ucs_list_is_empty(&((_smart_list)->list)))                                       \
+        {                                                                                        \
+            _type *_item = ucs_list_extract_head(&((_smart_list)->list), _type, _elt);           \
+            assert(_item);                                                                       \
+            ucs_list_del(&(_item->_elt));                                                        \
+        }                                                                                        \
+        /* Free the underlying memory chunks */                                                  \
+        size_t _i;                                                                               \
+        for (_i = 0; _i < (_smart_list)->num_mem_chunks; _i++)                                   \
+        {                                                                                        \
+            smart_chunk_t **_smart_chunk_ptr = DYN_ARRAY_GET_ELT(&((_smart_list)->smart_chunks), \
+                                                                 _i,                             \
+                                                                 smart_chunk_t *);               \
+            assert(_smart_chunk_ptr);                                                            \
+            SMART_BUFF_RETURN((_smart_buf_sys), sizeof(smart_chunk_t *), (*_smart_chunk_ptr));   \
+            *_smart_chunk_ptr = NULL;                                                            \
+        }                                                                                        \
+        DYN_ARRAY_FREE(&((_smart_list)->smart_chunks));                                          \
+        SMART_BUFF_RETURN((_smart_buf_sys), (_smart_list)->base_smart_chunk);                    \
+        _smart_list = NULL;                                                                      \
+    } while (0)
+
+#define SMART_LIST_GET(_smart_buf_sys, _smart_list, _type, _elt, _item)        \
+    do                                                                         \
+    {                                                                          \
+        if (ucs_list_is_empty(&((_smart_list)->list)))                         \
+        {                                                                      \
+            SMART_LIST_GROW((_smart_buf_sys), (_smart_list), (_type), (_elt)); \
+        }                                                                      \
+        _item = ucs_list_extract_head(&((_dyn_list)->list), _type, _elt);      \
+    } while (0)
+
+#define SMART_LIST_RETURN(_smart_list, _item, _elt)                \
+    do                                                             \
+    {                                                              \
+        ucs_list_add_tail(&((_smart_list)->list), &(_item->_elt)); \
+    } while (0)
+
 #endif // DPU_OFFLOAD_DYNAMIC_LIST_H
