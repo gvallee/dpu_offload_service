@@ -101,6 +101,8 @@ void event_channels_fini(dpu_offload_ev_sys_t **);
  */
 dpu_offload_status_t event_channel_register(dpu_offload_ev_sys_t *ev_sys, uint64_t type, notification_cb cb, notification_info_t *info);
 
+dpu_offload_status_t event_channel_update(dpu_offload_ev_sys_t *ev_sys, uint64_t type, notification_info_t *info);
+
 dpu_offload_status_t event_channel_deregister(dpu_offload_ev_sys_t *ev_sys, uint64_t type);
 
 void *get_notif_buf(dpu_offload_ev_sys_t *ev_sys, uint64_t type);
@@ -119,6 +121,8 @@ notification_callback_entry_t *get_notif_callback_entry(dpu_offload_ev_sys_t *ev
  * @return dpu_offload_status_t
  */
 dpu_offload_status_t engine_register_default_notification_handler(offloading_engine_t *engine, uint64_t type, notification_cb cb, notification_info_t *info);
+
+dpu_offload_status_t engine_update_default_notification_handler(offloading_engine_t *engine, uint64_t type, notification_info_t *info);
 
 /**
  * @brief event_channel_emit triggers the communication associated to a previously locally defined event.

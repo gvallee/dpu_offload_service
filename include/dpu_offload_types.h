@@ -521,8 +521,8 @@ typedef struct event_req
 // Forward declaration
 struct execution_context;
 
-typedef void *(*get_buf_fn)(dyn_list_t *dlist);
-typedef void (*return_buf_fn)(dyn_list_t *dlist, void *buf);
+typedef void *(*get_buf_fn)(void *pool);
+typedef void (*return_buf_fn)(void *pool, void *buf);
 
 typedef struct notification_info
 {
@@ -531,7 +531,7 @@ typedef struct notification_info
     // Optional function to return a buffer to a pool
     return_buf_fn return_buf;
     // Memory pool to get notification payload buffer
-    dyn_list_t *mem_pool;
+    void *mem_pool;
     // Size of the elements in the list
     size_t element_size;
 } notification_info_t;

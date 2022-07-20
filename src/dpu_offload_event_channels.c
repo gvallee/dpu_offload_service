@@ -232,6 +232,16 @@ dpu_offload_status_t event_channels_init(execution_context_t *econtext)
     return DO_SUCCESS;
 }
 
+dpu_offload_status_t event_channel_update(dpu_offload_ev_sys_t *ev_sys, uint64_t type, notification_info_t *info)
+{
+    CHECK_ERR_RETURN((ev_sys == NULL), DO_ERROR, "undefined event system");
+    CHECK_ERR_RETURN((info == NULL), DO_ERROR, "undefined info object");
+    notification_callback_entry_t *entry = DYN_ARRAY_GET_ELT(&(ev_sys->notification_callbacks), type, notification_callback_entry_t);
+    CHECK_ERR_RETURN((entry == NULL), DO_ERROR, "unable to get callback %ld", type);
+    CHECK_ERR_RETURN((entry->set == false), DO_ERROR, "type %" PRIu64 " is not already set, unable to update", type);
+    COPY_NOTIF_INFO(info, &(entry->info));
+    return DO_SUCCESS;
+}
 
 dpu_offload_status_t event_channel_register(dpu_offload_ev_sys_t *ev_sys, uint64_t type, notification_cb cb, notification_info_t *info)
 {
@@ -277,6 +287,18 @@ dpu_offload_status_t event_channel_register(dpu_offload_ev_sys_t *ev_sys, uint64
         }
     }
 
+    return DO_SUCCESS;
+}
+
+dpu_offload_status_t engine_update_default_notification_handler(offloading_engine_t *engine, uint64_t type, notification_info_t *info)
+{
+    CHECK_ERR_RETURN((engine == NULL), DO_ERROR, "Undefine engine");
+    ENGINE_LOCK(engine);
+    notification_callback_entry_t *entry = DYN_ARRAY_GET_ELT(&(engine->default_notifications->notification_callbacks), type, notification_callback_entry_t);
+    ENGINE_UNLOCK(engine);
+    CHECK_ERR_RETURN((entry == NULL), DO_ERROR, "unable to get callback %ld", type);
+    CHECK_ERR_RETURN((entry->set == false), DO_ERROR, "type %" PRIu64 " is not already set, unable to update", type);
+    COPY_NOTIF_INFO(info, &(entry->info));
     return DO_SUCCESS;
 }
 
