@@ -8,6 +8,7 @@ capabilities:
 - [Execution contexts](#execution-context) to abstract the bootstrapping of the offloading service and it associated communications and notifications.
 - [Notifications and events](#notifications-and-events) to asynchronously interact with service processes running on DPUs.
 - A [endpoint cache](#endpoint-cache) to know which service processes are associated to any rank in a group.
+- A set of APIs to [progress](#progress) communication, notifications and offloaded operations.
 
 Additional capabilities are under development:
 - *Offloaded operations* to ease the implementation and execution of offloaded operation.
@@ -130,6 +131,90 @@ the notification system.
 ## Endpoint cache
 
 Please refer to [./endpoint_cache.md](./endpoint_cache.md) for details.
+
+## Progress
+
+The library provides the following progress capabilities:
+- [lib_progress()](#progress-of-the-entire-library), which progresses the entire library and the main function used by developers since it includes all the following progress capabilities,
+- [offload_engine_progress()](#progress-of-a-specific-offloading-engine), which progress a specific engine,
+- and a [progress function for individual execution contexts](#progress-of-individual-contexts).
+
+### Progress of the entire library
+
+It is possible to progress the entire offloading library that has been previously instantiated.
+It progresses all the offloading engine (see next section for details) and as a result, all existing
+execution contexts, notifications and internal operations.
+
+The library does not maintain any global object so it is necessary to pass in the current execution
+context. From the execution context, the library finds all the objects instantiated within the
+library that are needed to ensure progress of all communications, notifications and internal
+operations.
+```
+lib_progress(my_econtext);
+```
+
+### Progress of a specific offloading engine
+
+It is possible to progress an entire offloading engine, i.e., all its execution contexts and
+all the notifications and operations associated to it.
+
+Here is an example to progress the entire library:
+```
+offloading_engine_t *offload_engine;
+offload_engine_init(&offload_engine);
+...
+offload_engine_progress(offload_engine);
+```
+
+Another example in the context of the MPI integration is to wait for all the data about the
+current group/team/communicator to be gathered, which requires to progress the offloading
+engine until the cache related to the team is fully populated:
+```
+do
+{
+    offload_engine_progress(offloading_engine);
+} while (!group_cache_populated(offloading_engine, team_id))
+```
+
+### Progress of individual contexts
+
+The progress function for execution context has the following signature:
+```
+void (*execution_context_progress_fn)(struct execution_context *);
+```
+A default progress function is assigned to the execution context.
+As a result, progress is available as soon as the execution context has been successfully initialized.
+Here is an example of the code to progress an execution context that is acting as a server:
+```
+offloading_engine_t *offload_engine;
+execution_context_t *server;
+
+offload_engine_init(&offload_engine);
+// Create an execution context acting as a server
+server = server_init(offload_engine, NULL);
+// Progress the execution context
+server->progress(server);
+```
+
+Because bootstrapping is asynchronous, the progress function can be used to now
+when the bootstrapping of the execution context is completed, for example, for 
+a client execution context:
+```
+offloading_engine_t *offload_engine;
+execution_context_t *client;
+
+offload_engine_init(&offload_engine);
+// Create the client execution context using the environment variables
+// to figure out how to connect to the associated server.
+client = client_init(offload_engine, NULL);
+
+// Wait until the execution context is fully connected to the server, i.e.,
+// until the bootstrapping completes.
+do
+{
+    client->progress(client);
+} while (client->client->bootstrapping.phase != BOOTSTRAP_DONE);
+```
 
 ## Example
 
