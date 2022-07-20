@@ -21,7 +21,7 @@ host_nodes=$((SLURM_NNODES/2))
 slots=${SLURM_CPUS_ON_NODE}
 sockets=0
 hostib="mlx5_100:100"
-job_nprocs=$((nodes*slots))
+job_nprocs=$((host_nodes*slots))
 export PRTE_MCA_plm=ssh
 case "${SLURM_JOB_PARTITION}" in
 	thor)
@@ -45,7 +45,7 @@ hostlist=$(scontrol show hostname ${SLURM_NODELIST} |grep -v 'bf' |sed -e "s/\$/
 bflist=$(scontrol show hostname ${SLURM_NODELIST} |grep 'bf' |sed -e "s/\$//g" |paste -d , -s)
 echo "Hostname list: $hostlist"
 echo "Bluefield list: $bflist"
-echo "Offload Config file: $conf_file:"
+echo "Offload Config file: $conf_file"
 
 # Import the DPU utility functions
 if [ -f ~/srun/dpu_utils.sh ]; then
