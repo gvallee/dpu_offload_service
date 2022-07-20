@@ -13,10 +13,19 @@ file.
 At the moment, only one format is supported.
 
 A single configuration file can be used by platform; it does not need to be tailored to the job
-configuration. In other words, when running a job, the infrastructure is capable of extracting
-only the required data from the configuration file.
+configuration, assuming the same number of service processes are running on the DPUs.
+In other words, when running a job, the infrastructure is capable of extracting
+the required data regarding the nodes and DPUs to use from the configuration file.
+However, **the number of service processes running on the DPU is set through the number of
+ports that are being specified in the configuration file and therefore should always be the same
+for a given configuration file**.
+More details are provided in the document when detailing the specification of the ports.
 
-Examples of configuration files are available in `etc/platforms`.
+Examples of configuration files are available in `etc/platforms`. The file
+(helios_twoserviceprocs.cfg)[../etc/platforms/helios_twoserviceprocs.cfg] shows how to specify the
+execution of 2 service processes on each DPU.
+The file (helios_8serviceprocs.cfg)[../etc/platforms/helios_8serviceprocs.cfg] shows how to specify
+8 service processes on each DPU.
 
 Then, each line must describe a host and its associated DPU(s):
 
