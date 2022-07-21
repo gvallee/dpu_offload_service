@@ -445,11 +445,9 @@ typedef struct am_header
     // used to know the size to expect when we post the receive for the payload.
     uint64_t payload_size;
 
-#if !NDEBUG
     uint64_t event_id;
     uint64_t client_id;
     uint64_t server_id;
-#endif
 } am_header_t; // todo: rename, nothing to do with AM
 
 #define RESET_AM_HDR(_h)        \
@@ -1262,10 +1260,8 @@ typedef struct dpu_offload_event
     int scope_id;
 #endif
 
-#if !NDEBUG
     uint64_t client_id;
     uint64_t server_id;
-#endif
 
     // sub_events is the list of sub-events composing this event.
     // The event that has sub-events is not considered completed unless all sub-events are completed.
@@ -1322,11 +1318,9 @@ typedef struct dpu_offload_event
 #define EVENT_HDR_TYPE(_ev) (_ev)->ctx.hdr.type
 #define EVENT_HDR_PAYLOAD_SIZE(_ev) (_ev)->ctx.hdr.payload_size
 #define EVENT_HDR(_ev) &((_ev)->ctx.hdr)
-#if !NDEBUG
 #define EVENT_HDR_CLIENT_ID(_ev) (_ev)->ctx.hdr.client_id
 #define EVENT_HDR_SERVER_ID(_ev) (_ev)->ctx.hdr.server_id
 #define EVENT_HDR_SEQ_NUM(_ev) (_ev)->ctx.hdr.event_id
-#endif
 
 /**
  * @brief RESET_EVENT does not reinitialize sub_events_initialized because if is done
