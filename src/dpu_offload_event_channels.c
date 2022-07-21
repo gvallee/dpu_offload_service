@@ -600,7 +600,6 @@ int tag_send_event_msg(dpu_offload_event_t **event)
         return DO_ERROR;
     }
 
-#if !NDEBUG
     (*event)->client_id = client_id;
     (*event)->server_id = server_id;
     EVENT_HDR_SEQ_NUM(*event) = (*event)->seq_num;
@@ -610,7 +609,6 @@ int tag_send_event_msg(dpu_offload_event_t **event)
     {
         assert(client_id < econtext->rank.n_local_ranks);
     }
-#endif
 
     rc = do_tag_send_event_msg(*event);
     if (rc == EVENT_DONE && !((*event)->explicit_return))
