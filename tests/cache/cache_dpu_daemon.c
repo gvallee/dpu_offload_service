@@ -302,7 +302,7 @@ int main(int argc, char **argv)
      * FOR INTER-DPU COMMUNICATIONS WILL AUTOMATICALLY HAVE IT.
      */
     fprintf(stderr, "Registering callback for notifications of test completion %d\n", TEST_COMPLETED_NOTIF_ID);
-    rc = engine_register_default_notification_handler(offload_engine, TEST_COMPLETED_NOTIF_ID, test_complete_notification_cb, NULL);
+    rc = engine_register_default_notification_handler(offload_engine, TEST_COMPLETED_NOTIF_ID, test_complete_notification_cb);
     if (rc)
     {
         fprintf(stderr, "[ERROR] engine_register_default_notification_handler() failed\n");
@@ -310,7 +310,7 @@ int main(int argc, char **argv)
     }
 
     fprintf(stderr, "Registering callback %d to start test in the context of a callback\n", START_TEST_FROM_CALLBACK);
-    rc = engine_register_default_notification_handler(offload_engine, START_TEST_FROM_CALLBACK, test_cb, NULL);
+    rc = engine_register_default_notification_handler(offload_engine, START_TEST_FROM_CALLBACK, test_cb);
     if (rc)
     {
         fprintf(stderr, "[ERROR] engine_register_default_notification_handler() failed\n");
@@ -318,7 +318,7 @@ int main(int argc, char **argv)
     }
 
     fprintf(stderr, "Registering callback %d to notify the end of the test performed in the context of a callback\n", END_TEST_FROM_CALLBACK);
-    rc = engine_register_default_notification_handler(offload_engine, END_TEST_FROM_CALLBACK, end_test_cb, NULL);
+    rc = engine_register_default_notification_handler(offload_engine, END_TEST_FROM_CALLBACK, end_test_cb);
     if (rc)
     {
         fprintf(stderr, "[ERROR] engine_register_default_notification_handler() failed\n");
