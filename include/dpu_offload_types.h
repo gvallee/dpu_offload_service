@@ -1129,6 +1129,8 @@ typedef enum
     // All connections are now disconnected, a new bootstrapping is necessary to communicate again with the remote entity.
     // The state may not be suitable to initiate a new bootstrapping.
     DISCONNECTED,
+
+    UKNOWN,
 } bootstrap_phase_t;
 
 // Forward declaration
@@ -1214,6 +1216,22 @@ typedef struct execution_context
         (_e)->free_pending_rdv_recv = NULL; \
         (_e)->term.ev = NULL;               \
     } while (0)
+
+#define GET_ECONTEXT_BOOTSTRAPING_PHASE(_econtext) ({        \
+    int __bphase = UNKNOWN;                                   \
+    switch ((_econtext)->type)                               \
+    {                                                        \
+    case CONTEXT_CLIENT:                                     \
+        __bphase = (_econtext)->client->bootstrapping.phase; \
+        break;                                               \
+    case CONTEXT_SERVER:                                     \
+        __bphase = (_econtext)->server->bootstrapping.phase; \
+        break;                                               \
+    default:                                                 \
+        break;                                               \
+    }                                                        \
+    __bphase;                                                \
+})
 
 typedef struct pending_am_rdv_recv
 {
@@ -1659,7 +1677,7 @@ typedef struct offloading_engine
         }                                                                                                           \
         (_engine)->num_registered_ops = 0;                                                                          \
         DYN_LIST_ALLOC((_engine)->free_op_descs, 8, op_desc_t, item);                                               \
-        if ((_engine)->free_op_descs == NULL)                                                                      \
+        if ((_engine)->free_op_descs == NULL)                                                                       \
         {                                                                                                           \
             fprintf(stderr, "unable to allocate memory pool of operation descriptors\n");                           \
             _ret = -1;                                                                                              \
