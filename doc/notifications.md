@@ -141,9 +141,131 @@ by users with the UCX APIs to initiate communications.
 
 ## Local events and sub-events
 
+The library supports the concept of local event, i.e., an event that is triggered, completes, once an
+associated set of operations are completed.
+
+The usual usage is to create a meta-event and associate sub-events to the meta-events. The sub-events
+are most of the time non-local events, i.e., involving communications. Once all the sub-events
+completes, the meta-event implicitly completes and the handler is invoked.
+
+To illustrate these concepts, here is a brief description of how they are used to implement
+the exchange of entries in the endpoint cache between service processes within the library:
+1. When all local ranks are connected, the cache entries related to the group of the ranks are sent
+to all other known service processes. For that, a meta-event is created which allows us to track
+all notifications to other service processes that we are about to issue.
+1. For each know service processes, one or more notifications, based on the layout of the endpoint cache
+is issued. All these notifications are added to the list of sub-events of the meta-event.
+1. During progress, the library automatically update the sub-events to track completions. When all the sub-events
+complete, the meta-event itself completes and its associated handler is invoked.
+
+Note that in the context of sub-events, they are added to the list of sub-events of the meta-event. It means they
+are **not** directly on the ongoing list since an element can only be on a single list. The meta-event is be default
+added to the ongoing list, ensuring implicit progress of the meta-event and all the sub-events.
+
+An example about local events and sub-events is [available](#meta-events-and-sub-events).
+
 ## Manual return of events
 
+By default, all events are added to the ongoing list at the execution level (the execution context in which the event was emitting),
+but it is also possible to request a manual management of the event life-cycle.
+To do so, please use the info object when getting an event object:
+```
+dpu_offload_event_info_t ev_info;
+dpu_offload_event_t *ev;
+RESET_EVENT_INFO(&ev_info);
+ev_info.explicit_return = true;
+event_get(econtext->event_channels, &ev_info, &ev);
+```
+When the event obtained, the user is incharge of correctly tracking the event and returning it upon completion.
+To track the status of the event, the `event_completed()` function is available, which returns true when the event has completed.
+
+To return the event once completed, the following function is available:
+```
+dpu_offload_status_t event_return(dpu_offload_event_t **ev);
+```
+
+Please refer to the doxygen documentation for more details.
+
+If users fail to return the object, the underlying resources are not freed and a memory leak occurs.
+
 ## Use of pool of objects for high-performance notifications
+
+In high-performance communications, it is usual to use a pool of objects used as payload to send and receive messages.
+Using a pool of objects:
+- avoid allocating memory in the critical path,
+- avoid excessive registration/deregistration of memory by the networking sub-system.
+
+While memory/object pools are management outside of this library, the library provides
+a set of hooks to integration such pools with the library's capabilities.
+This interaction is made through the info object that can be used while registering/updating
+a notification handler or getting an event.
+
+To register a handler and specify a pool of objects for the reception of the payload of the notification:
+```
+notification_info_t reg_info;
+RESET_NOTIF_INFO(&reg_info);
+reg_info.mem_pool = my_buf_pool;
+reg_info.get_buf = my_buf_get;
+reg_info.return_buf = my_buf_return;
+reg_info.element_size = sizeof(my_type_for_my_algo_t);
+engine_register_default_notification_handler(engine,
+                                NOTIFICATION_ID,
+                                notif_cb,
+                                &reg_info);
+```
+With for example:
+```
+dyn_list_t *my_buf_pool;
+
+// Our pool is composed of descriptors that are containers and therefore composed
+// of a list link since we use a dynamic list to instantiate the memory pool and
+// an element specific to the user's need. Note that the structure is of a static
+// size, otherwise it could not be used via a dynamic list.
+typedef struct {
+    ucs_list_link_t super;
+    my_type_for_my_algo_t data;
+} my_desc_t;
+
+void *my_buf_get(void *p, void *args)
+{
+    // The memory pool is instantiated via a dynamic list.
+    // Users are responsible for allocating/freeing the dynamic list
+    dyn_list_t      *pool = (dyn_list_t *)p;
+    my_notif_desc_t *desc;
+    DYN_LIST_GET(pool, my_notif_desc_t, super, desc);
+    assert(desc);
+    return (void *)(&(desc->data));
+}
+
+void my_buf_return(void *p, void *buf)
+{
+    dyn_list_t      *pool = (dyn_list_t *)p;
+    // Find the beginning of the descriptor
+    dpu_done_desc_t *desc =
+        (dpu_done_desc_t *)((ptrdiff_t)buf - sizeof(ucs_list_link_t));
+    DYN_LIST_RETURN(pool, desc, super);
+}
+
+```
+Once registered, then receiving a notification header that matches the type,
+the library uses internally the get function to retrieve a buffer to receive
+the payload.
+
+On the send side, when getting an event:
+```
+dpu_offload_event_t *event;
+dpu_offload_event_info_t event_info;
+RESET_EVENT_INFO(&event_info);
+event_info.pool.mem_pool = my_buf_pool;
+event_info.pool.get_buf = my_buf_get;
+event_info.pool.return_buf = my_buf_return;
+event_info.pool.element_size = sizeof(my_type_for_my_algo_t);
+event_get(host_context->event_channels, &event_info, &event);
+```
+Upon retrieving the event object, the payload buffer is obtained from the memory pool.
+The payload buffer can be accessed via `event->payload`. Upon completion, if the user
+does not request a manual management of the event lifecycle, the buffer is implicitly
+returned to the pool upon the event's completion.
 
 ## Examples
 
@@ -192,5 +314,35 @@ int main(int argc, char **argv)
     engine_register_default_notification_handler(engine, MY_TEST_NOTIFS_ID, self_notifs_cb, NULL);
     ...
     offload_engine_fini(&engine);
+}
+```
+
+### Meta-events and sub-events
+
+```
+size_t i;
+int rc;
+dpu_offload_event_t *metaev;
+event_get(econtext->event_channels, NULL, &metaev);
+EVENT_HDR_TYPE(metaev) = META_EVENT_TYPE;
+for (i = 0; i < 3; i++)
+{
+    dpu_offload_event_t *subev;
+    event_get(econtext->event_channels, NULL, &subev);
+    ...
+    rc = event_channel_emit(&subev, MY_NOTIF_ID, dest_ep, dest_id, NILL);
+    if (rc != EVENT_DONE && rc != EVENT_INPROGRESS)
+    {
+        ERR_MSG("event_channel_emit() failed");
+        return DO_ERROR;
+    }
+    if (e != NULL)
+    {
+        QUEUE_SUBEVENT(metaev, subev);
+    }
+    else
+    {
+        INFO_MSG("Sending cache completed right away");
+    }
 }
 ```
