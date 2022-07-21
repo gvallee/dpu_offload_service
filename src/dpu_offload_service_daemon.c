@@ -57,29 +57,48 @@ struct oob_msg
     uint64_t len;
 };
 
-#define ADD_DEFAULT_ENGINE_CALLBACKS(_engine, _econtext)                                                                                                     \
-    do                                                                                                                                                       \
-    {                                                                                                                                                        \
-        if ((_engine)->num_default_notifications > 0)                                                                                                        \
-        {                                                                                                                                                    \
-            notification_callback_entry_t *_list_callbacks = (notification_callback_entry_t *)(_engine)->default_notifications->notification_callbacks.base; \
-            size_t _i;                                                                                                                                       \
-            size_t _n = 0;                                                                                                                                   \
-            for (_i = 0; _i < (_engine)->default_notifications->notification_callbacks.num_elts; _i++)                                                       \
-            {                                                                                                                                                \
-                if (_list_callbacks[_i].set)                                                                                                                 \
-                {                                                                                                                                            \
-                    dpu_offload_status_t _rc = event_channel_register((_econtext)->event_channels, _i, _list_callbacks[_i].cb);                              \
-                    CHECK_ERR_GOTO((_rc), error_out, "unable to register engine's default notification to new execution context (type: %ld)", _i);           \
-                    _n++;                                                                                                                                    \
-                }                                                                                                                                            \
-                if (_n == (_engine)->num_default_notifications)                                                                                              \
-                {                                                                                                                                            \
-                    /* All done, no need to continue parsing the array. */                                                                                   \
-                    break;                                                                                                                                   \
-                }                                                                                                                                            \
-            }                                                                                                                                                \
-        }                                                                                                                                                    \
+#define ADD_DEFAULT_ENGINE_CALLBACKS(_engine, _econtext)                                                                        \
+    do                                                                                                                          \
+    {                                                                                                                           \
+        if ((_engine)->num_default_notifications > 0)                                                                           \
+        {                                                                                                                       \
+            notification_callback_entry_t *_list_callbacks;                                                                     \
+            _list_callbacks = (notification_callback_entry_t *)(_engine)->default_notifications->notification_callbacks.base;   \
+            size_t _i;                                                                                                          \
+            size_t _n = 0;                                                                                                      \
+            for (_i = 0; _i < (_engine)->default_notifications->notification_callbacks.num_elts; _i++)                          \
+            {                                                                                                                   \
+                if (_list_callbacks[_i].set)                                                                                    \
+                {                                                                                                               \
+                    if (_list_callbacks[_i].info.mem_pool == NULL)                                                              \
+                    {                                                                                                           \
+                        dpu_offload_status_t _rc = event_channel_register((_econtext)->event_channels,                          \
+                                                                          _i,                                                   \
+                                                                          _list_callbacks[_i].cb,                               \
+                                                                          NULL);                                                \
+                        CHECK_ERR_GOTO((_rc), error_out,                                                                        \
+                                       "unable to register engine's default notification to new execution context (type: %ld)", \
+                                       _i);                                                                                     \
+                    }                                                                                                           \
+                    else                                                                                                        \
+                    {                                                                                                           \
+                        dpu_offload_status_t _rc = event_channel_register((_econtext)->event_channels,                          \
+                                                                           _i,                                                  \
+                                                                           _list_callbacks[_i].cb,                              \
+                                                                           &(_list_callbacks[_i].info));                        \
+                        CHECK_ERR_GOTO((_rc), error_out,                                                                        \
+                                       "unable to register engine's default notification to new execution context (type: %ld)", \
+                                       _i);                                                                                     \
+                    }                                                                                                           \
+                    _n++;                                                                                                       \
+                }                                                                                                               \
+                if (_n == (_engine)->num_default_notifications)                                                                 \
+                {                                                                                                               \
+                    /* All done, no need to continue parsing the array. */                                                      \
+                    break;                                                                                                      \
+                }                                                                                                               \
+            }                                                                                                                   \
+        }                                                                                                                       \
     } while (0)
 
 extern dpu_offload_status_t get_env_config(conn_params_t *params);
@@ -849,14 +868,14 @@ dpu_offload_status_t finalize_connection_to_remote_service_proc(offloading_engin
 {
     ENGINE_LOCK(offload_engine);
     remote_service_proc_info_t *sp = DYN_ARRAY_GET_ELT(&(offload_engine->service_procs),
-                                                          remote_sp->idx,
-                                                          remote_service_proc_info_t);
+                                                       remote_sp->idx,
+                                                       remote_service_proc_info_t);
     assert(sp);
     sp->ep = client->client->server_ep;
     sp->econtext = client;
     sp->peer_addr = client->client->conn_data.oob.peer_addr;
     sp->ucp_worker = GET_WORKER(client);
-    DBG("Connection successfully established to service process #%" PRIu64 
+    DBG("Connection successfully established to service process #%" PRIu64
         " running on DPU #%" PRIu64 " (num service processes: %ld, number of connection with other service processes: %ld)",
         remote_sp->idx,
         remote_sp->service_proc.dpu,
@@ -1416,8 +1435,8 @@ static void progress_server_econtext(execution_context_t *ctx)
                     {
                         size_t service_proc = client_info->rank_data.group_rank;
                         remote_service_proc_info_t *sp = DYN_ARRAY_GET_ELT(&(ctx->engine->service_procs),
-                                                          service_proc,
-                                                          remote_service_proc_info_t);
+                                                                           service_proc,
+                                                                           remote_service_proc_info_t);
                         assert(sp);
                         assert(service_proc < ctx->engine->num_service_procs);
                         assert(ctx->engine);
@@ -1470,7 +1489,7 @@ static void progress_server_econtext(execution_context_t *ctx)
                         }
                         // Check if the cache is fully populated
                         bool group_cache_now_full = false;
-                        if (gp_cache->group_size == gp_cache-> num_local_entries)
+                        if (gp_cache->group_size == gp_cache->num_local_entries)
                         {
                             // The cache is above to be fully populated
                             DBG("Cache is complete for group %ld (gp size: %ld, local entries: %ld)\n",
@@ -1592,12 +1611,11 @@ static void progress_client_econtext(execution_context_t *ctx)
     }
 }
 
-
 /**
  * @brief term_notification_completed is the funtion invoked once we get the completion of the term notification.
  * Upon completion, we know we can safely
- * 
- * @param econtext 
+ *
+ * @param econtext
  */
 static void term_notification_completed(execution_context_t *econtext)
 {
@@ -1607,7 +1625,7 @@ static void term_notification_completed(execution_context_t *econtext)
     if (econtext->client->server_ep)
     {
         // FIXME: this is creating a crash
-        //ep_close(GET_WORKER(econtext), econtext->client->server_ep);
+        // ep_close(GET_WORKER(econtext), econtext->client->server_ep);
         econtext->client->server_ep = NULL;
     }
 
@@ -1641,41 +1659,47 @@ static void term_notification_completed(execution_context_t *econtext)
         }
     }
 
-
-    switch(econtext->type)
+    switch (econtext->type)
     {
-        case CONTEXT_CLIENT:
-        {
-            // Free resources to receive notifications
+    case CONTEXT_CLIENT:
+    {
+        // Free resources to receive notifications
 #if !USE_AM_IMPLEM
-            if (econtext->event_channels->notif_recv.ctx.req != NULL)
-            {
-                ucp_request_cancel(GET_WORKER(econtext), econtext->event_channels->notif_recv.ctx.req);
-                ucp_request_release(econtext->event_channels->notif_recv.ctx.req);
-                econtext->event_channels->notif_recv.ctx.req = NULL;
-            }
-            if (econtext->event_channels->notif_recv.ctx.payload_ctx.req != NULL)
-            {
-                ucp_request_cancel(GET_WORKER(econtext), econtext->event_channels->notif_recv.ctx.payload_ctx.req);
-                ucp_request_release(econtext->event_channels->notif_recv.ctx.payload_ctx.req);
-                econtext->event_channels->notif_recv.ctx.payload_ctx.req = NULL;
-            }
+        if (econtext->event_channels->notif_recv.ctx.req != NULL)
+        {
+            ucp_request_cancel(GET_WORKER(econtext), econtext->event_channels->notif_recv.ctx.req);
+            ucp_request_release(econtext->event_channels->notif_recv.ctx.req);
+            econtext->event_channels->notif_recv.ctx.req = NULL;
+        }
+        if (econtext->event_channels->notif_recv.ctx.payload_ctx.req != NULL)
+        {
+            ucp_request_cancel(GET_WORKER(econtext), econtext->event_channels->notif_recv.ctx.payload_ctx.req);
+            ucp_request_release(econtext->event_channels->notif_recv.ctx.payload_ctx.req);
+            econtext->event_channels->notif_recv.ctx.payload_ctx.req = NULL;
+        }
+        if (econtext->event_channels->notif_recv.ctx.payload_ctx.smart_buf != NULL)
+        {
+            SMART_BUFF_RETURN(&(econtext->engine->smart_buffer_sys),
+                              econtext->event_channels->notif_recv.ctx.hdr.payload_size,
+                              econtext->event_channels->notif_recv.ctx.payload_ctx.smart_buf);
+            econtext->event_channels->notif_recv.ctx.payload_ctx.smart_buf = NULL;
+        }
 #endif
-            econtext->client->done = true;
-            break;
-        }
-        case CONTEXT_SERVER:
-        {
-            // Free resources to receive notifications
-            #if !USE_AM_IMPLEM
-            #endif
-            econtext->server->done = true;
-            break;
-        }
-        default:
-        {
-            ERR_MSG("invalid execution context type (%d)", econtext->type);
-        }
+        econtext->client->done = true;
+        break;
+    }
+    case CONTEXT_SERVER:
+    {
+// Free resources to receive notifications
+#if !USE_AM_IMPLEM
+#endif
+        econtext->server->done = true;
+        break;
+    }
+    default:
+    {
+        ERR_MSG("invalid execution context type (%d)", econtext->type);
+    }
     }
 }
 
@@ -1881,7 +1905,6 @@ execution_context_t *client_init(offloading_engine_t *offload_engine, init_param
         gp_cache->num_local_entries++;
     }
 
-    DBG("%s() done", __func__);
     return ctx;
 error_out:
     if (offload_engine->client != NULL)
@@ -1897,7 +1920,7 @@ void offload_engine_fini(offloading_engine_t **offload_engine)
     assert(offload_engine);
     assert(*offload_engine);
     // FIXME: this creates a segfault
-    //event_channels_fini(&((*offload_engine)->default_notifications));
+    // event_channels_fini(&((*offload_engine)->default_notifications));
     GROUPS_CACHE_FINI(&((*offload_engine)->procs_cache));
     DYN_LIST_FREE((*offload_engine)->free_op_descs, op_desc_t, item);
     DYN_LIST_FREE((*offload_engine)->free_cache_entry_requests, cache_entry_request_t, item);
@@ -1918,6 +1941,13 @@ void offload_engine_fini(offloading_engine_t **offload_engine)
                            (*offload_engine)->self_econtext->event_channels->notif_recv.ctx.payload_ctx.req);
         ucp_request_release((*offload_engine)->self_econtext->event_channels->notif_recv.ctx.payload_ctx.req);
         (*offload_engine)->self_econtext->event_channels->notif_recv.ctx.payload_ctx.req = NULL;
+    }
+    if ((*offload_engine)->self_econtext->event_channels->notif_recv.ctx.payload_ctx.smart_buf != NULL)
+    {
+        SMART_BUFF_RETURN(&((*offload_engine)->self_econtext->engine->smart_buffer_sys),
+                          (*offload_engine)->self_econtext->event_channels->notif_recv.ctx.hdr.payload_size,
+                          (*offload_engine)->self_econtext->event_channels->notif_recv.ctx.payload_ctx.smart_buf);
+        (*offload_engine)->self_econtext->event_channels->notif_recv.ctx.payload_ctx.smart_buf = NULL;
     }
 #endif
     execution_context_fini(&((*offload_engine)->self_econtext));
@@ -1955,6 +1985,8 @@ void offload_engine_fini(offloading_engine_t **offload_engine)
         ucp_cleanup((*offload_engine)->ucp_context);
         (*offload_engine)->ucp_context = NULL;
     }
+
+    SMART_BUFFS_FINI(&((*offload_engine)->smart_buffer_sys));
 
     free(*offload_engine);
     *offload_engine = NULL;
