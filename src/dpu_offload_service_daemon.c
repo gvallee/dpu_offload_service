@@ -83,9 +83,9 @@ struct oob_msg
                     else                                                                                                        \
                     {                                                                                                           \
                         dpu_offload_status_t _rc = event_channel_register((_econtext)->event_channels,                          \
-                                                                           _i,                                                  \
-                                                                           _list_callbacks[_i].cb,                              \
-                                                                           &(_list_callbacks[_i].info));                        \
+                                                                          _i,                                                   \
+                                                                          _list_callbacks[_i].cb,                               \
+                                                                          &(_list_callbacks[_i].info));                         \
                         CHECK_ERR_GOTO((_rc), error_out,                                                                        \
                                        "unable to register engine's default notification to new execution context (type: %ld)", \
                                        _i);                                                                                     \
@@ -1013,14 +1013,12 @@ dpu_offload_status_t offload_engine_init(offloading_engine_t **engine)
     CHECK_ERR_GOTO((d == NULL), error_out, "Unable to allocate resources");
     RESET_ENGINE(d, ret);
     // Check that everthing is fine
-#if !NDEBUG
     CHECK_ERR_GOTO((ret != 0), error_out, "Engine initialization failed");
     CHECK_ERR_GOTO((d->servers == NULL), error_out, "unable to allocate memory to track servers");
     CHECK_ERR_GOTO((d->servers == NULL), error_out, "unable to allocate resources");
     CHECK_ERR_GOTO((d->free_op_descs == NULL), error_out, "Allocation of pool of free operation descriptors failed");
     CHECK_ERR_GOTO((d->free_cache_entry_requests == NULL), error_out, "Allocations of pool of descriptions for cache queries failed");
     CHECK_ERR_GOTO((d->pool_conn_params == NULL), error_out, "Allocation of pool of connection parameter descriptors failed");
-#endif
 
     dpu_offload_status_t rc = ev_channels_init(&(d->default_notifications));
     CHECK_ERR_GOTO((rc), error_out, "ev_channels_init() failed");
