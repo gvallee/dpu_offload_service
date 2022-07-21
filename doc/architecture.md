@@ -81,52 +81,7 @@ Once an execution context is created, a set of capabilities are available:
 
 ## Notifications and events
 
-Notifications, also called events, aims at facilitating the implementation of the control path of a
-given algorithm (type: `dpu_offload_event_t`). In other words, it is only a capability to send 
-notifications between execution contexts and while the associated interfaces offer similarities with 
-an active message communication layer, it is not meant to be one mainly because missing advanced 
-memory management capabilities. 
-Active messages are available by using UCX and the endpoints available through the endpoint cache
-and the execution contexts.
-
-Notifications are composed of two entities: a header and a payload. The header is based on unique
-identifier to uniquely identify the source, the destination and the type of the notification. The
-payload can be any buffer; developers can request a buffer allocated by the infrastructure library
-or manage their own memory and pass it in the notification system for performance.
-
-The notification type is also used to register before hand a notification handler. Upon reception the
-registered handler for the type is invoked, both the header and payload being provided within the
-handler. At the moment, only one handler per notification type can be registered but developers are
-free to implement handler that will invoke sub-handlers.
-
-It is possible to emit events from within a notification handler.
-
-It is also possible to create a hierarchy of events, i.e., to create sub-event within a given event.
-In such a situation, the event containing sub-events must be a local event, i.e., should not be used
-to send a notification to a remote execution context and is identified as a *meta-event*. A 
-meta-event completes only when all the sub-events are completed.
-
-The notification system (type: `dpu_offload_ev_sys_t`) is the core object used to implement the 
-notification system. It provides a pool of free event that are available for use (using the `event_get
-()` function). Note that it is possible to request specific features when getting an event, such as
-requesting from the library an allocated buffer, by using a *dpu_offload_event_info_t* object.
-Please refer to the doxygen documentation for details.
-
-Once an event object is obtained, it is possible to set its payload and emit it. Note that two 
-functions are available to emit an event:
-
-- `event_channel_emit()`: which emits an event for which the payload is already specified.
-- `event_channel_emit_with_payload()`: which emits an event and specify the payload at emission time.
-
-When the event is emitting, it is by default added to a list of ongoing events. It is possible to
-manually manage all events, which will prevent the event to be added to the ongoing list. Please
-refer to the doxygen documentation for details.
-When the event is on the ongoing list and completes, the event is implicitly returned to the event
-system. If the event is manually handled, developers must return it by using the `event_return()`
-function.
-
-Please see the doxygen documentation for details about the datastructures and functions related to
-the notification system.
+Details about notifications and events are available in [notifications](notifications.md).
 
 ## Endpoint cache
 
