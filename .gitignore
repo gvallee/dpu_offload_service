@@ -52,6 +52,7 @@ tests/cache/cache_server
 tests/cache/cache_job_client
 tests/cache/cache_dpu_daemon
 tests/dyn_structs/dyn_structs_test
+tests/dyn_structs/smart_buffers_test
 tests/config/config_file_host
 tests/config/config_file_dpu
 tests/config/config_file
