@@ -67,17 +67,7 @@ contexts, wherever their location.
 
 ## Execution context
 
-An execution context (type: `execution_context_t`) is an object that abstract the details for 
-interactions between two processes.
-In other words, the object is available once the bootstrapping on the service between two entities,
-e.g., host-service-process or inter-service-processes, and abstract the technical details of the
-bootstrapping process.
-
-Once an execution context is created, a set of capabilities are available:
-- a connection state with the remote entity,
-- notifications, including self-notifications,
-- exposure of the underlying communication handles such as a UCX endpoint,
-- a cache of communication handles so it is possible to lookup which service process is assigned to any application process, that can for example be later on used to initiate XGVMI operations.
+Details about execution contexts are available in [./execution_context.md](execution_context.md).
 
 ## Notifications and events
 
