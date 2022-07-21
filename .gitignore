@@ -40,6 +40,7 @@ daemons/default/default_dpu_daemon_client
 daemons/default/default_dpu_daemon_server
 daemons/job_persistent/job_persistent_dpu_daemon
 daemons/single/single
+tests/offload_service/basic/daemon_basic_init
 tests/offload_service/client/client
 tests/offload_service/client/client_external_worker
 tests/offload_service/client/simple
