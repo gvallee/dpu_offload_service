@@ -9,9 +9,12 @@
 # $HEADER$
 #
 
-bin_PROGRAMS = self_comm
+bin_PROGRAMS = self_comm self_notif_mem_pools
 
-self_comm_SOURCES = self_comm.c
 AM_LDFLAGS = -ldpuoffloaddaemon -lucp
 AM_CFLAGS = -L@top_builddir@/src/.libs
 AM_CPPFLAGS = -I@top_srcdir@/include
+
+self_comm_SOURCES = self_comm.c
+
+self_notif_mem_pools_SOURCES = self_notif_mem_pools.c
