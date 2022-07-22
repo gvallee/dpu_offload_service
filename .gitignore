@@ -58,6 +58,7 @@ tests/config/config_file_host
 tests/config/config_file_dpu
 tests/config/config_file
 tests/comms/self_comm
+tests/comms/self_notif_mem_pools
 
 # Debug files
 *.dSYM/
