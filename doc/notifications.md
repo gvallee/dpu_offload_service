@@ -190,13 +190,14 @@ If users fail to return the object, the underlying resources are not freed and a
 
 ## Use of pool of objects for high-performance notifications
 
-In high-performance communications, it is usual to use a pool of objects used as payload to send and receive messages.
+In high-performance communications, it is usual to use a pool of objects used as payload to send
+and receive messages.
 Using a pool of objects:
 - avoid allocating memory in the critical path,
 - avoid excessive registration/deregistration of memory by the networking sub-system.
 
-While memory/object pools are management outside of this library, the library provides
-a set of hooks to integration such pools with the library's capabilities.
+While memory/object pools are managed outside of this library, i.e., by the calling code 
+the library provides a set of hooks to integration such pools with the library's capabilities.
 This interaction is made through the info object that can be used while registering/updating
 a notification handler or getting an event.
 
@@ -247,8 +248,8 @@ void my_buf_return(void *p, void *buf)
 }
 
 ```
-Once registered, then receiving a notification header that matches the type,
-the library uses internally the get function to retrieve a buffer to receive
+Once registered, when receiving a notification header that matches the type,
+the library uses the get function to retrieve a buffer from the pool to receive
 the payload.
 
 On the send side, when getting an event:
@@ -264,7 +265,7 @@ event_get(host_context->event_channels, &event_info, &event);
 ```
 Upon retrieving the event object, the payload buffer is obtained from the memory pool.
 The payload buffer can be accessed via `event->payload`. Upon completion, if the user
-does not request a manual management of the event lifecycle, the buffer is implicitly
+does not request a manual management of the event's lifecycle, the buffer is implicitly
 returned to the pool upon the event's completion.
 
 ## Examples
