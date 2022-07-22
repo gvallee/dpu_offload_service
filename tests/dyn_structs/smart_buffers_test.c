@@ -72,6 +72,13 @@ int main(int argc, char **argv)
     }
     fprintf(stdout, "\t-> ok\n");
 
+    fprintf(stdout, "Getting an element in the last bucket\n");
+    size_t *last_bucket_size = DYN_ARRAY_GET_ELT(&(smart_buffer_system.bucket_sizes), smart_buffer_system.num_buckets - 1, size_t);
+    queried_size = *last_bucket_size + 1;
+    smart_chunk_t *beyong_last_bucket_sc = SMART_BUFF_GET(&smart_buffer_system, queried_size);
+    DISPLAY_SMART_BUFFERS_SYS_DATA(&smart_buffer_system);
+    fprintf(stdout, "\t-> ok\n");
+
     // Finalize the smart buffer system
     SMART_BUFFS_FINI(&smart_buffer_system);
 

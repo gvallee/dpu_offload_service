@@ -17,6 +17,8 @@
 #ifndef DPU_OFFLOAD_DYNAMIC_LIST_H
 #define DPU_OFFLOAD_DYNAMIC_LIST_H
 
+/* Examples/tests are available in tests/dyn_structs */
+
 #define DEFAULT_MEM_CHUNKS (1024)
 
 typedef struct mem_chunk
@@ -588,31 +590,36 @@ typedef struct
         if (_target_bucket == NULL || _target_bucket->max_size == UINT64_MAX)                             \
         {                                                                                                 \
             /* Need to create a new bucket, the size is bigger than anything we handle right now */       \
+            /* We take the larger size from the next size aligned on a page or twice the maximum size */  \
+            /* of the previous bucket */                                                                  \
+            size_t *__last_bucket_sz = DYN_ARRAY_GET_ELT(&((__sys)->bucket_sizes),                        \
+                                                         (__sys)->num_buckets - 1,                        \
+                                                         size_t);                                         \
             uint64_t _new_bucket_max_size = (((__sz) / 4096) + 1) * 4096;                                 \
-            size_t *__new_bucket_sz, *__prev_bucket_sz;                                                   \
+            if (_new_bucket_max_size < *__last_bucket_sz * 2)                                             \
+                _new_bucket_max_size = *__last_bucket_sz * 2;                                             \
+            size_t *__new_bucket_sz;                                                                      \
             smart_bucket_t *__new_bucket;                                                                 \
             mem_chunk_t *_mem_chunk_desc;                                                                 \
             __new_bucket_sz = DYN_ARRAY_GET_ELT(&((__sys)->bucket_sizes), (__sys)->num_buckets, size_t);  \
             assert(__new_bucket_sz);                                                                      \
-            __prev_bucket_sz = DYN_ARRAY_GET_ELT(&((__sys)->bucket_sizes),                                \
-                                                 (__sys)->num_buckets - 1,                                \
-                                                 size_t);                                                 \
-            assert(__prev_bucket_sz);                                                                     \
             *__new_bucket_sz = _new_bucket_max_size;                                                      \
             __new_bucket = DYN_ARRAY_GET_ELT(&((__sys)->buckets), (__sys)->num_buckets, smart_bucket_t);  \
             assert(__new_bucket);                                                                         \
-            __new_bucket->min_size = (uint64_t)(__prev_bucket_sz + 1);                                    \
-            __new_bucket->max_size = *__new_bucket_sz;                                                    \
+            ucs_list_head_init(&(__new_bucket->pool));                                                    \
+            __new_bucket->min_size = (uint64_t)(*__last_bucket_sz + 1);                                   \
+            __new_bucket->max_size = _new_bucket_max_size;                                                \
             _mem_chunk_desc = DYN_ARRAY_GET_ELT(&((__sys)->base_mem_chunks),                              \
                                                 (__sys)->num_base_mem_chunks,                             \
                                                 mem_chunk_t);                                             \
             assert(_mem_chunk_desc);                                                                      \
-            size_t _bucket_mem_size = 10 * _new_bucket_max_size;                                          \
+            /* Calculate the total number of memory for the bucket */                                     \
+            size_t _bucket_mem_size = 2 * _new_bucket_max_size;                                           \
             _mem_chunk_desc->ptr = calloc(_bucket_mem_size, sizeof(char));                                \
             (__sys)->num_base_mem_chunks++;                                                               \
             /* Add the smart chunks */                                                                    \
             size_t _j, __n = 0;                                                                           \
-            for (_j = 0; _j < (_bucket_mem_size / __new_bucket->max_size); _j++)                          \
+            for (_j = 0; _j <= (_bucket_mem_size / __new_bucket->max_size); _j++)                         \
             {                                                                                             \
                 void *_mem_ptr = (void *)((ptrdiff_t)_mem_chunk_desc->ptr + _j * __new_bucket->max_size); \
                 smart_chunk_t *_smart_chunk;                                                              \
@@ -625,6 +632,7 @@ typedef struct
                 __n++;                                                                                    \
             }                                                                                             \
             __new_bucket->initial_size = __n;                                                             \
+            (__sys)->num_buckets++;                                                                       \
             _target_bucket = __new_bucket;                                                                \
         }                                                                                                 \
         assert(_target_bucket);                                                                           \
