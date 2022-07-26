@@ -56,7 +56,7 @@ static int self_notification_cb(struct dpu_offload_ev_sys *ev_sys, execution_con
 {
     self_notif_received = true;
     my_struct_t *my_data = (my_struct_t*)data;
-    fprintf(stdout, "Received %d and %ld\n", my_data->i, my_data->x);
+    fprintf(stdout, "Received %d and %f\n", my_data->i, my_data->x);
     count++;
     return 0;
 }
