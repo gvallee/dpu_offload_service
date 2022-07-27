@@ -38,13 +38,14 @@ const char *config_file_version_token = "Format version:";
 dpu_offload_status_t send_add_group_rank_request(execution_context_t *econtext, ucp_ep_h ep, uint64_t dest_id, int64_t group_id, int64_t rank, int64_t group_size, dpu_offload_event_t **e)
 {
     dpu_offload_event_t *ev;
-    dpu_offload_event_info_t ev_info;
+    dpu_offload_event_info_t ev_info = {0};
     ev_info.payload_size = sizeof(rank_info_t);
     dpu_offload_status_t rc = event_get(econtext->event_channels, &ev_info, &ev);
     CHECK_ERR_RETURN((rc), DO_ERROR, "event_get() failed");
 
     DBG("Sending request to add group/rank");
     rank_info_t *rank_info = (rank_info_t *)ev->payload;
+    memset(rank_info, 0, sizeof(rank_info_t));
     rank_info->group_id = group_id;
     rank_info->group_rank = rank;
     rank_info->group_size = group_size;
@@ -54,7 +55,7 @@ dpu_offload_status_t send_add_group_rank_request(execution_context_t *econtext, 
                             ep,
                             dest_id,
                             NULL);
-    CHECK_ERR_RETURN((rc != EVENT_DONE && rc != EVENT_INPROGRESS), DO_ERROR, "event_channel_emit_with_payload() failed");
+    CHECK_ERR_RETURN((rc != EVENT_DONE && rc != EVENT_INPROGRESS), DO_ERROR, "event_channel_emit() failed");
     *e = ev;
     return DO_SUCCESS;
 }
@@ -551,7 +552,7 @@ static dpu_offload_status_t do_get_cache_entry_by_group_rank(offloading_engine_t
 
     // The cache does not have the data. We sent a request to get the data.
     // The caller is in charge of calling the function after completion to actually get the data
-    rank_info_t rank_data;
+    rank_info_t rank_data = {0};
     rank_data.group_id = gp_id;
     rank_data.group_rank = rank;
 
@@ -614,8 +615,8 @@ static dpu_offload_status_t do_get_cache_entry_by_group_rank(offloading_engine_t
             if (sp != NULL && sp->ep != NULL && sp->init_params.conn_params != NULL)
             {
                 execution_context_t *econtext = ECONTEXT_FOR_SERVICE_PROC_COMMUNICATION(engine, i);
-                uint64_t global_sp_id = LOCAL_ID_TO_GLOBAL(econtext, i);
                 CHECK_ERR_RETURN((econtext == NULL), DO_ERROR, "unable to get execution context to communicate with service process #%ld", i);
+                uint64_t global_sp_id = LOCAL_ID_TO_GLOBAL(econtext, i);
                 DBG("Sending cache entry request to service process #%ld (econtext: %p, scope_id: %d)",
                     global_sp_id,
                     econtext,
