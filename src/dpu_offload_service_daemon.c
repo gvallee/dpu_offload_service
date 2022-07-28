@@ -579,7 +579,9 @@ dpu_offload_status_t client_init_context(execution_context_t *econtext, init_par
     CHECK_ERR_RETURN((econtext->client == NULL), DO_ERROR, "Unable to allocate client handle\n");
     RESET_CLIENT(econtext->client);
     econtext->client->econtext = (struct execution_context *)econtext;
-    econtext->client->mutex = (pthread_mutex_t)PTHREAD_ERRORCHECK_MUTEX_INITIALIZER_NP;
+#if OFFLOADING_MT_ENABLE
+    econtext->client->mutex = (pthread_mutex_t)PTHREAD_MUTEX_INITIALIZER;
+#endif
 
     // If the connection parameters were not passed in, we get everything using environment variables
     if (init_params == NULL || init_params->conn_params == NULL)
@@ -1753,7 +1755,9 @@ static dpu_offload_status_t execution_context_init(offloading_engine_t *offload_
     execution_context_t *ctx = DPU_OFFLOAD_MALLOC(sizeof(execution_context_t));
     CHECK_ERR_GOTO((ctx == NULL), error_out, "unable to allocate execution context");
     RESET_ECONTEXT(ctx);
-    ctx->mutex = (pthread_mutex_t)PTHREAD_ERRORCHECK_MUTEX_INITIALIZER_NP;
+#if OFFLOADING_MT_ENABLE
+    ctx->mutex = (pthread_mutex_t)PTHREAD_MUTEX_INITIALIZER;
+#endif
     ctx->type = type;
     ctx->engine = offload_engine;
     ctx->progress = execution_context_progress;
@@ -2316,7 +2320,9 @@ dpu_offload_status_t server_init_context(execution_context_t *econtext, init_par
         econtext->server->connected_cb = init_params->connected_cb;
     }
 
-    econtext->server->mutex = (pthread_mutex_t)PTHREAD_ERRORCHECK_MUTEX_INITIALIZER_NP;
+#if OFFLOADING_MT_ENABLE
+    econtext->server->mutex = (pthread_mutex_t)PTHREAD_MUTEX_INITIALIZER;
+#endif
 
     // Make sure we correctly handle whether the UCX context/worker is provided
     DO_INIT_WORKER(econtext, init_params);
@@ -2478,7 +2484,9 @@ void server_fini(execution_context_t **exec_ctx)
 
     dpu_offload_server_t *server = (*exec_ctx)->server;
     pthread_cancel(server->connect_tid);
+#if OFFLOADING_MT_ENABLE
     pthread_mutex_destroy(&(server->mutex));
+#endif
 
     /* Close the clients' endpoint */
     for (i = 0; i < server->connected_clients.num_connected_clients; i++)
