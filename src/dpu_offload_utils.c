@@ -552,7 +552,8 @@ static dpu_offload_status_t do_get_cache_entry_by_group_rank(offloading_engine_t
 
     // The cache does not have the data. We sent a request to get the data.
     // The caller is in charge of calling the function after completion to actually get the data
-    rank_info_t rank_data = {0};
+    rank_info_t rank_data;
+    RESET_RANK_INFO(&rank_data);
     rank_data.group_id = gp_id;
     rank_data.group_rank = rank;
 
