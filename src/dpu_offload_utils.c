@@ -45,7 +45,7 @@ dpu_offload_status_t send_add_group_rank_request(execution_context_t *econtext, 
 
     DBG("Sending request to add group/rank");
     rank_info_t *rank_info = (rank_info_t *)ev->payload;
-    memset(rank_info, 0, sizeof(rank_info_t));
+    RESET_RANK_INFO(rank_info);
     rank_info->group_id = group_id;
     rank_info->group_rank = rank;
     rank_info->group_size = group_size;
