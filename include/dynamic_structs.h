@@ -29,6 +29,53 @@ typedef struct mem_chunk
 
 typedef void (*dyn_struct_elt_init_fn)(void *);
 
+/***************/
+/* SIMPLE LIST */
+/***************/
+
+/**
+ * @brief simple_list_t aims at offering an alternative to ucs_list_link_t
+ * without the huge performance impact associated to them.
+ */
+typedef struct simple_list
+{
+    ucs_list_link_t internal_list;
+    size_t length;
+} simple_list_t;
+
+#define SIMPLE_LIST_INIT(_simple_list_to_init)                        \
+    do                                                                \
+    {                                                                 \
+        ucs_list_head_init(&((_simple_list_to_init)->internal_list)); \
+        (_simple_list_to_init)->length = 0;                           \
+    } while (0)
+
+#define SIMPLE_LIST_APPEND(_sl_append, _sl_elt)                     \
+    do                                                              \
+    {                                                               \
+        ucs_list_add_tail(&((_sl_append)->internal_list), _sl_elt); \
+        (_sl_append)->length++;                                     \
+    } while (0)
+
+#define SIMPLE_LIST_EXTRACT_HEAD(_sl_eh, _sl_type, _sl_item) ({                      \
+    _sl_type *_sl_elt = NULL;                                                        \
+    _sl_elt = ucs_list_extract_head(&((_sl_eh)->internal_list), _sl_type, _sl_item); \
+    (_sl_eh)->length--;                                                              \
+    _sl_elt;                                                                         \
+})
+
+#define SIMPLE_LIST_LENGTH(__sl_len) ({     \
+    size_t __list_len = (__sl_len)->length; \
+    __list_len;                             \
+})
+
+#define SIMPLE_LIST_IS_EMPTY(__sl) ({ \
+    bool _sl_empty = false;           \
+    if ((__sl)->length == 0)          \
+        _sl_empty = true;             \
+    _sl_empty;                        \
+})
+
 /*****************/
 /* DYNAMIC ARRAY */
 /*****************/
@@ -325,17 +372,17 @@ typedef struct smart_bucket
     uint64_t max_size;
 
     // Pool of smart chunks in the bucket, ready to be used (type: smart_chunk_t)
-    ucs_list_link_t pool;
+    simple_list_t pool;
 } smart_bucket_t;
 
-#define RESET_SMART_BUCKET(__sb)             \
-    do                                       \
-    {                                        \
-        (__sb)->sys = NULL;                  \
-        (__sb)->initial_size = 0;            \
-        (__sb)->min_size = 0;                \
-        (__sb)->max_size = 0;                \
-        ucs_list_head_init(&((__sb)->pool)); \
+#define RESET_SMART_BUCKET(__sb)           \
+    do                                     \
+    {                                      \
+        (__sb)->sys = NULL;                \
+        (__sb)->initial_size = 0;          \
+        (__sb)->min_size = 0;              \
+        (__sb)->max_size = 0;              \
+        SIMPLE_LIST_INIT(&((__sb)->pool)); \
     } while (0)
 
 typedef struct smart_buffers
@@ -366,43 +413,46 @@ typedef struct
 } smart_buffers_info_t;
 
 // Grow a given bucket by adding a chunk of memory equal to the initial one
-#define SMART_BUFFS_GROW_BUCKET(__ptr)                                                  \
-    do                                                                                  \
-    {                                                                                   \
-        size_t _i;                                                                      \
-        void *_sb_new_mem_chunk = malloc((__ptr)->initial_size);                        \
-        assert(_sb_new_chunk);                                                          \
-        memset(_sb_new_mem_chunk, 0, (__ptr)->initial_size);                            \
-        size_t __num_new_smart_chunks = (_ptr)->initial_size / (__ptr)->max_size;       \
-        mem_chunk_t *_new_mem_chunk;                                                    \
-        _new_mem_chunk = DYN_ARRAY_GET_ELT(&((__ptr)->sys->base_mem_chunks),            \
-                                           (__ptr)->sys->num_base_mem_chunks,           \
-                                           mem_chunk_t);                                \
-        assert(_new_mem_chunk);                                                         \
-        _new_mem_chunk->base = _sb_new_mem_chunk;                                       \
-        _new_mem_chunk->size = (__ptr)->initial_size;                                   \
-        (__ptr)->sys->num_mem_chunks++;                                                 \
-        void *_base_ptr = _sb_new_mem_chunk;                                            \
-        void *__prev = NULL;                                                            \
-        smart_chunk_t *__first_chunk = NULL;                                            \
-        for (_i = 0; _i < _num_new_chunks; _i++)                                        \
-        {                                                                               \
-            smart_chunk_t *_new_smart_chunk;                                            \
-            DYN_LIST_ALLOC(&((__bdest)->pool), smart_chunk_t, super, _new_smart_chunk); \
-            assert(_new_smart_chunk);                                                   \
-            RESET_SMART_CHUNK(_new_smart_chunk);                                        \
-            if (__first_chunk == NULL)                                                  \
-                __first_chunk = _new_smart_chunk;                                       \
-            _new_smart_chunk->base = _base_ptr;                                         \
-            _new_smart_chunk->size = (__ptr)->max_size;                                 \
-            _new_smart_chunk->prev = __prev;                                            \
-            _new_smart_chunk->bucket = (struct smart_bucket *)(__ptr);                  \
-            ucs_list_add_tail(&((__ptr)->pool), &(_new_smart_chunk->super));            \
-            _base_ptr = (void *)((ptrdiff_t)_base_ptr + (__ptr)->max_size);             \
-            __prev = (void *)_new_smart_chunk;                                          \
-        }                                                                               \
-        /* Close the ring */                                                            \
-        __first_chunk->prev = __prev;                                                   \
+#define SMART_BUFFS_GROW_BUCKET(__ptr)                                            \
+    do                                                                            \
+    {                                                                             \
+        size_t _i;                                                                \
+        void *_sb_new_mem_chunk = malloc((__ptr)->initial_size);                  \
+        assert(_sb_new_chunk);                                                    \
+        memset(_sb_new_mem_chunk, 0, (__ptr)->initial_size);                      \
+        size_t __num_new_smart_chunks = (_ptr)->initial_size / (__ptr)->max_size; \
+        mem_chunk_t *_new_mem_chunk;                                              \
+        _new_mem_chunk = DYN_ARRAY_GET_ELT(&((__ptr)->sys->base_mem_chunks),      \
+                                           (__ptr)->sys->num_base_mem_chunks,     \
+                                           mem_chunk_t);                          \
+        assert(_new_mem_chunk);                                                   \
+        _new_mem_chunk->base = _sb_new_mem_chunk;                                 \
+        _new_mem_chunk->size = (__ptr)->initial_size;                             \
+        (__ptr)->sys->num_mem_chunks++;                                           \
+        void *_base_ptr = _sb_new_mem_chunk;                                      \
+        void *__prev = NULL;                                                      \
+        smart_chunk_t *__first_chunk = NULL;                                      \
+        for (_i = 0; _i < _num_new_chunks; _i++)                                  \
+        {                                                                         \
+            smart_chunk_t *_new_smart_chunk;                                      \
+            DYN_LIST_GET(&((__bdest)->smart_chunk_desc_pool),                     \
+                         smart_chunk_t,                                           \
+                         super,                                                   \
+                         _new_smart_chunk);                                       \
+            assert(_new_smart_chunk);                                             \
+            RESET_SMART_CHUNK(_new_smart_chunk);                                  \
+            if (__first_chunk == NULL)                                            \
+                __first_chunk = _new_smart_chunk;                                 \
+            _new_smart_chunk->base = _base_ptr;                                   \
+            _new_smart_chunk->size = (__ptr)->max_size;                           \
+            _new_smart_chunk->prev = __prev;                                      \
+            _new_smart_chunk->bucket = (struct smart_bucket *)(__ptr);            \
+            SIMPLE_LIST_APPEND(&((__ptr)->pool), &(_new_smart_chunk->super));     \
+            _base_ptr = (void *)((ptrdiff_t)_base_ptr + (__ptr)->max_size);       \
+            __prev = (void *)_new_smart_chunk;                                    \
+        }                                                                         \
+        /* Close the ring */                                                      \
+        __first_chunk->prev = __prev;                                             \
     } while (0)
 
 // Try to recycle a smart chunk to the parent chunk when applicable and possible
@@ -441,38 +491,41 @@ typedef struct
                 }                                                                             \
                 /* Return the bigger chunk to its pool so it can be used */                   \
                 __parent_chunk->in_use = false;                                               \
-                ucs_list_add_tail(&(__parent_chunk->bucket->pool),                            \
-                                  &(__parent_chunk->super));                                  \
+                SIMPLE_LIST_APPEND(&(__parent_chunk->bucket->pool),                           \
+                                   &(__parent_chunk->super));                                 \
             }                                                                                 \
         }                                                                                     \
     } while (0)
 
 // Take a smart chunk from a source bucket and create multiple smaller smart chunks
 // for the destination bucket.
-#define SMART_BUFFS_SPLIT_BUCKET(__bsrc, __bdest)                                           \
-    do                                                                                      \
-    {                                                                                       \
-        size_t _i;                                                                          \
-                                                                                            \
-        _num_new_smart_chunks = __bsrc->max_size / __bdest->max_size;                       \
-        /* Get the chunk from the source so we can divide it up */                          \
-        smart_chunk_t *_big_chunk_to_split;                                                 \
-        ucs_list_extract_head(&((_bsrc)->pool), smart_chunk_t, super, _big_chunk_to_split); \
-        assert(_big_chunk_to_split);                                                        \
-        _big_chunk_to_split->in_use = true;                                                 \
-        void *_sc_base_ptr = _big_chunk_to_split->base;                                     \
-        for (_i = 0; _i < _num_new_smart_chunks; _i++)                                      \
-        {                                                                                   \
-            smart_chunk_t *_new_smart_chunk;                                                \
-            DYN_LIST_ALLOC(&((__bdest)->pool), smart_chunk_t, super, _new_smart_chunk);     \
-            assert(_new_smart_chunk);                                                       \
-            RESET_SMART_CHUNK(_new_smart_chunk);                                            \
-            _new_smart_chunk->parent_chunk = _big_chunk_to_split;                           \
-            _new_smart_chunk->base = _sc_base_ptr;                                          \
-            _new_smart_chunk->size = __bdest->max_size;                                     \
-            ucs_list_add_tail(&((__bdest)->pool), &(_new_smart_chunk->super));              \
-            _sc_base_ptr = (void *)((ptrdiff_t)_sc_base_ptr + _bdest->max_size);            \
-        }                                                                                   \
+#define SMART_BUFFS_SPLIT_BUCKET(__bsrc, __bdest)                                                      \
+    do                                                                                                 \
+    {                                                                                                  \
+        size_t _i;                                                                                     \
+                                                                                                       \
+        _num_new_smart_chunks = __bsrc->max_size / __bdest->max_size;                                  \
+        /* Get the chunk from the source so we can divide it up */                                     \
+        smart_chunk_t *_big_chunk_to_split;                                                            \
+        SIMPLE_LIST_EXTRACT_HEAD(&((_bsrc)->pool),                                                     \
+                                 smart_chunk_t,                                                        \
+                                 super,                                                                \
+                                 _big_chunk_to_split);                                                 \
+        assert(_big_chunk_to_split);                                                                   \
+        _big_chunk_to_split->in_use = true;                                                            \
+        void *_sc_base_ptr = _big_chunk_to_split->base;                                                \
+        for (_i = 0; _i < _num_new_smart_chunks; _i++)                                                 \
+        {                                                                                              \
+            smart_chunk_t *_new_smart_chunk;                                                           \
+            DYN_LIST_GET(&((__bdest)->smart_chunk_desc_pool), smart_chunk_t, super, _new_smart_chunk); \
+            assert(_new_smart_chunk);                                                                  \
+            RESET_SMART_CHUNK(_new_smart_chunk);                                                       \
+            _new_smart_chunk->parent_chunk = _big_chunk_to_split;                                      \
+            _new_smart_chunk->base = _sc_base_ptr;                                                     \
+            _new_smart_chunk->size = __bdest->max_size;                                                \
+            SIMPLE_LIST_EXTRACT_HEAD(&((__bdest)->pool), &(_new_smart_chunk->super));                  \
+            _sc_base_ptr = (void *)((ptrdiff_t)_sc_base_ptr + _bdest->max_size);                       \
+        }                                                                                              \
     } while (0)
 
 #define SMART_BUFFERS_DEFAULT_MEM_ALLOC_SIZE ((20 * 1024 * 1024))
@@ -491,7 +544,7 @@ typedef struct
             _smart_chunk->base = __sb_sc_mem_ptr;                                                                                       \
             _smart_chunk->size = _smart_bucket_to_populate->max_size;                                                                   \
             _smart_chunk->bucket = (struct smart_bucket *)_smart_bucket_to_populate;                                                    \
-            ucs_list_add_tail(&(_smart_bucket_to_populate->pool), &(_smart_chunk->super));                                              \
+            SIMPLE_LIST_APPEND(&((_smart_bucket_to_populate)->pool), &(_smart_chunk->super));                                           \
             __num_chunks++;                                                                                                             \
         }                                                                                                                               \
     } while (0)
@@ -515,7 +568,8 @@ typedef struct
         }                                                                                                                       \
         else                                                                                                                    \
         {                                                                                                                       \
-            size_t _info_copy_n_bucket; /* Copy meta-data from info object */                                                   \
+            size_t _info_copy_n_bucket;                                                                                         \
+            /* Copy meta-data from info object */                                                                               \
             smart_buffers_info_t *__info_in = (smart_buffers_info_t *)(_info_in);                                               \
             (__smart_bufs_sys)->num_buckets = (__info_in)->num_buckets;                                                         \
             DYN_ARRAY_ALLOC(&((__smart_bufs_sys)->bucket_sizes), (__smart_bufs_sys)->num_buckets, size_t);                      \
@@ -606,7 +660,7 @@ typedef struct
             *__new_bucket_sz = _new_bucket_max_size;                                                      \
             __new_bucket = DYN_ARRAY_GET_ELT(&((__sys)->buckets), (__sys)->num_buckets, smart_bucket_t);  \
             assert(__new_bucket);                                                                         \
-            ucs_list_head_init(&(__new_bucket->pool));                                                    \
+            SIMPLE_LIST_INIT(&(__new_bucket->pool));                                                      \
             __new_bucket->min_size = (uint64_t)(*__last_bucket_sz + 1);                                   \
             __new_bucket->max_size = _new_bucket_max_size;                                                \
             _mem_chunk_desc = DYN_ARRAY_GET_ELT(&((__sys)->base_mem_chunks),                              \
@@ -628,7 +682,7 @@ typedef struct
                 RESET_SMART_CHUNK(_smart_chunk);                                                          \
                 _smart_chunk->base = _mem_ptr;                                                            \
                 _smart_chunk->size = __new_bucket->max_size;                                              \
-                ucs_list_add_tail(&(__new_bucket->pool), &(_smart_chunk->super));                         \
+                SIMPLE_LIST_APPEND(&(__new_bucket->pool), &(_smart_chunk->super));                        \
                 __n++;                                                                                    \
             }                                                                                             \
             __new_bucket->initial_size = __n;                                                             \
@@ -636,7 +690,7 @@ typedef struct
             _target_bucket = __new_bucket;                                                                \
         }                                                                                                 \
         assert(_target_bucket);                                                                           \
-        _target_chunk = ucs_list_extract_head(&(_target_bucket->pool), smart_chunk_t, super);             \
+        _target_chunk = SIMPLE_LIST_EXTRACT_HEAD(&(_target_bucket->pool), smart_chunk_t, super);          \
         _target_chunk->in_use = true;                                                                     \
         _target_chunk;                                                                                    \
     })
@@ -658,10 +712,10 @@ typedef struct
     }                                                                                               \
     assert(_target_bucket);                                                                         \
     __sc->in_use = false;                                                                           \
-    ucs_list_add_tail(&(_target_bucket->pool), &(__sc->super));                                     \
+    SIMPLE_LIST_APPEND(&(_target_bucket->pool), &(__sc->super));                                    \
     /* Check if it makes sense to try to recycle smart buffers */                                   \
     size_t _recycle_threshold = _target_bucket->initial_size + _target_bucket->initial_size / 2;    \
-    if (ucs_list_length(&(_target_bucket->pool)) > _recycle_threshold)                              \
+    if (SIMPLE_LIST_LENGTH(&(_target_bucket->pool)) > _recycle_threshold)                           \
         SMART_BUFFS_RECYCLE_SMART_CHUNK(__sc);                                                      \
     /* Make sure the pointer cannot be used anymore */                                              \
     __sc = NULL;                                                                                    \
@@ -676,17 +730,17 @@ typedef struct
         {                                                                                         \
             smart_bucket_t *__sb = DYN_ARRAY_GET_ELT(&((__sys)->buckets), __i, smart_bucket_t);   \
             assert(__sb);                                                                         \
-            while (!ucs_list_is_empty(&(__sb->pool)))                                             \
+            while (!SIMPLE_LIST_IS_EMPTY(&(__sb->pool)))                                          \
             {                                                                                     \
                 smart_chunk_t *__sc;                                                              \
-                __sc = ucs_list_extract_head(&(__sb->pool), smart_chunk_t, super);                \
+                __sc = SIMPLE_LIST_EXTRACT_HEAD(&(__sb->pool), smart_chunk_t, super);             \
                 if (__sc->parent_chunk == NULL)                                                   \
                 {                                                                                 \
                     DYN_LIST_RETURN((__sys)->smart_chunk_desc_pool, __sc, super);                 \
                 }                                                                                 \
                 else                                                                              \
                 {                                                                                 \
-                    ucs_list_add_tail(&(__sb->pool), &(__sc->super));                             \
+                    SIMPLE_LIST_APPEND(&(__sb->pool), &(__sc->super));                            \
                     SMART_BUFFS_RECYCLE_SMART_CHUNK(__sc);                                        \
                 }                                                                                 \
             }                                                                                     \

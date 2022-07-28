@@ -11,6 +11,8 @@
 
 #include "dynamic_structs.h"
 
+#define SMART_BUFF_NUM_GETS (10000)
+
 static void DISPLAY_SMART_BUFFERS_SYS_DATA(smart_buffers_t *sys)
 {
     size_t i;
@@ -21,7 +23,7 @@ static void DISPLAY_SMART_BUFFERS_SYS_DATA(smart_buffers_t *sys)
     {
         smart_bucket_t *b = DYN_ARRAY_GET_ELT(&(sys->buckets), i, smart_bucket_t);
         fprintf(stdout, "\tBucket %ld - min size: %ld, max size: %ld, number of elements: %ld\n",
-                i, b->min_size, b->max_size, ucs_list_length(&(b->pool)));
+                i, b->min_size, b->max_size, SIMPLE_LIST_LENGTH(&(b->pool)));
     }
 }
 
@@ -48,12 +50,12 @@ int main(int argc, char **argv)
         fprintf(stderr, "\t\t-> now successfully returned\n");
     }
 
-    fprintf(stdout, "Getting 10 smart chunks from the first smart bucket and checking the address of the buffers\n");
+    fprintf(stdout, "Getting %d smart chunks from the first smart bucket and checking the address of the buffers\n", SMART_BUFF_NUM_GETS);
     ucs_list_link_t buffers;
     ucs_list_head_init(&buffers);
     size_t queried_size = 1;
     void *addr = NULL;
-    for (i = 0; i < 10; i++)
+    for (i = 0; i < SMART_BUFF_NUM_GETS; i++)
     {
         smart_chunk_t *sc = SMART_BUFF_GET(&smart_buffer_system, queried_size);
         assert(sc);
