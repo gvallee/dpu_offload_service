@@ -82,6 +82,7 @@ int main(int argc, char **argv)
     fprintf(stdout, "\t-> ok\n");
 
     // Finalize the smart buffer system
+    fprintf(stdout, "Finalizing the smart buffer system\n");
     SMART_BUFFS_FINI(&smart_buffer_system);
 
     fprintf(stdout, "%s: test succeeded\n", argv[0]);

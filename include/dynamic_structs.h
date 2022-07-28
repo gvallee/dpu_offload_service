@@ -50,11 +50,18 @@ typedef struct simple_list
         (_simple_list_to_init)->length = 0;                           \
     } while (0)
 
-#define SIMPLE_LIST_APPEND(_sl_append, _sl_elt)                     \
+#define SIMPLE_LIST_PREPEND(_sl_append, _sl_elt)                    \
     do                                                              \
     {                                                               \
-        ucs_list_add_tail(&((_sl_append)->internal_list), _sl_elt); \
+        ucs_list_add_head(&((_sl_append)->internal_list), _sl_elt); \
         (_sl_append)->length++;                                     \
+    } while (0)
+
+#define SIMPLE_LIST_DEL(__sl_del, _sl_item) \
+    do                                      \
+    {                                       \
+        ucs_list_del(_sl_item);             \
+        (__sl_del)->length--;               \
     } while (0)
 
 #define SIMPLE_LIST_EXTRACT_HEAD(_sl_eh, _sl_type, _sl_item) ({                      \
@@ -187,7 +194,7 @@ typedef struct dyn_list
 {
     size_t num_elts;
     size_t num_elts_alloc;
-    ucs_list_link_t list;
+    simple_list_t list;
     dyn_struct_elt_init_fn element_init_cb;
     // List of memory chunks used for the elements of the list
     size_t num_mem_chunks;
@@ -198,7 +205,7 @@ typedef struct dyn_list
     do                                                                                                                           \
     {                                                                                                                            \
         assert(__dyn_list);                                                                                                      \
-        size_t _initial_list_size = ucs_list_length(&((__dyn_list)->list));                                                      \
+        size_t _initial_list_size = SIMPLE_LIST_LENGTH(&((__dyn_list)->list));                                                   \
         size_t _chunk_size = (__dyn_list)->num_elts_alloc * sizeof(__type);                                                      \
         void *_new_chunk_buf = malloc(_chunk_size);                                                                              \
         if (_new_chunk_buf != NULL)                                                                                              \
@@ -217,10 +224,10 @@ typedef struct dyn_list
                 {                                                                                                                \
                     (__dyn_list)->element_init_cb((void *)&(_e[_gdl_idx]));                                                      \
                 }                                                                                                                \
-                ucs_list_add_tail(&((__dyn_list)->list), &(_e[_gdl_idx].__elt));                                                 \
+                SIMPLE_LIST_PREPEND(&((__dyn_list)->list), &(_e[_gdl_idx].__elt));                                               \
                 _ptr = &(_e[_gdl_idx]);                                                                                          \
             }                                                                                                                    \
-            assert(ucs_list_length(&((__dyn_list)->list)) == (_initial_list_size + (__dyn_list)->num_elts_alloc));               \
+            assert(SIMPLE_LIST_LENGTH(&((__dyn_list)->list)) == (_initial_list_size + (__dyn_list)->num_elts_alloc));            \
             assert((((ptrdiff_t)_ptr + sizeof(__type)) - ((ptrdiff_t)_new_chunk_buf + _chunk_size)) == 0);                       \
             (__dyn_list)->num_elts += (__dyn_list)->num_elts_alloc;                                                              \
         }                                                                                                                        \
@@ -241,7 +248,7 @@ typedef struct dyn_list
             (_dyn_list)->num_elts = 0;                                                    \
             (_dyn_list)->num_elts_alloc = _num_elts_alloc;                                \
             (_dyn_list)->element_init_cb = NULL;                                          \
-            ucs_list_head_init(&((_dyn_list)->list));                                     \
+            SIMPLE_LIST_INIT(&((_dyn_list)->list));                                       \
             GROW_DYN_LIST((_dyn_list), _type, _elt);                                      \
         }                                                                                 \
         else                                                                              \
@@ -262,7 +269,7 @@ typedef struct dyn_list
             (_dyn_list)->num_elts = 0;                                                    \
             (_dyn_list)->num_elts_alloc = _num_elts_alloc;                                \
             (_dyn_list)->element_init_cb = _cb;                                           \
-            ucs_list_head_init(&((_dyn_list)->list));                                     \
+            SIMPLE_LIST_INIT(&((_dyn_list)->list));                                       \
             GROW_DYN_LIST((_dyn_list), _type, _elt);                                      \
         }                                                                                 \
         else                                                                              \
@@ -276,11 +283,10 @@ typedef struct dyn_list
     do                                                                                  \
     {                                                                                   \
         /* Release the list */                                                          \
-        while (!ucs_list_is_empty(&((_dyn_list)->list)))                                \
+        while (!SIMPLE_LIST_IS_EMPTY(&((_dyn_list)->list)))                             \
         {                                                                               \
-            _type *_item = ucs_list_extract_head(&((_dyn_list)->list), _type, _elt);    \
+            _type *_item = SIMPLE_LIST_EXTRACT_HEAD(&((_dyn_list)->list), _type, _elt); \
             assert(_item);                                                              \
-            ucs_list_del(&(_item->_elt));                                               \
         }                                                                               \
         /* Free the underlying memory chunks */                                         \
         size_t _i;                                                                      \
@@ -298,20 +304,20 @@ typedef struct dyn_list
         _dyn_list = NULL;                                                               \
     } while (0)
 
-#define DYN_LIST_GET(_dyn_list, _type, _elt, _item)                       \
-    do                                                                    \
-    {                                                                     \
-        if (ucs_list_is_empty(&((_dyn_list)->list)))                      \
-        {                                                                 \
-            GROW_DYN_LIST(_dyn_list, _type, _elt);                        \
-        }                                                                 \
-        _item = ucs_list_extract_head(&((_dyn_list)->list), _type, _elt); \
+#define DYN_LIST_GET(_dyn_list, _type, _elt, _item)                          \
+    do                                                                       \
+    {                                                                        \
+        if (SIMPLE_LIST_IS_EMPTY(&((_dyn_list)->list)))                      \
+        {                                                                    \
+            GROW_DYN_LIST(_dyn_list, _type, _elt);                           \
+        }                                                                    \
+        _item = SIMPLE_LIST_EXTRACT_HEAD(&((_dyn_list)->list), _type, _elt); \
     } while (0)
 
-#define DYN_LIST_RETURN(_dyn_list, _item, _elt)                  \
-    do                                                           \
-    {                                                            \
-        ucs_list_add_tail(&((_dyn_list)->list), &(_item->_elt)); \
+#define DYN_LIST_RETURN(_dyn_list, _item, _elt)                    \
+    do                                                             \
+    {                                                              \
+        SIMPLE_LIST_PREPEND(&((_dyn_list)->list), &(_item->_elt)); \
     } while (0)
 int dynamic_list_return();
 
@@ -447,7 +453,7 @@ typedef struct
             _new_smart_chunk->size = (__ptr)->max_size;                           \
             _new_smart_chunk->prev = __prev;                                      \
             _new_smart_chunk->bucket = (struct smart_bucket *)(__ptr);            \
-            SIMPLE_LIST_APPEND(&((__ptr)->pool), &(_new_smart_chunk->super));     \
+            SIMPLE_LIST_PREPEND(&((__ptr)->pool), &(_new_smart_chunk->super));     \
             _base_ptr = (void *)((ptrdiff_t)_base_ptr + (__ptr)->max_size);       \
             __prev = (void *)_new_smart_chunk;                                    \
         }                                                                         \
@@ -487,11 +493,11 @@ typedef struct
                 {                                                                             \
                     smart_chunk_t *__cur_sc = (smart_chunk_t *)__prev;                        \
                     assert(__cur_sc->in_use == false);                                        \
-                    ucs_list_del(&(__cur_sc->super));                                         \
+                    SIMPLE_LIST_DEL(&(__cur_sc->bucket->pool), &(__cur_sc->super));           \
                 }                                                                             \
                 /* Return the bigger chunk to its pool so it can be used */                   \
                 __parent_chunk->in_use = false;                                               \
-                SIMPLE_LIST_APPEND(&(__parent_chunk->bucket->pool),                           \
+                SIMPLE_LIST_PREPEND(&(__parent_chunk->bucket->pool),                           \
                                    &(__parent_chunk->super));                                 \
             }                                                                                 \
         }                                                                                     \
@@ -544,7 +550,7 @@ typedef struct
             _smart_chunk->base = __sb_sc_mem_ptr;                                                                                       \
             _smart_chunk->size = _smart_bucket_to_populate->max_size;                                                                   \
             _smart_chunk->bucket = (struct smart_bucket *)_smart_bucket_to_populate;                                                    \
-            SIMPLE_LIST_APPEND(&((_smart_bucket_to_populate)->pool), &(_smart_chunk->super));                                           \
+            SIMPLE_LIST_PREPEND(&((_smart_bucket_to_populate)->pool), &(_smart_chunk->super));                                           \
             __num_chunks++;                                                                                                             \
         }                                                                                                                               \
     } while (0)
@@ -682,7 +688,7 @@ typedef struct
                 RESET_SMART_CHUNK(_smart_chunk);                                                          \
                 _smart_chunk->base = _mem_ptr;                                                            \
                 _smart_chunk->size = __new_bucket->max_size;                                              \
-                SIMPLE_LIST_APPEND(&(__new_bucket->pool), &(_smart_chunk->super));                        \
+                SIMPLE_LIST_PREPEND(&(__new_bucket->pool), &(_smart_chunk->super));                        \
                 __n++;                                                                                    \
             }                                                                                             \
             __new_bucket->initial_size = __n;                                                             \
@@ -712,7 +718,7 @@ typedef struct
     }                                                                                               \
     assert(_target_bucket);                                                                         \
     __sc->in_use = false;                                                                           \
-    SIMPLE_LIST_APPEND(&(_target_bucket->pool), &(__sc->super));                                    \
+    SIMPLE_LIST_PREPEND(&(_target_bucket->pool), &(__sc->super));                                    \
     /* Check if it makes sense to try to recycle smart buffers */                                   \
     size_t _recycle_threshold = _target_bucket->initial_size + _target_bucket->initial_size / 2;    \
     if (SIMPLE_LIST_LENGTH(&(_target_bucket->pool)) > _recycle_threshold)                           \
@@ -740,7 +746,7 @@ typedef struct
                 }                                                                                 \
                 else                                                                              \
                 {                                                                                 \
-                    SIMPLE_LIST_APPEND(&(__sb->pool), &(__sc->super));                            \
+                    SIMPLE_LIST_PREPEND(&(__sb->pool), &(__sc->super));                            \
                     SMART_BUFFS_RECYCLE_SMART_CHUNK(__sc);                                        \
                 }                                                                                 \
             }                                                                                     \
@@ -851,7 +857,7 @@ typedef struct smart_list
     // type, the update this pointer to be able to return it when the
     // smart list is freed.
     smart_chunk_t *base_smart_chunk;
-    ucs_list_link_t list;
+    simple_list_t list;
     // Array of smart chunks used for the elements of the list
     size_t num_smart_chunks;
     // Array of pointers of pointers of smart chunks, the smart chunks
@@ -864,7 +870,7 @@ typedef struct smart_list
     {                                                                                                      \
         assert(__smart_buf_sys);                                                                           \
         assert(__smart_list);                                                                              \
-        size_t _initial_list_size = ucs_list_length(&((__smart_list)->list));                              \
+        size_t _initial_list_size = SIMPLE_LIST_LENGTH(&((__smart_list)->list));                           \
         /* Get a new buffer from the smart buffer system, no allocation */                                 \
         size_t _chunk_size = (__smart_list)->num_elts_alloc * (__smart_list)->elt_size;                    \
         smart_chunk_t *_new_smart_chunk = (smart_chunk_t *)SMART_BUFF_GET((__smart_buf_sys), _chunk_size); \
@@ -884,10 +890,10 @@ typedef struct smart_list
             __type *_e = (__type *)(_new_smart_chunk->base);                                               \
             for (_i = 0; _i < (__smart_list)->num_elts_alloc; _i++)                                        \
             {                                                                                              \
-                ucs_list_add_tail(&((__smart_list)->list), &(_e[_i].__elt));                               \
+                SIMPLE_LIST_PREPEND(&((__smart_list)->list), &(_e[_i].__elt));                             \
                 _ptr = &(_e[_i]);                                                                          \
             }                                                                                              \
-            assert(ucs_list_length(&((__smart_list)->list)) ==                                             \
+            assert(SIMPLE_LIST_LENGTH(&((__smart_list)->list)) ==                                          \
                    (_initial_list_size + (__smart_list)->num_elts_alloc));                                 \
             /* All the new elements are added to the list, update the number of elements in the list*/     \
             (__smart_list)->num_elts += (__smart_list)->num_elts_alloc;                                    \
@@ -919,7 +925,7 @@ typedef struct smart_list
             (_dyn_list)->num_elts = 0;                                                            \
             (_dyn_list)->num_elts_alloc = _num_elts_alloc;                                        \
             (_dyn_list)->element_init_cb = NULL;                                                  \
-            ucs_list_head_init(&((_dyn_list)->list));                                             \
+            SIMPLE_LIST_INIT(&((_dyn_list)->list));                                               \
             GROW_DYN_LIST((_dyn_list), _type, _elt);                                              \
         }                                                                                         \
         else                                                                                      \
@@ -933,11 +939,11 @@ typedef struct smart_list
     do                                                                                           \
     {                                                                                            \
         /* Release the list, not the underlying buffers */                                       \
-        while (!ucs_list_is_empty(&((_smart_list)->list)))                                       \
+        while (!SIMPLE_LIST_IS_EMPTY(&((_smart_list)->list)))                                    \
         {                                                                                        \
-            _type *_item = ucs_list_extract_head(&((_smart_list)->list), _type, _elt);           \
+            _type *_item = SIMPLE_LIST_EXTRACT_HEAD(&((_smart_list)->list), _type, _elt);        \
             assert(_item);                                                                       \
-            ucs_list_del(&(_item->_elt));                                                        \
+            SIMPLE_LIST_DEL(&((_smart_list)->list), &(_item->_elt));                             \
         }                                                                                        \
         /* Free the underlying memory chunks */                                                  \
         size_t _i;                                                                               \
@@ -958,17 +964,17 @@ typedef struct smart_list
 #define SMART_LIST_GET(_smart_buf_sys, _smart_list, _type, _elt, _item)        \
     do                                                                         \
     {                                                                          \
-        if (ucs_list_is_empty(&((_smart_list)->list)))                         \
+        if (SIMPLE_LIST_IS_EMPTY(&((_smart_list)->list)))                      \
         {                                                                      \
             SMART_LIST_GROW((_smart_buf_sys), (_smart_list), (_type), (_elt)); \
         }                                                                      \
-        _item = ucs_list_extract_head(&((_dyn_list)->list), _type, _elt);      \
+        _item = SIMPLE_LIST_EXTRACT_HEAD(&((_dyn_list)->list), _type, _elt);   \
     } while (0)
 
-#define SMART_LIST_RETURN(_smart_list, _item, _elt)                \
-    do                                                             \
-    {                                                              \
-        ucs_list_add_tail(&((_smart_list)->list), &(_item->_elt)); \
+#define SMART_LIST_RETURN(_smart_list, _item, _elt)                  \
+    do                                                               \
+    {                                                                \
+        SIMPLE_LIST_PREPEND(&((_smart_list)->list), &(_item->_elt)); \
     } while (0)
 
 #endif // DPU_OFFLOAD_DYNAMIC_LIST_H
