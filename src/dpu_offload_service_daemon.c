@@ -1182,6 +1182,12 @@ static void progress_self_event_recv(execution_context_t *econtext)
     int rc;
     ECONTEXT_LOCK(econtext);
     ucp_worker_h worker = GET_WORKER(econtext);
+    if (econtext->event_channels == NULL)
+    {
+        // Event channels are not initialized yet, exit
+        return;
+    }
+
     if (econtext->event_channels->notif_recv.initialized == false)
     {
         // Note: tag and tag mask are calculated by the macro to match the client
@@ -1897,6 +1903,7 @@ execution_context_t *client_init(offloading_engine_t *offload_engine, init_param
         group_cache_t *gp_cache = GET_GROUP_CACHE(&(offload_engine->procs_cache), ctx->rank.group_id);
         assert(cache_entry);
         assert(gp_cache);
+        assert(ctx->engine->config != NULL);
         cache_entry->shadow_service_procs[cache_entry->num_shadow_service_procs] = ctx->engine->config->local_service_proc.info.global_id;
         cache_entry->peer.proc_info.group_id = ctx->rank.group_id;
         cache_entry->peer.proc_info.group_rank = ctx->rank.group_rank;

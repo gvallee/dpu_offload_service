@@ -1344,6 +1344,7 @@ dpu_offload_status_t get_local_service_proc_connect_info(offloading_config_t *cf
     assert(init_params);
     assert(cfg->num_service_procs_per_dpu != UINT64_MAX);
     assert(cfg->local_service_proc.info.dpu != UINT64_MAX);
+    assert(cfg->num_service_procs_per_dpu > 0);
 
     if (rank_info->local_rank != INVALID_RANK)
     {
