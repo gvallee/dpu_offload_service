@@ -1182,9 +1182,9 @@ static dpu_offload_status_t peer_cache_entries_recv_cb(struct dpu_offload_ev_sys
             if (cache_entry->events_initialized)
             {
 
-                while (!ucs_list_is_empty(&(cache_entry->events)))
+                while (!SIMPLE_LIST_IS_EMPTY(&(cache_entry->events)))
                 {
-                    dpu_offload_event_t *e = ucs_list_extract_head(&(cache_entry->events), dpu_offload_event_t, item);
+                    dpu_offload_event_t *e = SIMPLE_LIST_EXTRACT_HEAD(&(cache_entry->events), dpu_offload_event_t, item);
                     COMPLETE_EVENT(e);
                 }
             }

@@ -562,13 +562,13 @@ static dpu_offload_status_t do_get_cache_entry_by_group_rank(offloading_engine_t
     CHECK_ERR_RETURN((rc), DO_ERROR, "event_get() failed");
     if (!cache_entry->events_initialized)
     {
-        ucs_list_head_init(&(cache_entry->events));
+        SIMPLE_LIST_INIT(&(cache_entry->events));
         cache_entry->events_initialized = true;
     }
     EVENT_HDR_TYPE(cache_entry_updated_ev) = META_EVENT_TYPE;
-    ucs_list_add_tail(&(cache_entry->events), &(cache_entry_updated_ev->item));
+    SIMPLE_LIST_PREPEND(&(cache_entry->events), &(cache_entry_updated_ev->item));
     DBG("Cache entry %p for gp/rank %" PRIu64 "/%" PRIu64 " now has %ld update events",
-        cache_entry, gp_id, rank, ucs_list_length(&(cache_entry->events)));
+        cache_entry, gp_id, rank, SIMPLE_LIST_LENGTH(&(cache_entry->events)));
     if (ev != NULL)
     {
         // If the calling function is expecting an event back, no need for anything other than
@@ -929,7 +929,7 @@ bool parse_line_dpu_version_1(offloading_config_t *data, char *line)
 
             /* Save the configuration details of each service process on that DPU */
             remote_service_proc_info_t *cur_sp, *next_sp;
-            ucs_list_for_each_safe(cur_sp, next_sp, &(cur_dpu->remote_service_procs), item)
+            SIMPLE_LIST_FOR_EACH(cur_sp, next_sp, &(cur_dpu->remote_service_procs), item)
             {
                 assert(cur_sp->init_params.conn_params);
                 cur_sp->init_params.conn_params->addr_str = target_entry->version_1.addr;
@@ -977,7 +977,7 @@ bool parse_line_dpu_version_1(offloading_config_t *data, char *line)
                 assert(data->local_service_proc.info.global_id != UINT64_MAX);
                 assert(data->num_service_procs_per_dpu != 0);
                 assert(data->num_service_procs_per_dpu != UINT64_MAX);
-                assert(ucs_list_length(&(cur_dpu->remote_service_procs)) == data->num_service_procs_per_dpu);
+                assert(SIMPLE_LIST_LENGTH(&(cur_dpu->remote_service_procs)) == data->num_service_procs_per_dpu);
 
                 if (data->local_service_proc.info.global_id < data->num_service_procs_per_dpu * (dpu_idx + 1))
                     data->service_proc_found = true;
@@ -1323,8 +1323,8 @@ execution_context_t *get_server_servicing_host(offloading_engine_t *engine)
 
 dpu_offload_status_t get_num_connecting_ranks(uint64_t num_service_procs_per_dpu, int64_t n_local_ranks, uint64_t sp_lid, uint64_t *n_ranks)
 {
-    uint64_t base = (uint64_t) n_local_ranks / num_service_procs_per_dpu;
-    uint64_t rest = (uint64_t) n_local_ranks - (num_service_procs_per_dpu * base);
+    uint64_t base = (uint64_t)n_local_ranks / num_service_procs_per_dpu;
+    uint64_t rest = (uint64_t)n_local_ranks - (num_service_procs_per_dpu * base);
     if (sp_lid < rest)
     {
         *n_ranks = base + 1;

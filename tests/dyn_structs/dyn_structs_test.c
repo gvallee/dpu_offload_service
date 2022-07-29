@@ -92,9 +92,9 @@ int test_dyn_list(int argc, char **argv)
         fprintf(stderr, "Number of elements is %ld instead of 1\n", list_1->num_elts);
         goto error_out;
     }
-    if (ucs_list_length(&(list_1->list)) != 1)
+    if (SIMPLE_LIST_LENGTH(&(list_1->list)) != 1)
     {
-        fprintf(stderr, "Number of elements in list is %ld instead of 1\n", ucs_list_length(&(list_1->list)));
+        fprintf(stderr, "Number of elements in list is %ld instead of 1\n", SIMPLE_LIST_LENGTH(&(list_1->list)));
         goto error_out;
     }
 
@@ -129,9 +129,9 @@ int test_dyn_list(int argc, char **argv)
         fprintf(stderr, "Number of elements for allocations is %ld instead of 1\n", list_1->num_elts_alloc);
         goto error_out;
     }
-    if (!ucs_list_is_empty(&(list_1->list)))
+    if (!SIMPLE_LIST_IS_EMPTY(&(list_1->list)))
     {
-        fprintf(stderr, "Number of elements in list is %ld instead of 0\n", ucs_list_length(&(list_1->list)));
+        fprintf(stderr, "Number of elements in list is %ld instead of 0\n", SIMPLE_LIST_LENGTH(&(list_1->list)));
         goto error_out;
     }
 
@@ -158,9 +158,9 @@ int test_dyn_list(int argc, char **argv)
         fprintf(stderr, "Number of elements for allocations is %ld instead of 1\n", list_1->num_elts_alloc);
         goto error_out;
     }
-    if (ucs_list_length(&(list_1->list)) != 1)
+    if (SIMPLE_LIST_LENGTH(&(list_1->list)) != 1)
     {
-        fprintf(stderr, "Number of elements in list is %ld instead of 0\n", ucs_list_length(&(list_1->list)));
+        fprintf(stderr, "Number of elements in list is %ld instead of 0\n", SIMPLE_LIST_LENGTH(&(list_1->list)));
         goto error_out;
     }
 
@@ -202,9 +202,9 @@ int test_dyn_list(int argc, char **argv)
             fprintf(stderr, "Number of elements for allocations is %ld instead of 1\n", list_1->num_elts_alloc);
             goto error_out;
         }
-        if (!ucs_list_is_empty(&(list_1->list)))
+        if (!SIMPLE_LIST_IS_EMPTY(&(list_1->list)))
         {
-            fprintf(stderr, "Number of elements in list is %ld instead of 0\n", ucs_list_length(&(list_1->list)));
+            fprintf(stderr, "Number of elements in list is %ld instead of 0\n", SIMPLE_LIST_LENGTH(&(list_1->list)));
             goto error_out;
         }
     }
@@ -248,9 +248,9 @@ int test_dyn_list(int argc, char **argv)
             fprintf(stderr, "Number of elements for allocations is %ld instead of 1\n", list_1->num_elts_alloc);
             goto error_out;
         }
-        if (ucs_list_length(&(list_1->list)) != i + 1)
+        if (SIMPLE_LIST_LENGTH(&(list_1->list)) != i + 1)
         {
-            fprintf(stderr, "Number of elements in list is %ld instead of %ld\n", ucs_list_length(&(list_1->list)), i + 1);
+            fprintf(stderr, "Number of elements in list is %ld instead of %ld\n", SIMPLE_LIST_LENGTH(&(list_1->list)), i + 1);
             goto error_out;
         }
     }
