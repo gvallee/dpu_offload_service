@@ -1670,7 +1670,7 @@ static void term_notification_completed(execution_context_t *econtext)
     case CONTEXT_CLIENT:
     {
         // Free resources to receive notifications
-#if !USE_AM_IMPLEM
+#if !USE_AM_IMPLEM && BUDDY_BUFFER_SYS_ENABLE
         if (econtext->event_channels->notif_recv.ctx.req != NULL)
         {
             ucp_request_cancel(GET_WORKER(econtext), econtext->event_channels->notif_recv.ctx.req);
@@ -1689,6 +1689,26 @@ static void term_notification_completed(execution_context_t *econtext)
                               econtext->event_channels->notif_recv.ctx.hdr.payload_size,
                               econtext->event_channels->notif_recv.ctx.payload_ctx.smart_buf);
             econtext->event_channels->notif_recv.ctx.payload_ctx.smart_buf = NULL;
+        }
+#endif
+
+#if !USE_AM_IMPLEM && !BUDDY_BUFFER_SYS_ENABLE
+        if (econtext->event_channels->notif_recv.ctx.req != NULL)
+        {
+            ucp_request_cancel(GET_WORKER(econtext), econtext->event_channels->notif_recv.ctx.req);
+            ucp_request_release(econtext->event_channels->notif_recv.ctx.req);
+            econtext->event_channels->notif_recv.ctx.req = NULL;
+        }
+        if (econtext->event_channels->notif_recv.ctx.payload_ctx.req != NULL)
+        {
+            ucp_request_cancel(GET_WORKER(econtext), econtext->event_channels->notif_recv.ctx.payload_ctx.req);
+            ucp_request_release(econtext->event_channels->notif_recv.ctx.payload_ctx.req);
+            econtext->event_channels->notif_recv.ctx.payload_ctx.req = NULL;
+        }
+        if (econtext->event_channels->notif_recv.ctx.payload_ctx.smart_buf != NULL)
+        {
+            free(econtext->event_channels->notif_recv.ctx.payload_ctx.buffer);
+            econtext->event_channels->notif_recv.ctx.payload_ctx.buffer = NULL;
         }
 #endif
         econtext->client->done = true;
@@ -1935,7 +1955,7 @@ void offload_engine_fini(offloading_engine_t **offload_engine)
     DYN_LIST_FREE((*offload_engine)->free_cache_entry_requests, cache_entry_request_t, item);
     DYN_ARRAY_FREE(&((*offload_engine)->dpus));
     assert((*offload_engine)->self_econtext);
-#if !USE_AM_IMPLEM
+#if !USE_AM_IMPLEM && BUDDY_BUFFER_SYS_ENABLE
     // Before finalizing the self execution context, clean up the pending recvs for notifications
     if ((*offload_engine)->self_econtext->event_channels->notif_recv.ctx.req != NULL)
     {
@@ -1957,6 +1977,29 @@ void offload_engine_fini(offloading_engine_t **offload_engine)
                           (*offload_engine)->self_econtext->event_channels->notif_recv.ctx.hdr.payload_size,
                           (*offload_engine)->self_econtext->event_channels->notif_recv.ctx.payload_ctx.smart_buf);
         (*offload_engine)->self_econtext->event_channels->notif_recv.ctx.payload_ctx.smart_buf = NULL;
+    }
+#endif
+
+#if !USE_AM_IMPLEM && !BUDDY_BUFFER_SYS_ENABLE
+    // Before finalizing the self execution context, clean up the pending recvs for notifications
+    if ((*offload_engine)->self_econtext->event_channels->notif_recv.ctx.req != NULL)
+    {
+        ucp_request_cancel(GET_WORKER((*offload_engine)->self_econtext),
+                           (*offload_engine)->self_econtext->event_channels->notif_recv.ctx.req);
+        ucp_request_release((*offload_engine)->self_econtext->event_channels->notif_recv.ctx.req);
+        (*offload_engine)->self_econtext->event_channels->notif_recv.ctx.req = NULL;
+    }
+    if ((*offload_engine)->self_econtext->event_channels->notif_recv.ctx.payload_ctx.req != NULL)
+    {
+        ucp_request_cancel(GET_WORKER((*offload_engine)->self_econtext),
+                           (*offload_engine)->self_econtext->event_channels->notif_recv.ctx.payload_ctx.req);
+        ucp_request_release((*offload_engine)->self_econtext->event_channels->notif_recv.ctx.payload_ctx.req);
+        (*offload_engine)->self_econtext->event_channels->notif_recv.ctx.payload_ctx.req = NULL;
+    }
+    if ((*offload_engine)->self_econtext->event_channels->notif_recv.ctx.payload_ctx.smart_buf != NULL)
+    {
+        free((*offload_engine)->self_econtext->event_channels->notif_recv.ctx.payload_ctx.buffer);
+        (*offload_engine)->self_econtext->event_channels->notif_recv.ctx.payload_ctx.buffer = NULL;
     }
 #endif
     execution_context_fini(&((*offload_engine)->self_econtext));

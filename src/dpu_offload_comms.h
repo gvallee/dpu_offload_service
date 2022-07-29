@@ -347,12 +347,17 @@ static void notif_payload_recv_handler(void *request, ucs_status_t status, const
         }
         else
         {
+#if BUDDY_BUFFER_SYS_ENABLE
             // Return the buffer to the smart buffer system
             assert(ctx->payload_ctx.smart_buf);
             SMART_BUFF_RETURN(&(ctx->econtext->engine->smart_buffer_sys),
                               ctx->hdr.payload_size,
                               ctx->payload_ctx.smart_buf);
             ctx->payload_ctx.smart_buf = NULL;
+#else
+            free(ctx->payload_ctx.buffer);
+            ctx->payload_ctx.buffer = NULL;
+#endif
         }
         ctx->payload_ctx.buffer = NULL;
     }
@@ -412,9 +417,13 @@ static int post_recv_for_notif_payload(hdr_notif_req_t *ctx, execution_context_t
         {
             // Get a buffer from the smart buffer system to avoid allocating memory
             assert(ctx->payload_ctx.smart_buf == NULL);
+#if BUDDY_BUFFER_SYS_ENABLE
             ctx->payload_ctx.smart_buf = SMART_BUFF_GET(&(econtext->engine->smart_buffer_sys), ctx->hdr.payload_size);
             assert(ctx->payload_ctx.smart_buf);
             ctx->payload_ctx.buffer = ctx->payload_ctx.smart_buf->base;
+#else
+            ctx->payload_ctx.buffer = malloc(ctx->hdr.payload_size);
+#endif
         }
         assert(ctx->payload_ctx.buffer);
         worker = GET_WORKER(econtext);
@@ -453,6 +462,7 @@ static int post_recv_for_notif_payload(hdr_notif_req_t *ctx, execution_context_t
             {
                 if (ctx->payload_ctx.pool.mem_pool == NULL)
                 {
+#if BUDDY_BUFFER_SYS_ENABLE
                     // Return the smart chunk to the smart buffer system.
                     assert(ctx->payload_ctx.smart_buf);
                     SMART_BUFF_RETURN(&(econtext->engine->smart_buffer_sys),
@@ -460,6 +470,10 @@ static int post_recv_for_notif_payload(hdr_notif_req_t *ctx, execution_context_t
                                       ctx->payload_ctx.smart_buf);
                     ctx->payload_ctx.smart_buf = NULL;
                     assert(ctx->payload_ctx.smart_buf == NULL);
+#else
+                    free(ctx->payload_ctx.buffer);
+                    ctx->payload_ctx.buffer = NULL;
+#endif
                 }
                 if (ctx->payload_ctx.pool.mem_pool != NULL)
                 {
