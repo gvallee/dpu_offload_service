@@ -1477,37 +1477,9 @@ static void progress_server_econtext(execution_context_t *ctx)
                         client_info->rank_data.group_id != INVALID_GROUP &&
                         client_info->rank_data.group_rank != INVALID_RANK)
                     {
-                        uint64_t n_connecting_ranks;
-                        get_num_connecting_ranks(ctx->engine->config->num_service_procs_per_dpu,
-                                                 client_info->rank_data.n_local_ranks,
-                                                 ctx->engine->config->local_service_proc.info.local_id,
-                                                 &n_connecting_ranks);
-                        group_cache_t *gp_cache = GET_GROUP_CACHE(&(ctx->engine->procs_cache), client_info->rank_data.group_id);
-                        if (gp_cache->n_local_ranks > 0 && gp_cache->n_local_ranks_populated == n_connecting_ranks)
-                        {
-                            DBG("We now have a connection with all the local ranks, we can broadcast the group cache at once");
-                            broadcast_group_cache(ctx->engine, client_info->rank_data.group_id);
-                        }
-                        if (gp_cache->n_local_ranks < 0)
-                        {
-                            DBG("We do not know how many ranks to locally expect for that group, broadcast the new information by default");
-                            broadcast_group_cache(ctx->engine, client_info->rank_data.group_id);
-                        }
-                        // Check if the cache is fully populated
-                        bool group_cache_now_full = false;
-                        if (gp_cache->group_size == gp_cache->num_local_entries)
-                        {
-                            // The cache is above to be fully populated
-                            DBG("Cache is complete for group %ld (gp size: %ld, local entries: %ld)\n",
-                                client_info->rank_data.group_id,
-                                gp_cache->group_size,
-                                gp_cache->num_local_entries);
-                            group_cache_now_full = true;
-                        }
-                        if (group_cache_now_full && gp_cache->group_size > 0 && gp_cache->num_local_entries == gp_cache->group_size)
-                        {
-                            DBG("Cache is now complete, we will send it as soon as all the ranks are fully connected");
-                        }
+                        GROUP_CACHE_EXCHANGE(ctx->engine, 
+                                             client_info->rank_data.group_id, 
+                                             client_info->rank_data.n_local_ranks);
                     }
 
                     if (ctx->server->connected_cb != NULL)

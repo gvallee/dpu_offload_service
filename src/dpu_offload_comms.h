@@ -116,6 +116,27 @@
     _can_post;                                            \
 })
 
+#define GROUP_CACHE_EXCHANGE(_engine, _gp_id, _n_local_ranks)                                                                \
+    do                                                                                                                       \
+    {                                                                                                                        \
+        uint64_t n_connecting_ranks;                                                                                         \
+        get_num_connecting_ranks((_engine)->config->num_service_procs_per_dpu,                                               \
+                                 (_n_local_ranks),                                                                           \
+                                 (_engine)->config->local_service_proc.info.local_id,                                        \
+                                 &n_connecting_ranks);                                                                       \
+        group_cache_t *__gp_cache = GET_GROUP_CACHE(&((_engine)->procs_cache), (_gp_id));                                    \
+        if (__gp_cache->n_local_ranks > 0 && __gp_cache->n_local_ranks_populated == n_connecting_ranks)                      \
+        {                                                                                                                    \
+            DBG("We now have a connection with all the local ranks, we can broadcast the group cache at once");              \
+            broadcast_group_cache((_engine), _gp_id);                                                                        \
+        }                                                                                                                    \
+        if (__gp_cache->n_local_ranks < 0)                                                                                   \
+        {                                                                                                                    \
+            DBG("We do not know how many ranks to locally expect for that group, broadcast the new information by default"); \
+            broadcast_group_cache((_engine), (_gp_id));                                                                      \
+        }                                                                                                                    \
+    } while (0)
+
 // TODO: same for UCX AM
 #define PROGRESS_EVENT_SEND(__ev)                                                                \
     do                                                                                           \

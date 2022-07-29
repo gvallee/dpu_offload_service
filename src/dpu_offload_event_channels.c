@@ -1243,6 +1243,12 @@ static dpu_offload_status_t add_group_rank_recv_cb(struct dpu_offload_ev_sys *ev
 
     rank_info_t *rank_info = (rank_info_t *)data;
 
+    if (rank_info->group_id == INVALID_GROUP || rank_info->group_rank == INVALID_RANK)
+    {
+        // The data we received really does not include any usable group data
+        return DO_SUCCESS;
+    }
+
     if (!is_in_cache(&(econtext->engine->procs_cache), rank_info->group_id, rank_info->group_rank, rank_info->group_size))
     {
         peer_cache_entry_t *cache_entry;
@@ -1254,6 +1260,8 @@ static dpu_offload_status_t add_group_rank_recv_cb(struct dpu_offload_ev_sys *ev
         COPY_RANK_INFO(rank_info, &(cache_entry->peer.proc_info));
         cache_entry->set = true;
     }
+
+    GROUP_CACHE_EXCHANGE(econtext->engine, rank_info->group_id, rank_info->n_local_ranks);
 
     return DO_SUCCESS;
 }
