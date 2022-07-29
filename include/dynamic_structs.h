@@ -83,6 +83,9 @@ typedef struct simple_list
     _sl_empty;                        \
 })
 
+#define SIMPLE_LIST_FOR_EACH(__sl_cur, __sl_next, __sl, __elt) \
+    ucs_list_for_each_safe(__sl_cur, __sl_next, &((__sl)->internal_list), __elt)
+
 /*****************/
 /* DYNAMIC ARRAY */
 /*****************/

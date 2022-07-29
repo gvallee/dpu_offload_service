@@ -1853,18 +1853,18 @@ typedef struct remote_dpu_info
     // engine associated to the remote DPU
     offloading_engine_t *engine;
 
-    // Array of service processes running on the remote DPU
+    // List of service processes running on the remote DPU
     // Type: remote_service_proc_info_t
-    ucs_list_link_t remote_service_procs;
+    simple_list_t remote_service_procs;
 } remote_dpu_info_t;
 
-#define RESET_REMOTE_DPU_INFO(_info)                          \
-    do                                                        \
-    {                                                         \
-        (_info)->idx = 0;                                     \
-        (_info)->hostname = NULL;                             \
-        (_info)->engine = NULL;                               \
-        ucs_list_head_init(&((_info)->remote_service_procs)); \
+#define RESET_REMOTE_DPU_INFO(_info)                        \
+    do                                                      \
+    {                                                       \
+        (_info)->idx = 0;                                   \
+        (_info)->hostname = NULL;                           \
+        (_info)->engine = NULL;                             \
+        SIMPLE_LIST_INIT(&((_info)->remote_service_procs)); \
     } while (0)
 
 /***************************/

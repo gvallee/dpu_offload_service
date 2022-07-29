@@ -52,7 +52,7 @@ extern execution_context_t *client_init(offloading_engine_t *, init_params_t *);
             _sp->service_proc.local_id = _x;                                                                 \
             _sp->service_proc.global_id = _sp_gid;                                                           \
             _sp->offload_engine = (_cfg)->offloading_engine;                                                 \
-            ucs_list_add_tail(&((_dpu)->remote_service_procs), &(_sp->item));                                \
+            SIMPLE_LIST_PREPEND(&((_dpu)->remote_service_procs), &(_sp->item));                              \
         }                                                                                                    \
     } while (0)
 
@@ -392,8 +392,8 @@ static uint64_t get_dpu_global_id_from_service_proc_id(offloading_engine_t *engi
     if (engine->num_service_procs <= service_proc_global_id)
         return UINT64_MAX;
     remote_service_proc_info_t *sp = DYN_ARRAY_GET_ELT(&(engine->service_procs),
-                                                         service_proc_global_id,
-                                                         remote_service_proc_info_t);
+                                                       service_proc_global_id,
+                                                       remote_service_proc_info_t);
     assert(sp);
     return (sp->dpu->idx);
 }

@@ -929,7 +929,7 @@ bool parse_line_dpu_version_1(offloading_config_t *data, char *line)
 
             /* Save the configuration details of each service process on that DPU */
             remote_service_proc_info_t *cur_sp, *next_sp;
-            ucs_list_for_each_safe(cur_sp, next_sp, &(cur_dpu->remote_service_procs), item)
+            SIMPLE_LIST_FOR_EACH(cur_sp, next_sp, &(cur_dpu->remote_service_procs), item)
             {
                 assert(cur_sp->init_params.conn_params);
                 cur_sp->init_params.conn_params->addr_str = target_entry->version_1.addr;
@@ -977,7 +977,7 @@ bool parse_line_dpu_version_1(offloading_config_t *data, char *line)
                 assert(data->local_service_proc.info.global_id != UINT64_MAX);
                 assert(data->num_service_procs_per_dpu != 0);
                 assert(data->num_service_procs_per_dpu != UINT64_MAX);
-                assert(ucs_list_length(&(cur_dpu->remote_service_procs)) == data->num_service_procs_per_dpu);
+                assert(SIMPLE_LIST_LENGTH(&(cur_dpu->remote_service_procs)) == data->num_service_procs_per_dpu);
 
                 if (data->local_service_proc.info.global_id < data->num_service_procs_per_dpu * (dpu_idx + 1))
                     data->service_proc_found = true;
@@ -1323,8 +1323,8 @@ execution_context_t *get_server_servicing_host(offloading_engine_t *engine)
 
 dpu_offload_status_t get_num_connecting_ranks(uint64_t num_service_procs_per_dpu, int64_t n_local_ranks, uint64_t sp_lid, uint64_t *n_ranks)
 {
-    uint64_t base = (uint64_t) n_local_ranks / num_service_procs_per_dpu;
-    uint64_t rest = (uint64_t) n_local_ranks - (num_service_procs_per_dpu * base);
+    uint64_t base = (uint64_t)n_local_ranks / num_service_procs_per_dpu;
+    uint64_t rest = (uint64_t)n_local_ranks - (num_service_procs_per_dpu * base);
     if (sp_lid < rest)
     {
         *n_ranks = base + 1;
