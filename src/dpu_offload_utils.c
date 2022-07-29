@@ -562,13 +562,13 @@ static dpu_offload_status_t do_get_cache_entry_by_group_rank(offloading_engine_t
     CHECK_ERR_RETURN((rc), DO_ERROR, "event_get() failed");
     if (!cache_entry->events_initialized)
     {
-        ucs_list_head_init(&(cache_entry->events));
+        SIMPLE_LIST_INIT(&(cache_entry->events));
         cache_entry->events_initialized = true;
     }
     EVENT_HDR_TYPE(cache_entry_updated_ev) = META_EVENT_TYPE;
-    ucs_list_add_tail(&(cache_entry->events), &(cache_entry_updated_ev->item));
+    SIMPLE_LIST_PREPEND(&(cache_entry->events), &(cache_entry_updated_ev->item));
     DBG("Cache entry %p for gp/rank %" PRIu64 "/%" PRIu64 " now has %ld update events",
-        cache_entry, gp_id, rank, ucs_list_length(&(cache_entry->events)));
+        cache_entry, gp_id, rank, SIMPLE_LIST_LENGTH(&(cache_entry->events)));
     if (ev != NULL)
     {
         // If the calling function is expecting an event back, no need for anything other than

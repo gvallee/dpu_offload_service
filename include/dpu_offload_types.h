@@ -414,7 +414,7 @@ typedef struct peer_cache_entry
     bool events_initialized;
 
     // List of events to complete when any update is made to the entry
-    ucs_list_link_t events;
+    simple_list_t events;
 } peer_cache_entry_t;
 
 typedef struct cache_entry_request
