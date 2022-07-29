@@ -25,12 +25,12 @@
 
 static dpu_offload_status_t execution_context_init(offloading_engine_t *offload_engine, uint64_t type, execution_context_t **econtext);
 static void execution_context_fini(execution_context_t **ctx);
-static void progress_self_event_recv(execution_context_t *econtext);
 
 extern dpu_offload_status_t register_default_notifications(dpu_offload_ev_sys_t *);
 #if USE_AM_IMPLEM
 extern int am_send_event_msg(dpu_offload_event_t **event);
 #else
+static void progress_self_event_recv(execution_context_t *econtext);
 extern int tag_send_event_msg(dpu_offload_event_t **event);
 #endif
 
@@ -523,53 +523,66 @@ static void send_cb(void *request, ucs_status_t status, void *user_data)
     common_cb(user_data, "send_cb");
 }
 
+#define __DO_INIT_WORKER(_econtext, _init_params) ({                                       \
+    ucp_worker_h _econtext_worker;                                                         \
+    bool _worker_set = true;                                                               \
+    if ((_init_params) == NULL || (_init_params)->worker == NULL)                          \
+    {                                                                                      \
+        if ((_econtext)->engine->ucp_context == NULL)                                      \
+        {                                                                                  \
+            (_econtext)->engine->ucp_context = INIT_UCX();                                 \
+            (_econtext)->engine->ucp_context_allocated = true;                             \
+        }                                                                                  \
+        if ((_econtext)->engine->ucp_worker == NULL)                                       \
+        {                                                                                  \
+            dpu_offload_status_t _ret = init_context(&((_econtext)->engine->ucp_context),  \
+                                                     &(_econtext_worker));                 \
+            CHECK_ERR_RETURN((_ret != 0), DO_ERROR, "init_context() failed");              \
+            SET_WORKER((_econtext), _econtext_worker);                                     \
+            (_econtext)->engine->ucp_worker_allocated = true;                              \
+            _worker_set = true;                                                            \
+            DBG("context successfully initialized (worker=%p)", _econtext_worker);         \
+        }                                                                                  \
+    }                                                                                      \
+    if ((_init_params) != NULL && (_init_params)->worker != NULL)                          \
+    {                                                                                      \
+        DBG("re-using UCP worker for new execution context");                              \
+        /* Notes: the context usually imposes different requirements:                   */ \
+        /* - on DPUs, we know there is no external UCX context and worker so they are   */ \
+        /*   initialized early on, during the initialization of the engine so we can    */ \
+        /*   establish connections to other service processes and set                   */ \
+        /*   the self endpoint that is required to maintain the endpoint cache.         */ \
+        /* - on the host, it depends on the calling code: if the UCX context and worker */ \
+        /*   are available when the engine is initialized, they can be passed in then;  */ \
+        /*   but in other cases like UCC, they are not available at the time and set    */ \
+        /*   during the creation of the execution contexts.                             */ \
+        if ((_econtext)->engine->ucp_context == NULL)                                      \
+            (_econtext)->engine->ucp_context = (_init_params)->ucp_context;                \
+        assert(GET_WORKER(_econtext) == NULL);                                             \
+        SET_WORKER(_econtext, (_init_params)->worker);                                     \
+        _worker_set = true;                                                                \
+    }                                                                                      \
+    _worker_set;                                                                           \
+})
+
+#if USE_AM_IMPLEM
+#define DO_INIT_WORKER(_econtext, _init_params)    \
+    do                                             \
+    {                                              \
+        __DO_INIT_WORKER(_econtext, _init_params); \
+    } while (0)
+#else
 #define DO_INIT_WORKER(_econtext, _init_params)                                                   \
     do                                                                                            \
     {                                                                                             \
-        ucp_worker_h _econtext_worker;                                                            \
-        bool _worker_set = true;                                                                  \
-        if ((_init_params) == NULL || (_init_params)->worker == NULL)                             \
-        {                                                                                         \
-            if ((_econtext)->engine->ucp_context == NULL)                                         \
-            {                                                                                     \
-                (_econtext)->engine->ucp_context = INIT_UCX();                                    \
-                (_econtext)->engine->ucp_context_allocated = true;                                \
-            }                                                                                     \
-            if ((_econtext)->engine->ucp_worker == NULL)                                          \
-            {                                                                                     \
-                dpu_offload_status_t _ret = init_context(&((_econtext)->engine->ucp_context),     \
-                                                         &(_econtext_worker));                    \
-                CHECK_ERR_RETURN((_ret != 0), DO_ERROR, "init_context() failed");                 \
-                SET_WORKER((_econtext), _econtext_worker);                                        \
-                (_econtext)->engine->ucp_worker_allocated = true;                                 \
-                _worker_set = true;                                                               \
-                DBG("context successfully initialized (worker=%p)", _econtext_worker);            \
-            }                                                                                     \
-        }                                                                                         \
-        if ((_init_params) != NULL && (_init_params)->worker != NULL)                             \
-        {                                                                                         \
-            DBG("re-using UCP worker for new execution context");                                 \
-            /* Notes: the context usually imposes different requirements:                   */    \
-            /* - on DPUs, we know there is no external UCX context and worker so they are   */    \
-            /*   initialized early on, during the initialization of the engine so we can    */    \
-            /*   establish connections to other service processes and set                   */    \
-            /*   the self endpoint that is required to maintain the endpoint cache.         */    \
-            /* - on the host, it depends on the calling code: if the UCX context and worker */    \
-            /*   are available when the engine is initialized, they can be passed in then;  */    \
-            /*   but in other cases like UCC, they are not available at the time and set    */    \
-            /*   during the creation of the execution contexts.                             */    \
-            if ((_econtext)->engine->ucp_context == NULL)                                         \
-                (_econtext)->engine->ucp_context = (_init_params)->ucp_context;                   \
-            assert(GET_WORKER(_econtext) == NULL);                                                \
-            SET_WORKER(_econtext, (_init_params)->worker);                                        \
-            _worker_set = true;                                                                   \
-        }                                                                                         \
+        bool _worker_set = __DO_INIT_WORKER(_econtext, _init_params);                             \
         if (_worker_set == true)                                                                  \
         {                                                                                         \
             /* As soon as the worker is set, we can finish to initialize notifications to self */ \
             progress_self_event_recv((_econtext)->engine->self_econtext);                         \
         }                                                                                         \
     } while (0)
+#endif // USE_AM_IMPLEM
 
 dpu_offload_status_t client_init_context(execution_context_t *econtext, init_params_t *init_params)
 {
@@ -1059,6 +1072,7 @@ error_out:
     return DO_ERROR;
 }
 
+#if !USE_AM_IMPLEM
 static void progress_server_event_recv(execution_context_t *econtext)
 {
     size_t n_client = 0;
@@ -1217,6 +1231,7 @@ static void progress_self_event_recv(execution_context_t *econtext)
             ERR_MSG("post_new_notif_recv() failed");
     } while (rc == EVENT_DONE);
 }
+#endif // !USE_AM_IMPLEM
 
 static void progress_event_recv(execution_context_t *econtext)
 {
@@ -1477,8 +1492,8 @@ static void progress_server_econtext(execution_context_t *ctx)
                         client_info->rank_data.group_id != INVALID_GROUP &&
                         client_info->rank_data.group_rank != INVALID_RANK)
                     {
-                        GROUP_CACHE_EXCHANGE(ctx->engine, 
-                                             client_info->rank_data.group_id, 
+                        GROUP_CACHE_EXCHANGE(ctx->engine,
+                                             client_info->rank_data.group_id,
                                              client_info->rank_data.n_local_ranks);
                     }
 
@@ -2272,7 +2287,11 @@ dpu_offload_status_t server_init_context(execution_context_t *econtext, init_par
         peer_info->bootstrapping.addr_ctx.complete = false;
         peer_info->bootstrapping.addr_size_ctx.complete = false;
         peer_info->bootstrapping.rank_ctx.complete = false;
-        peer_info->notif_recv.ctx.complete = true; // to make we can post the initial recv
+#if USE_AM_IMPLEM
+        peer_info->ctx.complete = false; 
+#else
+        peer_info->notif_recv.ctx.complete = true; // to make sure we can post the initial recv
+#endif
         DYN_ARRAY_ALLOC(&(peer_info->cache_entries), MAX_CACHE_ENTRIES_PER_PROC, peer_cache_entry_t *);
     }
 

@@ -374,6 +374,7 @@ static void notification_emit_cb(void *user_data, const char *type_str)
     DBG("evt %p now completed, %ld events left on the ongoing list", ev, ucs_list_length(&(econtext->ongoing_events)));
 }
 
+#if !USE_AM_IMPLEM
 static void notif_hdr_send_cb(void *request, ucs_status_t status, void *user_data)
 {
     dpu_offload_event_t *ev = (dpu_offload_event_t *)user_data;
@@ -401,6 +402,7 @@ static void notif_payload_send_cb(void *request, ucs_status_t status, void *user
     ev->ctx.payload_completed = true;
     DBG("Payload for event #%ld (%p) successfully sent (hdr completed: %d)", ev->seq_num, ev, ev->ctx.hdr_completed);
 }
+#endif // !USE_AM_IMPLEM
 
 #if USE_AM_IMPLEM
 uint64_t num_ev_sent = 0;
@@ -413,12 +415,12 @@ int am_send_event_msg(dpu_offload_event_t **event)
     params.datatype = ucp_dt_make_contig(1);
     params.user_data = *event;
     params.cb.send = (ucp_send_nbx_callback_t)notification_emit_cb;
-    (*event)->req = ucp_am_send_nbx((*event)->dest_ep,
+    (*event)->req = ucp_am_send_nbx((*event)->dest.ep,
                                     AM_EVENT_MSG_ID,
                                     &((*event)->ctx.hdr),
                                     sizeof(am_header_t),
                                     (*event)->payload,
-                                    (*event)->payload_size,
+                                    EVENT_HDR_PAYLOAD_SIZE(*event),
                                     &params);
     DBG("Event %p %ld successfully emitted", (*event), num_ev_sent);
     num_ev_sent++;
@@ -436,9 +438,9 @@ int am_send_event_msg(dpu_offload_event_t **event)
 
     DBG("ucp_am_send_nbx() did not completed right away");
     SYS_EVENT_LOCK((*event)->event_system);
-    (*event)->event_system->num_pending_sends++;
+    (*event)->event_system->posted_sends++;
     SYS_EVENT_UNLOCK((*event)->event_system);
-    (*event)->was_pending = true;
+    (*event)->was_posted = true;
 
     return EVENT_INPROGRESS;
 }
@@ -811,7 +813,9 @@ dpu_offload_status_t event_get(dpu_offload_ev_sys_t *ev_sys, dpu_offload_event_i
         RESET_EVENT(_ev);
         CHECK_EVENT(_ev);
         _ev->event_system = ev_sys;
+#if !USE_AM_IMPLEM
         _ev->scope_id = _ev->event_system->econtext->scope_id;
+#endif
 
         if (info != NULL)
         {

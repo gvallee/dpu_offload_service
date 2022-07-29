@@ -138,6 +138,7 @@
     } while (0)
 
 // TODO: same for UCX AM
+#if !USE_AM_IMPLEM
 #define PROGRESS_EVENT_SEND(__ev)                                                                \
     do                                                                                           \
     {                                                                                            \
@@ -186,6 +187,13 @@ static bool event_posted(dpu_offload_event_t *ev)
 
     return false;
 }
+#else
+static bool event_posted(dpu_offload_event_t *ev)
+{
+    abort();
+    return false;
+}
+#endif // USE_AM_IMPLEM
 
 static void progress_econtext_sends(execution_context_t *ctx)
 {
@@ -205,7 +213,9 @@ static void progress_econtext_sends(execution_context_t *ctx)
             dpu_offload_event_t *subev, *next_subev;
             ucs_list_for_each_safe(subev, next_subev, (&(ev->sub_events)), item)
             {
+#if !USE_AM_IMPLEM
                 PROGRESS_EVENT_SEND(subev);
+#endif
             }
 
             // Finally check if the meta-event is now completed
@@ -224,7 +234,9 @@ static void progress_econtext_sends(execution_context_t *ctx)
         }
         else
         {
+#if !USE_AM_IMPLEM
             PROGRESS_EVENT_SEND(ev);
+#endif
         }
     }
 }
@@ -307,6 +319,7 @@ error_out:
     return UCS_ERR_NO_MESSAGE;
 }
 
+#if !USE_AM_IMPLEM
 /**
  * @brief Note that the function assumes the execution context is not locked before it is invoked.
  *
@@ -657,5 +670,6 @@ static void notif_hdr_recv_handler(void *request, ucs_status_t status, const ucp
     ctx->complete = true;
     post_recv_for_notif_payload(ctx, (execution_context_t *)ctx->econtext, ctx->hdr.id);
 }
+#endif // !USE_AM_IMPLEM
 
 #endif // DPU_OFFLOAD_COMMS_H_

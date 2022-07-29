@@ -22,6 +22,9 @@ _EXTERN_C_BEGIN
 #define DEFAULT_INTER_DPU_CONNECT_PORT (11111)
 #define DEFAULT_NUM_PEERS (10000)
 
+// Set to 1 to use the AM implementaton; 0 to use tag send/recv implementation
+#define USE_AM_IMPLEM (1)
+
 // Enable/disable thread-safety. Note that it does not impact multi-threaded for the
 // bootstrapping phase.
 #define OFFLOADING_MT_ENABLE (0)
@@ -519,7 +522,6 @@ typedef struct event_req
         (_r)->completion_cb_ctx = NULL;  \
     } while (0)
 
-#if !USE_AM_IMPLEM
 // Forward declaration
 struct execution_context;
 
@@ -570,6 +572,7 @@ typedef struct notification_info
         assert((__info)->element_size == 0);    \
     } while (0)
 
+#if !USE_AM_IMPLEM
 typedef struct payload_notif_req
 {
     bool complete;
@@ -661,7 +664,9 @@ typedef struct peer_info
 
     uint64_t id;
 
-#if !USE_AM_IMPLEM
+#if USE_AM_IMPLEM
+    am_req_t ctx;
+#else
     notif_reception_t notif_recv;
 #endif
 
@@ -1427,7 +1432,6 @@ typedef struct dpu_offload_event
         (__ev)->explicit_return = false;      \
         (__ev)->dest.ep = NULL;               \
         (__ev)->dest.id = UINT64_MAX;         \
-        (__ev)->scope_id = SCOPE_HOST_DPU;    \
         (__ev)->is_subevent = false;          \
         (__ev)->is_ongoing_event = false;     \
         (__ev)->was_posted = false;           \

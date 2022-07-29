@@ -13,9 +13,6 @@
 #ifndef DPU_OFFLOAD_EVENT_CHANNELS_H_
 #define DPU_OFFLOAD_EVENT_CHANNELS_H_
 
-// Set to 1 to use the AM implementaton; 0 to use tag send/recv implementation
-#define USE_AM_IMPLEM (0)
-
 #define QUEUE_EVENT(__ev)                                                            \
     do                                                                               \
     {                                                                                \
@@ -54,7 +51,6 @@
     do                                                                \
     {                                                                 \
         (__ev)->ctx.complete = true;                                  \
-        (__ev)->payload_ctx.complete = true;                          \
         if ((__ev)->ctx.completion_cb != NULL)                        \
         {                                                             \
             (__ev)->ctx.completion_cb((__ev)->ctx.completion_cb_ctx); \
