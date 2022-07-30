@@ -198,6 +198,10 @@ static bool event_posted(dpu_offload_event_t *ev)
 static void progress_econtext_sends(execution_context_t *ctx)
 {
     dpu_offload_event_t *ev, *next_ev;
+#if USE_AM_IMPLEM
+    if (ctx->scope_id == CONTEXT_SELF)
+        return;
+#endif
     ucs_list_for_each_safe(ev, next_ev, &(ctx->ongoing_events), item)
     {
         if (ev->is_ongoing_event == false)
