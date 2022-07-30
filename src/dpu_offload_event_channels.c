@@ -208,7 +208,14 @@ dpu_offload_status_t event_channels_init(execution_context_t *econtext)
     CHECK_ERR_RETURN((rc), DO_ERROR, "ev_channels_init() failed");
 
 #if USE_AM_IMPLEM
-    // Register the UCX AM handler
+    if (econtext->scope_id == SCOPE_SELF)
+    {
+        // For self, the notification system never relies on the UCX AM layer;
+        // the handler is instead invoked while in the emit code path.
+        return DO_SUCCESS;
+    }
+
+    // Register the UCX AM handler        
     CHECK_ERR_RETURN((GET_WORKER(econtext) == NULL), DO_ERROR, "Undefined worker");
     ucp_am_handler_param_t am_param = {0};
     am_param.field_mask = UCP_AM_HANDLER_PARAM_FIELD_ID |
