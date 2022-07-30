@@ -364,6 +364,29 @@ dpu_offload_status_t event_channel_deregister(dpu_offload_ev_sys_t *ev_sys, uint
 }
 
 static size_t num_completed_emit = 0;
+#if USE_AM_IMPLEM
+static void notification_emit_cb(void *request, ucs_status_t status, void *user_data)
+{
+    dpu_offload_event_t *ev;
+    num_completed_emit++;
+    DBG("New completion, %ld emit have now completed", num_completed_emit);
+    if (user_data == NULL)
+    {
+        ERR_MSG("undefined event");
+        return;
+    }
+    ev = (dpu_offload_event_t *)user_data;
+    if (ev == NULL)
+        return;
+    DBG("ev=%p ctx=%p id=%" PRIu64, ev, &(ev->ctx), EVENT_HDR_SEQ_NUM(ev));
+    COMPLETE_EVENT(ev);
+    assert(ev->event_system);
+    execution_context_t *econtext = ev->event_system->econtext;
+    DBG("Associated econtext: %p", econtext);
+    assert(econtext);
+    DBG("evt %p now completed, %ld events left on the ongoing list", ev, ucs_list_length(&(econtext->ongoing_events)));
+}
+#else
 static void notification_emit_cb(void *user_data, const char *type_str)
 {
     dpu_offload_event_t *ev;
@@ -377,7 +400,7 @@ static void notification_emit_cb(void *user_data, const char *type_str)
     ev = (dpu_offload_event_t *)user_data;
     if (ev == NULL)
         return;
-    DBG("ev=%p ctx=%p id=%" PRIu64, ev, &(ev->ctx), EVENT_HDR_ID(ev));
+    DBG("ev=%p ctx=%p id=%" PRIu64, ev, &(ev->ctx), EVENT_HDR_SEQ_NUM(ev));
     COMPLETE_EVENT(ev);
     assert(ev->event_system);
     execution_context_t *econtext = ev->event_system->econtext;
@@ -386,7 +409,6 @@ static void notification_emit_cb(void *user_data, const char *type_str)
     DBG("evt %p now completed, %ld events left on the ongoing list", ev, ucs_list_length(&(econtext->ongoing_events)));
 }
 
-#if !USE_AM_IMPLEM
 static void notif_hdr_send_cb(void *request, ucs_status_t status, void *user_data)
 {
     dpu_offload_event_t *ev = (dpu_offload_event_t *)user_data;
@@ -462,7 +484,7 @@ int am_send_event_msg(dpu_offload_event_t **event)
                                     (*event)->payload,
                                     EVENT_HDR_PAYLOAD_SIZE(*event),
                                     &params);
-    DBG("Event %p %" PRIu64 " %ld successfully emitted", (*event), EVENT_HDR_ID((*event)), num_ev_sent);
+    DBG("Event %p %" PRIu64 " successfully emitted", (*event), EVENT_HDR_SEQ_NUM((*event)));
     num_ev_sent++;
     if ((*event)->req == NULL)
     {
@@ -867,7 +889,10 @@ dpu_offload_status_t event_get(dpu_offload_ev_sys_t *ev_sys, dpu_offload_event_i
     }
 
 out:
-#if !USE_AM_IMPLEM
+#if USE_AM_IMPLEM
+    INFO_MSG("Got event #%" PRIu64 " (%p) from list %p (payload_size: %ld)",
+        _ev->seq_num, _ev, ev_sys->free_evs, EVENT_HDR_PAYLOAD_SIZE(_ev));
+#else
     DBG("Got event #%" PRIu64 " (%p) from list %p (scope_id: %d, payload_size: %ld)",
         _ev->seq_num, _ev, ev_sys->free_evs, _ev->scope_id, EVENT_HDR_PAYLOAD_SIZE(_ev));
 #endif
