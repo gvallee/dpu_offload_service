@@ -1415,27 +1415,25 @@ typedef struct dpu_offload_event
  * dynamic list is initialized
  */
 #if USE_AM_IMPLEM
-#define RESET_EVENT(__ev)                     \
-    do                                        \
-    {                                         \
-        (__ev)->context = NULL;               \
-        (__ev)->payload = NULL;               \
-        (__ev)->event_system = NULL;          \
-        (__ev)->req = NULL;                   \
-        (__ev)->ctx.complete = false;         \
-        (__ev)->ctx.completion_cb = NULL;     \
-        (__ev)->ctx.completion_cb_ctx = NULL; \
-        EVENT_HDR_TYPE(__ev) = UINT64_MAX;    \
-        EVENT_HDR_ID(__ev) = UINT64_MAX;      \
-        EVENT_HDR_PAYLOAD_SIZE(__ev) = 0;     \
-        (__ev)->manage_payload_buf = false;   \
-        (__ev)->explicit_return = false;      \
-        (__ev)->dest.ep = NULL;               \
-        (__ev)->dest.id = UINT64_MAX;         \
-        (__ev)->is_subevent = false;          \
-        (__ev)->is_ongoing_event = false;     \
-        (__ev)->was_posted = false;           \
-        RESET_NOTIF_INFO(&((__ev)->info));    \
+#define RESET_EVENT(__ev)                   \
+    do                                      \
+    {                                       \
+        (__ev)->context = NULL;             \
+        (__ev)->payload = NULL;             \
+        (__ev)->event_system = NULL;        \
+        (__ev)->req = NULL;                 \
+        RESET_AM_REQ(&((__ev)->ctx));       \
+        EVENT_HDR_TYPE(__ev) = UINT64_MAX;  \
+        EVENT_HDR_ID(__ev) = UINT64_MAX;    \
+        EVENT_HDR_PAYLOAD_SIZE(__ev) = 0;   \
+        (__ev)->manage_payload_buf = false; \
+        (__ev)->explicit_return = false;    \
+        (__ev)->dest.ep = NULL;             \
+        (__ev)->dest.id = UINT64_MAX;       \
+        (__ev)->is_subevent = false;        \
+        (__ev)->is_ongoing_event = false;   \
+        (__ev)->was_posted = false;         \
+        RESET_NOTIF_INFO(&((__ev)->info));  \
     } while (0)
 #else
 #define RESET_EVENT(__ev)                      \
