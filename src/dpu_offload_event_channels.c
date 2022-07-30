@@ -416,11 +416,39 @@ static void notif_payload_send_cb(void *request, ucs_status_t status, void *user
 }
 #endif // !USE_AM_IMPLEM
 
+#define PREP_EVENT_FOR_EMIT(__ev) do { \
+    execution_context_t *__econtext = (__ev)->event_system->econtext;\
+    uint64_t __cid, __sid;\
+    switch ((__ev)->event_system->econtext->type)\
+    {\
+    case CONTEXT_CLIENT:\
+        __cid = __econtext->client->id;\
+        __sid = __econtext->client->server_id;\
+        break;\
+    case CONTEXT_SERVER:\
+        __sid = __econtext->server->id;\
+        __cid = (__ev)->dest.id;\
+        break;\
+    case CONTEXT_SELF:\
+        __cid = 0;\
+        __sid = 0;\
+        break;\
+    default:\
+        return DO_ERROR;\
+    }\
+    (__ev)->client_id = __cid;\
+    (__ev)->server_id = __sid;\
+    EVENT_HDR_SEQ_NUM(__ev) = (__ev)->seq_num;\
+    EVENT_HDR_CLIENT_ID(__ev) = (__ev)->client_id;\
+    EVENT_HDR_SERVER_ID(__ev) = (__ev)->server_id;\
+} while(0)
+
 #if USE_AM_IMPLEM
 uint64_t num_ev_sent = 0;
 int am_send_event_msg(dpu_offload_event_t **event)
 {
     ucp_request_param_t params;
+    PREP_EVENT_FOR_EMIT(*event);
     params.op_attr_mask = UCP_OP_ATTR_FIELD_CALLBACK |
                           UCP_OP_ATTR_FIELD_DATATYPE |
                           UCP_OP_ATTR_FIELD_USER_DATA;
@@ -434,7 +462,7 @@ int am_send_event_msg(dpu_offload_event_t **event)
                                     (*event)->payload,
                                     EVENT_HDR_PAYLOAD_SIZE(*event),
                                     &params);
-    DBG("Event %p %ld successfully emitted", (*event), num_ev_sent);
+    DBG("Event %p %" PRIu64 " %ld successfully emitted", (*event), EVENT_HDR_ID((*event)), num_ev_sent);
     num_ev_sent++;
     if ((*event)->req == NULL)
     {
@@ -596,31 +624,7 @@ int tag_send_event_msg(dpu_offload_event_t **event)
     assert((*event)->dest.ep);
     assert((*event)->event_system);
     assert((*event)->event_system->econtext);
-    execution_context_t *econtext = (*event)->event_system->econtext;
-    uint64_t client_id, server_id;
-    switch ((*event)->event_system->econtext->type)
-    {
-    case CONTEXT_CLIENT:
-        client_id = econtext->client->id;
-        server_id = econtext->client->server_id;
-        break;
-    case CONTEXT_SERVER:
-        server_id = econtext->server->id;
-        client_id = (*event)->dest.id;
-        break;
-    case CONTEXT_SELF:
-        client_id = 0;
-        server_id = 0;
-        break;
-    default:
-        return DO_ERROR;
-    }
-
-    (*event)->client_id = client_id;
-    (*event)->server_id = server_id;
-    EVENT_HDR_SEQ_NUM(*event) = (*event)->seq_num;
-    EVENT_HDR_CLIENT_ID(*event) = (*event)->client_id;
-    EVENT_HDR_SERVER_ID(*event) = (*event)->server_id;
+    PREP_EVENT_FOR_EMIT(*event);
     if (econtext->type == CONTEXT_CLIENT && econtext->scope_id == SCOPE_HOST_DPU && econtext->rank.n_local_ranks > 0 && econtext->rank.n_local_ranks != UINT64_MAX)
     {
         assert(client_id < econtext->rank.n_local_ranks);
