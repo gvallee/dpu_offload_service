@@ -149,8 +149,14 @@ static ucs_status_t am_notification_msg_cb(void *arg, const void *header, size_t
         return UCS_INPROGRESS;
     }
 
-    DBG("Notification of type %" PRIu64 " received via eager message, dispatching...", hdr->type);
-    return handle_notif_msg(econtext, hdr, header_length, data, length);
+    void *ptr = data;
+    DBG("Notification of type %" PRIu64 " received via eager message (data size: %ld), dispatching...", hdr->type, length);
+    if (length == 0)
+    {
+        // UCX AM layer has no problem setting the length to 0 but giving a data pointer that is not NULL
+        ptr = NULL;
+    }
+    return handle_notif_msg(econtext, hdr, header_length, ptr, length);
 }
 #endif // USE_AM_IMPLEM
 
