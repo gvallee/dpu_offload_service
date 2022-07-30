@@ -26,6 +26,9 @@ _EXTERN_C_BEGIN
 // bootstrapping phase.
 #define OFFLOADING_MT_ENABLE (0)
 
+// Enable/disable the buddy buffer system
+#define BUDDY_BUFFER_SYS_ENABLE (1)
+
 typedef enum
 {
     CONTEXT_UNKOWN = 0,
@@ -1704,6 +1707,7 @@ typedef struct offloading_engine
     smart_buffers_t smart_buffer_sys;
 } offloading_engine_t;
 
+#if BUDDY_BUFFER_SYS_ENABLE
 #define RESET_CORE_ENGINE_STRUCT(_core_engine, _core_ret)                                                                    \
     do                                                                                                                       \
     {                                                                                                                        \
@@ -1784,6 +1788,87 @@ typedef struct offloading_engine
         (_core_engine)->num_default_notifications = 0;                                                                       \
         SMART_BUFFS_INIT(&((_core_engine)->smart_buffer_sys), NULL);                                                         \
     } while (0)
+#else
+#define RESET_CORE_ENGINE_STRUCT(_core_engine, _core_ret)                                                                    \
+    do                                                                                                                       \
+    {                                                                                                                        \
+        (_core_engine)->done = false;                                                                                        \
+        (_core_engine)->config = NULL;                                                                                       \
+        (_core_engine)->client = NULL;                                                                                       \
+        (_core_engine)->num_max_servers = DEFAULT_MAX_NUM_SERVERS;                                                           \
+        (_core_engine)->num_servers = 0;                                                                                     \
+        (_core_engine)->servers = NULL;                                                                                      \
+        (_core_engine)->servers = DPU_OFFLOAD_MALLOC((_core_engine)->num_max_servers * sizeof(dpu_offload_server_t *));      \
+        if ((_core_engine)->servers == NULL)                                                                                 \
+        {                                                                                                                    \
+            fprintf(stderr, "unable to allocated memory to track servers\n");                                                \
+            _core_ret = -1;                                                                                                  \
+            break;                                                                                                           \
+        }                                                                                                                    \
+        memset((_core_engine)->servers, 0, (_core_engine)->num_max_servers * sizeof(dpu_offload_server_t *));                \
+        (_core_engine)->self_econtext = NULL;                                                                                \
+        (_core_engine)->ucp_worker = NULL;                                                                                   \
+        (_core_engine)->ucp_worker_allocated = false;                                                                        \
+        (_core_engine)->ucp_context = NULL;                                                                                  \
+        (_core_engine)->ucp_context_allocated = false;                                                                       \
+        (_core_engine)->self_ep = NULL;                                                                                      \
+        (_core_engine)->num_inter_service_proc_clients = 0;                                                                  \
+        (_core_engine)->num_max_inter_service_proc_clients = DEFAULT_MAX_NUM_SERVERS;                                        \
+        (_core_engine)->inter_service_proc_clients = NULL;                                                                   \
+        (_core_engine)->inter_service_proc_clients = DPU_OFFLOAD_MALLOC((_core_engine)->num_max_inter_service_proc_clients * \
+                                                                        sizeof(remote_service_procs_connect_tracker_t));     \
+        if ((_core_engine)->inter_service_proc_clients == NULL)                                                              \
+        {                                                                                                                    \
+            fprintf(stderr, "unable to allocate memory to track inter-service-processes clients\n");                         \
+            _core_ret = -1;                                                                                                  \
+            break;                                                                                                           \
+        }                                                                                                                    \
+        (_core_engine)->num_registered_ops = 0;                                                                              \
+        DYN_LIST_ALLOC((_core_engine)->free_op_descs, 8, op_desc_t, item);                                                   \
+        if ((_core_engine)->free_op_descs == NULL)                                                                           \
+        {                                                                                                                    \
+            fprintf(stderr, "unable to allocate memory pool of operation descriptors\n");                                    \
+            _core_ret = -1;                                                                                                  \
+            break;                                                                                                           \
+        }                                                                                                                    \
+        GROUPS_CACHE_INIT(&((_core_engine)->procs_cache));                                                                   \
+        DYN_LIST_ALLOC((_core_engine)->free_cache_entry_requests, DEFAULT_NUM_PEERS, cache_entry_request_t, item);           \
+        if ((_core_engine)->free_cache_entry_requests == NULL)                                                               \
+        {                                                                                                                    \
+            fprintf(stderr, "unable to allocate memory pool of cache entry requests");                                       \
+            _core_ret = -1;                                                                                                  \
+            break;                                                                                                           \
+        }                                                                                                                    \
+        DYN_LIST_ALLOC((_core_engine)->pool_conn_params, 32, conn_params_t, item);                                           \
+        if ((_core_engine)->pool_conn_params == NULL)                                                                        \
+        {                                                                                                                    \
+            fprintf(stderr, "unable to allocate pool of connection parameter descriptors\n");                                \
+            _core_ret = -1;                                                                                                  \
+            break;                                                                                                           \
+        }                                                                                                                    \
+        DYN_LIST_ALLOC_WITH_INIT_CALLBACK((_core_engine)->pool_remote_dpu_info,                                              \
+                                          32,                                                                                \
+                                          remote_dpu_info_t,                                                                 \
+                                          item,                                                                              \
+                                          init_remote_dpu_info_struct);                                                      \
+        if ((_core_engine)->pool_remote_dpu_info == NULL)                                                                    \
+        {                                                                                                                    \
+            fprintf(stderr, "unable to allocate pool of remote DPU information descriptors\n");                              \
+            _core_ret = -1;                                                                                                  \
+            break;                                                                                                           \
+        }                                                                                                                    \
+        (_core_engine)->on_dpu = false;                                                                                      \
+        /* Note that engine->dpus is a vector of remote_dpu_info_t pointers. */                                              \
+        /* The actual object are from pool_remote_dpu_info */                                                                \
+        DYN_ARRAY_ALLOC(&((_core_engine)->dpus), 32, remote_dpu_info_t *);                                                   \
+        DYN_ARRAY_ALLOC(&((_core_engine)->service_procs), 256, remote_service_proc_info_t);                                  \
+        (_core_engine)->num_dpus = 0;                                                                                        \
+        (_core_engine)->num_service_procs = 0;                                                                               \
+        (_core_engine)->num_connected_service_procs = 0;                                                                     \
+        (_core_engine)->default_notifications = NULL;                                                                        \
+        (_core_engine)->num_default_notifications = 0;                                                                       \
+    } while (0)
+#endif // BUDDY_BUFFER_SYS_ENABLE
 
 #if OFFLOADING_MT_ENABLE
 #define RESET_ENGINE(_engine, _ret)                                    \
