@@ -2038,7 +2038,9 @@ void offload_engine_fini(offloading_engine_t **offload_engine)
         (*offload_engine)->ucp_context = NULL;
     }
 
+#if BUDDY_BUFFER_SYS_ENABLE
     SMART_BUFFS_FINI(&((*offload_engine)->smart_buffer_sys));
+#endif
 
     free(*offload_engine);
     *offload_engine = NULL;
