@@ -495,11 +495,16 @@ int am_send_event_msg(dpu_offload_event_t **event)
     num_ev_sent++;
     if ((*event)->req == NULL)
     {
-        // Immediate completion, the callback is *not* invoked
-        DBG("ucp_am_send_nbx() completed right away");
-        dpu_offload_status_t rc = event_return(event);
-        CHECK_ERR_RETURN((rc), DO_ERROR, "event_return() failed");
-        return EVENT_DONE;
+        if ((*event)->explicit_return == false)
+        {
+            // Immediate completion, the callback is *not* invoked
+            DBG("ucp_am_send_nbx() completed right away");
+            dpu_offload_status_t rc = event_return(event);
+            CHECK_ERR_RETURN((rc), DO_ERROR, "event_return() failed");
+            return EVENT_DONE;
+        }
+        else
+            return EVENT_INPROGRESS;
     }
 
     if (UCS_PTR_IS_ERR((*event)->req))
