@@ -56,6 +56,11 @@ static void am_rdv_recv_cb(void *request, ucs_status_t status, size_t length, vo
 {
     pending_am_rdv_recv_t *recv_info = (pending_am_rdv_recv_t *)user_data;
     int rc = handle_notif_msg(recv_info->econtext, recv_info->hdr, recv_info->hdr_len, recv_info->user_data, recv_info->payload_size);
+    if (rc != UCS_OK)
+    {
+        ERR_MSG("handle_notif_msg() failed");
+        return;
+    }
     ucp_request_free(request);
     ECONTEXT_LOCK(recv_info->econtext);
     ucs_list_del(&(recv_info->item));
@@ -851,8 +856,10 @@ dpu_offload_status_t event_get(dpu_offload_ev_sys_t *ev_sys, dpu_offload_event_i
     }
 
 out:
+#if !USE_AM_IMPLEM
     DBG("Got event #%" PRIu64 " (%p) from list %p (scope_id: %d, payload_size: %ld)",
         _ev->seq_num, _ev, ev_sys->free_evs, _ev->scope_id, EVENT_HDR_PAYLOAD_SIZE(_ev));
+#endif
     *ev = _ev;
     return DO_SUCCESS;
 }
