@@ -380,6 +380,7 @@ static void notification_emit_cb(void *request, ucs_status_t status, void *user_
         return;
     DBG("ev=%p ctx=%p id=%" PRIu64, ev, &(ev->ctx), EVENT_HDR_SEQ_NUM(ev));
     COMPLETE_EVENT(ev);
+    ev->req = NULL;
     assert(ev->event_system);
     execution_context_t *econtext = ev->event_system->econtext;
     DBG("Associated econtext: %p", econtext);
@@ -498,7 +499,7 @@ int am_send_event_msg(dpu_offload_event_t **event)
     if (UCS_PTR_IS_ERR((*event)->req))
         return UCS_PTR_STATUS((*event)->req);
 
-    DBG("ucp_am_send_nbx() did not completed right away");
+    DBG("ucp_am_send_nbx() did not completed right away (ev %p %" PRIu64 ")", (*event), EVENT_HDR_SEQ_NUM(*event));
     SYS_EVENT_LOCK((*event)->event_system);
     (*event)->event_system->posted_sends++;
     SYS_EVENT_UNLOCK((*event)->event_system);
@@ -904,7 +905,7 @@ static dpu_offload_status_t do_event_return(dpu_offload_event_t *ev)
 {
     assert(ev);
     assert(ev->event_system);
-#if !NDEBUG
+#if !NDEBUG && !USE_AM_IMPLEM
     if (!ev->explicit_return)
     {
         assert(ev->was_posted == false);
