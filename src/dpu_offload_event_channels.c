@@ -908,7 +908,7 @@ dpu_offload_status_t event_get(dpu_offload_ev_sys_t *ev_sys, dpu_offload_event_i
 
 out:
 #if USE_AM_IMPLEM
-    INFO_MSG("Got event #%" PRIu64 " (%p) from list %p (payload_size: %ld)",
+    DBG("Got event #%" PRIu64 " (%p) from list %p (payload_size: %ld)",
         _ev->seq_num, _ev, ev_sys->free_evs, EVENT_HDR_PAYLOAD_SIZE(_ev));
 #else
     DBG("Got event #%" PRIu64 " (%p) from list %p (scope_id: %d, payload_size: %ld)",
