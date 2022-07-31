@@ -109,11 +109,11 @@
             (_scope_id));                                                                                                                  \
     } while (0)
 
-#define CAN_POST(_event_system) ({                        \
-    bool _can_post = false;                               \
-    if ((_event_system)->posted_sends < MAX_POSTED_SENDS) \
-        _can_post = true;                                 \
-    _can_post;                                            \
+#define CAN_POST(_event_system) ({                                                   \
+    bool _can_post = false;                                                          \
+    if (MAX_POSTED_SENDS <= 0 || ((_event_system)->posted_sends < MAX_POSTED_SENDS)) \
+        _can_post = true;                                                            \
+    _can_post;                                                                       \
 })
 
 #define GROUP_CACHE_EXCHANGE(_engine, _gp_id, _n_local_ranks)                                                                \
