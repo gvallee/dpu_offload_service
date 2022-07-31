@@ -1313,18 +1313,20 @@ typedef struct pending_am_rdv_recv
     size_t buff_size;
     void *desc;
     void *user_data;
+    notification_info_t pool;
 } pending_am_rdv_recv_t;
 
-#define RESET_PENDING_RDV_RECV(_rdv_recv)                                                                  \
-    do                                                                                                     \
-    {                                                                                                      \
-        (_rdv_recv)->econtext = NULL;                                                                      \
-        (_rdv_recv)->hdr_len = 0;                                                                          \
-        (_rdv_recv)->hdr = NULL;                                                                           \
-        (_rdv_recv)->req = NULL;                                                                           \
-        (_rdv_recv)->payload_size = 0;                                                                     \
-        (_rdv_recv)->desc = NULL;                                                                          \
-        /* Do not reset user_data and buff_size as it is used over time as a buffer to minimize mallocs */ \
+#define RESET_PENDING_RDV_RECV(_rdv_recv)       \
+    do                                          \
+    {                                           \
+        (_rdv_recv)->econtext = NULL;           \
+        (_rdv_recv)->hdr_len = 0;               \
+        (_rdv_recv)->hdr = NULL;                \
+        (_rdv_recv)->req = NULL;                \
+        (_rdv_recv)->payload_size = 0;          \
+        (_rdv_recv)->desc = NULL;               \
+        (_rdv_recv)->user_data = NULL;          \
+        RESET_NOTIF_INFO(&((_rdv_recv)->pool)); \
     } while (0)
 
 /**

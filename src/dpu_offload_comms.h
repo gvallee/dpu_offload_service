@@ -435,14 +435,12 @@ static int post_recv_for_notif_payload(hdr_notif_req_t *ctx, execution_context_t
 
         // If the notification type is already registered and is associated to a memory pool, we use a buffer from than pool
         entry = DYN_ARRAY_GET_ELT(&(econtext->event_channels->notification_callbacks), ctx->hdr.type, notification_callback_entry_t);
+        assert(entry);
         if (entry->info.mem_pool)
         {
-            notification_callback_entry_t *entry;
             void *buf_from_pool = get_notif_buf(econtext->event_channels, ctx->hdr.type);
             assert(buf_from_pool);
             assert(ctx->payload_ctx.pool.mem_pool == NULL);
-            entry = DYN_ARRAY_GET_ELT(&(econtext->event_channels->notification_callbacks), ctx->hdr.type, notification_callback_entry_t);
-            assert(entry);
             ctx->payload_ctx.buffer = buf_from_pool;
             COPY_NOTIF_INFO(&(entry->info), &(ctx->payload_ctx.pool));
         }

@@ -61,9 +61,23 @@ static void am_rdv_recv_cb(void *request, ucs_status_t status, size_t length, vo
         ERR_MSG("handle_notif_msg() failed");
         return;
     }
+    if (length > 0)
+    {
+        // If a payload was involved, we may need to return it to its memory pool or the buddy buffer system, or free it
+        if (recv_info->pool.mem_pool != NULL && recv_info->pool.return_buf != NULL)
+        {
+            recv_info->pool.return_buf(recv_info->pool.mem_pool, recv_info->user_data);
+            RESET_NOTIF_INFO(&(recv_info->pool));
+        }
+        else
+        {
+            free(user_data);
+        }
+    }
     ucp_request_free(request);
     ECONTEXT_LOCK(recv_info->econtext);
     ucs_list_del(&(recv_info->item));
+    RESET_PENDING_RDV_RECV(recv_info);
     DYN_LIST_RETURN(recv_info->econtext->free_pending_rdv_recv, recv_info, item);
     ECONTEXT_UNLOCK(recv_info->econtext);
 }
@@ -72,22 +86,27 @@ static ucs_status_t am_notification_recv_rdv_msg(execution_context_t *econtext, 
 {
     ucp_request_param_t am_rndv_recv_request_params = {0};
     pending_am_rdv_recv_t *pending_recv;
+    notification_callback_entry_t *entry;
     ECONTEXT_LOCK(econtext);
     DYN_LIST_GET(econtext->free_pending_rdv_recv, pending_am_rdv_recv_t, item, pending_recv);
     ECONTEXT_UNLOCK(econtext);
     RESET_PENDING_RDV_RECV(pending_recv);
     assert(pending_recv);
     DBG("RDV message to be received for type %ld", hdr->type);
-    // Make sure we have space for the payload, note that we do not know the data size to
-    // be received in advance but we do our best to avoid mallocs
-    if (pending_recv->buff_size == 0)
+    entry = DYN_ARRAY_GET_ELT(&(econtext->event_channels->notification_callbacks), hdr->type, notification_callback_entry_t);
+    assert(entry);
+    if (entry->info.mem_pool)
     {
-        pending_recv->user_data = DPU_OFFLOAD_MALLOC(payload_size);
+        void *buf_from_pool = get_notif_buf(econtext->event_channels, hdr->type);
+        assert(buf_from_pool);
+        pending_recv->user_data = buf_from_pool;
         pending_recv->buff_size = payload_size;
+        COPY_NOTIF_INFO(&(entry->info), &(pending_recv->pool));
     }
-    if (pending_recv->buff_size < payload_size)
+    else
     {
-        pending_recv->user_data = realloc(pending_recv->user_data, payload_size);
+        // The library has to handle the buffer for the payload
+        pending_recv->user_data = DPU_OFFLOAD_MALLOC(payload_size);
         pending_recv->buff_size = payload_size;
     }
     assert(pending_recv->user_data);

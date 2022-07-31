@@ -1743,6 +1743,12 @@ static void execution_context_progress(execution_context_t *econtext)
     return;
 }
 
+static void init_pending_am_rdv_recv_t(void *ptr)
+{
+    pending_am_rdv_recv_t *elt = (pending_am_rdv_recv_t*)ptr;
+    RESET_PENDING_RDV_RECV(elt);
+}
+
 static dpu_offload_status_t execution_context_init(offloading_engine_t *offload_engine, uint64_t type, execution_context_t **econtext)
 {
     execution_context_t *ctx = DPU_OFFLOAD_MALLOC(sizeof(execution_context_t));
@@ -1757,7 +1763,9 @@ static dpu_offload_status_t execution_context_init(offloading_engine_t *offload_
     // scope_id is overwritten when the inter-service-processes connection manager sets inter-service-processes connections
     ctx->scope_id = SCOPE_HOST_DPU;
     ucs_list_head_init(&(ctx->ongoing_events));
-    DYN_LIST_ALLOC(ctx->free_pending_rdv_recv, 32, pending_am_rdv_recv_t, item);
+#if USE_AM_IMPLEM
+    DYN_LIST_ALLOC_WITH_INIT_CALLBACK(ctx->free_pending_rdv_recv, 32, pending_am_rdv_recv_t, item, init_pending_am_rdv_recv_t);
+#endif
     ucs_list_head_init(&(ctx->pending_rdv_recvs));
     ucs_list_head_init(&(ctx->active_ops));
     *econtext = ctx;
@@ -1778,7 +1786,19 @@ static void execution_context_fini(execution_context_t **ctx)
             continue;
         if (elt->buff_size > 0)
         {
-            free(elt->user_data);
+            if (elt->user_data != NULL)
+            {
+                if (elt->pool.mem_pool != NULL && elt->pool.return_buf != NULL)
+                {
+                    elt->pool.return_buf(elt->pool.mem_pool, elt->user_data);
+                    RESET_NOTIF_INFO(&(elt->pool));
+                }
+                else
+                {
+                    free(elt->user_data);
+                }
+                elt->user_data = NULL;
+            }
             elt->buff_size = 0;
         }
     }
