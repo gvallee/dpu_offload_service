@@ -504,11 +504,17 @@ int am_send_event_msg(dpu_offload_event_t **event)
             return EVENT_DONE;
         }
         else
+        {
+            COMPLETE_EVENT(*event);
             return EVENT_INPROGRESS;
+        }
     }
 
     if (UCS_PTR_IS_ERR((*event)->req))
+    {
+        ERR_MSG("ucp_am_send_nbx() failed");
         return UCS_PTR_STATUS((*event)->req);
+    }
 
     DBG("ucp_am_send_nbx() did not completed right away (ev %p %" PRIu64 ")", (*event), EVENT_HDR_SEQ_NUM(*event));
     SYS_EVENT_LOCK((*event)->event_system);
@@ -1045,10 +1051,12 @@ bool event_completed(dpu_offload_event_t *ev)
     }
     else
     {
-#if !USE_AM_IMPLEM
+#if USE_AM_IMPLEM
+        if (ev->ctx.complete)
+#else
         if (ev->ctx.hdr_completed == true && ev->ctx.payload_completed == true)
-            goto event_completed;
 #endif
+            goto event_completed;
     }
     return false;
 
