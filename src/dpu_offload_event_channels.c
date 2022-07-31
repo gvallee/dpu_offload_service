@@ -497,27 +497,52 @@ static void notif_payload_send_cb(void *request, ucs_status_t status, void *user
 
 #if USE_AM_IMPLEM
 uint64_t num_ev_sent = 0;
-int am_send_event_msg(dpu_offload_event_t **event)
+int do_am_send_event_msg(dpu_offload_event_t *event)
 {
     ucp_request_param_t params;
-    PREP_EVENT_FOR_EMIT(*event);
     params.op_attr_mask = UCP_OP_ATTR_FIELD_CALLBACK |
                           UCP_OP_ATTR_FIELD_DATATYPE |
                           UCP_OP_ATTR_FIELD_USER_DATA;
     params.datatype = ucp_dt_make_contig(1);
-    params.user_data = *event;
+    params.user_data = event;
     params.cb.send = (ucp_send_nbx_callback_t)notification_emit_cb;
-    (*event)->req = ucp_am_send_nbx((*event)->dest.ep,
-                                    AM_EVENT_MSG_ID,
-                                    &((*event)->ctx.hdr),
-                                    sizeof(am_header_t),
-                                    (*event)->payload,
-                                    EVENT_HDR_PAYLOAD_SIZE(*event),
-                                    &params);
-    DBG("Event %p %" PRIu64 " successfully emitted", (*event), EVENT_HDR_SEQ_NUM((*event)));
+    event->req = ucp_am_send_nbx(event->dest.ep,
+                                 AM_EVENT_MSG_ID,
+                                 &(event->ctx.hdr),
+                                 sizeof(am_header_t),
+                                 event->payload,
+                                 EVENT_HDR_PAYLOAD_SIZE(event),
+                                 &params);
+    DBG("Event %p %" PRIu64 " successfully emitted", (event), EVENT_HDR_SEQ_NUM(event));
     num_ev_sent++;
-    if ((*event)->req == NULL)
+    if (UCS_PTR_IS_ERR(event->req))
     {
+        ERR_MSG("ucp_am_send_nbx() failed");
+        return UCS_PTR_STATUS(event->req);
+    }
+
+    if (event->req == NULL)
+    {
+        event->ctx.complete = true;
+        return EVENT_DONE;
+    }
+
+    DBG("ucp_am_send_nbx() did not completed right away (ev %p %" PRIu64 ")", event, EVENT_HDR_SEQ_NUM(event));
+    SYS_EVENT_LOCK(event->event_system);
+    event->event_system->posted_sends++;
+    SYS_EVENT_UNLOCK(event->event_system);
+    event->was_posted = true;
+    return EVENT_INPROGRESS;
+}
+
+int am_send_event_msg(dpu_offload_event_t **event)
+{
+    int rc;
+    PREP_EVENT_FOR_EMIT(*event);
+    rc = do_am_send_event_msg(*event);
+    if ((rc == EVENT_DONE || rc == EVENT_INPROGRESS) && (*event)->req == NULL)
+    {
+        // No error
         if ((*event)->explicit_return == false)
         {
             // Immediate completion, the callback is *not* invoked
@@ -533,19 +558,7 @@ int am_send_event_msg(dpu_offload_event_t **event)
         }
     }
 
-    if (UCS_PTR_IS_ERR((*event)->req))
-    {
-        ERR_MSG("ucp_am_send_nbx() failed");
-        return UCS_PTR_STATUS((*event)->req);
-    }
-
-    DBG("ucp_am_send_nbx() did not completed right away (ev %p %" PRIu64 ")", (*event), EVENT_HDR_SEQ_NUM(*event));
-    SYS_EVENT_LOCK((*event)->event_system);
-    (*event)->event_system->posted_sends++;
-    SYS_EVENT_UNLOCK((*event)->event_system);
-    (*event)->was_posted = true;
-
-    return EVENT_INPROGRESS;
+    return rc;
 }
 #else
 int do_tag_send_event_msg(dpu_offload_event_t *event)

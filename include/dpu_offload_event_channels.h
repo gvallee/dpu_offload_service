@@ -76,7 +76,9 @@ static inline bool send_moderation_on()
     return true;
 }
 
-#if !USE_AM_IMPLEM
+#if USE_AM_IMPLEM
+int do_am_send_event_msg(dpu_offload_event_t *event);
+#else
 int do_tag_send_event_msg(dpu_offload_event_t *event);
 #endif
 
