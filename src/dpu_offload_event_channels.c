@@ -54,6 +54,7 @@
  */
 static void am_rdv_recv_cb(void *request, ucs_status_t status, size_t length, void *user_data)
 {
+    assert(status == UCS_OK);
     pending_am_rdv_recv_t *recv_info = (pending_am_rdv_recv_t *)user_data;
     int rc = handle_notif_msg(recv_info->econtext, recv_info->hdr, recv_info->hdr_len, recv_info->user_data, recv_info->payload_size);
     if (rc != UCS_OK)
@@ -71,13 +72,14 @@ static void am_rdv_recv_cb(void *request, ucs_status_t status, size_t length, vo
         }
         else
         {
-            free(user_data);
+            //FIXME free(recv_info->user_data);
         }
     }
-    ucp_request_free(request);
+    if (request != NULL)
+    {
+        ucp_request_release(request);
+    }
     ECONTEXT_LOCK(recv_info->econtext);
-    ucs_list_del(&(recv_info->item));
-    RESET_PENDING_RDV_RECV(recv_info);
     DYN_LIST_RETURN(recv_info->econtext->free_pending_rdv_recv, recv_info, item);
     ECONTEXT_UNLOCK(recv_info->econtext);
 }
@@ -92,6 +94,8 @@ static ucs_status_t am_notification_recv_rdv_msg(execution_context_t *econtext, 
     ECONTEXT_UNLOCK(econtext);
     RESET_PENDING_RDV_RECV(pending_recv);
     assert(pending_recv);
+    if (pending_recv->user_data != NULL)
+        WARN_MSG("Warning payload buffer was not previously freed");
     DBG("RDV message to be received for type %ld", hdr->type);
     entry = DYN_ARRAY_GET_ELT(&(econtext->event_channels->notification_callbacks), hdr->type, notification_callback_entry_t);
     assert(entry);
