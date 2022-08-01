@@ -1795,7 +1795,8 @@ static void execution_context_fini(execution_context_t **ctx)
                 }
                 else
                 {
-                    free(elt->user_data);
+                    if (elt->user_data != NULL)
+                        free(elt->user_data);
                 }
                 elt->user_data = NULL;
             }

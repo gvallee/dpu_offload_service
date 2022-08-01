@@ -78,6 +78,7 @@ static void am_rdv_recv_cb(void *request, ucs_status_t status, size_t length, vo
             SMART_BUFF_RETURN(&(recv_info->econtext->engine->smart_buffer_sys),
                               recv_info->payload_size,
                               recv_info->smart_chunk);
+            recv_info->user_data = NULL;
 #endif
         }
     }
