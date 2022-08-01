@@ -72,7 +72,7 @@ static void am_rdv_recv_cb(void *request, ucs_status_t status, size_t length, vo
         }
         else
         {
-            //FIXME free(recv_info->user_data);
+            free(recv_info->user_data);
         }
     }
     if (request != NULL)
@@ -99,6 +99,7 @@ static ucs_status_t am_notification_recv_rdv_msg(execution_context_t *econtext, 
     DBG("RDV message to be received for type %ld", hdr->type);
     entry = DYN_ARRAY_GET_ELT(&(econtext->event_channels->notification_callbacks), hdr->type, notification_callback_entry_t);
     assert(entry);
+
     if (entry->info.mem_pool)
     {
         void *buf_from_pool = get_notif_buf(econtext->event_channels, hdr->type);
@@ -106,28 +107,32 @@ static ucs_status_t am_notification_recv_rdv_msg(execution_context_t *econtext, 
         pending_recv->user_data = buf_from_pool;
         pending_recv->buff_size = payload_size;
         COPY_NOTIF_INFO(&(entry->info), &(pending_recv->pool));
+        am_rndv_recv_request_params.op_attr_mask = UCP_OP_ATTR_FIELD_CALLBACK |
+                                                   UCP_OP_ATTR_FIELD_USER_DATA |
+                                                   UCP_OP_ATTR_FIELD_DATATYPE |
+                                                   UCP_OP_ATTR_FIELD_MEMORY_TYPE |
+                                                   UCP_AM_RECV_ATTR_FLAG_DATA;
     }
     else
     {
         // The library has to handle the buffer for the payload
         pending_recv->user_data = DPU_OFFLOAD_MALLOC(payload_size);
         pending_recv->buff_size = payload_size;
+        am_rndv_recv_request_params.op_attr_mask = UCP_OP_ATTR_FIELD_CALLBACK |
+                                                   UCP_OP_ATTR_FIELD_USER_DATA |
+                                                   UCP_OP_ATTR_FIELD_DATATYPE |
+                                                   UCP_OP_ATTR_FIELD_MEMORY_TYPE;
     }
     assert(pending_recv->user_data);
     pending_recv->hdr = hdr;
     pending_recv->hdr_len = hdr_len;
     pending_recv->econtext = econtext;
     pending_recv->payload_size = payload_size;
-    am_rndv_recv_request_params.op_attr_mask = UCP_OP_ATTR_FIELD_CALLBACK |
-                                               UCP_OP_ATTR_FIELD_USER_DATA |
-                                               UCP_OP_ATTR_FIELD_DATATYPE |
-                                               UCP_OP_ATTR_FIELD_MEMORY_TYPE |
-                                               UCP_OP_ATTR_FLAG_NO_IMM_CMPL;
+    
     am_rndv_recv_request_params.cb.recv_am = &am_rdv_recv_cb;
     am_rndv_recv_request_params.datatype = ucp_dt_make_contig(1);
     am_rndv_recv_request_params.user_data = pending_recv;
     am_rndv_recv_request_params.memory_type = UCS_MEMORY_TYPE_HOST;
-    am_rndv_recv_request_params.request = NULL;
 
     ucs_status_ptr_t status;
     status = ucp_am_recv_data_nbx(GET_WORKER(econtext), desc, pending_recv->user_data, payload_size,
