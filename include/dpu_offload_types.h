@@ -1314,6 +1314,7 @@ typedef struct pending_am_rdv_recv
     void *desc;
     void *user_data;
     notification_info_t pool;
+    smart_chunk_t *smart_chunk;
 } pending_am_rdv_recv_t;
 
 #define RESET_PENDING_RDV_RECV(_rdv_recv)       \
@@ -1326,6 +1327,7 @@ typedef struct pending_am_rdv_recv
         (_rdv_recv)->payload_size = 0;          \
         (_rdv_recv)->desc = NULL;               \
         (_rdv_recv)->user_data = NULL;          \
+        (_rdv_recv)->smart_chunk = NULL;        \
         RESET_NOTIF_INFO(&((_rdv_recv)->pool)); \
     } while (0)
 

@@ -72,7 +72,13 @@ static void am_rdv_recv_cb(void *request, ucs_status_t status, size_t length, vo
         }
         else
         {
+#if 0
             free(recv_info->user_data);
+#else
+            SMART_BUFF_RETURN(&(recv_info->econtext->engine->smart_buffer_sys),
+                              recv_info->payload_size,
+                              recv_info->smart_chunk);
+#endif
         }
     }
     if (request != NULL)
@@ -115,6 +121,7 @@ static ucs_status_t am_notification_recv_rdv_msg(execution_context_t *econtext, 
     }
     else
     {
+#if 0
         // The library has to handle the buffer for the payload
         pending_recv->user_data = DPU_OFFLOAD_MALLOC(payload_size);
         pending_recv->buff_size = payload_size;
@@ -122,6 +129,16 @@ static ucs_status_t am_notification_recv_rdv_msg(execution_context_t *econtext, 
                                                    UCP_OP_ATTR_FIELD_USER_DATA |
                                                    UCP_OP_ATTR_FIELD_DATATYPE |
                                                    UCP_OP_ATTR_FIELD_MEMORY_TYPE;
+#else
+        pending_recv->smart_chunk = SMART_BUFF_GET(&(econtext->engine->smart_buffer_sys), payload_size);
+        pending_recv->user_data = pending_recv->smart_chunk->base;
+        pending_recv->buff_size = payload_size;
+        am_rndv_recv_request_params.op_attr_mask = UCP_OP_ATTR_FIELD_CALLBACK |
+                                                   UCP_OP_ATTR_FIELD_USER_DATA |
+                                                   UCP_OP_ATTR_FIELD_DATATYPE |
+                                                   UCP_OP_ATTR_FIELD_MEMORY_TYPE |
+                                                   UCP_AM_RECV_ATTR_FLAG_DATA;
+#endif
     }
     assert(pending_recv->user_data);
     pending_recv->hdr = hdr;
