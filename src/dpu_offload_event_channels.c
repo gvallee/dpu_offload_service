@@ -720,13 +720,14 @@ int do_tag_send_event_msg(dpu_offload_event_t *event)
 int tag_send_event_msg(dpu_offload_event_t **event)
 {
     int rc;
+    execution_context_t *econtext = (*event)->event_system->econtext;
     assert((*event)->dest.ep);
     assert((*event)->event_system);
     assert((*event)->event_system->econtext);
     PREP_EVENT_FOR_EMIT(*event);
     if (econtext->type == CONTEXT_CLIENT && econtext->scope_id == SCOPE_HOST_DPU && econtext->rank.n_local_ranks > 0 && econtext->rank.n_local_ranks != UINT64_MAX)
     {
-        assert(client_id < econtext->rank.n_local_ranks);
+        assert((*event)->client_id < econtext->rank.n_local_ranks);
     }
 
     rc = do_tag_send_event_msg(*event);
