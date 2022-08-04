@@ -18,7 +18,7 @@ or manage their own memory and pass it in the notification system for performanc
 The notification type is also used to register before hand a notification handler. Upon reception the
 registered handler for the type is invoked, both the header and payload being provided within the
 handler. At the moment, only one handler per notification type can be registered but developers are
-free to implement handler that will invoke sub-handlers.
+free to implement handlers that invoke sub-handlers.
 
 It is possible to emit events from within a notification handler.
 

@@ -90,7 +90,9 @@ void event_channels_fini(dpu_offload_ev_sys_t **);
 
 /**
  * @brief Register a handler in the context of an event system for a specific type of notifications.
- * Only one handler can be registered per notification type. It is safe to emit a new event from a handler.
+ * Only one handler can be registered per notification type. If registration is performed multiple times,
+ * only the first one is active. Updates are possible using the event_channel_update function.
+ * It is safe to emit a new event from a handler.
  * Note: the function assumes the event system is locked before it is invoked
  *
  * @param ev_sys Event system to use to register the notification handler.
