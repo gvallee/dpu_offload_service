@@ -251,7 +251,11 @@ dpu_offload_status_t event_channel_register(dpu_offload_ev_sys_t *ev_sys, uint64
     CHECK_ERR_RETURN((ev_sys == NULL), DO_ERROR, "undefined event system");
     notification_callback_entry_t *entry = DYN_ARRAY_GET_ELT(&(ev_sys->notification_callbacks), type, notification_callback_entry_t);
     CHECK_ERR_RETURN((entry == NULL), DO_ERROR, "unable to get callback %ld", type);
-    CHECK_ERR_RETURN((entry->set == true), DO_ERROR, "type %" PRIu64 " is already set", type);
+    if (entry->set == true)
+    {
+        DBG("Handler already registered, successfully return");
+        return DO_SUCCESS;
+    }
     RESET_NOTIF_CB_ENTRY(entry);
     entry->cb = cb;
     entry->set = true;
