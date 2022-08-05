@@ -35,6 +35,14 @@ const char *config_file_version_token = "Format version:";
 /* FUNCTIONS RELATED TO GROUPS/RANKS */
 /*************************************/
 
+bool is_in_cache(cache_t *cache, int64_t gp_id, int64_t rank_id, int64_t group_size)
+{
+    peer_cache_entry_t *entry = GET_GROUP_RANK_CACHE_ENTRY(cache, gp_id, rank_id, group_size);
+    if (entry == NULL)
+        return false;
+    return (entry->set);
+}
+
 dpu_offload_status_t send_add_group_rank_request(execution_context_t *econtext, ucp_ep_h ep, uint64_t dest_id, rank_info_t *rank_info, dpu_offload_event_t **e)
 {
     dpu_offload_event_t *ev;
@@ -42,6 +50,29 @@ dpu_offload_status_t send_add_group_rank_request(execution_context_t *econtext, 
     ev_info.payload_size = sizeof(rank_info_t);
     dpu_offload_status_t rc = event_get(econtext->event_channels, &ev_info, &ev);
     CHECK_ERR_RETURN((rc), DO_ERROR, "event_get() failed");
+
+    // We add ourselves to the local EP cache as shadow service process
+    if (rank_info->group_id != INVALID_GROUP &&
+        rank_info->group_rank != INVALID_RANK &&
+        !is_in_cache(&(econtext->engine->procs_cache), rank_info->group_id, rank_info->group_rank, rank_info->group_size))
+    {
+        peer_cache_entry_t *cache_entry = GET_GROUP_RANK_CACHE_ENTRY(&(econtext->engine->procs_cache),
+                                                                     rank_info->group_id,
+                                                                     rank_info->group_rank,
+                                                                     rank_info->group_size);
+        group_cache_t *gp_cache = GET_GROUP_CACHE(&(econtext->engine->procs_cache), rank_info->group_id);
+        assert(cache_entry);
+        assert(gp_cache);
+        assert(econtext->engine->config != NULL);
+        cache_entry->shadow_service_procs[cache_entry->num_shadow_service_procs] = econtext->engine->config->local_service_proc.info.global_id;
+        cache_entry->peer.proc_info.group_id = rank_info->group_id;
+        cache_entry->peer.proc_info.group_rank = rank_info->group_rank;
+        cache_entry->peer.proc_info.group_size = rank_info->group_size;
+        cache_entry->peer.proc_info.n_local_ranks = rank_info->n_local_ranks;
+        cache_entry->num_shadow_service_procs++;
+        cache_entry->set = true;
+        gp_cache->num_local_entries++;
+    }
 
     DBG("Sending request to add group/rank");
     rank_info_t *rank_info_data = (rank_info_t *)ev->payload;
@@ -67,7 +98,7 @@ bool group_cache_populated(offloading_engine_t *engine, int64_t gp_id)
     group_cache_t *gp_cache = GET_GROUP_CACHE(&(engine->procs_cache), gp_id);
     if (gp_cache->group_size == gp_cache->num_local_entries)
     {
-        DBG("Group cache fully populated");
+        DBG("Group cache fully populated. num_local_entries = %" PRIu64 " group_size = %" PRIu64, gp_cache->num_local_entries, gp_cache->group_size);
         return true;
     }
     return false;
@@ -513,14 +544,6 @@ dpu_offload_status_t broadcast_group_cache(offloading_engine_t *engine, int64_t 
     }
 
     return DO_SUCCESS;
-}
-
-bool is_in_cache(cache_t *cache, int64_t gp_id, int64_t rank_id, int64_t group_size)
-{
-    peer_cache_entry_t *entry = GET_GROUP_RANK_CACHE_ENTRY(cache, gp_id, rank_id, group_size);
-    if (entry == NULL)
-        return false;
-    return (entry->set);
 }
 
 static dpu_offload_status_t do_get_cache_entry_by_group_rank(offloading_engine_t *engine, int64_t gp_id, int64_t rank, int64_t sp_idx, request_compl_cb_t cb, int64_t *sp_global_id, dpu_offload_event_t **ev)
