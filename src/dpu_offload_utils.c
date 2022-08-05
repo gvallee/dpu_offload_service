@@ -35,7 +35,7 @@ const char *config_file_version_token = "Format version:";
 /* FUNCTIONS RELATED TO GROUPS/RANKS */
 /*************************************/
 
-dpu_offload_status_t send_add_group_rank_request(execution_context_t *econtext, ucp_ep_h ep, uint64_t dest_id, int64_t group_id, int64_t rank, int64_t group_size, dpu_offload_event_t **e)
+dpu_offload_status_t send_add_group_rank_request(execution_context_t *econtext, ucp_ep_h ep, uint64_t dest_id, rank_info_t *rank_info, dpu_offload_event_t **e)
 {
     dpu_offload_event_t *ev;
     dpu_offload_event_info_t ev_info = {0};
@@ -44,11 +44,9 @@ dpu_offload_status_t send_add_group_rank_request(execution_context_t *econtext, 
     CHECK_ERR_RETURN((rc), DO_ERROR, "event_get() failed");
 
     DBG("Sending request to add group/rank");
-    rank_info_t *rank_info = (rank_info_t *)ev->payload;
-    RESET_RANK_INFO(rank_info);
-    rank_info->group_id = group_id;
-    rank_info->group_rank = rank;
-    rank_info->group_size = group_size;
+    rank_info_t *rank_info_data = (rank_info_t *)ev->payload;
+    RESET_RANK_INFO(rank_info_data);
+    COPY_RANK_INFO(rank_info, rank_info_data);
 
     rc = event_channel_emit(&ev,
                             AM_ADD_GP_RANK_MSG_ID,
