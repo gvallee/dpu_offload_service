@@ -98,7 +98,7 @@ void offload_config_free(offloading_config_t *cfg);
 
 dpu_offload_status_t inter_dpus_connect_mgr(offloading_engine_t *, offloading_config_t *);
 
-dpu_offload_status_t send_add_group_rank_request(execution_context_t *econtext, ucp_ep_h ep, uint64_t dest_id, int64_t group_id, int64_t rank, int64_t group_size, dpu_offload_event_t **e);
+dpu_offload_status_t send_add_group_rank_request(execution_context_t *econtext, ucp_ep_h ep, uint64_t dest_id, rank_info_t *rank_info, dpu_offload_event_t **e);
 
 void local_rank_connect_default_callback(void *data);
 

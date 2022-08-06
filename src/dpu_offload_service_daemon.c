@@ -1308,6 +1308,7 @@ static int add_cache_entry_for_new_client(peer_info_t *client_info, execution_co
         cache_entry = GET_GROUP_RANK_CACHE_ENTRY(&(ctx->engine->procs_cache), client_info->rank_data.group_id, client_info->rank_data.group_rank, client_info->rank_data.group_size);
         assert(cache_entry);
         COPY_RANK_INFO(&(client_info->rank_data), &(cache_entry->peer.proc_info));
+        cache_entry->client_id = client_info->id;
         cache_entry->num_shadow_service_procs = 1;
         if (ctx->engine->on_dpu)
         {
@@ -1332,6 +1333,7 @@ static int add_cache_entry_for_new_client(peer_info_t *client_info, execution_co
         }
         gp_cache->n_local_ranks_populated++;
         gp_cache->num_local_entries++;
+        cache_entry->client_id = client_info->id;
         cache_entry->peer.addr_len = client_info->peer_addr_len;
         if (client_info->peer_addr != NULL)
         {

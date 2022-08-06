@@ -1181,6 +1181,7 @@ static dpu_offload_status_t peer_cache_entries_recv_cb(struct dpu_offload_ev_sys
                 cache_entry->shadow_service_procs[cache_entry->num_shadow_service_procs + n] = entries[idx].shadow_service_procs[n];
             }
             cache_entry->num_shadow_service_procs += entries[idx].num_shadow_service_procs;
+            cache_entry->client_id = entries[idx].client_id;
 
             // If any event is associated to the cache entry, handle them
             if (cache_entry->events_initialized)
@@ -1244,25 +1245,48 @@ static dpu_offload_status_t add_group_rank_recv_cb(struct dpu_offload_ev_sys *ev
 {
     assert(econtext);
     assert(data);
+    assert(ev_sys->econtext->engine->on_dpu);
 
     rank_info_t *rank_info = (rank_info_t *)data;
-
     if (rank_info->group_id == INVALID_GROUP || rank_info->group_rank == INVALID_RANK)
     {
         // The data we received really does not include any usable group data
         return DO_SUCCESS;
     }
 
+    DBG("Recv'd data about group_rank %"PRId64 " %" PRId64 " %" PRId64, rank_info->group_id, rank_info->group_rank, rank_info->group_size);
     if (!is_in_cache(&(econtext->engine->procs_cache), rank_info->group_id, rank_info->group_rank, rank_info->group_size))
     {
         peer_cache_entry_t *cache_entry;
+        execution_context_t *host_server = get_server_servicing_host(ev_sys->econtext->engine);
+        assert(host_server);
+        peer_info_t *client_info = DYN_ARRAY_GET_ELT(&(host_server->server->connected_clients.clients),
+                                                     hdr->client_id,
+                                                     peer_info_t);
+        assert(client_info);
         cache_entry = GET_GROUP_RANK_CACHE_ENTRY(&(econtext->engine->procs_cache),
                                                  rank_info->group_id,
                                                  rank_info->group_rank,
                                                  rank_info->group_size);
         assert(cache_entry);
+        cache_entry->peer.addr_len = client_info->peer_addr_len;
+        memcpy(cache_entry->peer.addr,
+               client_info->peer_addr,
+               client_info->peer_addr_len);
         COPY_RANK_INFO(rank_info, &(cache_entry->peer.proc_info));
+        cache_entry->num_shadow_service_procs = 1;
+        cache_entry->shadow_service_procs[0] = econtext->engine->config->local_service_proc.info.global_id;
+        cache_entry->client_id = hdr->client_id;
         cache_entry->set = true;
+
+        group_cache_t *gp_cache = GET_GROUP_CACHE(&(econtext->engine->procs_cache), rank_info->group_id);
+        assert(gp_cache);
+        if (gp_cache->n_local_ranks <= 0 && rank_info->n_local_ranks >= 0)
+        {
+            gp_cache->n_local_ranks = rank_info->n_local_ranks;
+        }
+        gp_cache->n_local_ranks_populated++;
+        gp_cache->num_local_entries++;
     }
 
     GROUP_CACHE_EXCHANGE(econtext->engine, rank_info->group_id, rank_info->n_local_ranks);

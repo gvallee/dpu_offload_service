@@ -123,36 +123,55 @@ typedef struct dest_client
     uint64_t id;
 } dest_client_t;
 
-#define GET_CLIENT_BY_RANK(_exec_ctx, _gp_id, _rank) ({                                                 \
-    dest_client_t _c;                                                                                   \
-    _c.ep = NULL;                                                                                       \
-    _c.id = UINT64_MAX;                                                                                 \
-    size_t _idx = 0;                                                                                    \
-    size_t _n = 0;                                                                                      \
-    if ((_exec_ctx)->type == CONTEXT_SERVER)                                                            \
-    {                                                                                                   \
-        while (_n < (_exec_ctx)->server->connected_clients.num_connected_clients)                       \
-        {                                                                                               \
-            peer_info_t *_p_info = DYN_ARRAY_GET_ELT(&((_exec_ctx)->server->connected_clients.clients), \
-                                                     _idx,                                              \
-                                                     peer_info_t);                                      \
-            if (_p_info == NULL)                                                                        \
-            {                                                                                           \
-                _idx++;                                                                                 \
-                continue;                                                                               \
-            }                                                                                           \
-            /* FIXME: support more than one group */                                                    \
-            if (_p_info->rank_data.group_id == _gp_id && _p_info->rank_data.group_rank == _rank)        \
-            {                                                                                           \
-                _c.ep = _p_info->ep;                                                                    \
-                _c.id = _p_info->id;                                                                    \
-                break;                                                                                  \
-            }                                                                                           \
-            _n++;                                                                                       \
-            _idx++;                                                                                     \
-        }                                                                                               \
-    }                                                                                                   \
-    _c;                                                                                                 \
+#define GET_GROUPRANK_CACHE_ENTRY(_cache, _gp_id, _rank)                                        \
+    ({                                                                                          \
+        peer_cache_entry_t *_entry = NULL;                                                      \
+        group_cache_t *_gp_cache = DYN_ARRAY_GET_ELT(&((_cache)->data), _gp_id, group_cache_t); \
+        dyn_array_t *_rank_cache = &(_gp_cache->ranks);                                         \
+        if (_gp_cache->initialized == true)                                                     \
+        {                                                                                       \
+            _entry = DYN_ARRAY_GET_ELT(_rank_cache, _rank, peer_cache_entry_t);                 \
+        }                                                                                       \
+        _entry;                                                                                 \
+    })
+
+#define GET_CLIENT_BY_RANK(_exec_ctx, _gp_id, _rank) ({                        \
+    dest_client_t _c;                                                          \
+    _c.ep = NULL;                                                              \
+    _c.id = UINT64_MAX;                                                        \
+    size_t _idx = 0;                                                           \
+    size_t _n = 0;                                                             \
+    if ((_exec_ctx)->type == CONTEXT_SERVER)                                   \
+    {                                                                          \
+        peer_cache_entry_t *__entry;                                           \
+        cache_t *__cache = &((_exec_ctx)->engine->procs_cache);                \
+        __entry = GET_GROUPRANK_CACHE_ENTRY(__cache, _gp_id, _rank);           \
+        if (__entry)                                                           \
+        {                                                                      \
+            if (__entry->ep != NULL)                                           \
+            {                                                                  \
+                _c.ep = __entry->ep;                                           \
+            }                                                                  \
+            else                                                               \
+            {                                                                  \
+                if (__entry->peer.addr != NULL)                                \
+                {                                                              \
+                    /* Generate the endpoint with the data we have */          \
+                    ucp_ep_params_t _ep_params;                                \
+                    _ep_params.field_mask = UCP_EP_PARAM_FIELD_REMOTE_ADDRESS; \
+                    _ep_params.address = (ucp_address_t *)__entry->peer.addr;  \
+                    ucp_ep_create((_exec_ctx)->engine->ucp_worker,             \
+                                  &_ep_params,                                 \
+                                  &(__entry->ep));                             \
+                    assert(__entry->ep);                                       \
+                }                                                              \
+            }                                                                  \
+            assert(__entry->ep);                                               \
+            _c.ep = __entry->ep;                                               \
+            _c.id = __entry->client_id;                                        \
+        }                                                                      \
+    }                                                                          \
+    _c;                                                                        \
 })
 
 #define GET_WORKER(_exec_ctx) ({                       \
@@ -401,6 +420,9 @@ typedef struct peer_cache_entry
 
     // Peer data (group/rank)
     peer_data_t peer;
+
+    // The identifier used by the service process assigned to the rank to communicate with it.
+    uint64_t client_id;
 
     // endpoint to reach the peer
     ucp_ep_h ep;
