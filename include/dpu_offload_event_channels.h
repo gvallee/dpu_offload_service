@@ -13,9 +13,6 @@
 #ifndef DPU_OFFLOAD_EVENT_CHANNELS_H_
 #define DPU_OFFLOAD_EVENT_CHANNELS_H_
 
-// Set to 1 to use the AM implementaton; 0 to use tag send/recv implementation
-#define USE_AM_IMPLEM (0)
-
 #define QUEUE_EVENT(__ev)                                                            \
     do                                                                               \
     {                                                                                \
@@ -54,7 +51,6 @@
     do                                                                \
     {                                                                 \
         (__ev)->ctx.complete = true;                                  \
-        (__ev)->payload_ctx.complete = true;                          \
         if ((__ev)->ctx.completion_cb != NULL)                        \
         {                                                             \
             (__ev)->ctx.completion_cb((__ev)->ctx.completion_cb_ctx); \
@@ -80,7 +76,9 @@ static inline bool send_moderation_on()
     return true;
 }
 
-#if !USE_AM_IMPLEM
+#if USE_AM_IMPLEM
+int do_am_send_event_msg(dpu_offload_event_t *event);
+#else
 int do_tag_send_event_msg(dpu_offload_event_t *event);
 #endif
 

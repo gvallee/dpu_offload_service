@@ -109,11 +109,11 @@
             (_scope_id));                                                                                                                  \
     } while (0)
 
-#define CAN_POST(_event_system) ({                        \
-    bool _can_post = false;                               \
-    if ((_event_system)->posted_sends < MAX_POSTED_SENDS) \
-        _can_post = true;                                 \
-    _can_post;                                            \
+#define CAN_POST(_event_system) ({                                                   \
+    bool _can_post = false;                                                          \
+    if (MAX_POSTED_SENDS <= 0 || ((_event_system)->posted_sends < MAX_POSTED_SENDS)) \
+        _can_post = true;                                                            \
+    _can_post;                                                                       \
 })
 
 #define GROUP_CACHE_EXCHANGE(_engine, _gp_id, _n_local_ranks)                                                                \
@@ -137,7 +137,44 @@
         }                                                                                                                    \
     } while (0)
 
-// TODO: same for UCX AM
+#if USE_AM_IMPLEM
+static bool event_posted(dpu_offload_event_t *ev)
+{
+    if (ev->ctx.complete == false && (ev->was_posted == true || ev->req != NULL))
+        return true;
+    return false;
+}
+
+#define PROGRESS_EVENT_SEND(__ev)                                                                \
+    do                                                                                           \
+    {                                                                                            \
+        /* if we can post more events and the event is not posted yet, try to send it. */        \
+        if (!event_completed((__ev)) && CAN_POST((__ev)->event_system) && !event_posted((__ev))) \
+        {                                                                                        \
+            int rc;                                                                              \
+            rc = do_am_send_event_msg((__ev));                                                   \
+            if (rc != EVENT_DONE && rc != EVENT_INPROGRESS)                                      \
+                ERR_MSG("do_am_send_event_msg() failed");                                        \
+        }                                                                                        \
+        /* Now check if it is completed */                                                       \
+        if (event_completed((__ev)))                                                             \
+        {                                                                                        \
+            if ((__ev)->is_ongoing_event && (__ev)->is_subevent)                                 \
+                ERR_MSG("sub-event %p %ld also on the ongoing list", (__ev), (__ev)->seq_num);   \
+            ucs_list_del(&((__ev)->item));                                                       \
+            if ((__ev)->is_ongoing_event)                                                        \
+                (__ev)->is_ongoing_event = false;                                                \
+            if ((__ev)->is_subevent)                                                             \
+                (__ev)->is_subevent = false;                                                     \
+            if ((__ev)->was_posted)                                                              \
+            {                                                                                    \
+                (__ev)->event_system->posted_sends--;                                            \
+                (__ev)->was_posted = false;                                                      \
+            }                                                                                    \
+            event_return(&(__ev));                                                               \
+        }                                                                                        \
+    } while(0)
+#else
 #define PROGRESS_EVENT_SEND(__ev)                                                                \
     do                                                                                           \
     {                                                                                            \
@@ -146,6 +183,8 @@
         {                                                                                        \
             int rc;                                                                              \
             rc = do_tag_send_event_msg((__ev));                                                  \
+            if (rc != EVENT_DONE && rc != EVENT_INPROGRESS)                                      \
+                ERR_MSG("do_tag_send_event_msg() failed");                                       \
         }                                                                                        \
         /* Now check if it is completed */                                                       \
         if (event_completed((__ev)))                                                             \
@@ -186,10 +225,15 @@ static bool event_posted(dpu_offload_event_t *ev)
 
     return false;
 }
+#endif // USE_AM_IMPLEM
 
 static void progress_econtext_sends(execution_context_t *ctx)
 {
     dpu_offload_event_t *ev, *next_ev;
+#if USE_AM_IMPLEM
+    if (ctx->scope_id == CONTEXT_SELF)
+        return;
+#endif
     ucs_list_for_each_safe(ev, next_ev, &(ctx->ongoing_events), item)
     {
         if (ev->is_ongoing_event == false)
@@ -307,6 +351,7 @@ error_out:
     return UCS_ERR_NO_MESSAGE;
 }
 
+#if !USE_AM_IMPLEM
 /**
  * @brief Note that the function assumes the execution context is not locked before it is invoked.
  *
@@ -423,14 +468,12 @@ static int post_recv_for_notif_payload(hdr_notif_req_t *ctx, execution_context_t
 
         // If the notification type is already registered and is associated to a memory pool, we use a buffer from than pool
         entry = DYN_ARRAY_GET_ELT(&(econtext->event_channels->notification_callbacks), ctx->hdr.type, notification_callback_entry_t);
+        assert(entry);
         if (entry->info.mem_pool)
         {
-            notification_callback_entry_t *entry;
             void *buf_from_pool = get_notif_buf(econtext->event_channels, ctx->hdr.type);
             assert(buf_from_pool);
             assert(ctx->payload_ctx.pool.mem_pool == NULL);
-            entry = DYN_ARRAY_GET_ELT(&(econtext->event_channels->notification_callbacks), ctx->hdr.type, notification_callback_entry_t);
-            assert(entry);
             ctx->payload_ctx.buffer = buf_from_pool;
             COPY_NOTIF_INFO(&(entry->info), &(ctx->payload_ctx.pool));
         }
@@ -671,5 +714,6 @@ static void notif_hdr_recv_handler(void *request, ucs_status_t status, const ucp
     ctx->complete = true;
     post_recv_for_notif_payload(ctx, (execution_context_t *)ctx->econtext, ctx->hdr.id);
 }
+#endif // !USE_AM_IMPLEM
 
 #endif // DPU_OFFLOAD_COMMS_H_

@@ -22,6 +22,9 @@ _EXTERN_C_BEGIN
 #define DEFAULT_INTER_DPU_CONNECT_PORT (11111)
 #define DEFAULT_NUM_PEERS (10000)
 
+// Set to 1 to use the AM implementaton; 0 to use tag send/recv implementation
+#define USE_AM_IMPLEM (0)
+
 // Enable/disable thread-safety. Note that it does not impact multi-threaded for the
 // bootstrapping phase.
 #define OFFLOADING_MT_ENABLE (0)
@@ -544,7 +547,6 @@ typedef struct event_req
         (_r)->completion_cb_ctx = NULL;  \
     } while (0)
 
-#if !USE_AM_IMPLEM
 // Forward declaration
 struct execution_context;
 
@@ -595,6 +597,7 @@ typedef struct notification_info
         assert((__info)->element_size == 0);    \
     } while (0)
 
+#if !USE_AM_IMPLEM
 typedef struct payload_notif_req
 {
     bool complete;
@@ -686,7 +689,9 @@ typedef struct peer_info
 
     uint64_t id;
 
-#if !USE_AM_IMPLEM
+#if USE_AM_IMPLEM
+    am_req_t ctx;
+#else
     notif_reception_t notif_recv;
 #endif
 
@@ -1333,18 +1338,22 @@ typedef struct pending_am_rdv_recv
     size_t buff_size;
     void *desc;
     void *user_data;
+    notification_info_t pool;
+    smart_chunk_t *smart_chunk;
 } pending_am_rdv_recv_t;
 
-#define RESET_PENDING_RDV_RECV(_rdv_recv)                                                                  \
-    do                                                                                                     \
-    {                                                                                                      \
-        (_rdv_recv)->econtext = NULL;                                                                      \
-        (_rdv_recv)->hdr_len = 0;                                                                          \
-        (_rdv_recv)->hdr = NULL;                                                                           \
-        (_rdv_recv)->req = NULL;                                                                           \
-        (_rdv_recv)->payload_size = 0;                                                                     \
-        (_rdv_recv)->desc = NULL;                                                                          \
-        /* Do not reset user_data and buff_size as it is used over time as a buffer to minimize mallocs */ \
+#define RESET_PENDING_RDV_RECV(_rdv_recv)       \
+    do                                          \
+    {                                           \
+        (_rdv_recv)->econtext = NULL;           \
+        (_rdv_recv)->hdr_len = 0;               \
+        (_rdv_recv)->hdr = NULL;                \
+        (_rdv_recv)->req = NULL;                \
+        (_rdv_recv)->payload_size = 0;          \
+        (_rdv_recv)->desc = NULL;               \
+        (_rdv_recv)->user_data = NULL;          \
+        (_rdv_recv)->smart_chunk = NULL;        \
+        RESET_NOTIF_INFO(&((_rdv_recv)->pool)); \
     } while (0)
 
 /**
@@ -1435,28 +1444,25 @@ typedef struct dpu_offload_event
  * dynamic list is initialized
  */
 #if USE_AM_IMPLEM
-#define RESET_EVENT(__ev)                     \
-    do                                        \
-    {                                         \
-        (__ev)->context = NULL;               \
-        (__ev)->payload = NULL;               \
-        (__ev)->event_system = NULL;          \
-        (__ev)->req = NULL;                   \
-        (__ev)->ctx.complete = false;         \
-        (__ev)->ctx.completion_cb = NULL;     \
-        (__ev)->ctx.completion_cb_ctx = NULL; \
-        EVENT_HDR_TYPE(__ev) = UINT64_MAX;    \
-        EVENT_HDR_ID(__ev) = UINT64_MAX;      \
-        EVENT_HDR_PAYLOAD_SIZE(__ev) = 0;     \
-        (__ev)->manage_payload_buf = false;   \
-        (__ev)->explicit_return = false;      \
-        (__ev)->dest.ep = NULL;               \
-        (__ev)->dest.id = UINT64_MAX;         \
-        (__ev)->scope_id = SCOPE_HOST_DPU;    \
-        (__ev)->is_subevent = false;          \
-        (__ev)->is_ongoing_event = false;     \
-        (__ev)->was_posted = false;           \
-        RESET_NOTIF_INFO(&((__ev)->info));    \
+#define RESET_EVENT(__ev)                   \
+    do                                      \
+    {                                       \
+        (__ev)->context = NULL;             \
+        (__ev)->payload = NULL;             \
+        (__ev)->event_system = NULL;        \
+        (__ev)->req = NULL;                 \
+        RESET_AM_REQ(&((__ev)->ctx));       \
+        EVENT_HDR_TYPE(__ev) = UINT64_MAX;  \
+        EVENT_HDR_ID(__ev) = UINT64_MAX;    \
+        EVENT_HDR_PAYLOAD_SIZE(__ev) = 0;   \
+        (__ev)->manage_payload_buf = false; \
+        (__ev)->explicit_return = false;    \
+        (__ev)->dest.ep = NULL;             \
+        (__ev)->dest.id = UINT64_MAX;       \
+        (__ev)->is_subevent = false;        \
+        (__ev)->is_ongoing_event = false;   \
+        (__ev)->was_posted = false;         \
+        RESET_NOTIF_INFO(&((__ev)->info));  \
     } while (0)
 #else
 #define RESET_EVENT(__ev)                      \

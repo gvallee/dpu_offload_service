@@ -54,11 +54,39 @@
  */
 static void am_rdv_recv_cb(void *request, ucs_status_t status, size_t length, void *user_data)
 {
+    assert(status == UCS_OK);
     pending_am_rdv_recv_t *recv_info = (pending_am_rdv_recv_t *)user_data;
     int rc = handle_notif_msg(recv_info->econtext, recv_info->hdr, recv_info->hdr_len, recv_info->user_data, recv_info->payload_size);
-    ucp_request_free(request);
+    if (rc != UCS_OK)
+    {
+        ERR_MSG("handle_notif_msg() failed");
+        return;
+    }
+    if (length > 0)
+    {
+        // If a payload was involved, we may need to return it to its memory pool or the buddy buffer system, or free it
+        if (recv_info->pool.mem_pool != NULL && recv_info->pool.return_buf != NULL)
+        {
+            recv_info->pool.return_buf(recv_info->pool.mem_pool, recv_info->user_data);
+            RESET_NOTIF_INFO(&(recv_info->pool));
+        }
+        else
+        {
+#if 0
+            free(recv_info->user_data);
+#else
+            SMART_BUFF_RETURN(&(recv_info->econtext->engine->smart_buffer_sys),
+                              recv_info->payload_size,
+                              recv_info->smart_chunk);
+            recv_info->user_data = NULL;
+#endif
+        }
+    }
+    if (request != NULL)
+    {
+        ucp_request_release(request);
+    }
     ECONTEXT_LOCK(recv_info->econtext);
-    ucs_list_del(&(recv_info->item));
     DYN_LIST_RETURN(recv_info->econtext->free_pending_rdv_recv, recv_info, item);
     ECONTEXT_UNLOCK(recv_info->econtext);
 }
@@ -67,39 +95,62 @@ static ucs_status_t am_notification_recv_rdv_msg(execution_context_t *econtext, 
 {
     ucp_request_param_t am_rndv_recv_request_params = {0};
     pending_am_rdv_recv_t *pending_recv;
+    notification_callback_entry_t *entry;
     ECONTEXT_LOCK(econtext);
     DYN_LIST_GET(econtext->free_pending_rdv_recv, pending_am_rdv_recv_t, item, pending_recv);
     ECONTEXT_UNLOCK(econtext);
     RESET_PENDING_RDV_RECV(pending_recv);
     assert(pending_recv);
+    if (pending_recv->user_data != NULL)
+        WARN_MSG("Warning payload buffer was not previously freed");
     DBG("RDV message to be received for type %ld", hdr->type);
-    // Make sure we have space for the payload, note that we do not know the data size to
-    // be received in advance but we do our best to avoid mallocs
-    if (pending_recv->buff_size == 0)
+    entry = DYN_ARRAY_GET_ELT(&(econtext->event_channels->notification_callbacks), hdr->type, notification_callback_entry_t);
+    assert(entry);
+
+    if (entry->info.mem_pool)
     {
+        void *buf_from_pool = get_notif_buf(econtext->event_channels, hdr->type);
+        assert(buf_from_pool);
+        pending_recv->user_data = buf_from_pool;
+        pending_recv->buff_size = payload_size;
+        COPY_NOTIF_INFO(&(entry->info), &(pending_recv->pool));
+        am_rndv_recv_request_params.op_attr_mask = UCP_OP_ATTR_FIELD_CALLBACK |
+                                                   UCP_OP_ATTR_FIELD_USER_DATA |
+                                                   UCP_OP_ATTR_FIELD_DATATYPE |
+                                                   UCP_OP_ATTR_FIELD_MEMORY_TYPE |
+                                                   UCP_AM_RECV_ATTR_FLAG_DATA;
+    }
+    else
+    {
+#if 0
+        // The library has to handle the buffer for the payload
         pending_recv->user_data = DPU_OFFLOAD_MALLOC(payload_size);
         pending_recv->buff_size = payload_size;
-    }
-    if (pending_recv->buff_size < payload_size)
-    {
-        pending_recv->user_data = realloc(pending_recv->user_data, payload_size);
+        am_rndv_recv_request_params.op_attr_mask = UCP_OP_ATTR_FIELD_CALLBACK |
+                                                   UCP_OP_ATTR_FIELD_USER_DATA |
+                                                   UCP_OP_ATTR_FIELD_DATATYPE |
+                                                   UCP_OP_ATTR_FIELD_MEMORY_TYPE;
+#else
+        pending_recv->smart_chunk = SMART_BUFF_GET(&(econtext->engine->smart_buffer_sys), payload_size);
+        pending_recv->user_data = pending_recv->smart_chunk->base;
         pending_recv->buff_size = payload_size;
+        am_rndv_recv_request_params.op_attr_mask = UCP_OP_ATTR_FIELD_CALLBACK |
+                                                   UCP_OP_ATTR_FIELD_USER_DATA |
+                                                   UCP_OP_ATTR_FIELD_DATATYPE |
+                                                   UCP_OP_ATTR_FIELD_MEMORY_TYPE |
+                                                   UCP_AM_RECV_ATTR_FLAG_DATA;
+#endif
     }
     assert(pending_recv->user_data);
     pending_recv->hdr = hdr;
     pending_recv->hdr_len = hdr_len;
     pending_recv->econtext = econtext;
     pending_recv->payload_size = payload_size;
-    am_rndv_recv_request_params.op_attr_mask = UCP_OP_ATTR_FIELD_CALLBACK |
-                                               UCP_OP_ATTR_FIELD_USER_DATA |
-                                               UCP_OP_ATTR_FIELD_DATATYPE |
-                                               UCP_OP_ATTR_FIELD_MEMORY_TYPE |
-                                               UCP_OP_ATTR_FLAG_NO_IMM_CMPL;
+    
     am_rndv_recv_request_params.cb.recv_am = &am_rdv_recv_cb;
     am_rndv_recv_request_params.datatype = ucp_dt_make_contig(1);
     am_rndv_recv_request_params.user_data = pending_recv;
     am_rndv_recv_request_params.memory_type = UCS_MEMORY_TYPE_HOST;
-    am_rndv_recv_request_params.request = NULL;
 
     ucs_status_ptr_t status;
     status = ucp_am_recv_data_nbx(GET_WORKER(econtext), desc, pending_recv->user_data, payload_size,
@@ -144,8 +195,14 @@ static ucs_status_t am_notification_msg_cb(void *arg, const void *header, size_t
         return UCS_INPROGRESS;
     }
 
-    DBG("Notification of type %" PRIu64 " received via eager message, dispatching...", hdr->type);
-    return handle_notif_msg(econtext, hdr, header_length, data, length);
+    void *ptr = data;
+    DBG("Notification of type %" PRIu64 " received via eager message (data size: %ld), dispatching...", hdr->type, length);
+    if (length == 0)
+    {
+        // UCX AM layer has no problem setting the length to 0 but giving a data pointer that is not NULL
+        ptr = NULL;
+    }
+    return handle_notif_msg(econtext, hdr, header_length, ptr, length);
 }
 #endif // USE_AM_IMPLEM
 
@@ -203,7 +260,14 @@ dpu_offload_status_t event_channels_init(execution_context_t *econtext)
     CHECK_ERR_RETURN((rc), DO_ERROR, "ev_channels_init() failed");
 
 #if USE_AM_IMPLEM
-    // Register the UCX AM handler
+    if (econtext->scope_id == SCOPE_SELF)
+    {
+        // For self, the notification system never relies on the UCX AM layer;
+        // the handler is instead invoked while in the emit code path.
+        return DO_SUCCESS;
+    }
+
+    // Register the UCX AM handler        
     CHECK_ERR_RETURN((GET_WORKER(econtext) == NULL), DO_ERROR, "Undefined worker");
     ucp_am_handler_param_t am_param = {0};
     am_param.field_mask = UCP_AM_HANDLER_PARAM_FIELD_ID |
@@ -356,6 +420,30 @@ dpu_offload_status_t event_channel_deregister(dpu_offload_ev_sys_t *ev_sys, uint
 }
 
 static size_t num_completed_emit = 0;
+#if USE_AM_IMPLEM
+static void notification_emit_cb(void *request, ucs_status_t status, void *user_data)
+{
+    dpu_offload_event_t *ev;
+    num_completed_emit++;
+    DBG("New completion, %ld emit have now completed", num_completed_emit);
+    if (user_data == NULL)
+    {
+        ERR_MSG("undefined event");
+        return;
+    }
+    ev = (dpu_offload_event_t *)user_data;
+    if (ev == NULL)
+        return;
+    DBG("ev=%p ctx=%p id=%" PRIu64, ev, &(ev->ctx), EVENT_HDR_SEQ_NUM(ev));
+    COMPLETE_EVENT(ev);
+    ev->req = NULL;
+    assert(ev->event_system);
+    execution_context_t *econtext = ev->event_system->econtext;
+    DBG("Associated econtext: %p", econtext);
+    assert(econtext);
+    DBG("evt %p now completed, %ld events left on the ongoing list", ev, ucs_list_length(&(econtext->ongoing_events)));
+}
+#else
 static void notification_emit_cb(void *user_data, const char *type_str)
 {
     dpu_offload_event_t *ev;
@@ -369,7 +457,7 @@ static void notification_emit_cb(void *user_data, const char *type_str)
     ev = (dpu_offload_event_t *)user_data;
     if (ev == NULL)
         return;
-    DBG("ev=%p ctx=%p id=%" PRIu64, ev, &(ev->ctx), EVENT_HDR_ID(ev));
+    DBG("ev=%p ctx=%p id=%" PRIu64, ev, &(ev->ctx), EVENT_HDR_SEQ_NUM(ev));
     COMPLETE_EVENT(ev);
     assert(ev->event_system);
     execution_context_t *econtext = ev->event_system->econtext;
@@ -405,46 +493,99 @@ static void notif_payload_send_cb(void *request, ucs_status_t status, void *user
     ev->ctx.payload_completed = true;
     DBG("Payload for event #%ld (%p) successfully sent (hdr completed: %d)", ev->seq_num, ev, ev->ctx.hdr_completed);
 }
+#endif // !USE_AM_IMPLEM
+
+#define PREP_EVENT_FOR_EMIT(__ev) do { \
+    execution_context_t *__econtext = (__ev)->event_system->econtext;\
+    uint64_t __cid, __sid;\
+    switch ((__ev)->event_system->econtext->type)\
+    {\
+    case CONTEXT_CLIENT:\
+        __cid = __econtext->client->id;\
+        __sid = __econtext->client->server_id;\
+        break;\
+    case CONTEXT_SERVER:\
+        __sid = __econtext->server->id;\
+        __cid = (__ev)->dest.id;\
+        break;\
+    case CONTEXT_SELF:\
+        __cid = 0;\
+        __sid = 0;\
+        break;\
+    default:\
+        return DO_ERROR;\
+    }\
+    (__ev)->client_id = __cid;\
+    (__ev)->server_id = __sid;\
+    EVENT_HDR_SEQ_NUM(__ev) = (__ev)->seq_num;\
+    EVENT_HDR_CLIENT_ID(__ev) = (__ev)->client_id;\
+    EVENT_HDR_SERVER_ID(__ev) = (__ev)->server_id;\
+} while(0)
 
 #if USE_AM_IMPLEM
 uint64_t num_ev_sent = 0;
-int am_send_event_msg(dpu_offload_event_t **event)
+int do_am_send_event_msg(dpu_offload_event_t *event)
 {
     ucp_request_param_t params;
     params.op_attr_mask = UCP_OP_ATTR_FIELD_CALLBACK |
                           UCP_OP_ATTR_FIELD_DATATYPE |
                           UCP_OP_ATTR_FIELD_USER_DATA;
     params.datatype = ucp_dt_make_contig(1);
-    params.user_data = *event;
+    params.user_data = event;
     params.cb.send = (ucp_send_nbx_callback_t)notification_emit_cb;
-    (*event)->req = ucp_am_send_nbx((*event)->dest_ep,
-                                    AM_EVENT_MSG_ID,
-                                    &((*event)->ctx.hdr),
-                                    sizeof(am_header_t),
-                                    (*event)->payload,
-                                    (*event)->payload_size,
-                                    &params);
-    DBG("Event %p %ld successfully emitted", (*event), num_ev_sent);
+    event->req = ucp_am_send_nbx(event->dest.ep,
+                                 AM_EVENT_MSG_ID,
+                                 &(event->ctx.hdr),
+                                 sizeof(am_header_t),
+                                 event->payload,
+                                 EVENT_HDR_PAYLOAD_SIZE(event),
+                                 &params);
+    DBG("Event %p %" PRIu64 " successfully emitted", (event), EVENT_HDR_SEQ_NUM(event));
     num_ev_sent++;
-    if ((*event)->req == NULL)
+    if (UCS_PTR_IS_ERR(event->req))
     {
-        // Immediate completion, the callback is *not* invoked
-        DBG("ucp_am_send_nbx() completed right away");
-        dpu_offload_status_t rc = event_return(event);
-        CHECK_ERR_RETURN((rc), DO_ERROR, "event_return() failed");
+        ERR_MSG("ucp_am_send_nbx() failed");
+        return UCS_PTR_STATUS(event->req);
+    }
+
+    if (event->req == NULL)
+    {
+        event->ctx.complete = true;
         return EVENT_DONE;
     }
 
-    if (UCS_PTR_IS_ERR((*event)->req))
-        return UCS_PTR_STATUS((*event)->req);
-
-    DBG("ucp_am_send_nbx() did not completed right away");
-    SYS_EVENT_LOCK((*event)->event_system);
-    (*event)->event_system->num_pending_sends++;
-    SYS_EVENT_UNLOCK((*event)->event_system);
-    (*event)->was_pending = true;
-
+    DBG("ucp_am_send_nbx() did not completed right away (ev %p %" PRIu64 ")", event, EVENT_HDR_SEQ_NUM(event));
+    SYS_EVENT_LOCK(event->event_system);
+    event->event_system->posted_sends++;
+    SYS_EVENT_UNLOCK(event->event_system);
+    event->was_posted = true;
     return EVENT_INPROGRESS;
+}
+
+int am_send_event_msg(dpu_offload_event_t **event)
+{
+    int rc;
+    PREP_EVENT_FOR_EMIT(*event);
+    rc = do_am_send_event_msg(*event);
+    if ((rc == EVENT_DONE || rc == EVENT_INPROGRESS) && (*event)->req == NULL)
+    {
+        // No error
+        if ((*event)->explicit_return == false)
+        {
+            // Immediate completion, the callback is *not* invoked
+            DBG("ucp_am_send_nbx() completed right away");
+            dpu_offload_status_t rc = event_return(event);
+            CHECK_ERR_RETURN((rc), DO_ERROR, "event_return() failed");
+            return EVENT_DONE;
+        }
+        else
+        {
+            COMPLETE_EVENT(*event);
+            return EVENT_INPROGRESS;
+        }
+    }
+
+    return rc;
 }
 #else
 int do_tag_send_event_msg(dpu_offload_event_t *event)
@@ -583,37 +724,14 @@ int do_tag_send_event_msg(dpu_offload_event_t *event)
 int tag_send_event_msg(dpu_offload_event_t **event)
 {
     int rc;
+    execution_context_t *econtext = (*event)->event_system->econtext;
     assert((*event)->dest.ep);
     assert((*event)->event_system);
     assert((*event)->event_system->econtext);
-    execution_context_t *econtext = (*event)->event_system->econtext;
-    uint64_t client_id, server_id;
-    switch ((*event)->event_system->econtext->type)
-    {
-    case CONTEXT_CLIENT:
-        client_id = econtext->client->id;
-        server_id = econtext->client->server_id;
-        break;
-    case CONTEXT_SERVER:
-        server_id = econtext->server->id;
-        client_id = (*event)->dest.id;
-        break;
-    case CONTEXT_SELF:
-        client_id = 0;
-        server_id = 0;
-        break;
-    default:
-        return DO_ERROR;
-    }
-
-    (*event)->client_id = client_id;
-    (*event)->server_id = server_id;
-    EVENT_HDR_SEQ_NUM(*event) = (*event)->seq_num;
-    EVENT_HDR_CLIENT_ID(*event) = (*event)->client_id;
-    EVENT_HDR_SERVER_ID(*event) = (*event)->server_id;
+    PREP_EVENT_FOR_EMIT(*event);
     if (econtext->type == CONTEXT_CLIENT && econtext->scope_id == SCOPE_HOST_DPU && econtext->rank.n_local_ranks > 0 && econtext->rank.n_local_ranks != UINT64_MAX)
     {
-        assert(client_id < econtext->rank.n_local_ranks);
+        assert((*event)->client_id < econtext->rank.n_local_ranks);
     }
 
     rc = do_tag_send_event_msg(*event);
@@ -815,7 +933,9 @@ dpu_offload_status_t event_get(dpu_offload_ev_sys_t *ev_sys, dpu_offload_event_i
         RESET_EVENT(_ev);
         CHECK_EVENT(_ev);
         _ev->event_system = ev_sys;
+#if !USE_AM_IMPLEM
         _ev->scope_id = _ev->event_system->econtext->scope_id;
+#endif
 
         if (info != NULL)
         {
@@ -851,8 +971,13 @@ dpu_offload_status_t event_get(dpu_offload_ev_sys_t *ev_sys, dpu_offload_event_i
     }
 
 out:
+#if USE_AM_IMPLEM
+    DBG("Got event #%" PRIu64 " (%p) from list %p (payload_size: %ld)",
+        _ev->seq_num, _ev, ev_sys->free_evs, EVENT_HDR_PAYLOAD_SIZE(_ev));
+#else
     DBG("Got event #%" PRIu64 " (%p) from list %p (scope_id: %d, payload_size: %ld)",
         _ev->seq_num, _ev, ev_sys->free_evs, _ev->scope_id, EVENT_HDR_PAYLOAD_SIZE(_ev));
+#endif
     *ev = _ev;
     return DO_SUCCESS;
 }
@@ -861,7 +986,7 @@ static dpu_offload_status_t do_event_return(dpu_offload_event_t *ev)
 {
     assert(ev);
     assert(ev->event_system);
-#if !NDEBUG
+#if !NDEBUG && !USE_AM_IMPLEM
     if (!ev->explicit_return)
     {
         assert(ev->was_posted == false);
@@ -990,10 +1115,12 @@ bool event_completed(dpu_offload_event_t *ev)
     }
     else
     {
-#if !USE_AM_IMPLEM
+#if USE_AM_IMPLEM
+        if (ev->ctx.complete)
+#else
         if (ev->ctx.hdr_completed == true && ev->ctx.payload_completed == true)
-            goto event_completed;
 #endif
+            goto event_completed;
     }
     return false;
 
