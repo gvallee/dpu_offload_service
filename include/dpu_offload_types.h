@@ -127,57 +127,6 @@ typedef struct dest_client
     uint64_t id;
 } dest_client_t;
 
-#define GET_GROUPRANK_CACHE_ENTRY(_cache, _gp_lead, _gp_id, _rank)                              \
-    ({                                                                                          \
-        peer_cache_entry_t *_entry = NULL;                                                      \
-        group_cache_t *_gp_cache = DYN_ARRAY_GET_ELT(&((_cache)->data), _gp_id, group_cache_t); \
-        dyn_array_t *_rank_cache = &(_gp_cache->ranks);                                         \
-        if (_gp_cache->initialized == true)                                                     \
-        {                                                                                       \
-            _entry = DYN_ARRAY_GET_ELT(_rank_cache, _rank, peer_cache_entry_t);                 \
-        }                                                                                       \
-        _entry;                                                                                 \
-    })
-
-#define GET_CLIENT_BY_RANK(_exec_ctx, _gp_id, _rank) ({                        \
-    dest_client_t _c;                                                          \
-    _c.ep = NULL;                                                              \
-    _c.id = UINT64_MAX;                                                        \
-    size_t _idx = 0;                                                           \
-    size_t _n = 0;                                                             \
-    if ((_exec_ctx)->type == CONTEXT_SERVER)                                   \
-    {                                                                          \
-        peer_cache_entry_t *__entry;                                           \
-        cache_t *__cache = &((_exec_ctx)->engine->procs_cache);                \
-        __entry = GET_GROUPRANK_CACHE_ENTRY(__cache, _gp_id, _rank);           \
-        if (__entry)                                                           \
-        {                                                                      \
-            if (__entry->ep != NULL)                                           \
-            {                                                                  \
-                _c.ep = __entry->ep;                                           \
-            }                                                                  \
-            else                                                               \
-            {                                                                  \
-                if (__entry->peer.addr != NULL)                                \
-                {                                                              \
-                    /* Generate the endpoint with the data we have */          \
-                    ucp_ep_params_t _ep_params;                                \
-                    _ep_params.field_mask = UCP_EP_PARAM_FIELD_REMOTE_ADDRESS; \
-                    _ep_params.address = (ucp_address_t *)__entry->peer.addr;  \
-                    ucp_ep_create((_exec_ctx)->engine->ucp_worker,             \
-                                  &_ep_params,                                 \
-                                  &(__entry->ep));                             \
-                    assert(__entry->ep);                                       \
-                }                                                              \
-            }                                                                  \
-            assert(__entry->ep);                                               \
-            _c.ep = __entry->ep;                                               \
-            _c.id = __entry->client_id;                                        \
-        }                                                                      \
-    }                                                                          \
-    _c;                                                                        \
-})
-
 #define GET_WORKER(_exec_ctx) ({                       \
     ucp_worker_h _w = (_exec_ctx)->engine->ucp_worker; \
     _w;                                                \
@@ -1650,6 +1599,58 @@ typedef struct group_cache
     __gp_id.lead = __gp_key & 0x00000000FFFFFFFF; \
     __gp_id;                                      \
 })
+
+#define GET_GROUPRANK_CACHE_ENTRY(_cache, _gp_id, _rank)                        \
+    ({                                                                          \
+        peer_cache_entry_t *_entry = NULL;                                      \
+        group_cache_t *_gp_cache = GET_GROUP_CACHE((_cache), &(_gp_id));        \
+        dyn_array_t *_rank_cache = &(_gp_cache->ranks);                         \
+        if (_gp_cache->initialized == true)                                     \
+        {                                                                       \
+            _entry = DYN_ARRAY_GET_ELT(_rank_cache, _rank, peer_cache_entry_t); \
+        }                                                                       \
+        _entry;                                                                 \
+    })
+
+#define GET_CLIENT_BY_RANK(_exec_ctx, _gp_id, _rank) ({                        \
+    dest_client_t _c;                                                          \
+    _c.ep = NULL;                                                              \
+    _c.id = UINT64_MAX;                                                        \
+    size_t _idx = 0;                                                           \
+    size_t _n = 0;                                                             \
+    if ((_exec_ctx)->type == CONTEXT_SERVER)                                   \
+    {                                                                          \
+        peer_cache_entry_t *__entry;                                           \
+        cache_t *__cache = &((_exec_ctx)->engine->procs_cache);                \
+        __entry = GET_GROUPRANK_CACHE_ENTRY((__cache), (_gp_id), _rank);       \
+        if (__entry)                                                           \
+        {                                                                      \
+            if (__entry->ep != NULL)                                           \
+            {                                                                  \
+                _c.ep = __entry->ep;                                           \
+            }                                                                  \
+            else                                                               \
+            {                                                                  \
+                if (__entry->peer.addr != NULL)                                \
+                {                                                              \
+                    /* Generate the endpoint with the data we have */          \
+                    ucp_ep_params_t _ep_params;                                \
+                    _ep_params.field_mask = UCP_EP_PARAM_FIELD_REMOTE_ADDRESS; \
+                    _ep_params.address = (ucp_address_t *)__entry->peer.addr;  \
+                    ucp_ep_create((_exec_ctx)->engine->ucp_worker,             \
+                                  &_ep_params,                                 \
+                                  &(__entry->ep));                             \
+                    assert(__entry->ep);                                       \
+                }                                                              \
+            }                                                                  \
+            assert(__entry->ep);                                               \
+            _c.ep = __entry->ep;                                               \
+            _c.id = __entry->client_id;                                        \
+        }                                                                      \
+    }                                                                          \
+    _c;                                                                        \
+})
+
 
 KHASH_MAP_INIT_INT64(group_hash_t, group_cache_t *);
 
