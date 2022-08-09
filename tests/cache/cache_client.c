@@ -12,6 +12,8 @@
 
 int main(int argc, char **argv)
 {
+    group_id_t group;
+
     /* Initialize everything we need for the test */
     offloading_engine_t *offload_engine;
     dpu_offload_status_t rc = offload_engine_init(&offload_engine);
@@ -73,14 +75,16 @@ int main(int argc, char **argv)
     // todo: we should use the event to know when it is all completed
     int retry = 0;
     bool test_done = false;
+    group.lead = 41;
+    group.id = 42;
     while (!test_done)
     {
         lib_progress(client);
         cache_t *cache = &(offload_engine->procs_cache);
-        group_cache_t *gp_caches = (group_cache_t *)cache->data.base;
-        if (gp_caches[42].initialized)
+        group_cache_t *gp_cache = GET_GROUP_CACHE(cache, &group);
+        if (gp_cache->initialized)
         {
-            peer_cache_entry_t *list_ranks = (peer_cache_entry_t *)gp_caches[42].ranks.base;
+            peer_cache_entry_t *list_ranks = (peer_cache_entry_t *)gp_cache->ranks.base;
             peer_data_t *target_peer = &(list_ranks[NUM_CACHE_ENTRIES - 1].peer);
             if (IS_A_VALID_PEER_DATA(target_peer))
                 test_done = true;

@@ -63,12 +63,15 @@ int main(int argc, char **argv)
         fprintf(stderr, "ERROR: undefined event\n");
         goto error_out;
     }
+    // fixme
+    /*
     rc = send_cache(server, &(offload_engine->procs_cache), remote_ep, ev);
     if (rc != DO_SUCCESS)
     {
         fprintf(stderr, "ERROR: send_cache() failed\n");
         goto error_out;
     }
+    */
 
     fprintf(stderr, "Waiting for client to terminate...\n");
     while (!EXECUTION_CONTEXT_DONE(server))

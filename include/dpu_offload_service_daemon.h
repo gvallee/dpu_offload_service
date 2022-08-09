@@ -113,9 +113,9 @@ uint64_t LOCAL_ID_TO_GLOBAL(execution_context_t *econtext, uint64_t local_id);
  * @param metaev
  * @return dpu_offload_status_t
  */
-dpu_offload_status_t send_group_cache(execution_context_t *econtext, ucp_ep_h dest, uint64_t dest_id, int64_t gp_id, dpu_offload_event_t *metaev);
+dpu_offload_status_t send_group_cache(execution_context_t *econtext, ucp_ep_h dest, uint64_t dest_id, group_id_t gp_id, dpu_offload_event_t *metaev);
 
-dpu_offload_status_t send_gp_cache_to_host(execution_context_t *econtext, int64_t group_id);
+dpu_offload_status_t send_gp_cache_to_host(execution_context_t *econtext, group_id_t group_id);
 
 /**
  * @brief send_cache sends the content of the local endpoint cache to a specific remote endpoint.
@@ -128,18 +128,6 @@ dpu_offload_status_t send_gp_cache_to_host(execution_context_t *econtext, int64_
  * @return dpu_offload_status_t DO_SUCCESS for success; DO_ERROR if any error occurs
  */
 dpu_offload_status_t send_cache(execution_context_t *econtext, cache_t *cache, ucp_ep_h dest_ep, dpu_offload_event_t *meta_event);
-
-/**
- * @brief exchange_cache exchanges the context of the local endpoint cache.
- * It is meant to be called on DPUs to synchronize their endpoint cache. This is
- * a non-blocking collective operation.
- *
- * @param[in] econtext Current execution context
- * @param[in] cache Endpoint cache to be sent
- * @param[out] meta_event Event used to track completion.
- * @return dpu_offload_status_t DO_SUCCESS for success; DO_ERROR if any error occurs
- */
-dpu_offload_status_t exchange_cache(execution_context_t *econtext, cache_t *cache, dpu_offload_event_t *meta_event);
 
 /**
  * @brief The function sends the cache entries for the local ranks of a group to all other DPUs
@@ -156,7 +144,7 @@ dpu_offload_status_t exchange_cache(execution_context_t *econtext, cache_t *cach
  * @param group_id ID of the group to broadcast.
  * @return dpu_offload_status_t
  */
-dpu_offload_status_t broadcast_group_cache(offloading_engine_t *engine, int64_t group_id);
+dpu_offload_status_t broadcast_group_cache(offloading_engine_t *engine, group_id_t group_id);
 
 /**
  * @brief Get the service process ID by host rank object. That ID can then be used to look up the corresponding endpoint.
@@ -169,7 +157,7 @@ dpu_offload_status_t broadcast_group_cache(offloading_engine_t *engine, int64_t 
  * @param[out] ev Associated event. If NULL, the DPU identifier is available right away. If not, it is required to call the function again once the event has completed. The caller is in charge of returning the event after completion. The event cannot be added to any list since it is already put on a list.
  * @return dpu_offload_status_t
  */
-dpu_offload_status_t get_sp_id_by_group_rank(offloading_engine_t *engine, int64_t gp_id, int64_t rank, int64_t sp_idx, int64_t *sp_id, dpu_offload_event_t **ev);
+dpu_offload_status_t get_sp_id_by_group_rank(offloading_engine_t *engine, group_id_t gp_id, int64_t rank, int64_t sp_idx, int64_t *sp_id, dpu_offload_event_t **ev);
 
 /**
  * @brief Get the dpu ID by host rank object. That ID can then be used to look up the corresponding endpoint.
@@ -199,7 +187,7 @@ dpu_offload_status_t get_sp_id_by_group_rank(offloading_engine_t *engine, int64_
  *              DYN_LIST_RETURN(engine->free_cache_entry_requests, cache_entry_req, item);
  *          }
  */
-dpu_offload_status_t get_cache_entry_by_group_rank(offloading_engine_t *engine, int64_t gp_id, int64_t rank, int64_t sp_idx, request_compl_cb_t cb);
+dpu_offload_status_t get_cache_entry_by_group_rank(offloading_engine_t *engine, group_id_t gp_id, int64_t rank, int64_t sp_idx, request_compl_cb_t cb);
 
 /**
  * @brief Get the service process endpoint by ID object, i.e., the identifier returned by get_sp_id_by_host_rank
@@ -213,9 +201,9 @@ dpu_offload_status_t get_cache_entry_by_group_rank(offloading_engine_t *engine, 
  */
 dpu_offload_status_t get_sp_ep_by_id(offloading_engine_t *engine, uint64_t sp_id, ucp_ep_h *sp_ep, execution_context_t **econtext_comm, uint64_t *comm_id);
 
-bool group_cache_populated(offloading_engine_t *engine, int64_t gp_id);
+bool group_cache_populated(offloading_engine_t *engine, group_id_t gp_id);
 
-bool is_in_cache(cache_t *cache, int64_t gp_id, int64_t rank_id, int64_t group_size);
+bool is_in_cache(cache_t *cache, group_id_t gp_id, int64_t rank_id, int64_t group_size);
 
 execution_context_t *get_server_servicing_host(offloading_engine_t *engine);
 

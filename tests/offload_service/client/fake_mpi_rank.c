@@ -19,10 +19,11 @@
 
 #include "dpu_offload_service_daemon.h"
 
-// fake_mpi_rank <dpu_ip> <dpu_port> <group_id> <group_size> <rank>
+// fake_mpi_rank <dpu_ip> <dpu_port> <lead_rank> <group_id> <group_size> <rank>
 int main(int argc, char **argv)
 {
     int rank;
+    int lead_rank;
     int group_id;
     int group_size;
     char *dpu_addr;
@@ -33,20 +34,25 @@ int main(int argc, char **argv)
     init_params_t client_init_params;
     conn_params_t client_conn_params;
     rank_info_t client_rank_info;
+    group_id_t group;
 
-    if (argc != 6)
+    if (argc != 7)
     {
         fprintf(stderr,
-                "[ERROR] the test requires 3 arguments: %s <group_id> <group_size> <rank>\n",
+                "[ERROR] the test requires 6 arguments: %s <dpu_ip> <dpu_port> <lead_rank> <group_id> <group_size> <rank>\n",
                 argv[0]);
         return EXIT_FAILURE;
     }
 
     dpu_addr = argv[1];
     dpu_port = atoi(argv[2]);
-    group_id = atoi(argv[3]);
-    group_size = atoi(argv[4]);
-    rank = atoi(argv[5]);
+    lead_rank = atoi(argv[3]);
+    group_id = atoi(argv[4]);
+    group_size = atoi(argv[5]);
+    rank = atoi(argv[6]);
+
+    group.id = group_id;
+    group.lead = lead_rank;
 
     // Start the client for offloading
     rc = offload_engine_init(&engine);
@@ -65,7 +71,8 @@ int main(int argc, char **argv)
     RESET_CONN_PARAMS(&client_conn_params);
     client_init_params.conn_params = &client_conn_params;
     client_init_params.proc_info = &client_rank_info;
-    client_init_params.proc_info->group_id = group_id;
+    client_init_params.proc_info->group_id.lead = lead_rank;
+    client_init_params.proc_info->group_id.id = group_id;
     client_init_params.proc_info->group_rank = rank;
     client_init_params.proc_info->group_size = group_size;
     client_init_params.proc_info->n_local_ranks = group_size;
@@ -88,7 +95,7 @@ int main(int argc, char **argv)
     } while (client->client->bootstrapping.phase != BOOTSTRAP_DONE);
 
     // Wait for full initialization to complete, i.e., until the group cache is fully populated
-    while (!group_cache_populated(engine, group_id))
+    while (!group_cache_populated(engine, group))
         offload_engine_progress(engine);
     fprintf(stdout, "Rank %d: connection to DPU succeeded\n", rank);
 

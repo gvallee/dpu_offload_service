@@ -23,7 +23,10 @@
  * instance used during the inter-dpu connections.
  */
 rank_info_t invalid_group_rank = {
-    .group_id = INVALID_GROUP,
+    .group_id = {
+        .id = INVALID_GROUP,
+        .lead = INVALID_GROUP_LEAD,
+    },
     .group_rank = INVALID_RANK,
 };
 
@@ -248,54 +251,6 @@ static void set_default_econtext(connected_peer_data_t *connected_peer_data)
     assert(connected_peer_data->econtext->engine);
 }
 
-static void sync_group_caches(execution_context_t *econtext)
-{
-    size_t idx = 0;
-    size_t n_gp_cache_handled = 0;
-    offloading_engine_t *engine;
-    dpu_offload_status_t rc;
-
-    assert(econtext);
-    engine = econtext->engine;
-    assert(engine);
-
-    while (idx < engine->procs_cache.data.num_elts && n_gp_cache_handled < engine->procs_cache.size)
-    {
-        group_cache_t *gp_cache = GET_GROUP_CACHE(&(engine->procs_cache), idx);
-        if (gp_cache->initialized == false)
-        {
-            idx++;
-            continue;
-        }
-
-        if (gp_cache->n_local_ranks >= 0)
-        {
-            // We know how many local ranks to expected, we exchange the cache only when they are all connected
-            if (gp_cache->n_local_ranks_populated == gp_cache->n_local_ranks)
-            {
-                rc = broadcast_group_cache(engine, idx);
-                if (rc != DO_SUCCESS)
-                {
-                    ERR_MSG("unable to broadcast cache for group %ld", idx);
-                    return;
-                }
-            }
-        }
-        else
-        {
-            // If we do not know how many local ranks to expect, we broadcast the group cache to all other DPUs
-            rc = broadcast_group_cache(engine, idx);
-            if (rc != DO_SUCCESS)
-            {
-                ERR_MSG("unable to broadcast cache for group %ld", idx);
-                return;
-            }
-        }
-        n_gp_cache_handled++;
-        idx++;
-    }
-}
-
 /**
  * @brief Callback invoked when a connection to a remote server running in the context of service process on a DPU completes.
  * This is executed in the context of clients on DPUs that are used to connect to servers on other DPUs.
@@ -350,7 +305,7 @@ dpu_offload_status_t connect_to_remote_service_proc(remote_service_proc_info_t *
         offload_engine->config->local_service_proc.info.global_id);
     // Inter-DPU connection, no group, rank is the service process's global ID
     rank_info_t service_proc_info;
-    service_proc_info.group_id = INVALID_GROUP;
+    RESET_RANK_INFO(&service_proc_info);
     service_proc_info.group_rank = offload_engine->config->local_service_proc.info.global_id;
     remote_service_proc_info->init_params.proc_info = &service_proc_info;
     remote_service_proc_info->init_params.connected_cb = connected_to_server_dpu;

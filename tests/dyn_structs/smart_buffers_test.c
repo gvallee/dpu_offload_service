@@ -78,6 +78,10 @@ int main(int argc, char **argv)
     size_t *last_bucket_size = DYN_ARRAY_GET_ELT(&(smart_buffer_system.bucket_sizes), smart_buffer_system.num_buckets - 1, size_t);
     queried_size = *last_bucket_size + 1;
     smart_chunk_t *beyong_last_bucket_sc = SMART_BUFF_GET(&smart_buffer_system, queried_size);
+    if (beyong_last_bucket_sc == NULL)
+    {
+        goto error_out;
+    }
     DISPLAY_SMART_BUFFERS_SYS_DATA(&smart_buffer_system);
     fprintf(stdout, "\t-> ok\n");
 
@@ -87,4 +91,8 @@ int main(int argc, char **argv)
 
     fprintf(stdout, "%s: test succeeded\n", argv[0]);
     return EXIT_SUCCESS;
+error_out:
+    fprintf(stdout, "%s: test failed\n", argv[0]);
+    return EXIT_FAILURE;
+
 }
