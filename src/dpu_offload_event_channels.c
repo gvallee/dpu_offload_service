@@ -1292,10 +1292,14 @@ static dpu_offload_status_t peer_cache_entries_recv_cb(struct dpu_offload_ev_sys
         // Now that we know for sure we have the group ID, we can move the received data into the local cache
         group_rank = entries[idx].peer.proc_info.group_rank;
 #if !NDEBUG
-        if (entries[idx].peer.proc_info.group_id.lead == group_id.lead ||
-            entries[idx].peer.proc_info.group_id.id == group_id.id)
+        if (entries[idx].peer.proc_info.group_id.lead != group_id.lead)
         {
-            ERR_MSG("Group error");
+            ERR_MSG("Invalid lead group: %d vs. %d", entries[idx].peer.proc_info.group_id.lead, group_id.lead);
+            return DO_ERROR;
+        }
+        if (entries[idx].peer.proc_info.group_id.id != group_id.id)
+        {
+            ERR_MSG("Invalid group id: %d vs. %d", entries[idx].peer.proc_info.group_id.id, group_id.id);
             return DO_ERROR;
         }
 #endif
