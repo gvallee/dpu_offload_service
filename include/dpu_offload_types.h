@@ -1576,6 +1576,7 @@ typedef struct group_cache
         *_new_key = GET_GROUP_KEY((_gp_id));                                             \
         khiter_t _newKey = kh_put(group_hash_t, (_cache)->data, *_new_key, &_ret);       \
         DYN_LIST_GET((_cache)->group_cache_pool, group_cache_t, item, _new_group_cache); \
+        _new_group_cache->initialized = false;                                           \
         kh_value((_cache)->data, _newKey) = _new_group_cache;                            \
         _gp_cache = _new_group_cache;                                                    \
     }                                                                                    \
@@ -1650,7 +1651,6 @@ typedef struct group_cache
     }                                                                          \
     _c;                                                                        \
 })
-
 
 KHASH_MAP_INIT_INT64(group_hash_t, group_cache_t *);
 
