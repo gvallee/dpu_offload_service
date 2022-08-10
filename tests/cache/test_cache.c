@@ -30,6 +30,13 @@ int main(int argc, char **argv)
     fprintf(stdout, "Populating cache...\n");
     POPULATE_CACHE(offload_engine);
 
+    group_id_t target_group = {
+        .lead = 41,
+        .id = 42,
+    };
+    group_cache_t *gp_cache = GET_GROUP_CACHE(&(offload_engine->procs_cache), &target_group);
+    display_group_cache(&(offload_engine->procs_cache), gp_cache);
+
     fprintf(stdout, "Checking cache...\n");
     CHECK_CACHE(offload_engine);
 

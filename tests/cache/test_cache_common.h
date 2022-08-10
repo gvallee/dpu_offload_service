@@ -9,31 +9,54 @@
 
 #define NUM_CACHE_ENTRIES (10) //(DEFAULT_NUM_PEERS * 2)
 
-#define POPULATE_CACHE(_engine)                                                              \
-    do                                                                                       \
-    {                                                                                        \
-        /* Create local cache entries */                                                     \
-        cache_t *_cache = &(_engine->procs_cache);                                           \
-        group_id_t group_id;                                                                 \
-        size_t i;                                                                            \
-        group_id.id = 42;                                                                    \
-        group_id.lead = 41;                                                                  \
-        for (i = 0; i < NUM_CACHE_ENTRIES; i++)                                              \
-        {                                                                                    \
-            peer_cache_entry_t *new_entry = NULL;                                            \
-            new_entry = GET_GROUP_RANK_CACHE_ENTRY(_cache, &group_id, i, NUM_CACHE_ENTRIES); \
-            RESET_PEER_DATA(&(new_entry->peer));                                             \
-            new_entry->peer.proc_info.group_rank = i;                                        \
-            new_entry->peer.proc_info.group_id.id = 42;                                      \
-            new_entry->peer.proc_info.group_id.lead = 41;                                    \
-            new_entry->set = true;                                                           \
-        }                                                                                    \
-                                                                                             \
-        if (_cache->size != 1)                                                               \
-        {                                                                                    \
-            fprintf(stderr, "EP cache size is %ld instead of 1\n", _cache->size);            \
-            goto error_out;                                                                  \
-        }                                                                                    \
+void display_group_cache(cache_t *cache, group_cache_t *gp_cache)
+{
+    size_t i = 0;
+    size_t idx = 0;
+    group_id_t group_id;
+    group_id.id = 42;
+    group_id.lead = 41;
+    fprintf(stdout, "Content of cache for group %d-%d (%ld entries)\n", group_id.lead, group_id.id, gp_cache->group_size);
+    while (i < gp_cache->group_size)
+    {
+        peer_cache_entry_t *entry = GET_GROUPRANK_CACHE_ENTRY(cache, group_id, idx);
+        if (entry->set)
+        {
+            fprintf(stdout, "Rank %" PRId64 "\n", entry->peer.proc_info.group_rank);
+            assert(idx == entry->peer.proc_info.group_rank);
+            i++;
+        }
+        idx++;
+    }
+}
+
+#define POPULATE_CACHE(_engine)                                                            \
+    do                                                                                     \
+    {                                                                                      \
+        /* Create local cache entries */                                                   \
+        cache_t *_cache = &(_engine->procs_cache);                                         \
+        group_cache_t *_gp_cache = NULL;                                                   \
+        group_id_t _gp_id;                                                                 \
+        size_t i;                                                                          \
+        _gp_id.id = 42;                                                                    \
+        _gp_id.lead = 41;                                                                  \
+        _gp_cache = GET_GROUP_CACHE(_cache, &_gp_id);                                      \
+        for (i = 0; i < NUM_CACHE_ENTRIES; i++)                                            \
+        {                                                                                  \
+            peer_cache_entry_t *new_entry = NULL;                                          \
+            new_entry = GET_GROUP_RANK_CACHE_ENTRY(_cache, &_gp_id, i, NUM_CACHE_ENTRIES); \
+            RESET_PEER_DATA(&(new_entry->peer));                                           \
+            new_entry->peer.proc_info.group_rank = i;                                      \
+            new_entry->peer.proc_info.group_id.id = 42;                                    \
+            new_entry->peer.proc_info.group_id.lead = 41;                                  \
+            new_entry->set = true;                                                         \
+        }                                                                                  \
+                                                                                           \
+        if (_cache->size != 1)                                                             \
+        {                                                                                  \
+            fprintf(stderr, "EP cache size is %ld instead of 1\n", _cache->size);          \
+            goto error_out;                                                                \
+        }                                                                                  \
     } while (0)
 
 #define CHECK_CACHE(_engine)                                                             \
