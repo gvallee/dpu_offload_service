@@ -787,7 +787,11 @@ static inline bool parse_dpu_cfg(char *str, dpu_config_data_t *config_entry)
     assert(token);
     int step = 0;
     int j;
-    config_entry->version_1.hostname = strdup(token); // freed when calling offload_config_free()
+    if (config_entry->version_1.hostname == NULL)
+    {
+        // freed when calling offload_config_free()
+        config_entry->version_1.hostname = strdup(token); 
+    }
     token = strtok_r(rest, ":", &rest);
     assert(token);
     while (token != NULL)
@@ -1374,25 +1378,33 @@ dpu_offload_status_t get_local_service_proc_connect_info(offloading_config_t *cf
 
 void offload_config_free(offloading_config_t *cfg)
 {
-    dpu_config_data_t *list_dpus = (dpu_config_data_t *)cfg->dpus_config.base;
     size_t i;
     for (i = 0; i < cfg->num_dpus; i++)
     {
-        if (list_dpus[i].version_1.hostname != NULL)
+        dpu_config_data_t *dpu_config = DYN_ARRAY_GET_ELT(&(cfg->dpus_config), i, dpu_config_data_t);
+        if (dpu_config != NULL)
         {
-            free(list_dpus[i].version_1.hostname);
-            list_dpus[i].version_1.hostname = NULL;
-        }
+            if (dpu_config->version_1.hostname != NULL)
+            {
+                free(dpu_config->version_1.hostname);
+                dpu_config->version_1.hostname = NULL;
+            }
 
-        if (list_dpus[i].version_1.addr != NULL)
-        {
-            free(list_dpus[i].version_1.addr);
-            list_dpus[i].version_1.addr = NULL;
-        }
+            if (dpu_config->version_1.addr != NULL)
+            {
+                free(dpu_config->version_1.addr);
+                dpu_config->version_1.addr = NULL;
+            }
 
-        DYN_ARRAY_FREE(&(list_dpus[i].version_1.interdpu_ports));
-        DYN_ARRAY_FREE(&(list_dpus[i].version_1.host_ports));
+            DYN_ARRAY_FREE(&(dpu_config->version_1.interdpu_ports));
+            DYN_ARRAY_FREE(&(dpu_config->version_1.host_ports));
+        }
     }
+
+    DYN_LIST_FREE(cfg->info_connecting_to.pool_remote_sp_connect_to, connect_to_service_proc_t, item);
+
+    DYN_ARRAY_FREE(&(cfg->dpus_config));
+    DYN_ARRAY_FREE(&(cfg->sps_configs));
 }
 
 #if !NDEBUG

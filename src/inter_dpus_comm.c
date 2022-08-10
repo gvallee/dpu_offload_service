@@ -157,7 +157,7 @@ dpu_offload_parse_list_dpus(offloading_engine_t *engine, offloading_config_t *co
         // Update the data in the list of DPUs' configurations
         dpu_config_data_t *dpu_config = DYN_ARRAY_GET_ELT(&(config_data->dpus_config), config_data->num_dpus, dpu_config_data_t);
         assert(dpu_config);
-        dpu_config->version_1.hostname = strdup(token); // todo: correctly free
+        dpu_config->version_1.hostname = strdup(token); // freed when calling offload_config_free()
 
         // Update the hostname in the engine's list of known DPUs. Will be used when parsing the configuration file
         remote_dpu_info_t *d_info = NULL;
