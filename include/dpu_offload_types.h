@@ -1561,6 +1561,17 @@ typedef struct group_cache
     dyn_array_t ranks;
 } group_cache_t;
 
+#define RESET_GROUP_CACHE(__g)              \
+    do                                      \
+    {                                       \
+        (__g)->initialized = false;         \
+        (__g)->sent_to_host = false;        \
+        (__g)->group_size = 0;              \
+        (__g)->num_local_entries = 0;       \
+        (__g)->n_local_ranks = 0;           \
+        (__g)->n_local_ranks_populated = 0; \
+    } while (0)
+
 #define GET_GROUP_CACHE(_cache, _gp_id) ({                                               \
     group_cache_t *_gp_cache = NULL;                                                     \
     int64_t _gp_key = GET_GROUP_KEY((_gp_id));                                           \
@@ -1576,7 +1587,7 @@ typedef struct group_cache
         *_new_key = GET_GROUP_KEY((_gp_id));                                             \
         khiter_t _newKey = kh_put(group_hash_t, (_cache)->data, *_new_key, &_ret);       \
         DYN_LIST_GET((_cache)->group_cache_pool, group_cache_t, item, _new_group_cache); \
-        _new_group_cache->initialized = false;                                           \
+        RESET_GROUP_CACHE(_new_group_cache);                                             \
         kh_value((_cache)->data, _newKey) = _new_group_cache;                            \
         _gp_cache = _new_group_cache;                                                    \
     }                                                                                    \
