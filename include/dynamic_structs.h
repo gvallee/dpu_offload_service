@@ -130,13 +130,20 @@ typedef struct dyn_array
         }                                                                          \
     } while (0)
 
-#define DYN_ARRAY_FREE(_dyn_array)            \
-    do                                        \
-    {                                         \
-        assert((_dyn_array)->base);           \
-        free((_dyn_array)->base);             \
-        (_dyn_array)->base = NULL;            \
-        (_dyn_array)->element_init_fn = NULL; \
+#define DYN_ARRAY_FREE(_dyn_array)                \
+    do                                            \
+    {                                             \
+        if ((_dyn_array)->num_elts > 0)           \
+        {                                         \
+            if ((_dyn_array)->base)               \
+            {                                     \
+                free((_dyn_array)->base);         \
+                (_dyn_array)->base = NULL;        \
+            }                                     \
+            (_dyn_array)->base = NULL;            \
+            (_dyn_array)->element_init_fn = NULL; \
+            (_dyn_array)->num_elts = 0;           \
+        }                                         \
     } while (0)
 
 #define DYN_ARRAY_GROW(_dyn_array, _type, _size)                                                        \
@@ -456,7 +463,7 @@ typedef struct
             _new_smart_chunk->size = (__ptr)->max_size;                           \
             _new_smart_chunk->prev = __prev;                                      \
             _new_smart_chunk->bucket = (struct smart_bucket *)(__ptr);            \
-            SIMPLE_LIST_PREPEND(&((__ptr)->pool), &(_new_smart_chunk->super));     \
+            SIMPLE_LIST_PREPEND(&((__ptr)->pool), &(_new_smart_chunk->super));    \
             _base_ptr = (void *)((ptrdiff_t)_base_ptr + (__ptr)->max_size);       \
             __prev = (void *)_new_smart_chunk;                                    \
         }                                                                         \
@@ -500,8 +507,8 @@ typedef struct
                 }                                                                             \
                 /* Return the bigger chunk to its pool so it can be used */                   \
                 __parent_chunk->in_use = false;                                               \
-                SIMPLE_LIST_PREPEND(&(__parent_chunk->bucket->pool),                           \
-                                   &(__parent_chunk->super));                                 \
+                SIMPLE_LIST_PREPEND(&(__parent_chunk->bucket->pool),                          \
+                                    &(__parent_chunk->super));                                \
             }                                                                                 \
         }                                                                                     \
     } while (0)
@@ -553,7 +560,7 @@ typedef struct
             _smart_chunk->base = __sb_sc_mem_ptr;                                                                                       \
             _smart_chunk->size = _smart_bucket_to_populate->max_size;                                                                   \
             _smart_chunk->bucket = (struct smart_bucket *)_smart_bucket_to_populate;                                                    \
-            SIMPLE_LIST_PREPEND(&((_smart_bucket_to_populate)->pool), &(_smart_chunk->super));                                           \
+            SIMPLE_LIST_PREPEND(&((_smart_bucket_to_populate)->pool), &(_smart_chunk->super));                                          \
             __num_chunks++;                                                                                                             \
         }                                                                                                                               \
     } while (0)
@@ -691,7 +698,7 @@ typedef struct
                 RESET_SMART_CHUNK(_smart_chunk);                                                          \
                 _smart_chunk->base = _mem_ptr;                                                            \
                 _smart_chunk->size = __new_bucket->max_size;                                              \
-                SIMPLE_LIST_PREPEND(&(__new_bucket->pool), &(_smart_chunk->super));                        \
+                SIMPLE_LIST_PREPEND(&(__new_bucket->pool), &(_smart_chunk->super));                       \
                 __n++;                                                                                    \
             }                                                                                             \
             __new_bucket->initial_size = __n;                                                             \
@@ -721,7 +728,7 @@ typedef struct
     }                                                                                               \
     assert(_target_bucket);                                                                         \
     __sc->in_use = false;                                                                           \
-    SIMPLE_LIST_PREPEND(&(_target_bucket->pool), &(__sc->super));                                    \
+    SIMPLE_LIST_PREPEND(&(_target_bucket->pool), &(__sc->super));                                   \
     /* Check if it makes sense to try to recycle smart buffers */                                   \
     size_t _recycle_threshold = _target_bucket->initial_size + _target_bucket->initial_size / 2;    \
     if (SIMPLE_LIST_LENGTH(&(_target_bucket->pool)) > _recycle_threshold)                           \
@@ -749,7 +756,7 @@ typedef struct
                 }                                                                                 \
                 else                                                                              \
                 {                                                                                 \
-                    SIMPLE_LIST_PREPEND(&(__sb->pool), &(__sc->super));                            \
+                    SIMPLE_LIST_PREPEND(&(__sb->pool), &(__sc->super));                           \
                     SMART_BUFFS_RECYCLE_SMART_CHUNK(__sc);                                        \
                 }                                                                                 \
             }                                                                                     \

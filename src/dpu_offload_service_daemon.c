@@ -1966,12 +1966,14 @@ void offload_engine_fini(offloading_engine_t **offload_engine)
 {
     assert(offload_engine);
     assert(*offload_engine);
-    // FIXME: this creates a segfault
-    // event_channels_fini(&((*offload_engine)->default_notifications));
+    event_channels_fini(&((*offload_engine)->default_notifications));
     GROUPS_CACHE_FINI(&((*offload_engine)->procs_cache));
     DYN_LIST_FREE((*offload_engine)->free_op_descs, op_desc_t, item);
     DYN_LIST_FREE((*offload_engine)->free_cache_entry_requests, cache_entry_request_t, item);
+    DYN_LIST_FREE((*offload_engine)->pool_conn_params, conn_params_t, item);
+    DYN_LIST_FREE((*offload_engine)->pool_remote_dpu_info, remote_dpu_info_t, item);
     DYN_ARRAY_FREE(&((*offload_engine)->dpus));
+    DYN_ARRAY_FREE(&((*offload_engine)->service_procs));
     assert((*offload_engine)->self_econtext);
 #if !USE_AM_IMPLEM && BUDDY_BUFFER_SYS_ENABLE
     // Before finalizing the self execution context, clean up the pending recvs for notifications
@@ -2036,7 +2038,6 @@ void offload_engine_fini(offloading_engine_t **offload_engine)
     {
         client_fini(&((*offload_engine)->inter_service_proc_clients[i].client_econtext));
     }
-    free((*offload_engine)->servers);
 
     if ((*offload_engine)->config != NULL)
     {
@@ -2059,6 +2060,17 @@ void offload_engine_fini(offloading_engine_t **offload_engine)
 #if BUDDY_BUFFER_SYS_ENABLE
     SMART_BUFFS_FINI(&((*offload_engine)->smart_buffer_sys));
 #endif
+
+    if ((*offload_engine)->servers)
+    {
+        free((*offload_engine)->servers);
+        (*offload_engine)->servers = NULL;
+    }
+    if ((*offload_engine)->inter_service_proc_clients)
+    {
+        free((*offload_engine)->inter_service_proc_clients);
+        (*offload_engine)->inter_service_proc_clients = NULL;
+    }
 
     free(*offload_engine);
     *offload_engine = NULL;

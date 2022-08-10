@@ -49,7 +49,21 @@
 #define GROUPS_CACHE_FINI(_cache)                                       \
     do                                                                  \
     {                                                                   \
-        kh_destroy(group_hash_t, (_cache)->data);                       \
+        uint64_t key;                                                   \
+        group_cache_t *value = NULL;                                    \
+        kh_foreach((_cache)->data, key, value, {                        \
+            if (value != NULL)                                          \
+            {                                                           \
+                group_id_t _gp = GROUP_KEY_TO_GROUP(key);               \
+                group_cache_t *_gp_cache = NULL;                        \
+                _gp_cache = GET_GROUP_CACHE((_cache), &_gp);            \
+                assert(_gp_cache);                                      \
+                dyn_array_t *__da = NULL;                               \
+                __da = &(_gp_cache->ranks);                             \
+                if (__da)                                               \
+                    DYN_ARRAY_FREE(__da);                               \
+            }                                                           \
+        }) kh_destroy(group_hash_t, (_cache)->data);                    \
         DYN_ARRAY_FREE(&((_cache)->keys));                              \
         DYN_LIST_FREE((_cache)->group_cache_pool, group_cache_t, item); \
         (_cache)->group_cache_pool = NULL;                              \

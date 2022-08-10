@@ -16,21 +16,6 @@
  * To run the test, simply execute: $ ./test_cache
  */
 
-#if 0
-KHASH_MAP_INIT_INT64(group_hash_t, group_id_t*);
-
-void print_hash(khash_t(group_hash_t) *hash)
-{
-    uint64_t key;
-    group_id_t *value;
-
-    kh_foreach(hash, key, value, {
-        (void)fprintf(stdout, "Hash size = %d\n", kh_size(hash));
-        (void)fprintf(stdout, "%d %d\n", value->id, value->lead);
-    })
-}
-#endif
-
 int main(int argc, char **argv)
 {
     /* Initialize everything we need for the test */
