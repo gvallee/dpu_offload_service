@@ -953,21 +953,26 @@ dpu_offload_status_t event_get(dpu_offload_ev_sys_t *ev_sys, dpu_offload_event_i
         // If we get here, it means that we need to manage a payload buffer for that event
         _ev->manage_payload_buf = true;
         EVENT_HDR_PAYLOAD_SIZE(_ev) = info->payload_size;
-        if (info != NULL && info->pool.mem_pool != NULL)
+        if (info->payload_size > 0 && info->payload_size <= NOTIF_EMBEDDED_PAYLOAD_SIZE)
         {
-            assert(info->pool.get_buf);
-            void *payload_buf_from_pool = info->pool.get_buf(info->pool.mem_pool,
-                                                             info->pool.get_buf_args);
-            assert(payload_buf_from_pool);
-            _ev->payload = payload_buf_from_pool;
-            _ev->info.mem_pool = info->pool.mem_pool;
-            _ev->info.get_buf = info->pool.get_buf;
-            _ev->info.return_buf = info->pool.return_buf;
-            EVENT_HDR_PAYLOAD_SIZE(_ev) = info->pool.element_size;
-        }
-        else
-        {
-            _ev->payload = DPU_OFFLOAD_MALLOC(info->payload_size);
+            _ev->payload = _ev->ctx.hdr.embedded_payload;
+        } else {
+            if (info != NULL && info->pool.mem_pool != NULL)
+            {
+                assert(info->pool.get_buf);
+                void *payload_buf_from_pool = info->pool.get_buf(info->pool.mem_pool,
+                                                                 info->pool.get_buf_args);
+                assert(payload_buf_from_pool);
+                _ev->payload = payload_buf_from_pool;
+                _ev->info.mem_pool = info->pool.mem_pool;
+                _ev->info.get_buf = info->pool.get_buf;
+                _ev->info.return_buf = info->pool.return_buf;
+                //EVENT_HDR_PAYLOAD_SIZE(_ev) = info->pool.element_size;
+            }
+            else
+            {
+                _ev->payload = DPU_OFFLOAD_MALLOC(info->payload_size);
+            }
         }
         assert(_ev->payload);
     }
@@ -1006,21 +1011,28 @@ static dpu_offload_status_t do_event_return(dpu_offload_event_t *ev)
     // If the event has a payload buffer that the library is managing, free that buffer
     if (ev->manage_payload_buf && ev->payload != NULL)
     {
-        if (ev->info.mem_pool == NULL)
+        if (EVENT_HDR_PAYLOAD_SIZE(ev) <= NOTIF_EMBEDDED_PAYLOAD_SIZE)
         {
-            // Buffer is managed by the library
-            free(ev->payload);
+            // Nothing to do really
         }
         else
         {
-            // If a memory pool is specified by the return_buf() function pointer
-            // is NULL, it means the calling library will return the buffer to
-            // the pool, there is nothing to do.
-            if (ev->info.return_buf != NULL)
+            if (ev->info.mem_pool == NULL)
             {
-                // Return the buffer to the pool from calling library
-                assert(ev->info.mem_pool);
-                ev->info.return_buf(ev->info.mem_pool, ev->payload);
+                // Buffer is managed by the library
+                free(ev->payload);
+            }
+            else
+            {
+                // If a memory pool is specified by the return_buf() function pointer
+                // is NULL, it means the calling library will return the buffer to
+                // the pool, there is nothing to do.
+                if (ev->info.return_buf != NULL)
+                {
+                    // Return the buffer to the pool from calling library
+                    assert(ev->info.mem_pool);
+                    ev->info.return_buf(ev->info.mem_pool, ev->payload);
+                }
             }
         }
         ev->payload = NULL;

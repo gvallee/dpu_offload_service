@@ -31,7 +31,9 @@ _EXTERN_C_BEGIN
 #define OFFLOADING_MT_ENABLE (0)
 
 // Enable/disable the buddy buffer system
-#define BUDDY_BUFFER_SYS_ENABLE (1)
+#define BUDDY_BUFFER_SYS_ENABLE (0)
+
+#define NOTIF_EMBEDDED_PAYLOAD_SIZE (4096)
 
 typedef enum
 {
@@ -457,6 +459,7 @@ typedef struct am_header
     uint64_t event_id;
     uint64_t client_id;
     uint64_t server_id;
+    char embedded_payload[NOTIF_EMBEDDED_PAYLOAD_SIZE];
 } am_header_t; // todo: rename, nothing to do with AM
 
 #define RESET_AM_HDR(_h)        \

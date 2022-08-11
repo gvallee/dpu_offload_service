@@ -458,7 +458,7 @@ static int post_recv_for_notif_payload(hdr_notif_req_t *ctx, execution_context_t
         return EVENT_INPROGRESS;
     }
 
-    if (ctx->hdr.payload_size > 0)
+    if (ctx->hdr.payload_size > NOTIF_EMBEDDED_PAYLOAD_SIZE)
     {
         ucp_tag_t payload_ucp_tag, payload_ucp_tag_mask;
         notification_callback_entry_t *entry;
@@ -485,6 +485,7 @@ static int post_recv_for_notif_payload(hdr_notif_req_t *ctx, execution_context_t
             ctx->payload_ctx.smart_buf = SMART_BUFF_GET(&(econtext->engine->smart_buffer_sys), ctx->hdr.payload_size);
             assert(ctx->payload_ctx.smart_buf);
             ctx->payload_ctx.buffer = ctx->payload_ctx.smart_buf->base;
+            //INFO_MSG("Smart buf in use: %p", ctx->payload_ctx.smart_buf->base);
 #else
             ctx->payload_ctx.buffer = malloc(ctx->hdr.payload_size);
 #endif
@@ -586,9 +587,19 @@ static int post_recv_for_notif_payload(hdr_notif_req_t *ctx, execution_context_t
     }
     else
     {
-        // No payload to be received
+        void *payload;
+        if (ctx->hdr.payload_size > 0)
+        {
+            // payload was shipped in the header
+            payload = ctx->hdr.embedded_payload;
+        }
+        else
+        {
+            // No payload to be received
+            payload = NULL;
+        }
         ctx->payload_ctx.complete = true;
-        int rc = handle_notif_msg(econtext, &(ctx->hdr), sizeof(am_header_t), NULL, 0);
+        int rc = handle_notif_msg(econtext, &(ctx->hdr), sizeof(am_header_t), payload, 0);
         if (rc != UCS_OK)
         {
             ERR_MSG("handle_notif_msg() failed\n");
