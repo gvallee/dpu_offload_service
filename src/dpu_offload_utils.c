@@ -99,7 +99,8 @@ bool group_cache_populated(offloading_engine_t *engine, group_id_t gp_id)
     group_cache_t *gp_cache = GET_GROUP_CACHE(&(engine->procs_cache), &gp_id);
     if (gp_cache->group_size == gp_cache->num_local_entries)
     {
-        DBG("Group cache fully populated. num_local_entries = %" PRIu64 " group_size = %" PRIu64, gp_cache->num_local_entries, gp_cache->group_size);
+        DBG("Group cache for %d-%d fully populated. num_local_entries = %" PRIu64 " group_size = %" PRIu64,
+            gp_id.lead, gp_id.id, gp_cache->num_local_entries, gp_cache->group_size);
         return true;
     }
     return false;

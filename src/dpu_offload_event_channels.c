@@ -1327,17 +1327,19 @@ static dpu_offload_status_t peer_cache_entries_recv_cb(struct dpu_offload_ev_sys
             // If any event is associated to the cache entry, handle them
             if (cache_entry->events_initialized)
             {
-
                 while (!SIMPLE_LIST_IS_EMPTY(&(cache_entry->events)))
                 {
                     dpu_offload_event_t *e = SIMPLE_LIST_EXTRACT_HEAD(&(cache_entry->events), dpu_offload_event_t, item);
                     COMPLETE_EVENT(e);
                 }
             }
-        }
-        else
-        {
-            DBG("Entry already in cache - gp: %d-%d, rank: %ld", group_id.lead, group_id.id, group_rank);
+
+            DBG("Cache now has %ld local entries and group size is %ld", gp_cache->num_local_entries, gp_cache->group_size);
+
+#if !NDEBUG
+            if (gp_cache->num_local_entries == gp_cache->group_size)
+                DBG("Group cache is now complete");
+#endif
         }
         cur_size += sizeof(peer_cache_entry_t);
         idx++;
