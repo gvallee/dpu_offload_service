@@ -378,7 +378,9 @@ dpu_offload_status_t send_gp_cache_to_host(execution_context_t *econtext, group_
     group_cache_t *gp_cache = GET_GROUP_CACHE(&(econtext->engine->procs_cache), &group_id);
     if (gp_cache->sent_to_host == false)
     {
-        DBG("Cache is complete, sending it to the local ranks (econtext: %p, number of connected clients: %ld, total: %ld)",
+        DBG("Cache is complete for group %d-%d, sending it to the local ranks (econtext: %p, number of connected clients: %ld, total: %ld)",
+            group_id.lead,
+            group_id.id,
             econtext,
             econtext->server->connected_clients.num_connected_clients,
             econtext->server->connected_clients.num_total_connected_clients);
@@ -526,6 +528,34 @@ dpu_offload_status_t broadcast_group_cache(offloading_engine_t *engine, group_id
     return DO_SUCCESS;
 }
 
+#if !NDEBUG
+static void display_group_cache(cache_t *cache, group_id_t gp_id)
+{
+    size_t i = 0;
+    size_t idx = 0;
+    group_cache_t *gp_cache = NULL;
+    gp_cache = GET_GROUP_CACHE(cache, &gp_id);
+    fprintf(stderr, "Content of cache for group %d-%d\n", gp_id.lead, gp_id.id);
+    fprintf(stderr, "-> group size: %ld\n", gp_cache->group_size);
+    fprintf(stderr, "-> n_local_rank: %ld\n", gp_cache->n_local_ranks);
+    fprintf(stderr, "-> n_local_ranks_populated: %ld\n", gp_cache->n_local_ranks_populated);
+    fprintf(stderr, "-> num_local_entries: %ld\n", gp_cache->num_local_entries);
+    fprintf(stderr, "-> sent_to_host: %d\n\n", gp_cache->sent_to_host);
+
+    while (i < gp_cache->group_size)
+    {
+        peer_cache_entry_t *entry = GET_GROUPRANK_CACHE_ENTRY(cache, gp_id, idx);
+        if (entry->set)
+        {
+            fprintf(stderr, "Rank %" PRId64 "\n", entry->peer.proc_info.group_rank);
+            assert(idx == entry->peer.proc_info.group_rank);
+            i++;
+        }
+        idx++;
+    }
+}
+#endif
+
 static dpu_offload_status_t do_get_cache_entry_by_group_rank(offloading_engine_t *engine, group_id_t gp_id, int64_t rank, int64_t sp_idx, request_compl_cb_t cb, int64_t *sp_global_id, dpu_offload_event_t **ev)
 {
     if (ev != NULL && cb != NULL)
@@ -550,6 +580,13 @@ static dpu_offload_status_t do_get_cache_entry_by_group_rank(offloading_engine_t
         }
         return DO_SUCCESS;
     }
+
+#if !NDEBUG
+    // With the current implementation, it should always be in the cache
+    WARN_MSG("%d-%d %" PRId64 " is not in the cache", gp_id.lead, gp_id.id, rank);
+    display_group_cache(&(engine->procs_cache), gp_id);
+    assert(0);
+#endif
 
     // The cache does not have the data. We sent a request to get the data.
     // The caller is in charge of calling the function after completion to actually get the data
@@ -606,7 +643,6 @@ static dpu_offload_status_t do_get_cache_entry_by_group_rank(offloading_engine_t
         size_t i;
         dpu_offload_status_t rc;
         dpu_offload_event_t *metaev = NULL;
-        // fixme: use DYN_ARRAY API here, not list_sps
         execution_context_t *meta_econtext = NULL;
 
         for (i = 0; i < engine->num_service_procs; i++)
