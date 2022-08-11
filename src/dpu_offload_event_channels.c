@@ -963,7 +963,6 @@ dpu_offload_status_t event_get(dpu_offload_ev_sys_t *ev_sys, dpu_offload_event_i
             _ev->info.mem_pool = info->pool.mem_pool;
             _ev->info.get_buf = info->pool.get_buf;
             _ev->info.return_buf = info->pool.return_buf;
-            EVENT_HDR_PAYLOAD_SIZE(_ev) = info->pool.element_size;
         }
         else
         {
