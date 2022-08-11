@@ -96,6 +96,7 @@ dpu_offload_status_t send_add_group_rank_request(execution_context_t *econtext, 
 
 bool group_cache_populated(offloading_engine_t *engine, group_id_t gp_id)
 {
+    assert(gp_id.lead != INVALID_GROUP_LEAD);
     group_cache_t *gp_cache = GET_GROUP_CACHE(&(engine->procs_cache), &gp_id);
     if (gp_cache->group_size == gp_cache->num_local_entries)
     {

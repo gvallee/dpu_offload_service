@@ -1588,6 +1588,7 @@ typedef struct group_cache
         khiter_t _newKey = kh_put(group_hash_t, (_cache)->data, *_new_key, &_ret);       \
         DYN_LIST_GET((_cache)->group_cache_pool, group_cache_t, item, _new_group_cache); \
         RESET_GROUP_CACHE(_new_group_cache);                                             \
+        DYN_ARRAY_ALLOC(&(_new_group_cache->ranks), 1024, peer_cache_entry_t);           \
         kh_value((_cache)->data, _newKey) = _new_group_cache;                            \
         _gp_cache = _new_group_cache;                                                    \
     }                                                                                    \
