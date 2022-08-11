@@ -368,7 +368,8 @@ dpu_offload_status_t engine_update_default_notification_handler(offloading_engin
     ENGINE_UNLOCK(engine);
     CHECK_ERR_RETURN((entry == NULL), DO_ERROR, "unable to get callback %ld", type);
     CHECK_ERR_RETURN((entry->set == false), DO_ERROR, "type %" PRIu64 " is not already set, unable to update", type);
-    COPY_NOTIF_INFO(info, &(entry->info));
+    if (info != NULL)
+        COPY_NOTIF_INFO(info, &(entry->info));
     return DO_SUCCESS;
 }
 
