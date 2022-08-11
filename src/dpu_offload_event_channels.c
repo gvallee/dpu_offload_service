@@ -1214,7 +1214,8 @@ static dpu_offload_status_t peer_cache_entries_request_recv_cb(struct dpu_offloa
     assert(data);
     rank_info_t *rank_info = (rank_info_t *)data;
 
-    DBG("Cache entry requested received for gp/rank %" PRIu64 "/%" PRIu64, rank_info->group_id, rank_info->group_rank);
+    DBG("Cache entry requested received for gp/rank %d-%d/%" PRIu64,
+        rank_info->group_id.lead, rank_info->group_id.id, rank_info->group_rank);
 
     if (is_in_cache(&(econtext->engine->procs_cache), rank_info->group_id, rank_info->group_rank, rank_info->group_size))
     {
@@ -1274,31 +1275,44 @@ static dpu_offload_status_t peer_cache_entries_recv_cb(struct dpu_offload_ev_sys
     peer_cache_entry_t *entries = (peer_cache_entry_t *)data;
     size_t cur_size = 0;
     size_t idx = 0;
-    int64_t group_id = INVALID_GROUP;
+    group_id_t group_id;
     int64_t group_rank, group_size;
     uint64_t dpu_global_id = LOCAL_ID_TO_GLOBAL(econtext, hdr->id);
     cache_t *cache = &(engine->procs_cache);
     size_t n_added = 0;
+
+    RESET_GROUP_ID(&group_id);
     // Make sure we know the group ID of what we receive otherwise we do not know what to do
-    if (group_id == INVALID_GROUP)
+    if (group_id.id == INVALID_GROUP)
         group_id = entries[idx].peer.proc_info.group_id;
     group_size = entries[idx].peer.proc_info.group_size;
-    group_cache_t *gp_cache = GET_GROUP_CACHE(&(econtext->engine->procs_cache), group_id);
+    group_cache_t *gp_cache = GET_GROUP_CACHE(&(econtext->engine->procs_cache), &group_id);
     while (cur_size < data_len)
     {
         // Now that we know for sure we have the group ID, we can move the received data into the local cache
         group_rank = entries[idx].peer.proc_info.group_rank;
-        assert(entries[idx].peer.proc_info.group_id == group_id);
+#if !NDEBUG
+        if (entries[idx].peer.proc_info.group_id.lead != group_id.lead)
+        {
+            ERR_MSG("Invalid lead group: %d vs. %d", entries[idx].peer.proc_info.group_id.lead, group_id.lead);
+            return DO_ERROR;
+        }
+        if (entries[idx].peer.proc_info.group_id.id != group_id.id)
+        {
+            ERR_MSG("Invalid group id: %d vs. %d", entries[idx].peer.proc_info.group_id.id, group_id.id);
+            return DO_ERROR;
+        }
+#endif
         assert(entries[idx].peer.proc_info.group_size == group_size);
-        DBG("Received a cache entry for rank:%ld, group:%ld, group size:%ld, number of local rank: %ld from DPU %" PRId64 " (msg size=%ld, peer addr len=%ld)",
-            group_rank, group_id, group_size, entries[idx].peer.proc_info.n_local_ranks, dpu_global_id, data_len, entries[idx].peer.addr_len);
+        DBG("Received a cache entry for rank:%ld, group:%d-%d, group size:%ld, number of local rank: %ld from DPU %" PRId64 " (msg size=%ld, peer addr len=%ld)",
+            group_rank, group_id.lead, group_id.id, group_size, entries[idx].peer.proc_info.n_local_ranks, dpu_global_id, data_len, entries[idx].peer.addr_len);
         if (!is_in_cache(cache, group_id, group_rank, group_size))
         {
             size_t n;
             n_added++;
             gp_cache->num_local_entries++;
             peer_cache_entry_t *cache_entry;
-            cache_entry = GET_GROUP_RANK_CACHE_ENTRY(cache, group_id, group_rank, group_size);
+            cache_entry = GET_GROUP_RANK_CACHE_ENTRY(cache, &group_id, group_rank, group_size);
             cache_entry->set = true;
             COPY_PEER_DATA(&(entries[idx].peer), &(cache_entry->peer));
             assert(entries[idx].num_shadow_service_procs > 0);
@@ -1313,24 +1327,27 @@ static dpu_offload_status_t peer_cache_entries_recv_cb(struct dpu_offload_ev_sys
             // If any event is associated to the cache entry, handle them
             if (cache_entry->events_initialized)
             {
-
                 while (!SIMPLE_LIST_IS_EMPTY(&(cache_entry->events)))
                 {
                     dpu_offload_event_t *e = SIMPLE_LIST_EXTRACT_HEAD(&(cache_entry->events), dpu_offload_event_t, item);
                     COMPLETE_EVENT(e);
                 }
             }
-        }
-        else
-        {
-            DBG("Entry already in cache - gp: %ld, rank: %ld", group_id, group_rank);
+
+            DBG("Cache now has %ld local entries and group size is %ld", gp_cache->num_local_entries, gp_cache->group_size);
+
+#if !NDEBUG
+            if (gp_cache->num_local_entries == gp_cache->group_size)
+                DBG("Group cache is now complete");
+#endif
         }
         cur_size += sizeof(peer_cache_entry_t);
         idx++;
     }
 
     // Once we handled all the cache entries we received, we check whether the cache is full and if so, send it to the local ranks
-    DBG("The cache for group %ld now has %ld entries (group size: %ld)", group_id, gp_cache->num_local_entries, gp_cache->group_size);
+    DBG("The cache for group %d-%d now has %ld entries (group size: %ld)",
+        group_id.lead, group_id.id, gp_cache->num_local_entries, gp_cache->group_size);
     if (econtext->engine->on_dpu && n_added > 0)
     {
         // If all the ranks are on the local hosts, the case is handled in the callback that deals with the
@@ -1375,13 +1392,16 @@ static dpu_offload_status_t add_group_rank_recv_cb(struct dpu_offload_ev_sys *ev
     assert(ev_sys->econtext->engine->on_dpu);
 
     rank_info_t *rank_info = (rank_info_t *)data;
-    if (rank_info->group_id == INVALID_GROUP || rank_info->group_rank == INVALID_RANK)
+    if (rank_info->group_id.id == INVALID_GROUP ||
+        rank_info->group_id.lead == INVALID_GROUP_LEAD ||
+        rank_info->group_rank == INVALID_RANK)
     {
         // The data we received really does not include any usable group data
         return DO_SUCCESS;
     }
 
-    DBG("Recv'd data about group_rank %"PRId64 " %" PRId64 " %" PRId64, rank_info->group_id, rank_info->group_rank, rank_info->group_size);
+    DBG("Recv'd data about group_rank %d-%d %" PRId64 " %" PRId64, 
+        rank_info->group_id.lead, rank_info->group_id.id, rank_info->group_rank, rank_info->group_size);
     if (!is_in_cache(&(econtext->engine->procs_cache), rank_info->group_id, rank_info->group_rank, rank_info->group_size))
     {
         peer_cache_entry_t *cache_entry;
@@ -1392,7 +1412,7 @@ static dpu_offload_status_t add_group_rank_recv_cb(struct dpu_offload_ev_sys *ev
                                                      peer_info_t);
         assert(client_info);
         cache_entry = GET_GROUP_RANK_CACHE_ENTRY(&(econtext->engine->procs_cache),
-                                                 rank_info->group_id,
+                                                 &(rank_info->group_id),
                                                  rank_info->group_rank,
                                                  rank_info->group_size);
         assert(cache_entry);
@@ -1406,7 +1426,7 @@ static dpu_offload_status_t add_group_rank_recv_cb(struct dpu_offload_ev_sys *ev
         cache_entry->client_id = hdr->client_id;
         cache_entry->set = true;
 
-        group_cache_t *gp_cache = GET_GROUP_CACHE(&(econtext->engine->procs_cache), rank_info->group_id);
+        group_cache_t *gp_cache = GET_GROUP_CACHE(&(econtext->engine->procs_cache), &(rank_info->group_id));
         assert(gp_cache);
         if (gp_cache->n_local_ranks <= 0 && rank_info->n_local_ranks >= 0)
         {

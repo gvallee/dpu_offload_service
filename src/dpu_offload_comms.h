@@ -124,11 +124,11 @@
                                  (_n_local_ranks),                                                                           \
                                  (_engine)->config->local_service_proc.info.local_id,                                        \
                                  &n_connecting_ranks);                                                                       \
-        group_cache_t *__gp_cache = GET_GROUP_CACHE(&((_engine)->procs_cache), (_gp_id));                                    \
+        group_cache_t *__gp_cache = GET_GROUP_CACHE(&((_engine)->procs_cache), &(_gp_id));                                    \
         if (__gp_cache->n_local_ranks > 0 && __gp_cache->n_local_ranks_populated == n_connecting_ranks)                      \
         {                                                                                                                    \
             DBG("We now have a connection with all the local ranks, we can broadcast the group cache at once");              \
-            broadcast_group_cache((_engine), _gp_id);                                                                        \
+            broadcast_group_cache((_engine), (_gp_id));                                                                      \
         }                                                                                                                    \
         if (__gp_cache->n_local_ranks < 0)                                                                                   \
         {                                                                                                                    \
@@ -173,7 +173,7 @@ static bool event_posted(dpu_offload_event_t *ev)
             }                                                                                    \
             event_return(&(__ev));                                                               \
         }                                                                                        \
-    } while(0)
+    } while (0)
 #else
 #define PROGRESS_EVENT_SEND(__ev)                                                                \
     do                                                                                           \
@@ -203,7 +203,7 @@ static bool event_posted(dpu_offload_event_t *ev)
             }                                                                                    \
             event_return(&(__ev));                                                               \
         }                                                                                        \
-    } while(0)
+    } while (0)
 
 static bool event_posted(dpu_offload_event_t *ev)
 {
@@ -212,7 +212,7 @@ static bool event_posted(dpu_offload_event_t *ev)
         // The send for the header is posted (and not completed) and no payload needs to be sent
         return true;
     }
-    
+
     if (ev->ctx.hdr_completed == true &&
         ev->hdr_request == NULL &&
         EVENT_HDR_PAYLOAD_SIZE(ev) > 0 &&
@@ -241,7 +241,7 @@ static void progress_econtext_sends(execution_context_t *ctx)
             ERR_MSG("Ev %p type %ld is not on ongoing list", ev, EVENT_HDR_TYPE(ev));
             assert(0);
         }
-        assert(ev->is_ongoing_event == true);       
+        assert(ev->is_ongoing_event == true);
         if (EVENT_HDR_TYPE(ev) == META_EVENT_TYPE)
         {
             assert(ev->sub_events_initialized);

@@ -16,50 +16,59 @@
 
 #include "dynamic_structs.h"
 
-#define DEFAULT_NUM_GROUPS (64)
+#define DEFAULT_NUM_GROUPS (32)
 #define DEFAULT_NUM_RANKS_IN_GROUP (2048)
 
 #if NDEBUG
-#define DPU_OFFLOAD_MALLOC(_size) ({          \
-    void *_ptr = malloc((_size)); \
-    _ptr;                         \
+#define DPU_OFFLOAD_MALLOC(_size) ({ \
+    void *_ptr = malloc((_size));    \
+    _ptr;                            \
 })
 #else
-#define DPU_OFFLOAD_MALLOC(_size) ({          \
-    void *_ptr = malloc((_size)); \
-    if (_ptr != NULL)             \
-    {                             \
+#define DPU_OFFLOAD_MALLOC(_size) ({ \
+    void *_ptr = malloc((_size));    \
+    if (_ptr != NULL)                \
+    {                                \
         memset(_ptr, 0xef, _size);   \
-    }                             \
-    _ptr;                         \
+    }                                \
+    _ptr;                            \
 })
 #endif // NDEBUG
 
 /* GROUPS_CACHE_INIT initializes the cache that holds information about all the groups */
-#define GROUPS_CACHE_INIT(_cache)                                              \
-    do                                                                         \
-    {                                                                          \
-        DYN_ARRAY_ALLOC(&((_cache)->data), DEFAULT_NUM_GROUPS, group_cache_t); \
-        (_cache)->size = 0;                                                    \
+#define GROUPS_CACHE_INIT(_cache)                                                            \
+    do                                                                                       \
+    {                                                                                        \
+        (_cache)->data = kh_init(group_hash_t);                                              \
+        DYN_ARRAY_ALLOC(&((_cache)->keys), DEFAULT_NUM_GROUPS, int64_t);                     \
+        DYN_LIST_ALLOC((_cache)->group_cache_pool, DEFAULT_NUM_GROUPS, group_cache_t, item); \
+        (_cache)->size = 0;                                                                  \
+        (_cache)->keys_in_use = 0;                                                           \
     } while (0)
 
-#define GROUPS_CACHE_FINI(_cache)                                                    \
-    do                                                                               \
-    {                                                                                \
-        /* an array of pointers, each entry index is the group ID and the pointer */ \
-        /* gives access to the list of ranks in the group */                         \
-        /*dyn_array_t *_ptr = &(_cache->data);*/                                     \
-        size_t _i;                                                                   \
-        group_cache_t *_gp_caches = (group_cache_t *)(_cache)->data.base;            \
-        for (_i = 0; _i < (_cache)->data.num_elts; _i++)                             \
-        {                                                                            \
-            if (_gp_caches[_i].initialized)                                          \
-            {                                                                        \
-                DYN_ARRAY_FREE(&(_gp_caches[_i].ranks));                             \
-            }                                                                        \
-        }                                                                            \
-        DYN_ARRAY_FREE(&((_cache)->data));                                           \
-        (_cache)->size = 0;                                                          \
+#define GROUPS_CACHE_FINI(_cache)                                       \
+    do                                                                  \
+    {                                                                   \
+        uint64_t key;                                                   \
+        group_cache_t *value = NULL;                                    \
+        kh_foreach((_cache)->data, key, value, {                        \
+            if (value != NULL)                                          \
+            {                                                           \
+                group_id_t _gp = GROUP_KEY_TO_GROUP(key);               \
+                group_cache_t *_gp_cache = NULL;                        \
+                _gp_cache = GET_GROUP_CACHE((_cache), &_gp);            \
+                assert(_gp_cache);                                      \
+                dyn_array_t *__da = NULL;                               \
+                __da = &(_gp_cache->ranks);                             \
+                if (__da)                                               \
+                    DYN_ARRAY_FREE(__da);                               \
+            }                                                           \
+        }) kh_destroy(group_hash_t, (_cache)->data);                    \
+        DYN_ARRAY_FREE(&((_cache)->keys));                              \
+        DYN_LIST_FREE((_cache)->group_cache_pool, group_cache_t, item); \
+        (_cache)->group_cache_pool = NULL;                              \
+        (_cache)->size = 0;                                             \
+        (_cache)->keys_in_use = 0;                                      \
     } while (0)
 
 /* GROUP_CACHE_INIT initializes the cache for a given group */

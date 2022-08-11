@@ -11,6 +11,7 @@
 #define DPU_OFFLOAD_TYPES_H
 
 #include <ucs/datastruct/list.h>
+#include <ucs/datastruct/khash.h>
 #include <limits.h>
 
 #include "dynamic_structs.h"
@@ -125,57 +126,6 @@ typedef struct dest_client
     ucp_ep_h ep;
     uint64_t id;
 } dest_client_t;
-
-#define GET_GROUPRANK_CACHE_ENTRY(_cache, _gp_id, _rank)                                        \
-    ({                                                                                          \
-        peer_cache_entry_t *_entry = NULL;                                                      \
-        group_cache_t *_gp_cache = DYN_ARRAY_GET_ELT(&((_cache)->data), _gp_id, group_cache_t); \
-        dyn_array_t *_rank_cache = &(_gp_cache->ranks);                                         \
-        if (_gp_cache->initialized == true)                                                     \
-        {                                                                                       \
-            _entry = DYN_ARRAY_GET_ELT(_rank_cache, _rank, peer_cache_entry_t);                 \
-        }                                                                                       \
-        _entry;                                                                                 \
-    })
-
-#define GET_CLIENT_BY_RANK(_exec_ctx, _gp_id, _rank) ({                        \
-    dest_client_t _c;                                                          \
-    _c.ep = NULL;                                                              \
-    _c.id = UINT64_MAX;                                                        \
-    size_t _idx = 0;                                                           \
-    size_t _n = 0;                                                             \
-    if ((_exec_ctx)->type == CONTEXT_SERVER)                                   \
-    {                                                                          \
-        peer_cache_entry_t *__entry;                                           \
-        cache_t *__cache = &((_exec_ctx)->engine->procs_cache);                \
-        __entry = GET_GROUPRANK_CACHE_ENTRY(__cache, _gp_id, _rank);           \
-        if (__entry)                                                           \
-        {                                                                      \
-            if (__entry->ep != NULL)                                           \
-            {                                                                  \
-                _c.ep = __entry->ep;                                           \
-            }                                                                  \
-            else                                                               \
-            {                                                                  \
-                if (__entry->peer.addr != NULL)                                \
-                {                                                              \
-                    /* Generate the endpoint with the data we have */          \
-                    ucp_ep_params_t _ep_params;                                \
-                    _ep_params.field_mask = UCP_EP_PARAM_FIELD_REMOTE_ADDRESS; \
-                    _ep_params.address = (ucp_address_t *)__entry->peer.addr;  \
-                    ucp_ep_create((_exec_ctx)->engine->ucp_worker,             \
-                                  &_ep_params,                                 \
-                                  &(__entry->ep));                             \
-                    assert(__entry->ep);                                       \
-                }                                                              \
-            }                                                                  \
-            assert(__entry->ep);                                               \
-            _c.ep = __entry->ep;                                               \
-            _c.id = __entry->client_id;                                        \
-        }                                                                      \
-    }                                                                          \
-    _c;                                                                        \
-})
 
 #define GET_WORKER(_exec_ctx) ({                       \
     ucp_worker_h _w = (_exec_ctx)->engine->ucp_worker; \
@@ -305,14 +255,17 @@ typedef struct active_ops
 
 /* OFFLOADING ENGINE, CLIENTS/SERVERS */
 
+#define INVALID_GROUP_LEAD (-1)
 #define INVALID_GROUP (-1)
 #define INVALID_RANK (-1)
 
-#define IS_A_VALID_PEER_DATA(_peer_data) ({                                                                      \
-    bool _valid = false;                                                                                         \
-    if ((_peer_data)->proc_info.group_id != INVALID_GROUP && (_peer_data)->proc_info.group_rank != INVALID_RANK) \
-        _valid = true;                                                                                           \
-    _valid;                                                                                                      \
+#define IS_A_VALID_PEER_DATA(_peer_data) ({                            \
+    bool _valid = false;                                               \
+    if ((_peer_data)->proc_info.group_id.id != INVALID_GROUP &&        \
+        (_peer_data)->proc_info.group_id.lead != INVALID_GROUP_LEAD && \
+        (_peer_data)->proc_info.group_rank != INVALID_RANK)            \
+        _valid = true;                                                 \
+    _valid;                                                            \
 })
 
 typedef struct ucx_server_ctx
@@ -321,10 +274,35 @@ typedef struct ucx_server_ctx
     ucp_listener_h listener;
 } ucx_server_ctx_t;
 
+typedef struct group_id
+{
+    // Local group identifier, similar to a communicator ID
+    int32_t id;
+
+    // Rank on the main communicator (e.g., MPI_COMM_WORLD) that is rank 0 in the group.
+    // Used to support non-overlapping MPI communicator that can have the same group_id
+    // but will have different lead rank.
+    int32_t lead;
+} group_id_t;
+
+#define RESET_GROUP_ID(__gp_id)               \
+    do                                        \
+    {                                         \
+        (__gp_id)->id = INVALID_GROUP;        \
+        (__gp_id)->lead = INVALID_GROUP_LEAD; \
+    } while (0)
+
+#define COPY_GROUP_ID(__src_gp_id, __dest_gp_id)    \
+    do                                              \
+    {                                               \
+        (__dest_gp_id)->id = (__src_gp_id)->id;     \
+        (__dest_gp_id)->lead = (__src_gp_id)->lead; \
+    } while (0)
+
 typedef struct rank_info
 {
     // ID of the group associated to the rank
-    int64_t group_id;
+    group_id_t group_id;
 
     // Rank in the group
     int64_t group_rank;
@@ -339,24 +317,24 @@ typedef struct rank_info
     int64_t local_rank;
 } rank_info_t;
 
-#define RESET_RANK_INFO(_r)              \
-    do                                   \
-    {                                    \
-        (_r)->group_id = INVALID_GROUP;  \
-        (_r)->group_rank = INVALID_RANK; \
-        (_r)->group_size = 0;            \
-        (_r)->n_local_ranks = 0;         \
-        (_r)->local_rank = INVALID_RANK; \
+#define RESET_RANK_INFO(_r)                \
+    do                                     \
+    {                                      \
+        RESET_GROUP_ID(&((_r)->group_id)); \
+        (_r)->group_rank = INVALID_RANK;   \
+        (_r)->group_size = 0;              \
+        (_r)->n_local_ranks = 0;           \
+        (_r)->local_rank = INVALID_RANK;   \
     } while (0)
 
-#define COPY_RANK_INFO(__s, __d)                     \
-    do                                               \
-    {                                                \
-        (__d)->group_id = (__s)->group_id;           \
-        (__d)->group_rank = (__s)->group_rank;       \
-        (__d)->group_size = (__s)->group_size;       \
-        (__d)->n_local_ranks = (__s)->n_local_ranks; \
-        (__d)->local_rank = (__s)->local_rank;       \
+#define COPY_RANK_INFO(__s, __d)                               \
+    do                                                         \
+    {                                                          \
+        COPY_GROUP_ID(&((__s)->group_id), &((__d)->group_id)); \
+        (__d)->group_rank = (__s)->group_rank;                 \
+        (__d)->group_size = (__s)->group_size;                 \
+        (__d)->n_local_ranks = (__s)->n_local_ranks;           \
+        (__d)->local_rank = (__s)->local_rank;                 \
     } while (0)
 
 // fixme: long term, we do not want to have a limit on the length of the address
@@ -392,12 +370,11 @@ typedef struct peer_data
     char addr[MAX_ADDR_LEN]; // ultimately ucp_address_t * when using UCX
 } peer_data_t;
 
-#define RESET_PEER_DATA(_d)               \
-    do                                    \
-    {                                     \
-        RESET_RANK_INFO((_d)->proc_info); \
-        (_d)->addr_len = 0;               \
-        (_d)->addr = NULL;                \
+#define RESET_PEER_DATA(_d)                  \
+    do                                       \
+    {                                        \
+        RESET_RANK_INFO(&((_d)->proc_info)); \
+        (_d)->addr_len = 0;                  \
     } while (0)
 
 #define COPY_PEER_DATA(_src, _dst)                                  \
@@ -454,7 +431,7 @@ typedef struct cache_entry_request
     // ID of the target service process ID in case multiple service processes are attached to the target group/rank
     uint64_t target_sp_idx;
 
-    int64_t gp_id;
+    group_id_t gp_id;
     int64_t rank;
 } cache_entry_request_t;
 
@@ -1091,10 +1068,6 @@ typedef struct dpu_offload_server_t
 
     dpu_offload_ev_sys_t *event_channels;
 
-    // Vector to track which groups have been sent to the host once all the local ranks
-    // showed up. Only used on DPUs.
-    dyn_array_t local_groups_sent_to_host;
-
     union
     {
         struct
@@ -1127,8 +1100,6 @@ typedef struct dpu_offload_server_t
         RESET_CONNECTED_CLIENTS(&((_server)->connected_clients)); \
         (_server)->connected_cb = NULL;                           \
         (_server)->event_channels = NULL;                         \
-        DYN_ARRAY_ALLOC(&((_server)->local_groups_sent_to_host),  \
-                        8, bool);                                 \
     } while (0)
 
 typedef struct dpu_offload_client_t
@@ -1565,18 +1536,15 @@ typedef enum
 /* OFFLOADING ENGINE */
 /*********************/
 
-typedef struct cache
-{
-    // How many group caches that compose the cache are currently in use.
-    size_t size;
-
-    // data is a dynamic array for all the group caches (type: group_cache_t)
-    dyn_array_t data;
-} cache_t;
-
 typedef struct group_cache
 {
+    ucs_list_link_t item;
+
     bool initialized;
+
+    // Used to track if group cache has been sent to the host once all the local ranks
+    // showed up. Only used on DPUs.
+    bool sent_to_host;
 
     size_t group_size;
 
@@ -1593,10 +1561,136 @@ typedef struct group_cache
     dyn_array_t ranks;
 } group_cache_t;
 
-#define GET_GROUP_CACHE(_cache, _gp_id) ({                                                  \
-    group_cache_t *_gp_cache = DYN_ARRAY_GET_ELT(&((_cache)->data), _gp_id, group_cache_t); \
-    _gp_cache;                                                                              \
+#define RESET_GROUP_CACHE(__g)              \
+    do                                      \
+    {                                       \
+        (__g)->initialized = false;         \
+        (__g)->sent_to_host = false;        \
+        (__g)->group_size = 0;              \
+        (__g)->num_local_entries = 0;       \
+        (__g)->n_local_ranks = 0;           \
+        (__g)->n_local_ranks_populated = 0; \
+    } while (0)
+
+#define GET_GROUP_CACHE(_cache, _gp_id) ({                                               \
+    group_cache_t *_gp_cache = NULL;                                                     \
+    int64_t _gp_key = GET_GROUP_KEY((_gp_id));                                           \
+    khiter_t k = kh_get(group_hash_t, (_cache)->data, _gp_key);                          \
+    if (k == kh_end((_cache)->data))                                                     \
+    {                                                                                    \
+        /* Group not in the cache, adding it */                                          \
+        int _ret;                                                                        \
+        int64_t *_new_key;                                                               \
+        group_cache_t *_new_group_cache;                                                 \
+        _new_key = DYN_ARRAY_GET_ELT(&((_cache)->keys), (_cache)->keys_in_use, int64_t); \
+        (_cache)->keys_in_use++;                                                         \
+        *_new_key = GET_GROUP_KEY((_gp_id));                                             \
+        khiter_t _newKey = kh_put(group_hash_t, (_cache)->data, *_new_key, &_ret);       \
+        DYN_LIST_GET((_cache)->group_cache_pool, group_cache_t, item, _new_group_cache); \
+        RESET_GROUP_CACHE(_new_group_cache);                                             \
+        kh_value((_cache)->data, _newKey) = _new_group_cache;                            \
+        _gp_cache = _new_group_cache;                                                    \
+    }                                                                                    \
+    else                                                                                 \
+    {                                                                                    \
+        /* Group is in the cache, just return a pointer */                               \
+        _gp_cache = kh_value((_cache)->data, k);                                         \
+    }                                                                                    \
+    _gp_cache;                                                                           \
 })
+
+#define GET_GROUP_KEY(__gp) ({                          \
+    int64_t __key;                                      \
+    __key = ((int64_t)(__gp)->lead << 32) | (__gp)->id; \
+    __key;                                              \
+})
+
+#define GROUP_KEY_TO_GROUP(__gp_key) ({           \
+    group_id_t __gp_id;                           \
+    __gp_id.id = __gp_key >> 32;                  \
+    __gp_id.lead = __gp_key & 0x00000000FFFFFFFF; \
+    __gp_id;                                      \
+})
+
+#define GET_GROUPRANK_CACHE_ENTRY(_cache, _gp_id, _rank)                        \
+    ({                                                                          \
+        peer_cache_entry_t *_entry = NULL;                                      \
+        group_cache_t *_gp_cache = GET_GROUP_CACHE((_cache), &(_gp_id));        \
+        dyn_array_t *_rank_cache = &(_gp_cache->ranks);                         \
+        if (_gp_cache->initialized == true)                                     \
+        {                                                                       \
+            _entry = DYN_ARRAY_GET_ELT(_rank_cache, _rank, peer_cache_entry_t); \
+        }                                                                       \
+        _entry;                                                                 \
+    })
+
+#define GET_CLIENT_BY_RANK(_exec_ctx, _gp_id, _rank) ({                        \
+    dest_client_t _c;                                                          \
+    _c.ep = NULL;                                                              \
+    _c.id = UINT64_MAX;                                                        \
+    size_t _idx = 0;                                                           \
+    size_t _n = 0;                                                             \
+    if ((_exec_ctx)->type == CONTEXT_SERVER)                                   \
+    {                                                                          \
+        peer_cache_entry_t *__entry;                                           \
+        cache_t *__cache = &((_exec_ctx)->engine->procs_cache);                \
+        __entry = GET_GROUPRANK_CACHE_ENTRY((__cache), (_gp_id), _rank);       \
+        if (__entry)                                                           \
+        {                                                                      \
+            if (__entry->ep != NULL)                                           \
+            {                                                                  \
+                _c.ep = __entry->ep;                                           \
+            }                                                                  \
+            else                                                               \
+            {                                                                  \
+                if (__entry->peer.addr != NULL)                                \
+                {                                                              \
+                    /* Generate the endpoint with the data we have */          \
+                    ucp_ep_params_t _ep_params;                                \
+                    _ep_params.field_mask = UCP_EP_PARAM_FIELD_REMOTE_ADDRESS; \
+                    _ep_params.address = (ucp_address_t *)__entry->peer.addr;  \
+                    ucp_ep_create((_exec_ctx)->engine->ucp_worker,             \
+                                  &_ep_params,                                 \
+                                  &(__entry->ep));                             \
+                    assert(__entry->ep);                                       \
+                }                                                              \
+            }                                                                  \
+            assert(__entry->ep);                                               \
+            _c.ep = __entry->ep;                                               \
+            _c.id = __entry->client_id;                                        \
+        }                                                                      \
+    }                                                                          \
+    _c;                                                                        \
+})
+
+KHASH_MAP_INIT_INT64(group_hash_t, group_cache_t *);
+
+typedef struct cache
+{
+    // How many group caches that compose the cache are currently in use.
+    size_t size;
+
+    // data is a dynamic array for all the group caches
+    khash_t(group_hash_t) * data;
+
+    // Pool of keys available to add elements to the cache (type: int64_t)
+    dyn_array_t keys;
+
+    // Number of keys that are being used
+    size_t keys_in_use;
+
+    // Pool of cache group caches (type: group_cache_t)
+    dyn_list_t *group_cache_pool;
+} cache_t;
+
+#define RESET_CACHE(__c)                \
+    do                                  \
+    {                                   \
+        (__c)->size = 0;                \
+        (__c)->data = NULL;             \
+        (__c)->group_cache_pool = NULL; \
+        (__c)->keys_is_use = 0;         \
+    } while (0)
 
 /**
  * @brief GET_GROUP_RANK_CACHE_ENTRY is a macro that looks up the cache entry for
@@ -1606,29 +1700,33 @@ typedef struct group_cache
  * exist. Of course, I means that the data passed in is assumed accurate, i.e.,
  * the group identifier, rank and group size are the actual value and won't change.
  */
-#define GET_GROUP_RANK_CACHE_ENTRY(_cache, _gp_id, _rank, _gp_size)                             \
-    ({                                                                                          \
-        peer_cache_entry_t *_entry = NULL;                                                      \
-        group_cache_t *_gp_cache = DYN_ARRAY_GET_ELT(&((_cache)->data), _gp_id, group_cache_t); \
-        dyn_array_t *_rank_cache = &(_gp_cache->ranks);                                         \
-        if (_gp_cache->initialized == false)                                                    \
-        {                                                                                       \
-            /* Cache for the group is empty, lazy initialization */                             \
-            DYN_ARRAY_ALLOC(_rank_cache, DEFAULT_NUM_PEERS, peer_cache_entry_t);                \
-            _gp_cache->initialized = true;                                                      \
-            if (_gp_size >= 0)                                                                  \
-                _gp_cache->group_size = _gp_size;                                               \
-            (_cache)->size++;                                                                   \
-        }                                                                                       \
-        if (_gp_cache->initialized &&                                                           \
-            _gp_cache->group_size <= 0 &&                                                       \
-            _gp_size >= 0)                                                                      \
-        {                                                                                       \
-            /* the cache was initialized with a group size but we now know it */                \
-            _gp_cache->group_size = _gp_size;                                                   \
-        }                                                                                       \
-        _entry = DYN_ARRAY_GET_ELT(_rank_cache, _rank, peer_cache_entry_t);                     \
-        _entry;                                                                                 \
+#define GET_GROUP_RANK_CACHE_ENTRY(_cache, _gp_id, _rank, _gp_size)                    \
+    ({                                                                                 \
+        peer_cache_entry_t *_entry = NULL;                                             \
+        group_cache_t *_gp_cache = NULL;                                               \
+        dyn_array_t *_rank_cache = NULL;                                               \
+        assert((_gp_id)->id != INVALID_GROUP && (_gp_id)->lead != INVALID_GROUP_LEAD); \
+        _gp_cache = GET_GROUP_CACHE((_cache), _gp_id);                                 \
+        assert(_gp_cache);                                                             \
+        _rank_cache = &(_gp_cache->ranks);                                             \
+        if (_gp_cache->initialized == false)                                           \
+        {                                                                              \
+            /* Cache for the group is empty, lazy initialization */                    \
+            DYN_ARRAY_ALLOC(_rank_cache, DEFAULT_NUM_PEERS, peer_cache_entry_t);       \
+            _gp_cache->initialized = true;                                             \
+            if (_gp_size >= 0)                                                         \
+                _gp_cache->group_size = _gp_size;                                      \
+            (_cache)->size++;                                                          \
+        }                                                                              \
+        if (_gp_cache->initialized &&                                                  \
+            _gp_cache->group_size <= 0 &&                                              \
+            _gp_size >= 0)                                                             \
+        {                                                                              \
+            /* the cache was initialized with a group size but we now know it */       \
+            _gp_cache->group_size = _gp_size;                                          \
+        }                                                                              \
+        _entry = DYN_ARRAY_GET_ELT(_rank_cache, _rank, peer_cache_entry_t);            \
+        _entry;                                                                        \
     })
 
 struct remote_service_proc_info; // Forward declaration

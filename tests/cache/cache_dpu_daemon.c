@@ -78,8 +78,9 @@ void cache_entry_cb(void *data)
 {
     assert(data);
     cache_entry_request_t *cache_entry_req = (cache_entry_request_t *)data;
-    fprintf(stderr, "Cache entry for %" PRId64 "/%" PRId64 " is now available\n",
-            cache_entry_req->gp_id,
+    fprintf(stderr, "Cache entry for group %d-%d and rank %" PRId64 " is now available\n",
+            cache_entry_req->gp_id.lead,
+            cache_entry_req->gp_id.id,
             cache_entry_req->rank);
     assert(cache_entry_req->offload_engine);
     offloading_engine_t *engine = (offloading_engine_t *)cache_entry_req->offload_engine;
@@ -136,7 +137,7 @@ void cache_entry_cb(void *data)
  * @param expected_dpu_id
  * @return int
  */
-static int do_lookup_from_callback(offloading_engine_t *offload_engine, int64_t gp_id, int64_t rank_id, int64_t expected_dpu_id)
+static int do_lookup_from_callback(offloading_engine_t *offload_engine, group_id_t gp_id, int64_t rank_id, int64_t expected_dpu_id)
 {
     dpu_offload_status_t rc = get_cache_entry_by_group_rank(offload_engine, gp_id, rank_id, 0, cache_entry_cb);
     if (rc != DO_SUCCESS)
@@ -147,7 +148,7 @@ static int do_lookup_from_callback(offloading_engine_t *offload_engine, int64_t 
     return 0;
 }
 
-static int do_lookup(offloading_engine_t *offload_engine, int64_t gp_id, int64_t rank_id, int64_t expected_dpu_id)
+static int do_lookup(offloading_engine_t *offload_engine, group_id_t gp_id, int64_t rank_id, int64_t expected_dpu_id)
 {
     dpu_offload_status_t rc;
     int64_t remote_sp_id;
@@ -159,7 +160,7 @@ static int do_lookup(offloading_engine_t *offload_engine, int64_t gp_id, int64_t
         goto error_out;
     }
 
-    fprintf(stderr, "Looking up endpoint for %" PRId64 "/%" PRId64 "\n", gp_id, rank_id);
+    fprintf(stderr, "Looking up endpoint for group %d-%d  and rank %" PRId64 "\n", gp_id.lead, gp_id.id, rank_id);
     rc = get_sp_id_by_group_rank(offload_engine, gp_id, rank_id, 0, &remote_sp_id, &ev);
     if (rc != DO_SUCCESS)
     {
@@ -257,32 +258,35 @@ static int test_cb(struct dpu_offload_ev_sys *ev_sys, execution_context_t *econt
     // We received the init callback from the server, we look up the EP we are supposed
     // to find and we notify the server once the look up completes. All that from
     // handler.
+    group_id_t group;
     offloading_engine_t *engine = (offloading_engine_t *)econtext->engine;
+    group.lead = 0;
+    group.id = 42;
     fprintf(stderr, "-> Starting test from a callback...\n");
-    int ret = do_lookup_from_callback(engine, 42, 52, 1);
+    int ret = do_lookup_from_callback(engine, group, 52, 1);
     assert(ret == 0);
     cb_test_done = true;
     return 0;
 }
 
-#define ADD_TO_CACHE(_rank, _gp, _engine, _config_data)                                         \
-    do                                                                                          \
-    {                                                                                           \
-        peer_cache_entry_t *_entry;                                                             \
-        _entry = GET_GROUP_RANK_CACHE_ENTRY(&((_engine)->procs_cache), _gp, _rank, group_size); \
-        assert(_entry);                                                                         \
-        _entry->peer.proc_info.group_rank = _rank;                                              \
-        _entry->peer.proc_info.group_id = _gp;                                                  \
-        _entry->set = true;                                                                     \
-        /* The shadow DPU is myself. */                                                         \
-        _entry->num_shadow_service_procs = 1;                                                   \
-        _entry->shadow_service_procs[0] = (_config_data).local_service_proc.info.global_id;     \
-        _entry->peer.addr_len = 43;                                                             \
-        if (!is_in_cache(&((_engine)->procs_cache), _gp, _rank, group_size))                    \
-        {                                                                                       \
-            fprintf(stderr, "[ERROR] Cache entry not reported as being in the cache\n");        \
-            goto error_out;                                                                     \
-        }                                                                                       \
+#define ADD_TO_CACHE(_rank, _gp_id, _gp_sz, _engine, _config_data)                                    \
+    do                                                                                                \
+    {                                                                                                 \
+        peer_cache_entry_t *_entry;                                                                   \
+        _entry = GET_GROUP_RANK_CACHE_ENTRY(&((_engine)->procs_cache), &(_gp_id), (_rank), (_gp_sz)); \
+        assert(_entry);                                                                               \
+        _entry->peer.proc_info.group_rank = (_rank);                                                  \
+        _entry->peer.proc_info.group_id = (_gp_id);                                                   \
+        _entry->set = true;                                                                           \
+        /* The shadow DPU is myself. */                                                               \
+        _entry->num_shadow_service_procs = 1;                                                         \
+        _entry->shadow_service_procs[0] = (_config_data).local_service_proc.info.global_id;           \
+        _entry->peer.addr_len = 43;                                                                   \
+        if (!is_in_cache(&((_engine)->procs_cache), _gp_id, _rank, group_size))                       \
+        {                                                                                             \
+            fprintf(stderr, "[ERROR] Cache entry not reported as being in the cache\n");              \
+            goto error_out;                                                                           \
+        }                                                                                             \
     } while (0)
 
 int main(int argc, char **argv)
@@ -352,20 +356,24 @@ int main(int argc, char **argv)
     fprintf(stderr, "Connections between DPUs successfully initialized\n");
 
     fprintf(stderr, "I am service process #%ld, starting the test\n", config_data.local_service_proc.info.global_id);
-    
+
     int64_t remote_sp_id;
     if (config_data.local_service_proc.info.global_id == 1)
     {
         /* Service Process #1 */
+        group_id_t group;
         remote_service_proc_info_t *sp0;
         sp = DYN_ARRAY_GET_ELT(&(offload_engine->service_procs), config_data.local_service_proc.info.global_id, remote_service_proc_info_t);
         assert(sp);
         sp0 = DYN_ARRAY_GET_ELT(&(offload_engine->service_procs), 0, remote_service_proc_info_t);
         assert(sp0);
 
+        group.lead = 0;
+        group.id = 42;
+
         // Create a fake entry in the cache
         // 42 is used to avoid lucky initialization effects that would hide a bug
-        ADD_TO_CACHE(42, 42, offload_engine, config_data);
+        ADD_TO_CACHE(42, group, group_size, offload_engine, config_data);
 
         fprintf(stderr, "Cache entry successfully created, waiting for the notification from DPU #0 that test completed\n");
         while (!test_done)
@@ -376,7 +384,7 @@ int main(int argc, char **argv)
 
         // Next test with local cache: look up the cache entry that is already in the cache
         dpu_offload_event_t *ev;
-        rc = get_sp_id_by_group_rank(offload_engine, 42, 42, 0, &remote_sp_id, &ev);
+        rc = get_sp_id_by_group_rank(offload_engine, group, 42, 0, &remote_sp_id, &ev);
         if (rc != DO_SUCCESS)
         {
             fprintf(stderr, "[ERROR] first get_dpu_id_by_host_rank() failed\n");
@@ -417,7 +425,7 @@ int main(int argc, char **argv)
 
         // Start the test that will trigger lookups and communications from callback
         fprintf(stderr, "-> l.%d - Sending notification to initiate the test in a callback...\n", __LINE__);
-        ADD_TO_CACHE(52, 42, offload_engine, config_data);
+        ADD_TO_CACHE(52, group, group_size, offload_engine, config_data);
         dpu_offload_event_t *start_test_cb_ev;
         execution_context_t *sp0_econtext = sp0->econtext;
         assert(sp0_econtext);
@@ -457,6 +465,9 @@ int main(int argc, char **argv)
     else
     {
         /* Service Process #0 */
+        group_id_t group;
+        group.lead = 0;
+        group.id = 42;
 
         // We need to make sure we have the connection to service process #1
         remote_service_proc_info_t *sp1_config;
@@ -471,7 +482,7 @@ int main(int argc, char **argv)
         } while (sp1_config == NULL || sp1_config->econtext == NULL);
         fprintf(stderr, "Now connected to DPU #1 (econtext=%p)\n", sp1_config->econtext);
 
-        int ret = do_lookup(offload_engine, 42, 42, 1);
+        int ret = do_lookup(offload_engine, group, 42, 1);
         if (ret != 0)
         {
             fprintf(stderr, "l.%d - [ERROR] lookup failed\n", __LINE__);
