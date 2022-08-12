@@ -18,6 +18,12 @@
 #include "dpu_offload_debug.h"
 #include "dpu_offload_comms.h"
 
+#if BUDDY_BUFFER_SYS_ENABLE
+bool use_buddy_buffer_system = false;
+#else
+bool use_buddy_buffer_system = true;
+#endif
+
 #define DEFAULT_NUM_EVTS (32)
 #define DEFAULT_NUM_NOTIFICATION_CALLBACKS (5000)
 
@@ -131,7 +137,10 @@ static ucs_status_t am_notification_recv_rdv_msg(execution_context_t *econtext, 
                                                    UCP_OP_ATTR_FIELD_DATATYPE |
                                                    UCP_OP_ATTR_FIELD_MEMORY_TYPE;
 #else
-        pending_recv->smart_chunk = SMART_BUFF_GET(&(econtext->engine->smart_buffer_sys), payload_size);
+        if (use_buddy_buffer_system)
+            pending_recv->smart_chunk = SMART_BUFF_GET(&(econtext->engine->smart_buffer_sys), payload_size);
+        else
+            pending_recv->smart_chunk = malloc(payload_size);
         pending_recv->user_data = pending_recv->smart_chunk->base;
         pending_recv->buff_size = payload_size;
         am_rndv_recv_request_params.op_attr_mask = UCP_OP_ATTR_FIELD_CALLBACK |
