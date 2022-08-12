@@ -972,10 +972,15 @@ bool parse_line_dpu_version_1(offloading_config_t *data, char *line)
             // We now have the configuration associated to the line we just parsed, checking a few things...
             assert(target_entry->version_1.addr);
 
-            /* Save the configuration details of each service process on that DPU */
+            /*
+             * Save the configuration details of each service process on that DPU.
+             * This is for example where we figure out which port should be used to connect to
+             * a given service process.
+             */
             remote_service_proc_info_t *cur_sp, *next_sp;
             SIMPLE_LIST_FOR_EACH(cur_sp, next_sp, &(cur_dpu->remote_service_procs), item)
             {
+                size_t sp_port_idx = cur_sp->idx % data->num_service_procs_per_dpu;
                 assert(cur_sp->init_params.conn_params);
                 cur_sp->init_params.conn_params->addr_str = target_entry->version_1.addr;
                 int *port = DYN_ARRAY_GET_ELT(&(target_entry->version_1.interdpu_ports),
@@ -987,11 +992,11 @@ bool parse_line_dpu_version_1(offloading_config_t *data, char *line)
                 assert(sp_config);
                 cur_sp->config = sp_config;
                 sp_config->version_1.hostname = target_entry->version_1.hostname;
-                int *intersp_port = DYN_ARRAY_GET_ELT(&(target_entry->version_1.interdpu_ports), sp_idx, int);
+                int *intersp_port = DYN_ARRAY_GET_ELT(&(target_entry->version_1.interdpu_ports), sp_port_idx, int);
                 int *host_port = DYN_ARRAY_GET_ELT(&(target_entry->version_1.host_ports), sp_idx, int);
                 sp_config->version_1.host_port = *host_port;
                 sp_config->version_1.intersp_port = *intersp_port;
-                cur_sp->init_params.conn_params->port = *host_port;
+                cur_sp->init_params.conn_params->port = *intersp_port;
                 cur_sp->init_params.conn_params->addr_str = target_entry->version_1.addr;
                 sp_idx++;
                 cur_global_sp_id++;
