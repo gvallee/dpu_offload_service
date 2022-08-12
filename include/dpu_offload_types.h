@@ -24,7 +24,7 @@ _EXTERN_C_BEGIN
 #define DEFAULT_NUM_PEERS (10000)
 
 // Set to 1 to use the AM implementaton; 0 to use tag send/recv implementation
-#define USE_AM_IMPLEM (0)
+#define USE_AM_IMPLEM (1)
 
 // Enable/disable thread-safety. Note that it does not impact multi-threaded for the
 // bootstrapping phase.
