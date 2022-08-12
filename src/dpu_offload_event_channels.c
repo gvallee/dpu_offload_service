@@ -19,9 +19,9 @@
 #include "dpu_offload_comms.h"
 
 #if BUDDY_BUFFER_SYS_ENABLE
-bool use_buddy_buffer_system = false;
-#else
 bool use_buddy_buffer_system = true;
+#else
+bool use_buddy_buffer_system = false;
 #endif
 
 #define DEFAULT_NUM_EVTS (32)
