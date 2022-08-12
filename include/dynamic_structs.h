@@ -211,6 +211,36 @@ typedef struct dyn_list
     dyn_array_t mem_chunks;
 } dyn_list_t;
 
+#if NDEBUG
+#define GROW_DYN_LIST(__dyn_list, __type, __elt)                                                                                 \
+    do                                                                                                                           \
+    {                                                                                                                            \
+        size_t _chunk_size = (__dyn_list)->num_elts_alloc * sizeof(__type);                                                      \
+        void *_new_chunk_buf = malloc(_chunk_size);                                                                              \
+        if (_new_chunk_buf != NULL)                                                                                              \
+        {                                                                                                                        \
+            size_t _gdl_idx;                                                                                                     \
+            mem_chunk_t *_chunk_ptr = DYN_ARRAY_GET_ELT(&((__dyn_list)->mem_chunks), (__dyn_list)->num_mem_chunks, mem_chunk_t); \
+            _chunk_ptr->ptr = _new_chunk_buf;                                                                                    \
+            _chunk_ptr->size = _chunk_size;                                                                                      \
+            (__dyn_list)->num_mem_chunks++;                                                                                      \
+            __type *_e = (__type *)(_new_chunk_buf);                                                                             \
+            for (_gdl_idx = 0; _gdl_idx < (__dyn_list)->num_elts_alloc; _gdl_idx++)                                              \
+            {                                                                                                                    \
+                if ((__dyn_list)->element_init_cb != NULL)                                                                       \
+                {                                                                                                                \
+                    (__dyn_list)->element_init_cb((void *)&(_e[_gdl_idx]));                                                      \
+                }                                                                                                                \
+                SIMPLE_LIST_PREPEND(&((__dyn_list)->list), &(_e[_gdl_idx].__elt));                                               \
+            }                                                                                                                    \
+            (__dyn_list)->num_elts += (__dyn_list)->num_elts_alloc;                                                              \
+        }                                                                                                                        \
+        else                                                                                                                     \
+        {                                                                                                                        \
+            fprintf(stderr, "[ERROR] unable to grow dynamic list, unable to allocate buffer\n");                                 \
+        }                                                                                                                        \
+    } while (0)
+#else
 #define GROW_DYN_LIST(__dyn_list, __type, __elt)                                                                                 \
     do                                                                                                                           \
     {                                                                                                                            \
@@ -246,6 +276,7 @@ typedef struct dyn_list
             fprintf(stderr, "[ERROR] unable to grow dynamic list, unable to allocate buffer\n");                                 \
         }                                                                                                                        \
     } while (0)
+#endif
 
 #define DYN_LIST_ALLOC(_dyn_list, _num_elts_alloc, _type, _elt)                           \
     do                                                                                    \
@@ -289,6 +320,26 @@ typedef struct dyn_list
         }                                                                                 \
     } while (0)
 
+#if NDEBUG
+#define DYN_LIST_FREE(_dyn_list, _type, _elt)                                           \
+    do                                                                                  \
+    {                                                                                   \
+        /* Free the underlying memory chunks */                                         \
+        size_t _i;                                                                      \
+        for (_i = 0; _i < (_dyn_list)->num_mem_chunks; _i++)                            \
+        {                                                                               \
+            mem_chunk_t *_mem_chunk_ptr = DYN_ARRAY_GET_ELT(&((_dyn_list)->mem_chunks), \
+                                                            _i,                         \
+                                                            mem_chunk_t);               \
+            assert(_mem_chunk_ptr);                                                     \
+            free(_mem_chunk_ptr->ptr);                                                  \
+            _mem_chunk_ptr->ptr = NULL;                                                 \
+        }                                                                               \
+        DYN_ARRAY_FREE(&((_dyn_list)->mem_chunks));                                     \
+        free(_dyn_list);                                                                \
+        _dyn_list = NULL;                                                               \
+    } while (0)
+#else
 #define DYN_LIST_FREE(_dyn_list, _type, _elt)                                           \
     do                                                                                  \
     {                                                                                   \
@@ -313,6 +364,7 @@ typedef struct dyn_list
         free(_dyn_list);                                                                \
         _dyn_list = NULL;                                                               \
     } while (0)
+#endif
 
 #define DYN_LIST_GET(_dyn_list, _type, _elt, _item)                          \
     do                                                                       \
