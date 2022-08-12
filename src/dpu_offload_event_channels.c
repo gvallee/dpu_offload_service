@@ -78,14 +78,19 @@ static void am_rdv_recv_cb(void *request, ucs_status_t status, size_t length, vo
         }
         else
         {
-#if 0
-            free(recv_info->user_data);
-#else
-            SMART_BUFF_RETURN(&(recv_info->econtext->engine->smart_buffer_sys),
-                              recv_info->payload_size,
-                              recv_info->smart_chunk);
+
+            if (use_buddy_buffer_system)
+            {
+                SMART_BUFF_RETURN(&(recv_info->econtext->engine->smart_buffer_sys),
+                                  recv_info->payload_size,
+                                  recv_info->smart_chunk);
+                recv_info->smart_chunk = NULL;
+            }
+            else
+            {
+                free(recv_info->user_data);
+            }
             recv_info->user_data = NULL;
-#endif
         }
     }
     if (request != NULL)
