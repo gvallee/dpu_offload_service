@@ -138,10 +138,14 @@ static ucs_status_t am_notification_recv_rdv_msg(execution_context_t *econtext, 
                                                    UCP_OP_ATTR_FIELD_MEMORY_TYPE;
 #else
         if (use_buddy_buffer_system)
+        {
             pending_recv->smart_chunk = SMART_BUFF_GET(&(econtext->engine->smart_buffer_sys), payload_size);
+            pending_recv->user_data = pending_recv->smart_chunk->base;
+        }
         else
-            pending_recv->smart_chunk = malloc(payload_size);
-        pending_recv->user_data = pending_recv->smart_chunk->base;
+        {
+            pending_recv->user_data = malloc(payload_size);
+        }
         pending_recv->buff_size = payload_size;
         am_rndv_recv_request_params.op_attr_mask = UCP_OP_ATTR_FIELD_CALLBACK |
                                                    UCP_OP_ATTR_FIELD_USER_DATA |
