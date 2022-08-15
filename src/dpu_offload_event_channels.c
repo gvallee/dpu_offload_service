@@ -190,11 +190,21 @@ static ucs_status_t am_notification_msg_cb(void *arg, const void *header, size_t
                                            void *data, size_t length,
                                            const ucp_am_recv_param_t *param)
 {
+    if (arg == NULL || header == NULL)
+    {
+        DBG("arguments or header is NULL, skipping...");
+        return UCS_OK;
+    }
     assert(header != NULL);
     assert(header_length == sizeof(am_header_t));
     execution_context_t *econtext = (execution_context_t *)arg;
     am_header_t *hdr = (am_header_t *)header;
     assert(hdr != NULL);
+    if (econtext->event_channels == NULL)
+    {
+        DBG("notification system not initialized (may be finalized), skipping...");
+        return UCS_OK;
+    }
     assert(hdr->type < econtext->event_channels->notification_callbacks.num_elts);
 
     if (param->recv_attr & UCP_AM_RECV_ATTR_FLAG_RNDV)
