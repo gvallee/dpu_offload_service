@@ -1361,9 +1361,7 @@ static int add_cache_entry_for_new_client(peer_info_t *client_info, execution_co
         {
             cache_entry->shadow_service_procs[0] = ECONTEXT_ID(ctx);
         }
-        // The rank is associate to the current SP so the EP is the endpoint of the engine
         assert(cache_entry->ep == NULL);
-        cache_entry->ep = ctx->engine->self_ep;
         cache_entry->set = true;
 
         group_cache_t *gp_cache = GET_GROUP_CACHE(&(ctx->engine->procs_cache), &(client_info->rank_data.group_id));
