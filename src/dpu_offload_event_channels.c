@@ -380,7 +380,7 @@ dpu_offload_status_t event_channels_init(execution_context_t *econtext)
     am_param.id = AM_EVENT_MSG_ID;
     // For all exchange, we receive the header first and from there post a receive for the either eager or RDV message.
     am_param.cb = am_notification_msg_cb;
-    am_param.arg = econtext;
+    am_param.arg = econtext->engine;
     DBG("Registering AM eager callback for notifications (type=%d, econtext=%p, worker=%p, ev_param=%p)",
         AM_EVENT_MSG_ID,
         econtext,
