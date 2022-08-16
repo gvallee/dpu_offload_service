@@ -672,6 +672,7 @@ int am_send_event_msg(dpu_offload_event_t **event)
 {
     int rc;
     PREP_EVENT_FOR_EMIT(*event);
+    (*event)->ctx.hdr.scope_id = (*event)->scope_id;
     rc = do_am_send_event_msg(*event);
     if ((rc == EVENT_DONE || rc == EVENT_INPROGRESS) && (*event)->req == NULL)
     {
