@@ -447,6 +447,7 @@ static void notification_emit_cb(void *request, ucs_status_t status, void *user_
         return;
     DBG("ev=%p ctx=%p id=%" PRIu64, ev, &(ev->ctx), EVENT_HDR_SEQ_NUM(ev));
     COMPLETE_EVENT(ev);
+    ucp_request_free(ev->req);
     ev->req = NULL;
     assert(ev->event_system);
     execution_context_t *econtext = ev->event_system->econtext;
