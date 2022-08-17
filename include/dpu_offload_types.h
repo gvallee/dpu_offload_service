@@ -1752,6 +1752,12 @@ typedef struct offloading_engine
     // In most cases, this is the data from the configuration file.
     struct offloading_config *config;
 
+    // Runtime configuration
+    struct {
+        bool buddy_buffer_system_enabled;
+        bool ucx_am_backend_enabled;
+    } settings;
+
     /* client here is used to track the bootstrapping as a client. */
     /* it can only be at most one (the offload engine bootstraps only once */
     /* for both host process and the DPU daemon) */
