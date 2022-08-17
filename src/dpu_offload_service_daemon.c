@@ -1037,7 +1037,7 @@ dpu_offload_status_t offload_engine_init(offloading_engine_t **engine)
     CHECK_ERR_GOTO((d->pool_conn_params == NULL), error_out, "Allocation of pool of connection parameter descriptors failed");
 
 #if BUDDY_BUFFER_SYS_ENABLE
-    d->settings.buddy_buffer_system_enable = true;
+    d->settings.buddy_buffer_system_enabled = true;
 #else
     d->settings.buddy_buffer_system_enabled = false;
 #endif
