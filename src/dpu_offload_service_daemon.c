@@ -1036,6 +1036,18 @@ dpu_offload_status_t offload_engine_init(offloading_engine_t **engine)
     CHECK_ERR_GOTO((d->free_cache_entry_requests == NULL), error_out, "Allocations of pool of descriptions for cache queries failed");
     CHECK_ERR_GOTO((d->pool_conn_params == NULL), error_out, "Allocation of pool of connection parameter descriptors failed");
 
+#if BUDDY_BUFFER_SYS_ENABLE
+    d->settings.buddy_buffer_system_enabled = true;
+#else
+    d->settings.buddy_buffer_system_enabled = false;
+#endif
+
+#if USE_AM_IMPLEM
+    d->settings.ucx_am_backend_enabled = true;
+#else
+    d->settings.ucx_am_backend_enabled = false;
+#endif
+
     dpu_offload_status_t rc = ev_channels_init(&(d->default_notifications));
     CHECK_ERR_GOTO((rc), error_out, "ev_channels_init() failed");
 

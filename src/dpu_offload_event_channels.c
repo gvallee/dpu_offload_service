@@ -18,12 +18,6 @@
 #include "dpu_offload_debug.h"
 #include "dpu_offload_comms.h"
 
-#if BUDDY_BUFFER_SYS_ENABLE
-bool use_buddy_buffer_system = true;
-#else
-bool use_buddy_buffer_system = false;
-#endif
-
 #define DEFAULT_NUM_EVTS (32)
 #define DEFAULT_NUM_NOTIFICATION_CALLBACKS (5000)
 
@@ -62,6 +56,11 @@ static void am_rdv_recv_cb(void *request, ucs_status_t status, size_t length, vo
 {
     assert(status == UCS_OK);
     pending_am_rdv_recv_t *recv_info = (pending_am_rdv_recv_t *)user_data;
+    offloading_engine_t *engine = NULL;
+    assert(recv_info);
+    assert(recv_info->econtext);
+    engine = recv_info->econtext->engine;
+    assert(engine);
     int rc = handle_notif_msg(recv_info->econtext, recv_info->hdr, recv_info->hdr_len, recv_info->user_data, recv_info->payload_size);
     if (rc != UCS_OK)
     {
@@ -79,7 +78,7 @@ static void am_rdv_recv_cb(void *request, ucs_status_t status, size_t length, vo
         else
         {
 
-            if (use_buddy_buffer_system)
+            if (engine->settings.buddy_buffer_system_enabled)
             {
                 SMART_BUFF_RETURN(&(recv_info->econtext->engine->smart_buffer_sys),
                                   recv_info->payload_size,
@@ -134,7 +133,7 @@ static ucs_status_t am_notification_recv_rdv_msg(execution_context_t *econtext, 
     else
     {
 
-        if (use_buddy_buffer_system)
+        if (econtext->engine->settings.buddy_buffer_system_enabled)
         {
             pending_recv->smart_chunk = SMART_BUFF_GET(&(econtext->engine->smart_buffer_sys), payload_size);
             pending_recv->user_data = pending_recv->smart_chunk->base;
