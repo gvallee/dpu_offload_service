@@ -1233,7 +1233,7 @@ bool event_completed(dpu_offload_event_t *ev)
     return false;
 
 event_completed:
-    DBG("Event %p (#%ld) is completed", ev, ev->seq_num);
+    DBG("Event %p (#%ld) is completed", ev, EVENT_HDR_SEQ_NUM(ev));
     COMPLETE_EVENT(ev);
     return true;
 }
