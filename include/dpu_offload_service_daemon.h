@@ -98,7 +98,7 @@ void offload_config_free(offloading_config_t *cfg);
 
 dpu_offload_status_t inter_dpus_connect_mgr(offloading_engine_t *, offloading_config_t *);
 
-dpu_offload_status_t send_add_group_rank_request(execution_context_t *econtext, ucp_ep_h ep, uint64_t dest_id, rank_info_t *rank_info, dpu_offload_event_t **e);
+dpu_offload_status_t send_add_group_rank_request(execution_context_t *econtext, ucp_ep_h ep, uint64_t dest_id, dpu_offload_event_t *e);
 
 void local_rank_connect_default_callback(void *data);
 
@@ -212,6 +212,8 @@ dpu_offload_status_t get_local_service_proc_connect_info(offloading_config_t *cf
 dpu_offload_status_t get_num_connecting_ranks(uint64_t num_service_procs_per_dpu, int64_t n_local_ranks, uint64_t sp_lid, uint64_t *n_ranks);
 
 bool all_service_procs_connected(offloading_engine_t *engine);
+
+dpu_offload_status_t forward_cache_entry_to_local_sps(offloading_engine_t *engine, group_id_t *gp_id);
 
 #define SET_DEFAULT_DPU_HOST_SERVER_CALLBACKS(_init_params)                 \
     do                                                                      \

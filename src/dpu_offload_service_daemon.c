@@ -1304,9 +1304,9 @@ void local_rank_connect_default_callback(void *data)
     assert(connected_peer->econtext->engine);
     gc = GET_GROUP_CACHE(&(connected_peer->econtext->engine->procs_cache), &group_id);
     assert(gc);
-    assert(gc->n_local_ranks_populated <= gc->group_size);
     DBG("Checking group %d-%d (number of local entries: %ld, n_local_populated: %ld, n_local: %ld)",
         group_id.lead, group_id.id, gc->n_local_ranks_populated, gc->n_local_ranks_populated, gc->n_local_ranks);
+    assert(gc->n_local_ranks_populated <= gc->group_size);
 
     // If the cache is full, i.e., all the ranks of the group are on the host,
     // or if the entire cache is there, we make sure to send it to the local ranks if necessary

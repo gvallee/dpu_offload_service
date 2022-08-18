@@ -43,20 +43,18 @@ bool is_in_cache(cache_t *cache, group_id_t gp_id, int64_t rank_id, int64_t grou
     return (entry->set);
 }
 
-dpu_offload_status_t send_add_group_rank_request(execution_context_t *econtext, ucp_ep_h ep, uint64_t dest_id, rank_info_t *rank_info, dpu_offload_event_t **e)
+dpu_offload_status_t send_add_group_rank_request(execution_context_t *econtext, ucp_ep_h ep, uint64_t dest_id, dpu_offload_event_t *ev)
 {
-    dpu_offload_event_t *ev;
-    dpu_offload_event_info_t ev_info = {0};
-    ev_info.payload_size = sizeof(rank_info_t);
-    dpu_offload_status_t rc = event_get(econtext->event_channels, &ev_info, &ev);
-    CHECK_ERR_RETURN((rc), DO_ERROR, "event_get() failed");
-
+    dpu_offload_status_t rc;
+    // The rank info is always at the beginning of the payload that the caller prepared
+    rank_info_t *rank_info = (rank_info_t*)ev->payload;
     // We add ourselves to the local EP cache as shadow service process
     if (rank_info->group_id.id != INVALID_GROUP &&
         rank_info->group_id.lead != INVALID_GROUP_LEAD &&
         rank_info->group_rank != INVALID_RANK &&
         !is_in_cache(&(econtext->engine->procs_cache), rank_info->group_id, rank_info->group_rank, rank_info->group_size))
     {
+        // Before sending the data, update the local cache
         peer_cache_entry_t *cache_entry = GET_GROUP_RANK_CACHE_ENTRY(&(econtext->engine->procs_cache),
                                                                      &(rank_info->group_id),
                                                                      rank_info->group_rank,
@@ -76,17 +74,12 @@ dpu_offload_status_t send_add_group_rank_request(execution_context_t *econtext, 
     }
 
     DBG("Sending request to add group/rank");
-    rank_info_t *rank_info_data = (rank_info_t *)ev->payload;
-    RESET_RANK_INFO(rank_info_data);
-    COPY_RANK_INFO(rank_info, rank_info_data);
-
     rc = event_channel_emit(&ev,
                             AM_ADD_GP_RANK_MSG_ID,
                             ep,
                             dest_id,
                             NULL);
     CHECK_ERR_RETURN((rc != EVENT_DONE && rc != EVENT_INPROGRESS), DO_ERROR, "event_channel_emit() failed");
-    *e = ev;
     return DO_SUCCESS;
 }
 

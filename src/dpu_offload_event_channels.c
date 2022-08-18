@@ -1394,6 +1394,20 @@ static dpu_offload_status_t peer_cache_entries_recv_cb(struct dpu_offload_ev_sys
     return DO_SUCCESS;
 }
 
+static bool rank_is_on_sp(int64_t world_rank, offloading_engine_t *engine)
+{
+    group_id_t *world = &engine->procs_cache.world_group;
+    group_cache_t *c = GET_GROUP_CACHE(&(engine->procs_cache), world);
+    peer_cache_entry_t *cache_entry = DYN_ARRAY_GET_ELT(&(c->ranks), world_rank, peer_cache_entry_t);
+    assert(cache_entry);
+    if (cache_entry->shadow_service_procs[0] == engine->config->local_service_proc.info.global_id)
+    {
+        DBG("World rank %ld is on SP %" PRIu64 "\n", world_rank, cache_entry->shadow_service_procs[0]);
+        return true;
+    }
+    return false;
+}
+
 /**
  * @brief add_group_rank_recv_cb is invoked on the DPU when receiving a notification from a rank running on the local host
  * that a new group/rank had been created
@@ -1408,10 +1422,12 @@ static dpu_offload_status_t peer_cache_entries_recv_cb(struct dpu_offload_ev_sys
  */
 static dpu_offload_status_t add_group_rank_recv_cb(struct dpu_offload_ev_sys *ev_sys, execution_context_t *econtext, am_header_t *hdr, size_t hdr_size, void *data, size_t data_len)
 {
+    size_t cur_size = 0;
     assert(econtext);
     assert(data);
     assert(ev_sys->econtext->engine->on_dpu);
 
+    // The rank info is always at the beginning of the payload
     rank_info_t *rank_info = (rank_info_t *)data;
     if (rank_info->group_id.id == INVALID_GROUP ||
         rank_info->group_id.lead == INVALID_GROUP_LEAD ||
@@ -1423,6 +1439,8 @@ static dpu_offload_status_t add_group_rank_recv_cb(struct dpu_offload_ev_sys *ev
 
     DBG("Recv'd data about group_rank %d-%d %" PRId64 " %" PRId64, 
         rank_info->group_id.lead, rank_info->group_id.id, rank_info->group_rank, rank_info->group_size);
+    group_cache_t *gp_cache = GET_GROUP_CACHE(&(econtext->engine->procs_cache), &(rank_info->group_id));
+    assert(gp_cache);
     if (!is_in_cache(&(econtext->engine->procs_cache), rank_info->group_id, rank_info->group_rank, rank_info->group_size))
     {
         peer_cache_entry_t *cache_entry;
@@ -1447,17 +1465,48 @@ static dpu_offload_status_t add_group_rank_recv_cb(struct dpu_offload_ev_sys *ev
         cache_entry->client_id = hdr->client_id;
         cache_entry->set = true;
 
-        group_cache_t *gp_cache = GET_GROUP_CACHE(&(econtext->engine->procs_cache), &(rank_info->group_id));
-        assert(gp_cache);
         if (gp_cache->n_local_ranks <= 0 && rank_info->n_local_ranks >= 0)
         {
             gp_cache->n_local_ranks = rank_info->n_local_ranks;
         }
         gp_cache->n_local_ranks_populated++;
         gp_cache->num_local_entries++;
-    }
+        DBG("group now has %ld entries, %ld local ranks, %ld being populated",
+            gp_cache->num_local_entries,
+            gp_cache->n_local_ranks,
+            gp_cache->n_local_ranks_populated);
 
-    GROUP_CACHE_EXCHANGE(econtext->engine, rank_info->group_id, rank_info->n_local_ranks);
+        // Unpack the mapping of all the ranks
+        int64_t rank = 0;
+        size_t ranks_attached_to_sp = 0;
+        int64_t *ptr = (int64_t*)((ptrdiff_t)data + sizeof(rank_info_t));
+        cur_size = sizeof(rank_info_t);
+        while (cur_size < data_len)
+        {
+            if (gp_cache->sp_ranks == 0)
+            {
+                DBG("Rank %" PRId64 " is rank %" PRId64 " on comm world\n", rank, *ptr);
+                if (rank_is_on_sp(*ptr, econtext->engine))
+                    ranks_attached_to_sp++;
+            }
+            rank++;
+            cur_size += sizeof(int64_t);
+            ptr = (int64_t*)((ptrdiff_t)ptr + sizeof(int64_t));
+        }
+
+        if (gp_cache->sp_ranks == 0)
+        {
+            gp_cache->sp_ranks = ranks_attached_to_sp;
+            DBG("%ld/%ld ranks of group %d-%d are expected on SP #%" PRIu64,
+                gp_cache->sp_ranks,
+                gp_cache->group_size,
+                rank_info->group_id.lead,
+                rank_info->group_id.id,
+                econtext->engine->config->local_service_proc.info.global_id);
+        }
+    }
+    
+    GROUP_CACHE_EXCHANGE(econtext->engine, rank_info->group_id, gp_cache->sp_ranks);
 
     return DO_SUCCESS;
 }
