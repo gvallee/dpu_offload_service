@@ -1461,13 +1461,13 @@ static dpu_offload_status_t add_group_rank_recv_cb(struct dpu_offload_ev_sys *ev
 
     // Unpack the mapping of all the ranks
     int64_t rank = 0;
-    int64_t *ptr = (uint64_t*)((ptrdiff_t)data + sizeof(rank_info_t));
+    int64_t *ptr = (int64_t*)((ptrdiff_t)data + sizeof(rank_info_t));
     while (cur_size < data_len)
     {
         INFO_MSG("Rank %ld is rank %ld on comm world\n", rank, *ptr);
         rank++;
         cur_size += sizeof(int64_t);
-        ptr = (uint64_t*)((ptrdiff_t)ptr + sizeof(int64_t));
+        ptr = (int64_t*)((ptrdiff_t)ptr + sizeof(int64_t));
     }
     
 
