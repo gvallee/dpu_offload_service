@@ -1557,6 +1557,9 @@ typedef struct group_cache
     // Number of ranks on the local host that we already know about
     size_t n_local_ranks_populated;
 
+    // Number of rank in the group that are associated to the current service process
+    size_t sp_ranks;
+
     // Array with all the ranks in the group (type: peer_cache_entry_t)
     dyn_array_t ranks;
 } group_cache_t;
@@ -1570,8 +1573,15 @@ typedef struct group_cache
         (__g)->num_local_entries = 0;       \
         (__g)->n_local_ranks = 0;           \
         (__g)->n_local_ranks_populated = 0; \
+        (__g)->sp_ranks = 0;                \
     } while (0)
 
+/**
+ * @brief GET_GROUP_CACHE looks up a specific group from the cache. If the cache does
+ * not exist, the macro initializes the group cache structure for the cache to be ready
+ * to be used. It does not mean the group cache for the group is fully initialized. The
+ * second part of the initialization is performed when a rank is added to the cache.
+ */
 #define GET_GROUP_CACHE(_cache, _gp_id) ({                                               \
     group_cache_t *_gp_cache = NULL;                                                     \
     int64_t _gp_key = GET_GROUP_KEY((_gp_id));                                           \
@@ -1671,6 +1681,9 @@ typedef struct cache
     // How many group caches that compose the cache are currently in use.
     size_t size;
 
+    // Identifier of the first group, a.k.a., MPI_COMM_WORLD or equivalent
+    group_id_t world_group;
+
     // data is a dynamic array for all the group caches
     khash_t(group_hash_t) * data;
 
@@ -1684,13 +1697,14 @@ typedef struct cache
     dyn_list_t *group_cache_pool;
 } cache_t;
 
-#define RESET_CACHE(__c)                \
-    do                                  \
-    {                                   \
-        (__c)->size = 0;                \
-        (__c)->data = NULL;             \
-        (__c)->group_cache_pool = NULL; \
-        (__c)->keys_is_use = 0;         \
+#define RESET_CACHE(__c)                     \
+    do                                       \
+    {                                        \
+        (__c)->size = 0;                     \
+        (__c)->data = NULL;                  \
+        (__c)->group_cache_pool = NULL;      \
+        (__c)->keys_is_use = 0;              \
+        RESET_GROUP_ID(&(__c)->world_group); \
     } while (0)
 
 /**
@@ -1713,11 +1727,15 @@ typedef struct cache
         if (_gp_cache->initialized == false)                                           \
         {                                                                              \
             /* Cache for the group is empty, lazy initialization */                    \
-            DYN_ARRAY_ALLOC(_rank_cache, DEFAULT_NUM_PEERS, peer_cache_entry_t);       \
             _gp_cache->initialized = true;                                             \
             if (_gp_size >= 0)                                                         \
                 _gp_cache->group_size = _gp_size;                                      \
             (_cache)->size++;                                                          \
+            /* We set the value for the first group when we add the first rank to */   \
+            /* a cache. GET_GROUP_CACHE only made sure we could use the structure */   \
+            /* The first group is MPI_COMM_WORLD or equivalent. */                     \
+            if ((_cache)->size == 1)                                                   \
+                COPY_GROUP_ID(_gp_id, &(_cache)->world_group);                         \
         }                                                                              \
         if (_gp_cache->initialized &&                                                  \
             _gp_cache->group_size <= 0 &&                                              \

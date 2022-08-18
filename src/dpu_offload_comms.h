@@ -116,26 +116,45 @@
     _can_post;                                                                       \
 })
 
-#define GROUP_CACHE_EXCHANGE(_engine, _gp_id, _n_local_ranks)                                                                \
-    do                                                                                                                       \
-    {                                                                                                                        \
-        uint64_t n_connecting_ranks;                                                                                         \
-        get_num_connecting_ranks((_engine)->config->num_service_procs_per_dpu,                                               \
-                                 (_n_local_ranks),                                                                           \
-                                 (_engine)->config->local_service_proc.info.local_id,                                        \
-                                 &n_connecting_ranks);                                                                       \
-        group_cache_t *__gp_cache = GET_GROUP_CACHE(&((_engine)->procs_cache), &(_gp_id));                                    \
-        if (__gp_cache->n_local_ranks > 0 && __gp_cache->n_local_ranks_populated == n_connecting_ranks)                      \
-        {                                                                                                                    \
-            DBG("We now have a connection with all the local ranks, we can broadcast the group cache at once");              \
-            broadcast_group_cache((_engine), (_gp_id));                                                                      \
-        }                                                                                                                    \
-        if (__gp_cache->n_local_ranks < 0)                                                                                   \
-        {                                                                                                                    \
-            DBG("We do not know how many ranks to locally expect for that group, broadcast the new information by default"); \
-            broadcast_group_cache((_engine), (_gp_id));                                                                      \
-        }                                                                                                                    \
-    } while (0)
+#define GROUP_CACHE_EXCHANGE(_engine, _gp_id, _n_local_ranks)                                                   \
+    do                                                                                                          \
+    {                                                                                                           \
+        group_cache_t *__gp_cache = GET_GROUP_CACHE(&((_engine)->procs_cache), &(_gp_id));                      \
+        if ((_engine)->procs_cache.size == 1)                                                                   \
+        {                                                                                                       \
+            /* we have to make sure everything is wired up before trying to broadcast the cache. */             \
+            /* So it means have all the local ranks connected and the cache for local ranks fully */            \
+            /* populated. */                                                                                    \
+            uint64_t n_connecting_ranks;                                                                        \
+            get_num_connecting_ranks((_engine)->config->num_service_procs_per_dpu,                              \
+                                 (_n_local_ranks),                                                              \
+                                 (_engine)->config->local_service_proc.info.local_id,                           \
+                                 &n_connecting_ranks);                                                          \
+            if (__gp_cache->n_local_ranks > 0 && __gp_cache->n_local_ranks_populated == n_connecting_ranks)     \
+            {                                                                                                   \
+                DBG("We now have a connection with all local ranks, we can broadcast the group cache at once"); \
+                broadcast_group_cache((_engine), (_gp_id));                                                     \
+            }                                                                                                   \
+        }                                                                                                       \
+        else                                                                                                    \
+        {                                                                                                       \
+            /* We are dealing with a sub-communicator. In that context, _n_local_ranks is equal to the */       \
+            /* number of ranks associated to the current service process. */                                    \
+            if (_n_local_ranks == __gp_cache->n_local_ranks_populated)                                          \
+            {                                                                                                   \
+                DBG("We have the gp data for all local ranks, we can broadcast the group cache at once");       \
+                broadcast_group_cache((_engine), (_gp_id));                                                     \
+            }                                                                                                   \
+        }                                                                                                       \
+                                                                                                                \
+        /* We do not have enough information about the group to do anything optimized, we just broadcast */     \
+        /* with what we got. */                                                                                 \
+        if (__gp_cache->n_local_ranks < 0)                                                                      \
+        {                                                                                                       \
+            DBG("We do not know how many ranks to locally expect for the group, broadcast by default");         \
+            broadcast_group_cache((_engine), (_gp_id));                                                         \
+        }                                                                                                       \
+     } while (0)
 
 #if USE_AM_IMPLEM
 static bool event_posted(dpu_offload_event_t *ev)

@@ -213,6 +213,8 @@ dpu_offload_status_t get_num_connecting_ranks(uint64_t num_service_procs_per_dpu
 
 bool all_service_procs_connected(offloading_engine_t *engine);
 
+dpu_offload_status_t forward_cache_entry_to_local_sps(offloading_engine_t *engine, group_id_t *gp_id);
+
 #define SET_DEFAULT_DPU_HOST_SERVER_CALLBACKS(_init_params)                 \
     do                                                                      \
     {                                                                       \
