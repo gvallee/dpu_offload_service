@@ -1408,10 +1408,12 @@ static dpu_offload_status_t peer_cache_entries_recv_cb(struct dpu_offload_ev_sys
  */
 static dpu_offload_status_t add_group_rank_recv_cb(struct dpu_offload_ev_sys *ev_sys, execution_context_t *econtext, am_header_t *hdr, size_t hdr_size, void *data, size_t data_len)
 {
+    size_t cur_size = 0;
     assert(econtext);
     assert(data);
     assert(ev_sys->econtext->engine->on_dpu);
 
+    // The rank info is always at the beginning of the payload
     rank_info_t *rank_info = (rank_info_t *)data;
     if (rank_info->group_id.id == INVALID_GROUP ||
         rank_info->group_id.lead == INVALID_GROUP_LEAD ||
@@ -1456,6 +1458,18 @@ static dpu_offload_status_t add_group_rank_recv_cb(struct dpu_offload_ev_sys *ev
         gp_cache->n_local_ranks_populated++;
         gp_cache->num_local_entries++;
     }
+
+    // Unpack the mapping of all the ranks
+    int64_t rank = 0;
+    int64_t *ptr = (uint64_t*)((ptrdiff_t)data + sizeof(rank_info_t));
+    while (cur_size < data_len)
+    {
+        INFO_MSG("Rank %ld is rank %ld on comm world\n", rank, *ptr);
+        rank++;
+        cur_size += sizeof(int64_t);
+        ptr = (uint64_t*)((ptrdiff_t)ptr + sizeof(int64_t));
+    }
+    
 
     GROUP_CACHE_EXCHANGE(econtext->engine, rank_info->group_id, rank_info->n_local_ranks);
 
