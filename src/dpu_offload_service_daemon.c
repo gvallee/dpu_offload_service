@@ -103,6 +103,7 @@ struct oob_msg
 
 extern dpu_offload_status_t get_env_config(conn_params_t *params);
 
+#if 0
 static void ep_create_err_cb(void *arg, ucp_ep_h ep, ucs_status_t status)
 {
     execution_context_t *econtext = (execution_context_t *)arg;
@@ -114,6 +115,7 @@ static void ep_create_err_cb(void *arg, ucp_ep_h ep, ucs_status_t status)
             econtext->type, econtext->scope_id);
     abort();
 }
+#endif
 
 static void oob_recv_addr_handler_2(void *request, ucs_status_t status, const ucp_tag_recv_info_t *tag_info, void *user_data)
 {
@@ -250,10 +252,8 @@ static inline dpu_offload_status_t oob_server_ucx_client_connection_step3(execut
     ucp_ep_params_t ep_params = {0};
     ep_params.field_mask = UCP_EP_PARAM_FIELD_REMOTE_ADDRESS |
                            UCP_EP_PARAM_FIELD_ERR_HANDLING_MODE |
-                           UCP_EP_PARAM_FIELD_ERR_HANDLER |
                            UCP_EP_PARAM_FIELD_USER_DATA;
     ep_params.err_mode = err_handling_opt.ucp_err_mode;
-    ep_params.err_handler.cb = ep_create_err_cb;
     ep_params.err_handler.arg = econtext;
     ep_params.address = client_info->peer_addr;
     ep_params.user_data = &(client_info->ep_status);
@@ -677,10 +677,8 @@ static dpu_offload_status_t ucx_listener_client_connect(dpu_offload_client_t *cl
     ucp_ep_params_t ep_params = {0};
     ep_params.field_mask = UCP_EP_PARAM_FIELD_FLAGS |
                            UCP_EP_PARAM_FIELD_SOCK_ADDR |
-                           UCP_EP_PARAM_FIELD_ERR_HANDLER |
                            UCP_EP_PARAM_FIELD_ERR_HANDLING_MODE;
-    ep_params.err_mode = UCP_ERR_HANDLING_MODE_PEER;
-    ep_params.err_handler.cb = ep_create_err_cb;
+    ep_params.err_mode = UCP_ERR_HANDLING_MODE_NONE;
     ep_params.err_handler.arg = client->econtext;
     ep_params.flags = UCP_EP_PARAMS_FLAGS_CLIENT_SERVER;
     ep_params.sockaddr.addr = (struct sockaddr *)&(client->conn_data.ucx_listener.connect_addr);
@@ -796,11 +794,9 @@ static dpu_offload_status_t client_ucx_bootstrap_step1(execution_context_t *econ
     ucp_ep_params_t ep_params = {0};
     ep_params.field_mask = UCP_EP_PARAM_FIELD_REMOTE_ADDRESS |
                            UCP_EP_PARAM_FIELD_ERR_HANDLING_MODE |
-                           UCP_EP_PARAM_FIELD_ERR_HANDLER |
                            UCP_EP_PARAM_FIELD_USER_DATA;
     ep_params.address = econtext->client->conn_data.oob.peer_addr;
     ep_params.err_mode = err_handling_opt.ucp_err_mode;
-    ep_params.err_handler.cb = ep_create_err_cb;
     ep_params.err_handler.arg = econtext;
     ep_params.user_data = &(econtext->client->server_ep_status);
 
