@@ -9,4 +9,4 @@
 # $HEADER$
 #
 
-SUBDIRS = offload_service process_spawn cache dyn_structs config comms
+SUBDIRS = offload_service process_spawn cache dyn_structs config comms telemetry
