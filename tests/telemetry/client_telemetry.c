@@ -17,19 +17,10 @@ bool client_done = false;
 
 static int loadavg_notif_cb(struct dpu_offload_ev_sys *ev_sys, execution_context_t *econtext, am_header_t *hdr, size_t hdr_len, void *data, size_t data_len)
 {
-    cmd_output_t *cmd_output = NULL;
-    size_t n;
-
+    char *cmd_output = NULL;
     assert(data);
-    cmd_output = (cmd_output_t *)data;
-
-    // Display the output
-    fprintf(stdout, "New command output:\n");
-    for (n = 0; n < cmd_output->num; n++)
-    {
-        fprintf(stdout, "\t%s", cmd_output->output[n]);
-    }
-    fprintf(stdout, "\n");
+    cmd_output = (char *)data;
+    fprintf(stdout, "New command output:\n%s\n", cmd_output);
     return DO_SUCCESS;
 }
 

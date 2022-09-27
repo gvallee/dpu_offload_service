@@ -12,14 +12,7 @@
 #include "dpu_offload_event_channels.h"
 #include "telemetry.h"
 
-// CMD_OUTPUT_BUF_SIZE is the maximum length of a single output line. Output are allowed to be composed of several lines.
-#define CMD_OUTPUT_BUF_SIZE (1024)
 #define DEFAULT_NUM_ELTS_IN_POOL (10)
-
-#define GET_CMD_OUTPUT_SIZE(_co) ({                                     \
-    size_t _co_sz = sizeof(char**) + (_co)->num * CMD_OUTPUT_BUF_SIZE;  \
-    _co_sz;                                                             \
-})
 
 typedef struct send_tracker {
     ucs_list_link_t item;
@@ -70,45 +63,24 @@ int run_cmd(char *cmd, cmd_output_t *cmd_output)
 {
     FILE *fp = NULL;
     char line[CMD_OUTPUT_BUF_SIZE];
-    size_t idx = 0;
+    size_t max_size = cmd_output->max_size;
 
     assert(cmd_output);
     RESET_CMD_OUTPUT(cmd_output);
-    cmd_output->output = malloc(sizeof(char**));
     assert(cmd_output->output);
 
     fp = popen(cmd, "r");
     assert(fp);
-    while (fgets(line, sizeof(line), fp) != NULL) {
-        cmd_output->output[idx] = malloc(CMD_OUTPUT_BUF_SIZE);
-        strncpy(cmd_output->output[idx], line, CMD_OUTPUT_BUF_SIZE);
-        idx++;
+
+    while (fgets(line, sizeof(max_size), fp) != NULL)
+    {
+        char *ptr = (char*)((ptrdiff_t)cmd_output->output + cmd_output->size);
+        strcpy(ptr, line);
+        max_size -= strlen(line);
+        cmd_output->size += strlen(line);
     }
-    cmd_output->num = idx;
 
     return 0;
-}
-
-void free_cmd_output(cmd_output_t *cmd_output)
-{
-    if (cmd_output)
-    {
-        if (cmd_output->output)
-        {
-            size_t i = 0;
-            for (i = 0; i < cmd_output->num; i++)
-            {
-                if (cmd_output->output[i])
-                {
-                    free(cmd_output->output[i]);
-                    cmd_output->output[i] = NULL;
-                }
-            }
-            free(cmd_output->output);
-            cmd_output->output = NULL;
-        }
-        cmd_output->num = 0;
-    }
 }
 
 // Starts a thread that periodically executes a command
@@ -138,7 +110,6 @@ void * cmd_exec_thread(void *arg)
                 SIMPLE_LIST_DEL(&(params->ongoing_sends), &(cur_send->item));
                 rc = event_return(&(cur_send->meta_ev));
                 assert(rc == DO_SUCCESS);
-                free_cmd_output(&(cur_send->cmd_output));
             }
         }
 
@@ -178,16 +149,19 @@ void * cmd_exec_thread(void *arg)
                 ev_info.explicit_return = true;
                 rc = event_get(params->econtext->event_channels, &ev_info, &ev);
                 assert(rc == DO_SUCCESS);
+                ev->is_subevent = true;
 
                 client_ep = GET_CLIENT_EP(params->econtext, client);
+                if (client_ep == NULL)
+                    fprintf(stderr, "Client %ld had no EP\n", client);
                 assert(client_ep);
                 rc = event_channel_emit_with_payload(&ev,
                                                      LOAD_AVG_TELEMETRY_NOTIF,
                                                      client_ep,
                                                      client,
                                                      NULL,
-                                                     (void*)new_sends_tracker->cmd_output.output,
-                                                     GET_CMD_OUTPUT_SIZE(&(new_sends_tracker->cmd_output)));
+                                                     &(new_sends_tracker->cmd_output.output),
+                                                     new_sends_tracker->cmd_output.size);
                 if (rc != EVENT_DONE && rc != EVENT_INPROGRESS)
                 {
                     fprintf(stderr, "event_channel_emit_with_payload() failed");
