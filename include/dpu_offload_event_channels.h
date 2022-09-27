@@ -43,7 +43,6 @@
             (_metaev)->sub_events_initialized = true;                 \
         }                                                             \
         ucs_list_add_tail(&((_metaev)->sub_events), &((_ev)->item));  \
-        DBG("sub-event %p added to main event %p", (_ev), (_metaev)); \
     } while (0)
 
 #if USE_AM_IMPLEM

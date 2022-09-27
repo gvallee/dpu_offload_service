@@ -59,6 +59,8 @@ tests/config/config_file_dpu
 tests/config/config_file
 tests/comms/self_comm
 tests/comms/self_notif_mem_pools
+tests/telemetry/dpu_telemetry
+tests/telemetry/client_telemetry
 
 # Debug files
 *.dSYM/

@@ -331,7 +331,7 @@ for (i = 0; i < 3; i++)
     dpu_offload_event_t *subev;
     event_get(econtext->event_channels, NULL, &subev);
     ...
-    rc = event_channel_emit(&subev, MY_NOTIF_ID, dest_ep, dest_id, NILL);
+    rc = event_channel_emit(&subev, MY_NOTIF_ID, dest_ep, dest_id, NULL);
     if (rc != EVENT_DONE && rc != EVENT_INPROGRESS)
     {
         ERR_MSG("event_channel_emit() failed");
