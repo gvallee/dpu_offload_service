@@ -7,10 +7,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <signal.h>
 
 #include "dpu_offload_service_daemon.h"
 #include "dpu_offload_event_channels.h"
 #include "telemetry.h"
+
+bool client_done = false;
 
 static int loadavg_notif_cb(struct dpu_offload_ev_sys *ev_sys, execution_context_t *econtext, am_header_t *hdr, size_t hdr_len, void *data, size_t data_len)
 {
@@ -30,11 +33,18 @@ static int loadavg_notif_cb(struct dpu_offload_ev_sys *ev_sys, execution_context
     return DO_SUCCESS;
 }
 
+void endHandler(int dummy)
+{
+    client_done = true;
+}
+
 int main (int argc, char **argv)
 {
     offloading_engine_t *offload_engine = NULL;
     execution_context_t *client = NULL;
     dpu_offload_status_t rc;
+
+    signal(SIGINT, endHandler);
 
     rc = offload_engine_init(&offload_engine);
     assert(rc == DO_SUCCESS);
@@ -55,10 +65,7 @@ int main (int argc, char **argv)
     do
     {
         client->progress(client);
-    } while (client->client->bootstrapping.phase != BOOTSTRAP_DONE);
-
-    fprintf(stderr, "Client initialization all done\n");
-
+    } while (!client_done);
 
     client_fini(&client);
     offload_engine_fini(&offload_engine);
