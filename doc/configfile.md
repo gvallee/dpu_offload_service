@@ -78,7 +78,7 @@ GLOBAL_SP_ID=0
 for DPU in "${DPUS[@]}"; do
         for LOCAL_SP_ID in $(seq 0 $((SPS_PER_DPU-1))); do
                 LOCAL_SP_ID=$(($GLOBAL_SP_ID % $SPS_PER_DPU))
-                echo "-> Starting SP with GID $GLOBAL_SP_ID and LID $LOCAL_SP_ID deamons on $DPU ..."
+                echo "-> Starting SP with GID $GLOBAL_SP_ID and LID $LOCAL_SP_ID on $DPU ..."
                 CMD="DPU_OFFLOAD_SERVICE_PROCESS_GLOBAL_ID=$GLOBAL_SP_ID DPU_OFFLOAD_SERVICE_PROCESS_LOCAL_ID=$LOCAL_SP_ID DPU_OFFLOAD_SERVICE_PROCESSES_PER_DPU=$SPS_PER_DPU DPU_OFFLOAD_LIST_DPUS=$DPU_OFFLOAD_LIST_DPUS OFFLOAD_CONFIG_FILE_PATH=$CFG_FILE LD_LIBRARY_PATH=/global/home/joedoe/dpu_offload/arm64/install/ucx-xgvmi/lib:/global/home/joedoe/dpu_offload/arm64/install/dpu_offload_service/lib:$LD_LIBRARY_PATH UCX_NET_DEVICES=mlx5_0:1 UCX_TLS=rc_x UCX_ZCOPY_THRESH=0  $DAEMON_EXE"
                 echo "--> Executing $CMD..."
                 ssh $DPU "$CMD" &
