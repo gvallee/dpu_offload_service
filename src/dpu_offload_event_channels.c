@@ -44,6 +44,66 @@
     } while(0)
 
 #if USE_AM_IMPLEM
+
+dpu_offload_status_t get_associated_econtext(offloading_engine_t *engine, am_header_t *hdr, execution_context_t **econtext_out)
+{
+    execution_context_t *econtext = NULL;
+    assert(hdr);
+    assert(hdr->sender_type == CONTEXT_CLIENT || hdr->sender_type == CONTEXT_SERVER);
+
+    if (hdr->scope_id == SCOPE_HOST_DPU)
+    {
+        // Message exchanged between a host and a service process
+        if (engine->on_dpu)
+        {
+            econtext = engine->servers[engine->num_servers - 1];
+        }
+        else
+        {
+            econtext = engine->client;
+        }
+    }
+    else
+    {
+        assert(engine->on_dpu);
+        // Message exchanged between service processes
+        switch (hdr->sender_type)
+        {
+            case CONTEXT_CLIENT:
+                // The sender was a client
+                econtext = engine->servers[hdr->server_id];
+                break;
+            case CONTEXT_SERVER:
+            {
+                // The sender was a server
+                size_t i;
+                for (i = 0; i < engine->num_inter_service_proc_clients; i++)
+                {
+                    if (engine->inter_service_proc_clients[i].remote_service_proc_info->service_proc.global_id == hdr->server_id &&
+                        engine->inter_service_proc_clients[i].remote_service_proc_info->client_id == hdr->client_id)
+                    {
+                        econtext = engine->inter_service_proc_clients[i].client_econtext;
+                        break;
+                    }
+                }
+                break;
+            }
+            default:
+            {
+                ERR_MSG("invalid sender type: %d", hdr->sender_type);
+                goto error_out;
+            }
+        }
+    }
+
+    assert(econtext);
+    *econtext_out = econtext;
+    return DO_SUCCESS;
+error_out:
+    *econtext_out = NULL;
+    return DO_ERROR;
+}
+
 /**
  * @brief Note that the function assumes the execution context is not locked before it is invoked.
  *
@@ -56,12 +116,16 @@ static void am_rdv_recv_cb(void *request, ucs_status_t status, size_t length, vo
 {
     assert(status == UCS_OK);
     pending_am_rdv_recv_t *recv_info = (pending_am_rdv_recv_t *)user_data;
-    offloading_engine_t *engine = NULL;
-    assert(recv_info);
-    assert(recv_info->econtext);
-    engine = recv_info->econtext->engine;
-    assert(engine);
-    int rc = handle_notif_msg(recv_info->econtext, recv_info->hdr, recv_info->hdr_len, recv_info->user_data, recv_info->payload_size);
+    // Find associated execution context
+    execution_context_t *econtext = NULL;
+    dpu_offload_status_t ret = get_associated_econtext(recv_info->engine, recv_info->hdr, &econtext);
+    if (ret != DO_SUCCESS)
+    {
+        ERR_MSG("get_associated_econtext() failed");
+        return;
+    }
+    assert(econtext);
+    int rc = handle_notif_msg(econtext, recv_info->hdr, recv_info->hdr_len, recv_info->user_data, recv_info->payload_size);
     if (rc != UCS_OK)
     {
         ERR_MSG("handle_notif_msg() failed");
@@ -80,7 +144,7 @@ static void am_rdv_recv_cb(void *request, ucs_status_t status, size_t length, vo
 
             if (engine->settings.buddy_buffer_system_enabled)
             {
-                SMART_BUFF_RETURN(&(recv_info->econtext->engine->smart_buffer_sys),
+                SMART_BUFF_RETURN(&(recv_info->engine->smart_buffer_sys),
                                   recv_info->payload_size,
                                   recv_info->smart_chunk);
                 recv_info->smart_chunk = NULL;
@@ -96,23 +160,34 @@ static void am_rdv_recv_cb(void *request, ucs_status_t status, size_t length, vo
     {
         ucp_request_release(request);
     }
-    ECONTEXT_LOCK(recv_info->econtext);
-    DYN_LIST_RETURN(recv_info->econtext->free_pending_rdv_recv, recv_info, item);
-    ECONTEXT_UNLOCK(recv_info->econtext);
+    ENGINE_LOCK(recv_info->engine);
+    DYN_LIST_RETURN(recv_info->engine->free_pending_rdv_recv, recv_info, item);
+    ENGINE_UNLOCK(recv_info->engine);
 }
 
-static ucs_status_t am_notification_recv_rdv_msg(execution_context_t *econtext, am_header_t *hdr, size_t hdr_len, size_t payload_size, void *desc)
+static ucs_status_t am_notification_recv_rdv_msg(offloading_engine_t *engine, am_header_t *hdr, size_t hdr_len, size_t payload_size, void *desc)
 {
     ucp_request_param_t am_rndv_recv_request_params = {0};
     pending_am_rdv_recv_t *pending_recv;
     notification_callback_entry_t *entry;
-    ECONTEXT_LOCK(econtext);
-    DYN_LIST_GET(econtext->free_pending_rdv_recv, pending_am_rdv_recv_t, item, pending_recv);
-    ECONTEXT_UNLOCK(econtext);
+    ENGINE_LOCK(econtext);
+    DYN_LIST_GET(engine->free_pending_rdv_recv, pending_am_rdv_recv_t, item, pending_recv);
+    ENGINE_UNLOCK(econtext);
     RESET_PENDING_RDV_RECV(pending_recv);
     assert(pending_recv);
     if (pending_recv->user_data != NULL)
         WARN_MSG("Warning payload buffer was not previously freed");
+
+    // Find execution context associated with the message
+    execution_context_t *econtext = NULL;
+    dpu_offload_status_t rc = get_associated_econtext(engine, hdr, &econtext);
+    if (rc != DO_SUCCESS)
+    {
+        ERR_MSG("get_associated_econtext() failed");
+        return UCS_ERR_NO_MESSAGE;
+    }
+    assert(econtext);
+
     DBG("RDV message to be received for type %ld", hdr->type);
     entry = DYN_ARRAY_GET_ELT(&(econtext->event_channels->notification_callbacks), hdr->type, notification_callback_entry_t);
     assert(entry);
@@ -152,7 +227,7 @@ static ucs_status_t am_notification_recv_rdv_msg(execution_context_t *econtext, 
     assert(pending_recv->user_data);
     pending_recv->hdr = hdr;
     pending_recv->hdr_len = hdr_len;
-    pending_recv->econtext = econtext;
+    pending_recv->engine = econtext->engine;
     pending_recv->payload_size = payload_size;
     
     am_rndv_recv_request_params.cb.recv_am = &am_rdv_recv_cb;
@@ -196,22 +271,32 @@ static ucs_status_t am_notification_msg_cb(void *arg, const void *header, size_t
     }
     assert(header != NULL);
     assert(header_length == sizeof(am_header_t));
-    execution_context_t *econtext = (execution_context_t *)arg;
+    offloading_engine_t *engine = (offloading_engine_t *)arg;
     am_header_t *hdr = (am_header_t *)header;
     assert(hdr != NULL);
+
+    if (param->recv_attr & UCP_AM_RECV_ATTR_FLAG_RNDV)
+    {
+        // RDV message
+        am_notification_recv_rdv_msg(engine, hdr, header_length, length, data);
+        return UCS_INPROGRESS;
+    }
+
+    // Find execution context associated with the message
+    execution_context_t *econtext = NULL;
+    dpu_offload_status_t rc = get_associated_econtext(engine, hdr, &econtext);
+    if (rc != DO_SUCCESS)
+    {
+        ERR_MSG("get_associated_econtext() failed");
+        return UCS_ERR_NO_MESSAGE;
+    }
+    assert(econtext);
     if (econtext->event_channels == NULL)
     {
         DBG("notification system not initialized (may be finalized), skipping...");
         return UCS_OK;
     }
     assert(hdr->type < econtext->event_channels->notification_callbacks.num_elts);
-
-    if (param->recv_attr & UCP_AM_RECV_ATTR_FLAG_RNDV)
-    {
-        // RDV message
-        am_notification_recv_rdv_msg(econtext, hdr, header_length, length, data);
-        return UCS_INPROGRESS;
-    }
 
     void *ptr = data;
     DBG("Notification of type %" PRIu64 " received via eager message (data size: %ld), dispatching...", hdr->type, length);
@@ -954,8 +1039,9 @@ dpu_offload_status_t event_get(dpu_offload_ev_sys_t *ev_sys, dpu_offload_event_i
         RESET_EVENT(_ev);
         CHECK_EVENT(_ev);
         _ev->event_system = ev_sys;
-#if !USE_AM_IMPLEM
         _ev->scope_id = _ev->event_system->econtext->scope_id;
+#if USE_AM_IMPLEM
+        _ev->ctx.hdr.sender_type = ev_sys->econtext->type;
 #endif
 
         if (info != NULL)

@@ -1018,6 +1018,12 @@ void init_remote_dpu_info_struct(void *data)
     RESET_REMOTE_DPU_INFO(d);
 }
 
+static void init_pending_am_rdv_recv_t(void *ptr)
+{
+    pending_am_rdv_recv_t *elt = (pending_am_rdv_recv_t *)ptr;
+    RESET_PENDING_RDV_RECV(elt);
+}
+
 dpu_offload_status_t offload_engine_init(offloading_engine_t **engine)
 {
     int ret;
@@ -1063,6 +1069,11 @@ dpu_offload_status_t offload_engine_init(offloading_engine_t **engine)
         self_econtext->event_channels,
         self_econtext,
         self_econtext->scope_id);
+
+#if USE_AM_IMPLEM
+    DYN_LIST_ALLOC_WITH_INIT_CALLBACK(d->free_pending_rdv_recv, 32, pending_am_rdv_recv_t, item, init_pending_am_rdv_recv_t);
+    ucs_list_head_init(&(d->pending_rdv_recvs));
+#endif
 
     *engine = d;
     return DO_SUCCESS;
@@ -1790,12 +1801,6 @@ static void execution_context_progress(execution_context_t *econtext)
     return;
 }
 
-static void init_pending_am_rdv_recv_t(void *ptr)
-{
-    pending_am_rdv_recv_t *elt = (pending_am_rdv_recv_t *)ptr;
-    RESET_PENDING_RDV_RECV(elt);
-}
-
 static dpu_offload_status_t execution_context_init(offloading_engine_t *offload_engine, uint64_t type, execution_context_t **econtext)
 {
     execution_context_t *ctx = DPU_OFFLOAD_MALLOC(sizeof(execution_context_t));
@@ -1810,10 +1815,6 @@ static dpu_offload_status_t execution_context_init(offloading_engine_t *offload_
     // scope_id is overwritten when the inter-service-processes connection manager sets inter-service-processes connections
     ctx->scope_id = SCOPE_HOST_DPU;
     ucs_list_head_init(&(ctx->ongoing_events));
-#if USE_AM_IMPLEM
-    DYN_LIST_ALLOC_WITH_INIT_CALLBACK(ctx->free_pending_rdv_recv, 32, pending_am_rdv_recv_t, item, init_pending_am_rdv_recv_t);
-#endif
-    ucs_list_head_init(&(ctx->pending_rdv_recvs));
     ucs_list_head_init(&(ctx->active_ops));
     *econtext = ctx;
     return DO_SUCCESS;
@@ -1823,37 +1824,6 @@ error_out:
 
 static void execution_context_fini(execution_context_t **ctx)
 {
-#if USE_AM_IMPLEM
-    size_t i;
-    for (i = 0; i < (*ctx)->free_pending_rdv_recv->num_elts; i++)
-    {
-        pending_am_rdv_recv_t *elt;
-        DYN_LIST_GET((*ctx)->free_pending_rdv_recv, pending_am_rdv_recv_t, item, elt);
-        if (elt == NULL)
-            continue;
-        if (elt->buff_size > 0)
-        {
-            if (elt->user_data != NULL)
-            {
-                if (elt->pool.mem_pool != NULL && elt->pool.return_buf != NULL)
-                {
-                    elt->pool.return_buf(elt->pool.mem_pool, elt->user_data);
-                    RESET_NOTIF_INFO(&(elt->pool));
-                }
-                else
-                {
-                    if (elt->user_data != NULL)
-                        free(elt->user_data);
-                }
-                elt->user_data = NULL;
-            }
-            elt->buff_size = 0;
-        }
-    }
-
-    DYN_LIST_FREE((*ctx)->free_pending_rdv_recv, pending_am_rdv_recv_t, item);
-#endif
-
     if ((*ctx)->event_channels)
     {
         event_channels_fini(&((*ctx)->event_channels));
@@ -1977,6 +1947,7 @@ error_out:
 
 void offload_engine_fini(offloading_engine_t **offload_engine)
 {
+    size_t i;
     assert(offload_engine);
     assert(*offload_engine);
     event_channels_fini(&((*offload_engine)->default_notifications));
@@ -1987,6 +1958,34 @@ void offload_engine_fini(offloading_engine_t **offload_engine)
     DYN_LIST_FREE((*offload_engine)->pool_remote_dpu_info, remote_dpu_info_t, item);
     DYN_ARRAY_FREE(&((*offload_engine)->dpus));
     DYN_ARRAY_FREE(&((*offload_engine)->service_procs));
+#if USE_AM_IMPLEM
+    for (i = 0; i < (*offload_engine)->free_pending_rdv_recv->num_elts; i++)
+    {
+        pending_am_rdv_recv_t *elt;
+        DYN_LIST_GET((*offload_engine)->free_pending_rdv_recv, pending_am_rdv_recv_t, item, elt);
+        if (elt == NULL)
+            continue;
+        if (elt->buff_size > 0)
+        {
+            if (elt->user_data != NULL)
+            {
+                if (elt->pool.mem_pool != NULL && elt->pool.return_buf != NULL)
+                {
+                    elt->pool.return_buf(elt->pool.mem_pool, elt->user_data);
+                    RESET_NOTIF_INFO(&(elt->pool));
+                }
+                else
+                {
+                    if (elt->user_data != NULL)
+                        free(elt->user_data);
+                }
+                elt->user_data = NULL;
+            }
+            elt->buff_size = 0;
+        }
+    }
+    DYN_LIST_FREE((*offload_engine)->free_pending_rdv_recv, pending_am_rdv_recv_t, item);
+#endif
     assert((*offload_engine)->self_econtext);
 #if !USE_AM_IMPLEM && BUDDY_BUFFER_SYS_ENABLE
     // Before finalizing the self execution context, clean up the pending recvs for notifications
@@ -2042,7 +2041,6 @@ void offload_engine_fini(offloading_engine_t **offload_engine)
         client_fini(&((*offload_engine)->client));
     }
 
-    int i;
     for (i = 0; i < (*offload_engine)->num_servers; i++)
     {
         // server_fini() fixme
