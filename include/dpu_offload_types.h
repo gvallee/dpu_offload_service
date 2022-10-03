@@ -457,8 +457,23 @@ typedef struct am_header
     uint64_t event_id;
     uint64_t client_id;
     uint64_t server_id;
+#if USE_AM_IMPLEM
+    int scope_id;
+    int sender_type;
+#endif
 } am_header_t; // todo: rename, nothing to do with AM
 
+#if USE_AM_IMPLEM
+#define RESET_AM_HDR(_h)                    \
+    do                                      \
+    {                                       \
+        (_h)->id = 0;                       \
+        (_h)->type = 0;                     \
+        (_h)->payload_size = 0;             \
+        (_h)->scope_id = SCOPE_UNKNOWN;     \
+        (_h)->sender_type = CONTEXT_UNKOWN; \
+    } while (0)
+#else
 #define RESET_AM_HDR(_h)        \
     do                          \
     {                           \
@@ -466,6 +481,7 @@ typedef struct am_header
         (_h)->type = 0;         \
         (_h)->payload_size = 0; \
     } while (0)
+#endif
 
 typedef void (*request_compl_cb_t)(void *);
 
@@ -488,7 +504,7 @@ typedef struct am_req
 
     // Context to be passed in the completion callback
     void *completion_cb_ctx;
-} am_req_t; // todo: rename, nothing to do with AM
+} am_req_t;
 
 #define RESET_AM_REQ(_r)                \
     do                                  \
@@ -854,6 +870,7 @@ typedef enum
     SCOPE_HOST_DPU = 0,
     SCOPE_INTER_SERVICE_PROCS,
     SCOPE_SELF,
+    SCOPE_UNKNOWN,
 } execution_scope_t;
 
 typedef struct init_params
@@ -1241,14 +1258,6 @@ typedef struct execution_context
     // bootstrapping. If not in such a context, it must be set to INVALID_GROUP and INVALID_RANK.
     rank_info_t rank;
 
-    // free_pending_rdv_recv is a list of allocated descriptors used to track pending UCX AM RDV messages.
-    // This list prevents us from allocating memory while handling AM RDV messages.
-    dyn_list_t *free_pending_rdv_recv;
-
-    // pending_rdv_recvs is the current list of pending AM RDV receives.
-    // Once completed, the element is returned to free_pending_rdv_recv.
-    ucs_list_link_t pending_rdv_recvs;
-
     // Active operations that are running in the execution context
     ucs_list_link_t active_ops;
 
@@ -1278,7 +1287,6 @@ typedef struct execution_context
         (_e)->event_channels = NULL;        \
         (_e)->progress = NULL;              \
         RESET_RANK_INFO(&((_e)->rank));     \
-        (_e)->free_pending_rdv_recv = NULL; \
         (_e)->term.ev = NULL;               \
     } while (0)
 
@@ -1298,35 +1306,6 @@ typedef struct execution_context
     __bphase;                                                \
 })
 
-typedef struct pending_am_rdv_recv
-{
-    ucs_list_link_t item;
-    execution_context_t *econtext;
-    size_t hdr_len;
-    am_header_t *hdr;
-    ucs_status_ptr_t req;
-    size_t payload_size;
-    size_t buff_size;
-    void *desc;
-    void *user_data;
-    notification_info_t pool;
-    smart_chunk_t *smart_chunk;
-} pending_am_rdv_recv_t;
-
-#define RESET_PENDING_RDV_RECV(_rdv_recv)       \
-    do                                          \
-    {                                           \
-        (_rdv_recv)->econtext = NULL;           \
-        (_rdv_recv)->hdr_len = 0;               \
-        (_rdv_recv)->hdr = NULL;                \
-        (_rdv_recv)->req = NULL;                \
-        (_rdv_recv)->payload_size = 0;          \
-        (_rdv_recv)->desc = NULL;               \
-        (_rdv_recv)->user_data = NULL;          \
-        (_rdv_recv)->smart_chunk = NULL;        \
-        RESET_NOTIF_INFO(&((_rdv_recv)->pool)); \
-    } while (0)
-
 /**
  * @brief dpu_offload_event_t represents an event, i.e., the implementation of a notification
  */
@@ -1344,9 +1323,9 @@ typedef struct dpu_offload_event
     event_req_t ctx;
     struct ucx_context *hdr_request;
     struct ucx_context *payload_request;
-    int scope_id;
 #endif
 
+    int scope_id;
     uint64_t client_id;
     uint64_t server_id;
 
@@ -1856,6 +1835,18 @@ typedef struct offloading_engine
 
     // Smart buffer system associated to the engine
     smart_buffers_t smart_buffer_sys;
+
+    bool use_ucx_am_backend;
+
+#if USE_AM_IMPLEM
+    // free_pending_rdv_recv is a list of allocated descriptors used to track pending UCX AM RDV messages.
+    // This list prevents us from allocating memory while handling AM RDV messages.
+    dyn_list_t *free_pending_rdv_recv;
+
+    // pending_rdv_recvs is the current list of pending AM RDV receives.
+    // Once completed, the element is returned to free_pending_rdv_recv.
+    ucs_list_link_t pending_rdv_recvs;
+#endif
 } offloading_engine_t;
 
 #if BUDDY_BUFFER_SYS_ENABLE
@@ -2021,6 +2012,35 @@ typedef struct offloading_engine
     } while (0)
 #endif // BUDDY_BUFFER_SYS_ENABLE
 
+typedef struct pending_am_rdv_recv
+{
+    ucs_list_link_t item;
+    offloading_engine_t *engine;
+    size_t hdr_len;
+    am_header_t *hdr;
+    ucs_status_ptr_t req;
+    size_t payload_size;
+    size_t buff_size;
+    void *desc;
+    void *user_data;
+    notification_info_t pool;
+    smart_chunk_t *smart_chunk;
+} pending_am_rdv_recv_t;
+
+#define RESET_PENDING_RDV_RECV(_rdv_recv)       \
+    do                                          \
+    {                                           \
+        (_rdv_recv)->engine = NULL;             \
+        (_rdv_recv)->hdr_len = 0;               \
+        (_rdv_recv)->hdr = NULL;                \
+        (_rdv_recv)->req = NULL;                \
+        (_rdv_recv)->payload_size = 0;          \
+        (_rdv_recv)->desc = NULL;               \
+        (_rdv_recv)->user_data = NULL;          \
+        (_rdv_recv)->smart_chunk = NULL;        \
+        RESET_NOTIF_INFO(&((_rdv_recv)->pool)); \
+    } while (0)
+
 #if OFFLOADING_MT_ENABLE
 #define RESET_ENGINE(_engine, _ret)                                    \
     do                                                                 \
@@ -2030,11 +2050,13 @@ typedef struct offloading_engine
         RESET_CORE_ENGINE_STRUCT(_engine, _ret);                       \
     } while (0)
 #else
-#define RESET_ENGINE(_engine, _ret)              \
-    do                                           \
-    {                                            \
-        _ret = 0;                                \
-        RESET_CORE_ENGINE_STRUCT(_engine, _ret); \
+#define RESET_ENGINE(_engine, _ret)                  \
+    do                                               \
+    {                                                \
+        _ret = 0;                                    \
+        RESET_CORE_ENGINE_STRUCT(_engine, _ret);     \
+        if ((_engine)->use_ucx_am_backend)           \
+            (_engine)->free_pending_rdv_recv = NULL; \
     } while (0)
 #endif // OFFLOADING_MT_ENABLE
 
