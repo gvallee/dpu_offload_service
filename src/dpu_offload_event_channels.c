@@ -117,6 +117,7 @@ static void am_rdv_recv_cb(void *request, ucs_status_t status, size_t length, vo
     assert(status == UCS_OK);
     pending_am_rdv_recv_t *recv_info = (pending_am_rdv_recv_t *)user_data;
     // Find associated execution context
+    assert(recv_info->engine);
     execution_context_t *econtext = NULL;
     dpu_offload_status_t ret = get_associated_econtext(recv_info->engine, recv_info->hdr, &econtext);
     if (ret != DO_SUCCESS)
