@@ -9,5 +9,5 @@
 # $HEADER$
 #
 
-SUBDIRS = client server basic
+SUBDIRS = client server basic multi_services
 bin_PROGRAMS = 
