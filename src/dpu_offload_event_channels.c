@@ -116,8 +116,14 @@ static void am_rdv_recv_cb(void *request, ucs_status_t status, size_t length, vo
 {
     assert(status == UCS_OK);
     pending_am_rdv_recv_t *recv_info = (pending_am_rdv_recv_t *)user_data;
+<<<<<<< HEAD
     // Find associated execution context
     assert(recv_info->engine);
+=======
+    assert(recv_info);
+    assert(recv_info->engine);
+    // Find associated execution context
+>>>>>>> 812dd44 (Moving the AM recv handler to the engine level)
     execution_context_t *econtext = NULL;
     dpu_offload_status_t ret = get_associated_econtext(recv_info->engine, recv_info->hdr, &econtext);
     if (ret != DO_SUCCESS)
@@ -142,7 +148,6 @@ static void am_rdv_recv_cb(void *request, ucs_status_t status, size_t length, vo
         }
         else
         {
-
             if (engine->settings.buddy_buffer_system_enabled)
             {
                 SMART_BUFF_RETURN(&(recv_info->engine->smart_buffer_sys),
