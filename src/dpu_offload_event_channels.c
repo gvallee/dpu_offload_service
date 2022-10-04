@@ -640,6 +640,7 @@ int do_am_send_event_msg(dpu_offload_event_t *event)
     params.datatype = ucp_dt_make_contig(1);
     params.user_data = event;
     params.cb.send = (ucp_send_nbx_callback_t)notification_emit_cb;
+    assert(event->dest.ep);
     event->req = ucp_am_send_nbx(event->dest.ep,
                                  AM_EVENT_MSG_ID,
                                  &(event->ctx.hdr),

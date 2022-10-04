@@ -177,6 +177,7 @@ AC_CONFIG_FILES([Makefile
                  tests/offload_service/basic/Makefile
                  tests/offload_service/server/Makefile
                  tests/offload_service/client/Makefile
+                 tests/offload_service/multi_services/Makefile
                  tests/dyn_structs/Makefile
                  tests/config/Makefile
                  tests/comms/Makefile

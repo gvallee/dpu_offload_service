@@ -1315,7 +1315,11 @@ dpu_offload_status_t get_host_config(offloading_config_t *config_data)
     dpu_offload_status_t rc;
     char hostname[1024];
 
-    config_data->config_file = getenv(OFFLOAD_CONFIG_FILE_PATH_ENVVAR);
+    // If a configuration file is not set, we try to use the default one
+    if (config_data->config_file == NULL)
+    {
+        config_data->config_file = getenv(OFFLOAD_CONFIG_FILE_PATH_ENVVAR);
+    }
     hostname[1023] = '\0';
     gethostname(hostname, 1023);
 

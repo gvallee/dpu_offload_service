@@ -433,11 +433,17 @@ dpu_offload_status_t inter_dpus_connect_mgr(offloading_engine_t *engine, offload
         cfg->num_connecting_service_procs, cfg->info_connecting_to.num_connect_to);
 
     /* Init UCP if necessary */
-    engine->ucp_context = INIT_UCX();
-    DBG("UCX successfully initialized, context: %p", engine->ucp_context);
+    if (engine->ucp_context == NULL)
+    {
+        engine->ucp_context = INIT_UCX();
+        DBG("UCX successfully initialized, context: %p", engine->ucp_context);
+    }
 
-    // Create a self worker
-    INIT_WORKER(engine->ucp_context, &(engine->ucp_worker));
+    // Create a worker if necessary
+    if (engine->ucp_worker == NULL)
+    {
+        INIT_WORKER(engine->ucp_context, &(engine->ucp_worker));
+    }
 
     /* self EP */
     static ucp_address_t *local_addr;
@@ -502,7 +508,11 @@ dpu_offload_status_t get_dpu_config(offloading_engine_t *offload_engine, offload
     dpu_offload_status_t rc;
     CHECK_ERR_RETURN((offload_engine == NULL), DO_ERROR, "undefined offloading engine");
 
-    config_data->config_file = getenv(OFFLOAD_CONFIG_FILE_PATH_ENVVAR);
+    // If a configuration file is not defined, we use the default one
+    if (config_data->config_file == NULL)
+    {
+        config_data->config_file = getenv(OFFLOAD_CONFIG_FILE_PATH_ENVVAR);
+    }
 
     config_data->local_service_proc.hostname[1023] = '\0';
     gethostname(config_data->local_service_proc.hostname, 1023);

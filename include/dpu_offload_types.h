@@ -1210,7 +1210,7 @@ typedef enum
     // The state may not be suitable to initiate a new bootstrapping.
     DISCONNECTED,
 
-    UKNOWN,
+    BOOTSTRAP_PHASE_UNKNOWN,
 } bootstrap_phase_t;
 
 // Forward declaration
@@ -1278,27 +1278,24 @@ typedef struct execution_context
 
 } execution_context_t;
 
-#define RESET_ECONTEXT(_e)                  \
-    do                                      \
-    {                                       \
-        (_e)->type = CONTEXT_UNKOWN;        \
-        (_e)->scope_id = SCOPE_HOST_DPU;    \
-        (_e)->engine = NULL;                \
-        (_e)->event_channels = NULL;        \
-        (_e)->progress = NULL;              \
-        RESET_RANK_INFO(&((_e)->rank));     \
-        (_e)->term.ev = NULL;               \
+#define RESET_ECONTEXT(_e)               \
+    do                                   \
+    {                                    \
+        (_e)->type = CONTEXT_UNKOWN;     \
+        (_e)->scope_id = SCOPE_HOST_DPU; \
+        (_e)->engine = NULL;             \
+        (_e)->event_channels = NULL;     \
+        (_e)->progress = NULL;           \
+        RESET_RANK_INFO(&((_e)->rank));  \
+        (_e)->term.ev = NULL;            \
     } while (0)
 
 #define GET_ECONTEXT_BOOTSTRAPING_PHASE(_econtext) ({        \
-    int __bphase = UNKNOWN;                                  \
+    int __bphase = BOOTSTRAP_PHASE_UNKNOWN;                  \
     switch ((_econtext)->type)                               \
     {                                                        \
     case CONTEXT_CLIENT:                                     \
         __bphase = (_econtext)->client->bootstrapping.phase; \
-        break;                                               \
-    case CONTEXT_SERVER:                                     \
-        __bphase = (_econtext)->server->bootstrapping.phase; \
         break;                                               \
     default:                                                 \
         break;                                               \
@@ -1750,7 +1747,8 @@ typedef struct offloading_engine
     struct offloading_config *config;
 
     // Runtime configuration
-    struct {
+    struct
+    {
         bool buddy_buffer_system_enabled;
         bool ucx_am_backend_enabled;
     } settings;
@@ -2571,7 +2569,8 @@ typedef enum
     AM_PEER_CACHE_ENTRIES_MSG_ID,
     AM_PEER_CACHE_ENTRIES_REQUEST_MSG_ID,
     AM_ADD_GP_RANK_MSG_ID,
-    AM_TEST_MSG_ID
+    AM_TEST_MSG_ID,
+    LAST_RESERVED_NOTIF_ID
 } am_id_t;
 
 _EXTERN_C_END

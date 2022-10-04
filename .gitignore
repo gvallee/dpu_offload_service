@@ -46,6 +46,8 @@ tests/offload_service/client/client_external_worker
 tests/offload_service/client/simple
 tests/offload_service/client/fake_mpi_rank
 tests/offload_service/server/server
+tests/offload_service/multi_services/two_engines_dpu
+tests/offload_service/multi_services/two_engines_host
 tests/process_spawn/dpu_process_spawn
 tests/cache/test_cache
 tests/cache/cache_client
