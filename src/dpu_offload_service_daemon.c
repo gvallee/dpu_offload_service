@@ -1569,7 +1569,6 @@ static void progress_client_econtext(execution_context_t *ctx)
     if (ctx->client->bootstrapping.phase == OOB_CONNECT_DONE)
     {
         dpu_offload_status_t rc;
-        INFO_MSG("DBG");
         // Need now to progress UCX bootstrapping
         if (ctx->client->bootstrapping.addr_size_ctx.complete == false && ctx->client->bootstrapping.addr_size_request == NULL)
         {

@@ -849,8 +849,6 @@ static inline bool parse_dpu_cfg(char *str, dpu_config_data_t *config_entry)
                 token_port = strtok_r(interdpu_ports_str, "&", &interdpu_ports_str);
             }
             token = strtok_r(rest, ":", &rest);
-            if (token == NULL)
-                fprintf(stderr, "ERROR: impossible to parse: %s\n", str);
             assert(token);
             config_entry->version_1.num_interdpu_ports = j;
             step++;
