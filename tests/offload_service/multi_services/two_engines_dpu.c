@@ -11,6 +11,68 @@
 
 #include "multi_engines_utils.h"
 
+int engine1_notif_cb(struct dpu_offload_ev_sys *ev_sys, execution_context_t *context, am_header_t *hdr, size_t hdr_size, void *data, size_t data_size)
+{
+    int *val, *ptr;
+    dpu_offload_event_t *ev = NULL;
+    dpu_offload_event_info_t ev_info;
+    dpu_offload_status_t rc;
+
+    assert(data_size == sizeof(int));
+    val = (int *)data;
+    fprintf(stdout, "Engine1: received %d from client\n", *val);
+    assert(*val == MSG_CLIENT_ENGINE1);
+
+    // Send it back to client
+    RESET_EVENT_INFO(&ev_info);
+    ev_info.payload_size = sizeof(int);
+    rc = event_get(ev_sys, &ev_info, &ev);
+    assert(rc == DO_SUCCESS);
+    ptr = (int*)ev->payload;
+    *ptr = *val;
+    fprintf(stderr, "DBG: client_id: %"PRIu64", engine: %p\n", hdr->client_id, ev_sys->econtext->engine);
+    assert(GET_CLIENT_EP(context, hdr->client_id));
+    rc = event_channel_emit(&ev,
+                            NOTIF_TEST_DONE,
+                            GET_CLIENT_EP(context, hdr->client_id),
+                            hdr->client_id,
+                            NULL);
+    assert(rc == DO_SUCCESS);
+
+    return 0;
+}
+
+int engine2_notif_cb(struct dpu_offload_ev_sys *ev_sys, execution_context_t *context, am_header_t *hdr, size_t hdr_size, void *data, size_t data_size)
+{
+    int *val, *ptr;
+    dpu_offload_event_t *ev = NULL;
+    dpu_offload_event_info_t ev_info;
+    dpu_offload_status_t rc;
+
+    assert(data_size == sizeof(int));
+    val = (int *)data;
+    fprintf(stdout, "Engine2: received %d from client\n", *val);
+    assert(*val == MSG_CLIENT_ENGINE2);
+
+    // Send it back to client
+    RESET_EVENT_INFO(&ev_info);
+    ev_info.payload_size = sizeof(int);
+    rc = event_get(ev_sys, &ev_info, &ev);
+    assert(rc == DO_SUCCESS);
+    ptr = (int*)ev->payload;
+    *ptr = *val;
+    fprintf(stderr, "DBG: client_id: %"PRIu64", engine: %p\n", hdr->client_id, ev_sys->econtext->engine);
+    assert(GET_CLIENT_EP(context, hdr->client_id));
+    rc = event_channel_emit(&ev,
+                            NOTIF_TEST_DONE,
+                            GET_CLIENT_EP(context, hdr->client_id),
+                            hdr->client_id,
+                            NULL);
+    assert(rc == DO_SUCCESS);
+
+    return 0;
+}
+
 int main(int argc, char **argv)
 {
     ucp_worker_h service1_worker = NULL, service2_worker = NULL;
@@ -56,6 +118,13 @@ int main(int argc, char **argv)
     engine2_cfg.offloading_engine = engine2;
     engine2->ucp_context = ucp_context;
     engine2->ucp_worker = service2_worker;
+
+    // The two engines register the same notification handler and even if the same ID is used
+    // notifications are supposed to be correctly delivered
+    rc = engine_register_default_notification_handler(engine1, NOTIF_TEST_ID, engine1_notif_cb, NULL);
+    assert(rc == DO_SUCCESS);
+    rc = engine_register_default_notification_handler(engine2, NOTIF_TEST_ID, engine2_notif_cb, NULL);
+    assert(rc == DO_SUCCESS);
 
     rc = get_dpu_config(engine1, &engine1_cfg);
     assert(rc == DO_SUCCESS);
