@@ -11,24 +11,7 @@
 
 #include <ucp/api/ucp.h>
 
-#include "dpu_offload_service_daemon.h"
-#include "dpu_offload_event_channels.h"
-
-static dpu_offload_status_t init_worker(ucp_context_h ucp_context, ucp_worker_h *ucp_worker)
-{
-    ucp_worker_params_t worker_params;
-    ucs_status_t status;
-    memset(&worker_params, 0, sizeof(worker_params));
-    worker_params.field_mask = UCP_WORKER_PARAM_FIELD_THREAD_MODE;
-    worker_params.thread_mode = UCS_THREAD_MODE_MULTI;
-    status = ucp_worker_create(ucp_context, &worker_params, ucp_worker);
-    if (status != UCS_OK)
-    {
-        fprintf(stderr, "ucp_worker_create() failed\n");
-        return DO_ERROR;
-    }
-    return DO_SUCCESS;
-}
+#include "multi_engines_utils.h"
 
 int main(int argc, char **argv)
 {
@@ -59,6 +42,8 @@ int main(int argc, char **argv)
     ret = init_worker(ucp_context, &service2_worker);
     assert(ret == 0);
 
+    INIT_DPU_CONFIG_DATA(&service1_cfg);
+    INIT_DPU_CONFIG_DATA(&service2_cfg);
     service1_cfg.config_file = getenv("MY_CFG_FILE_SERVICE1");
     assert(service1_cfg.config_file);
     service2_cfg.config_file = getenv("MY_CFG_FILE_SERVICE2");
@@ -75,7 +60,9 @@ int main(int argc, char **argv)
     assert(engine2);
 
     engine1->config = &service1_cfg;
+    service1_cfg.offloading_engine = engine1;
     engine2->config = &service2_cfg;
+    service2_cfg.offloading_engine = engine2;
 
     service1_dpu_cfg = DYN_ARRAY_GET_ELT(&(service1_cfg.dpus_config), 0, dpu_config_data_t);
     assert(service1_dpu_cfg);
@@ -98,20 +85,32 @@ int main(int argc, char **argv)
     fprintf(stdout, "Connecting to service #1 - addr: %s, port: %d\n", service1_conn_params.addr_str, service1_conn_params.port);
     client1 = client_init(engine1, &service1_init_params);
     assert(client1);
+    ADD_CLIENT_TO_ENGINE(client1, engine1);
 
     RESET_INIT_PARAMS(&service2_init_params);
     RESET_CONN_PARAMS(&service2_conn_params);
     service2_init_params.conn_params = &service2_conn_params;
     service2_conn_params.addr_str = service2_dpu_cfg->version_1.addr;
     service2_conn_params.port = *service2_port;
-    service1_init_params.ucp_context = ucp_context;
-    service1_init_params.worker = service1_worker;
+    service2_init_params.ucp_context = ucp_context;
+    service2_init_params.worker = service2_worker;
     fprintf(stdout, "Connecting to service #2 - addr: %s, port: %d\n", service2_conn_params.addr_str, service2_conn_params.port);
     client2 = client_init(engine2, &service2_init_params);
     assert(client2);
+    ADD_CLIENT_TO_ENGINE(client2, engine2);
 
-    client_fini(&client1);
-    client_fini(&client2);
+    while (GET_ECONTEXT_BOOTSTRAPING_PHASE(client1) != BOOTSTRAP_DONE || GET_ECONTEXT_BOOTSTRAPING_PHASE(client2) != BOOTSTRAP_DONE)
+    {
+        lib_progress(client1);
+        lib_progress(client2);
+        if (GET_ECONTEXT_BOOTSTRAPING_PHASE(client1) == BOOTSTRAP_DONE)
+            fprintf(stdout, "Connected to service 1\n");
+        if (GET_ECONTEXT_BOOTSTRAPING_PHASE(client2) == BOOTSTRAP_DONE)
+            fprintf(stdout, "Connected to service 2\n");
+    }
+    fprintf(stdout, "-> Now connected to the services\n");
+
+    // Clients have been assigned to the engines, they will be implicitly terminated
     offload_engine_fini(&engine1);
     offload_engine_fini(&engine2);
 
