@@ -849,6 +849,8 @@ static inline bool parse_dpu_cfg(char *str, dpu_config_data_t *config_entry)
                 token_port = strtok_r(interdpu_ports_str, "&", &interdpu_ports_str);
             }
             token = strtok_r(rest, ":", &rest);
+            if (token == NULL)
+                fprintf(stderr, "ERROR: impossible to parse: %s\n", str);
             assert(token);
             config_entry->version_1.num_interdpu_ports = j;
             step++;
@@ -1315,7 +1317,11 @@ dpu_offload_status_t get_host_config(offloading_config_t *config_data)
     dpu_offload_status_t rc;
     char hostname[1024];
 
-    config_data->config_file = getenv(OFFLOAD_CONFIG_FILE_PATH_ENVVAR);
+    // If a configuration file is not set, we try to use the default one
+    if (config_data->config_file == NULL)
+    {
+        config_data->config_file = getenv(OFFLOAD_CONFIG_FILE_PATH_ENVVAR);
+    }
     hostname[1023] = '\0';
     gethostname(hostname, 1023);
 

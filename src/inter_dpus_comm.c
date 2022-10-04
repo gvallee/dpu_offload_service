@@ -502,7 +502,11 @@ dpu_offload_status_t get_dpu_config(offloading_engine_t *offload_engine, offload
     dpu_offload_status_t rc;
     CHECK_ERR_RETURN((offload_engine == NULL), DO_ERROR, "undefined offloading engine");
 
-    config_data->config_file = getenv(OFFLOAD_CONFIG_FILE_PATH_ENVVAR);
+    // If a configuration file is not defined, we use the default one
+    if (config_data->config_file == NULL)
+    {
+        config_data->config_file = getenv(OFFLOAD_CONFIG_FILE_PATH_ENVVAR);
+    }
 
     config_data->local_service_proc.hostname[1023] = '\0';
     gethostname(config_data->local_service_proc.hostname, 1023);
