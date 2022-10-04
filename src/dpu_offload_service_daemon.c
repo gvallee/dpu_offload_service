@@ -179,7 +179,7 @@ static inline dpu_offload_status_t oob_server_ucx_client_connection_step1(execut
     }
     else
     {
-        DBG("Reception of the address size still in progress");
+        DBG("Reception of the address size still in progress (engine: %p)", econtext->engine);
         assert(client_info->bootstrapping.addr_size_ctx.complete == false);
     }
     ECONTEXT_UNLOCK(econtext);
@@ -546,7 +546,7 @@ static void send_cb(void *request, ucs_status_t status, void *user_data)
     }                                                                                      \
     if ((_init_params) != NULL && (_init_params)->worker != NULL)                          \
     {                                                                                      \
-        DBG("re-using UCP worker for new execution context");                              \
+        DBG("re-using UCP worker %p", (_init_params)->worker);                             \
         /* Notes: the context usually imposes different requirements:                   */ \
         /* - on DPUs, we know there is no external UCX context and worker so they are   */ \
         /*   initialized early on, during the initialization of the engine so we can    */ \
@@ -557,10 +557,20 @@ static void send_cb(void *request, ucs_status_t status, void *user_data)
         /*   but in other cases like UCC, they are not available at the time and set    */ \
         /*   during the creation of the execution contexts.                             */ \
         if ((_econtext)->engine->ucp_context == NULL)                                      \
+        {                                                                                  \
+            DBG("UCP context for engine %p is now %p",                                     \
+                (_econtext)->engine, (_init_params)->ucp_context);                         \
             (_econtext)->engine->ucp_context = (_init_params)->ucp_context;                \
-        assert(GET_WORKER(_econtext) == NULL);                                             \
-        SET_WORKER(_econtext, (_init_params)->worker);                                     \
-        _worker_set = true;                                                                \
+        }                                                                                  \
+        if (GET_WORKER(_econtext) == NULL)                                                 \
+        {                                                                                  \
+            SET_WORKER(_econtext, (_init_params)->worker);                                 \
+            _worker_set = true;                                                            \
+        }                                                                                  \
+        else                                                                               \
+        {                                                                                  \
+            assert((_econtext)->engine->ucp_worker == (_init_params)->worker);             \
+        }                                                                                  \
     }                                                                                      \
     _worker_set;                                                                           \
 })
@@ -868,7 +878,7 @@ static dpu_offload_status_t oob_connect(execution_context_t *econtext)
     assert(size_recvd == sizeof(client->id));
     econtext->client->bootstrapping.phase = OOB_CONNECT_DONE;
     ECONTEXT_UNLOCK(econtext);
-    DBG("%s() done", __func__);
+    DBG("%s() done for econtext %p (engine: %p)", __func__, econtext, econtext->engine);
     return DO_SUCCESS;
 
 error_out:
@@ -1513,10 +1523,11 @@ static void progress_server_econtext(execution_context_t *ctx)
                     ctx->server->connected_clients.num_ongoing_connections--;
                     ctx->server->connected_clients.num_connected_clients++;
                     ctx->server->connected_clients.num_total_connected_clients++;
-                    DBG("****** Bootstrapping of client #%ld now completed in scope %d (econtext: %p), %ld are now connected (connected service processes: %ld)",
+                    DBG("****** Bootstrapping of client #%ld now completed in scope %d (econtext: %p, engine: %p), %ld are now connected (connected service processes: %ld)",
                         idx,
                         ctx->scope_id,
                         ctx,
+                        ctx->engine,
                         ctx->server->connected_clients.num_connected_clients,
                         ctx->engine->num_connected_service_procs);
 
@@ -1558,6 +1569,7 @@ static void progress_client_econtext(execution_context_t *ctx)
     if (ctx->client->bootstrapping.phase == OOB_CONNECT_DONE)
     {
         dpu_offload_status_t rc;
+        INFO_MSG("DBG");
         // Need now to progress UCX bootstrapping
         if (ctx->client->bootstrapping.addr_size_ctx.complete == false && ctx->client->bootstrapping.addr_size_request == NULL)
         {
@@ -1873,7 +1885,7 @@ execution_context_t *client_init(offloading_engine_t *offload_engine, init_param
         RESET_RANK_INFO(&(ctx->rank));
         ctx->rank.n_local_ranks = -1;
     }
-    DBG("execution context successfully initialized");
+    DBG("execution context successfully initialized (engine: %p)", ctx->engine);
 
     rc = client_init_context(ctx, init_params);
     CHECK_ERR_GOTO((rc), error_out, "init_client_context() failed");
@@ -2097,7 +2109,7 @@ void client_fini(execution_context_t **exec_ctx)
     context = *exec_ctx;
     if (context->type != CONTEXT_CLIENT)
     {
-        ERR_MSG("invalid type");
+        ERR_MSG("invalid type: %d", context->type);
         return;
     }
 
@@ -2433,8 +2445,8 @@ dpu_offload_status_t server_init_context(execution_context_t *econtext, init_par
     default:
     {
         // OOB
-        DBG("server %" PRIu64 " initialized with OOB backend (econtext: %p, scope_id: %d)",
-            econtext->server->id, econtext, econtext->scope_id);
+        DBG("server %" PRIu64 " initialized with OOB backend (econtext: %p, scope_id: %d, engine: %p)",
+            econtext->server->id, econtext, econtext->scope_id, econtext->engine);
         econtext->server->conn_data.oob.tag = OOB_DEFAULT_TAG;
         econtext->server->conn_data.oob.tag_mask = UINT64_MAX;
         econtext->server->conn_data.oob.addr_msg_str = strdup(UCX_ADDR_MSG); // fixme: correctly free
