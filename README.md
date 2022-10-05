@@ -2,7 +2,7 @@
 
 ## Architecture
 
-See [architecture.md](./doc/architecture.md) for details.
+See [architecture.md](./docs/architecture.md) for details.
 
 ## Installation
 
