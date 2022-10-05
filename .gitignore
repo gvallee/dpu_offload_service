@@ -63,6 +63,8 @@ tests/comms/self_comm
 tests/comms/self_notif_mem_pools
 tests/telemetry/dpu_telemetry
 tests/telemetry/client_telemetry
+tests/ping_pong/dpu_ping_pong
+tests/ping_pong/client_ping_pong
 
 # Debug files
 *.dSYM/
