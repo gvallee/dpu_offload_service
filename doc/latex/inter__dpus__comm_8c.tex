@@ -1,0 +1,298 @@
+\hypertarget{inter__dpus__comm_8c}{}\doxysection{/home/gvallee/\+Projects/\+DPU\+\_\+offloading/dpu\+\_\+offload\+\_\+service/src/inter\+\_\+dpus\+\_\+comm.c File Reference}
+\label{inter__dpus__comm_8c}\index{/home/gvallee/Projects/DPU\_offloading/dpu\_offload\_service/src/inter\_dpus\_comm.c@{/home/gvallee/Projects/DPU\_offloading/dpu\_offload\_service/src/inter\_dpus\_comm.c}}
+{\ttfamily \#include $<$inttypes.\+h$>$}\newline
+{\ttfamily \#include $<$stdbool.\+h$>$}\newline
+{\ttfamily \#include $<$string.\+h$>$}\newline
+{\ttfamily \#include $<$unistd.\+h$>$}\newline
+{\ttfamily \#include \char`\"{}dpu\+\_\+offload\+\_\+types.\+h\char`\"{}}\newline
+{\ttfamily \#include \char`\"{}dpu\+\_\+offload\+\_\+debug.\+h\char`\"{}}\newline
+{\ttfamily \#include \char`\"{}dpu\+\_\+offload\+\_\+envvars.\+h\char`\"{}}\newline
+{\ttfamily \#include \char`\"{}dpu\+\_\+offload\+\_\+event\+\_\+channels.\+h\char`\"{}}\newline
+{\ttfamily \#include \char`\"{}dpu\+\_\+offload\+\_\+service\+\_\+daemon.\+h\char`\"{}}\newline
+Include dependency graph for inter\+\_\+dpus\+\_\+comm.\+c\+:
+\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{inter__dpus__comm_8c__incl}
+\end{center}
+\end{figure}
+\doxysubsection*{Macros}
+\begin{DoxyCompactItemize}
+\item 
+\#define \mbox{\hyperlink{inter__dpus__comm_8c_a3024ccd4a9af5109d24e6c57565d74a1}{\+\_\+\+POSIX\+\_\+\+C\+\_\+\+SOURCE}}~200809L
+\item 
+\#define \mbox{\hyperlink{inter__dpus__comm_8c_a580d72718c40903a23a49390e599681b}{ADD\+\_\+\+LOCAL\+\_\+\+SPS\+\_\+\+TO\+\_\+\+DPU\+\_\+\+CONFIG}}(\+\_\+cfg,  \+\_\+dpu)
+\item 
+\#define \mbox{\hyperlink{inter__dpus__comm_8c_aff962075df7d2346d199623f022419c6}{SET\+\_\+\+REMOTE\+\_\+\+SP\+\_\+\+TO\+\_\+\+CONNECT\+\_\+\+TO}}(\+\_\+cfg,  \+\_\+sp\+\_\+gid)
+\item 
+\#define \mbox{\hyperlink{inter__dpus__comm_8c_a8e6fbbe70d686f5c32e4399bfd9c4090}{SET\+\_\+\+SERVICE\+\_\+\+PROC\+\_\+\+TO\+\_\+\+CONNECT\+\_\+\+TO}}(\+\_\+engine,  \+\_\+cfg,  \+\_\+remote\+\_\+dpu)
+\end{DoxyCompactItemize}
+\doxysubsection*{Functions}
+\begin{DoxyCompactItemize}
+\item 
+\mbox{\hyperlink{dpu__offload__types_8h_ac95b2624b57c0005e3ca8a740316e5ab}{execution\+\_\+context\+\_\+t}} $\ast$ \mbox{\hyperlink{inter__dpus__comm_8c_ab07bde402553cc60ac536d085b3623b3}{server\+\_\+init}} (\mbox{\hyperlink{dpu__offload__types_8h_abdda2bc51909d3f2e98a5c9dde42b0a8}{offloading\+\_\+engine\+\_\+t}} $\ast$, \mbox{\hyperlink{dpu__offload__types_8h_a42c35bf5c92dc98cf22a4818b0331608}{init\+\_\+params\+\_\+t}} $\ast$)
+\begin{DoxyCompactList}\small\item\em Initialize a connection server. \end{DoxyCompactList}\item 
+\mbox{\hyperlink{dpu__offload__types_8h_ac95b2624b57c0005e3ca8a740316e5ab}{execution\+\_\+context\+\_\+t}} $\ast$ \mbox{\hyperlink{inter__dpus__comm_8c_ac0389e761e688d7377daf019885f09fe}{client\+\_\+init}} (\mbox{\hyperlink{dpu__offload__types_8h_abdda2bc51909d3f2e98a5c9dde42b0a8}{offloading\+\_\+engine\+\_\+t}} $\ast$, \mbox{\hyperlink{dpu__offload__types_8h_a42c35bf5c92dc98cf22a4818b0331608}{init\+\_\+params\+\_\+t}} $\ast$)
+\begin{DoxyCompactList}\small\item\em client\+\_\+init initialize the datastructure representing a client and perform the bootstrapping procedure \end{DoxyCompactList}\item 
+\mbox{\hyperlink{dpu__offload__common_8h_a2f49d8c1f5f6182b5128dfd3c815c3ef}{dpu\+\_\+offload\+\_\+status\+\_\+t}} \mbox{\hyperlink{inter__dpus__comm_8c_af49c49a6e987b7de7b00c18cb16349c5}{dpu\+\_\+offload\+\_\+parse\+\_\+list\+\_\+dpus}} (\mbox{\hyperlink{dpu__offload__types_8h_abdda2bc51909d3f2e98a5c9dde42b0a8}{offloading\+\_\+engine\+\_\+t}} $\ast$engine, \mbox{\hyperlink{dpu__offload__types_8h_a7d930a5e992bf8d542cb50a0f11a6276}{offloading\+\_\+config\+\_\+t}} $\ast$config\+\_\+data)
+\begin{DoxyCompactList}\small\item\em dpu\+\_\+offload\+\_\+parse\+\_\+list\+\_\+dpus parses the list of DPUs to know how service processes are supposed to connect to each other. From the list of DPUs and the number of service processes per DPU, we know the total number of service processes and can order them based on the context of the configuration files. All service processes before the current service processwill connect to it, those after will connect to them. If the hostname of the system is not in the list, the list is assumed not applicable and DO\+\_\+\+NOT\+\_\+\+APPLICABLE is returned. Note that the function gathers the list of the DPUs\textquotesingle{} hostname and prepare the structures for all the service processes. The details are extracted while parsing the configuration file or other environment variables. \end{DoxyCompactList}\item 
+void \mbox{\hyperlink{inter__dpus__comm_8c_ab7aa92d4533c6f2bb8027945febdf7b2}{connected\+\_\+to\+\_\+server\+\_\+dpu}} (void $\ast$data)
+\begin{DoxyCompactList}\small\item\em Callback invoked when a connection to a remote server running in the context of service process on a DPU completes. This is executed in the context of clients on DPUs that are used to connect to servers on other DPUs. In other words, client-\/$>$connected\+\_\+cb is set to this pointer. \end{DoxyCompactList}\item 
+\mbox{\hyperlink{dpu__offload__common_8h_a2f49d8c1f5f6182b5128dfd3c815c3ef}{dpu\+\_\+offload\+\_\+status\+\_\+t}} \mbox{\hyperlink{inter__dpus__comm_8c_a61a24adad1d41eb35e3de8e2e5f9cdbe}{connect\+\_\+to\+\_\+remote\+\_\+service\+\_\+proc}} (\mbox{\hyperlink{dpu__offload__types_8h_a709bd88b064e6b5c79548ccd5f1b9798}{remote\+\_\+service\+\_\+proc\+\_\+info\+\_\+t}} $\ast$\mbox{\hyperlink{structremote__service__proc__info}{remote\+\_\+service\+\_\+proc\+\_\+info}})
+\item 
+void \mbox{\hyperlink{inter__dpus__comm_8c_adb1d65246b284a9a88cff22051d3485e}{client\+\_\+service\+\_\+proc\+\_\+connected}} (void $\ast$data)
+\begin{DoxyCompactList}\small\item\em Callback invoked when a client service process finalizes its connection to us. This is set on server service processes running on DPUs that are used to let client service processes connect. In other words, server-\/$>$connected\+\_\+cb is set to this pointer. \end{DoxyCompactList}\item 
+\mbox{\hyperlink{dpu__offload__common_8h_a2f49d8c1f5f6182b5128dfd3c815c3ef}{dpu\+\_\+offload\+\_\+status\+\_\+t}} \mbox{\hyperlink{inter__dpus__comm_8c_a7dffca90f97a06f0e19aee3d1ea5680c}{inter\+\_\+dpus\+\_\+connect\+\_\+mgr}} (\mbox{\hyperlink{dpu__offload__types_8h_abdda2bc51909d3f2e98a5c9dde42b0a8}{offloading\+\_\+engine\+\_\+t}} $\ast$engine, \mbox{\hyperlink{dpu__offload__types_8h_a7d930a5e992bf8d542cb50a0f11a6276}{offloading\+\_\+config\+\_\+t}} $\ast$cfg)
+\item 
+\mbox{\hyperlink{dpu__offload__common_8h_a2f49d8c1f5f6182b5128dfd3c815c3ef}{dpu\+\_\+offload\+\_\+status\+\_\+t}} \mbox{\hyperlink{inter__dpus__comm_8c_a5b8996936c9f3db7bbb24707f8c11247}{get\+\_\+dpu\+\_\+config}} (\mbox{\hyperlink{dpu__offload__types_8h_abdda2bc51909d3f2e98a5c9dde42b0a8}{offloading\+\_\+engine\+\_\+t}} $\ast$offload\+\_\+engine, \mbox{\hyperlink{dpu__offload__types_8h_a7d930a5e992bf8d542cb50a0f11a6276}{offloading\+\_\+config\+\_\+t}} $\ast$config\+\_\+data)
+\begin{DoxyCompactList}\small\item\em Get the DPU config object based on the content of the configuration file. \end{DoxyCompactList}\end{DoxyCompactItemize}
+\doxysubsection*{Variables}
+\begin{DoxyCompactItemize}
+\item 
+\mbox{\hyperlink{dpu__offload__types_8h_a6846f687a61323898ab2f6903ca8766e}{rank\+\_\+info\+\_\+t}} \mbox{\hyperlink{inter__dpus__comm_8c_a235b67257cbc555f548cdbe94b2efa6b}{invalid\+\_\+group\+\_\+rank}}
+\begin{DoxyCompactList}\small\item\em invalid\+\_\+group\+\_\+rank is used when there is a need to exchange a group/rank but the current context does not have one. It is for instance used during the inter-\/dpu connections. \end{DoxyCompactList}\end{DoxyCompactItemize}
+
+
+\doxysubsection{Macro Definition Documentation}
+\mbox{\Hypertarget{inter__dpus__comm_8c_a3024ccd4a9af5109d24e6c57565d74a1}\label{inter__dpus__comm_8c_a3024ccd4a9af5109d24e6c57565d74a1}} 
+\index{inter\_dpus\_comm.c@{inter\_dpus\_comm.c}!\_POSIX\_C\_SOURCE@{\_POSIX\_C\_SOURCE}}
+\index{\_POSIX\_C\_SOURCE@{\_POSIX\_C\_SOURCE}!inter\_dpus\_comm.c@{inter\_dpus\_comm.c}}
+\doxysubsubsection{\texorpdfstring{\_POSIX\_C\_SOURCE}{\_POSIX\_C\_SOURCE}}
+{\footnotesize\ttfamily \#define \+\_\+\+POSIX\+\_\+\+C\+\_\+\+SOURCE~200809L}
+
+\mbox{\Hypertarget{inter__dpus__comm_8c_a580d72718c40903a23a49390e599681b}\label{inter__dpus__comm_8c_a580d72718c40903a23a49390e599681b}} 
+\index{inter\_dpus\_comm.c@{inter\_dpus\_comm.c}!ADD\_LOCAL\_SPS\_TO\_DPU\_CONFIG@{ADD\_LOCAL\_SPS\_TO\_DPU\_CONFIG}}
+\index{ADD\_LOCAL\_SPS\_TO\_DPU\_CONFIG@{ADD\_LOCAL\_SPS\_TO\_DPU\_CONFIG}!inter\_dpus\_comm.c@{inter\_dpus\_comm.c}}
+\doxysubsubsection{\texorpdfstring{ADD\_LOCAL\_SPS\_TO\_DPU\_CONFIG}{ADD\_LOCAL\_SPS\_TO\_DPU\_CONFIG}}
+{\footnotesize\ttfamily \#define ADD\+\_\+\+LOCAL\+\_\+\+SPS\+\_\+\+TO\+\_\+\+DPU\+\_\+\+CONFIG(\begin{DoxyParamCaption}\item[{}]{\+\_\+cfg,  }\item[{}]{\+\_\+dpu }\end{DoxyParamCaption})}
+
+{\bfseries Value\+:}
+\begin{DoxyCode}{0}
+\DoxyCodeLine{    \textcolor{keywordflow}{do}                                                                                                       \(\backslash\)}
+\DoxyCodeLine{    \{                                                                                                        \(\backslash\)}
+\DoxyCodeLine{        size\_t \_x;                                                                                           \(\backslash\)}
+\DoxyCodeLine{        for (\_x = 0; \_x < (\_cfg)-\/>num\_service\_procs\_per\_dpu; \_x++)                                           \(\backslash\)}
+\DoxyCodeLine{        \{                                                                                                    \(\backslash\)}
+\DoxyCodeLine{            uint64\_t \_sp\_gid = (\_dpu)-\/>idx * (\_cfg)-\/>num\_service\_procs\_per\_dpu + \_x;                         \(\backslash\)}
+\DoxyCodeLine{            remote\_service\_proc\_info\_t *\_sp = \mbox{\hyperlink{dynamic__structs_8h_a0e5fa3cb758f3eefad714235c1fef266}{DYN\_ARRAY\_GET\_ELT}}(\&((\_cfg)-\/>\mbox{\hyperlink{structoffloading__engine}{offloading\_engine}}-\/>\mbox{\hyperlink{structoffloading__engine_aa83f08c1fa7b35c109566c176ef5c3eb}{service\_procs}}), \(\backslash\)}
+\DoxyCodeLine{                                                                \_sp\_gid,                                     \(\backslash\)}
+\DoxyCodeLine{                                                                \mbox{\hyperlink{structremote__service__proc__info}{remote\_service\_proc\_info\_t}});                 \(\backslash\)}
+\DoxyCodeLine{            assert(\_sp);                                                                                     \(\backslash\)}
+\DoxyCodeLine{            \_sp-\/>idx = \_sp\_gid;                                                                              \(\backslash\)}
+\DoxyCodeLine{            conn\_params\_t *\_sp\_conn\_params;                                                                  \(\backslash\)}
+\DoxyCodeLine{            DYN\_LIST\_GET((\_cfg)-\/>\mbox{\hyperlink{structoffloading__engine}{offloading\_engine}}-\/>\mbox{\hyperlink{structoffloading__engine_ab73161186f9c864cfcaa2edbbc86fd53}{pool\_conn\_params}}, \mbox{\hyperlink{structconn__params}{conn\_params\_t}}, item, \_sp\_conn\_params); \(\backslash\)}
+\DoxyCodeLine{            assert(\_sp\_conn\_params);                                                                         \(\backslash\)}
+\DoxyCodeLine{            RESET\_CONN\_PARAMS(\_sp\_conn\_params);                                                              \(\backslash\)}
+\DoxyCodeLine{            \_sp-\/>dpu = (\_dpu);                                                                               \(\backslash\)}
+\DoxyCodeLine{            \_sp-\/>init\_params.conn\_params = \_sp\_conn\_params;                                                  \(\backslash\)}
+\DoxyCodeLine{            \_sp-\/>service\_proc.local\_id = \_x;                                                                 \(\backslash\)}
+\DoxyCodeLine{            \_sp-\/>service\_proc.global\_id = \_sp\_gid;                                                           \(\backslash\)}
+\DoxyCodeLine{            \_sp-\/>offload\_engine = (\_cfg)-\/>\mbox{\hyperlink{structoffloading__engine}{offloading\_engine}};                                                 \(\backslash\)}
+\DoxyCodeLine{            SIMPLE\_LIST\_PREPEND(\&((\_dpu)-\/>remote\_service\_procs), \&(\_sp-\/>item));                              \(\backslash\)}
+\DoxyCodeLine{        \}                                                                                                    \(\backslash\)}
+\DoxyCodeLine{    \} \textcolor{keywordflow}{while} (0)}
+
+\end{DoxyCode}
+\mbox{\Hypertarget{inter__dpus__comm_8c_aff962075df7d2346d199623f022419c6}\label{inter__dpus__comm_8c_aff962075df7d2346d199623f022419c6}} 
+\index{inter\_dpus\_comm.c@{inter\_dpus\_comm.c}!SET\_REMOTE\_SP\_TO\_CONNECT\_TO@{SET\_REMOTE\_SP\_TO\_CONNECT\_TO}}
+\index{SET\_REMOTE\_SP\_TO\_CONNECT\_TO@{SET\_REMOTE\_SP\_TO\_CONNECT\_TO}!inter\_dpus\_comm.c@{inter\_dpus\_comm.c}}
+\doxysubsubsection{\texorpdfstring{SET\_REMOTE\_SP\_TO\_CONNECT\_TO}{SET\_REMOTE\_SP\_TO\_CONNECT\_TO}}
+{\footnotesize\ttfamily \#define SET\+\_\+\+REMOTE\+\_\+\+SP\+\_\+\+TO\+\_\+\+CONNECT\+\_\+\+TO(\begin{DoxyParamCaption}\item[{}]{\+\_\+cfg,  }\item[{}]{\+\_\+sp\+\_\+gid }\end{DoxyParamCaption})}
+
+{\bfseries Value\+:}
+\begin{DoxyCode}{0}
+\DoxyCodeLine{    \textcolor{keywordflow}{do}                                                                                        \(\backslash\)}
+\DoxyCodeLine{    \{                                                                                         \(\backslash\)}
+\DoxyCodeLine{        remote\_service\_proc\_info\_t *sp\_connect\_to = NULL;                                     \(\backslash\)}
+\DoxyCodeLine{        sp\_connect\_to = \mbox{\hyperlink{dynamic__structs_8h_a0e5fa3cb758f3eefad714235c1fef266}{DYN\_ARRAY\_GET\_ELT}}(\&((\_cfg)-\/>\mbox{\hyperlink{structoffloading__engine}{offloading\_engine}}-\/>\mbox{\hyperlink{structoffloading__engine_aa83f08c1fa7b35c109566c176ef5c3eb}{service\_procs}}),        \(\backslash\)}
+\DoxyCodeLine{                                          \_sp\_gid,                                            \(\backslash\)}
+\DoxyCodeLine{                                          \mbox{\hyperlink{structremote__service__proc__info}{remote\_service\_proc\_info\_t}});                        \(\backslash\)}
+\DoxyCodeLine{        assert(sp\_connect\_to);                                                                \(\backslash\)}
+\DoxyCodeLine{        assert(sp\_connect\_to-\/>init\_params.conn\_params);                                       \(\backslash\)}
+\DoxyCodeLine{        connect\_to\_service\_proc\_t *sp\_conn\_to;                                                \(\backslash\)}
+\DoxyCodeLine{        DYN\_LIST\_GET((\_cfg)-\/>info\_connecting\_to.pool\_remote\_sp\_connect\_to,                    \(\backslash\)}
+\DoxyCodeLine{                     \mbox{\hyperlink{structconnect__to__service__proc}{connect\_to\_service\_proc\_t}},                                               \(\backslash\)}
+\DoxyCodeLine{                     item,                                                                    \(\backslash\)}
+\DoxyCodeLine{                     sp\_conn\_to);                                                             \(\backslash\)}
+\DoxyCodeLine{        assert(sp\_conn\_to);                                                                   \(\backslash\)}
+\DoxyCodeLine{        sp\_conn\_to-\/>sp = sp\_connect\_to;                                                       \(\backslash\)}
+\DoxyCodeLine{        \textcolor{comment}{/* Connection details are set while parsing the config file */}                        \(\backslash\)}
+\DoxyCodeLine{        ucs\_list\_add\_tail(\&((\_cfg)-\/>info\_connecting\_to.sps\_connect\_to), \&(sp\_conn\_to-\/>item)); \(\backslash\)}
+\DoxyCodeLine{    \} \textcolor{keywordflow}{while} (0)}
+
+\end{DoxyCode}
+\mbox{\Hypertarget{inter__dpus__comm_8c_a8e6fbbe70d686f5c32e4399bfd9c4090}\label{inter__dpus__comm_8c_a8e6fbbe70d686f5c32e4399bfd9c4090}} 
+\index{inter\_dpus\_comm.c@{inter\_dpus\_comm.c}!SET\_SERVICE\_PROC\_TO\_CONNECT\_TO@{SET\_SERVICE\_PROC\_TO\_CONNECT\_TO}}
+\index{SET\_SERVICE\_PROC\_TO\_CONNECT\_TO@{SET\_SERVICE\_PROC\_TO\_CONNECT\_TO}!inter\_dpus\_comm.c@{inter\_dpus\_comm.c}}
+\doxysubsubsection{\texorpdfstring{SET\_SERVICE\_PROC\_TO\_CONNECT\_TO}{SET\_SERVICE\_PROC\_TO\_CONNECT\_TO}}
+{\footnotesize\ttfamily \#define SET\+\_\+\+SERVICE\+\_\+\+PROC\+\_\+\+TO\+\_\+\+CONNECT\+\_\+\+TO(\begin{DoxyParamCaption}\item[{}]{\+\_\+engine,  }\item[{}]{\+\_\+cfg,  }\item[{}]{\+\_\+remote\+\_\+dpu }\end{DoxyParamCaption})}
+
+{\bfseries Value\+:}
+\begin{DoxyCode}{0}
+\DoxyCodeLine{    \textcolor{keywordflow}{do}                                                                                          \(\backslash\)}
+\DoxyCodeLine{    \{                                                                                           \(\backslash\)}
+\DoxyCodeLine{        size\_t \_s;                                                                              \(\backslash\)}
+\DoxyCodeLine{        ADD\_LOCAL\_SPS\_TO\_DPU\_CONFIG((\_cfg), \_remote\_dpu);                                       \(\backslash\)}
+\DoxyCodeLine{        ucs\_list\_add\_tail(\&((\_cfg)-\/>info\_connecting\_to.dpus\_connect\_to), \&(\_remote\_dpu-\/>item)); \(\backslash\)}
+\DoxyCodeLine{        for (\_s = 0; \_s < (\_cfg)-\/>num\_service\_procs\_per\_dpu; \_s++)                              \(\backslash\)}
+\DoxyCodeLine{        \{                                                                                       \(\backslash\)}
+\DoxyCodeLine{            uint64\_t sp\_global\_id = \_remote\_dpu-\/>idx * (\_cfg)-\/>num\_service\_procs\_per\_dpu + \_s;  \(\backslash\)}
+\DoxyCodeLine{            SET\_REMOTE\_SP\_TO\_CONNECT\_TO(\_cfg, sp\_global\_id);                                    \(\backslash\)}
+\DoxyCodeLine{        \}                                                                                       \(\backslash\)}
+\DoxyCodeLine{        (\_cfg)-\/>info\_connecting\_to.num\_dpus++;                                                  \(\backslash\)}
+\DoxyCodeLine{        (\_cfg)-\/>info\_connecting\_to.num\_connect\_to += (\_cfg)-\/>num\_service\_procs\_per\_dpu;         \(\backslash\)}
+\DoxyCodeLine{    \} \textcolor{keywordflow}{while} (0)}
+
+\end{DoxyCode}
+
+
+\doxysubsection{Function Documentation}
+\mbox{\Hypertarget{inter__dpus__comm_8c_ac0389e761e688d7377daf019885f09fe}\label{inter__dpus__comm_8c_ac0389e761e688d7377daf019885f09fe}} 
+\index{inter\_dpus\_comm.c@{inter\_dpus\_comm.c}!client\_init@{client\_init}}
+\index{client\_init@{client\_init}!inter\_dpus\_comm.c@{inter\_dpus\_comm.c}}
+\doxysubsubsection{\texorpdfstring{client\_init()}{client\_init()}}
+{\footnotesize\ttfamily \mbox{\hyperlink{dpu__offload__types_8h_ac95b2624b57c0005e3ca8a740316e5ab}{execution\+\_\+context\+\_\+t}}$\ast$ client\+\_\+init (\begin{DoxyParamCaption}\item[{\mbox{\hyperlink{dpu__offload__types_8h_abdda2bc51909d3f2e98a5c9dde42b0a8}{offloading\+\_\+engine\+\_\+t}} $\ast$}]{offload\+\_\+engine,  }\item[{\mbox{\hyperlink{dpu__offload__types_8h_a42c35bf5c92dc98cf22a4818b0331608}{init\+\_\+params\+\_\+t}} $\ast$}]{init\+\_\+params }\end{DoxyParamCaption})}
+
+
+
+client\+\_\+init initialize the datastructure representing a client and perform the bootstrapping procedure 
+
+client\+\_\+init creates and returns a new execution context object that can later on be used as a client. Trying to use it as a server is invalid.
+
+
+\begin{DoxyParams}{Parameters}
+{\em offload\+\_\+engine} & offloading engine the client is associated with. \\
+\hline
+{\em \mbox{\hyperlink{structinit__params}{init\+\_\+params}}} & Handle gathering all the initialization parameters that can be customized by the caller. Can be NULL to use defaults. \\
+\hline
+\end{DoxyParams}
+\begin{DoxyReturn}{Returns}
+execution\+\_\+context\+\_\+t$\ast$ 
+\end{DoxyReturn}
+\mbox{\Hypertarget{inter__dpus__comm_8c_adb1d65246b284a9a88cff22051d3485e}\label{inter__dpus__comm_8c_adb1d65246b284a9a88cff22051d3485e}} 
+\index{inter\_dpus\_comm.c@{inter\_dpus\_comm.c}!client\_service\_proc\_connected@{client\_service\_proc\_connected}}
+\index{client\_service\_proc\_connected@{client\_service\_proc\_connected}!inter\_dpus\_comm.c@{inter\_dpus\_comm.c}}
+\doxysubsubsection{\texorpdfstring{client\_service\_proc\_connected()}{client\_service\_proc\_connected()}}
+{\footnotesize\ttfamily void client\+\_\+service\+\_\+proc\+\_\+connected (\begin{DoxyParamCaption}\item[{void $\ast$}]{data }\end{DoxyParamCaption})}
+
+
+
+Callback invoked when a client service process finalizes its connection to us. This is set on server service processes running on DPUs that are used to let client service processes connect. In other words, server-\/$>$connected\+\_\+cb is set to this pointer. 
+
+
+\begin{DoxyParams}{Parameters}
+{\em data} & DPU data \\
+\hline
+\end{DoxyParams}
+\mbox{\Hypertarget{inter__dpus__comm_8c_a61a24adad1d41eb35e3de8e2e5f9cdbe}\label{inter__dpus__comm_8c_a61a24adad1d41eb35e3de8e2e5f9cdbe}} 
+\index{inter\_dpus\_comm.c@{inter\_dpus\_comm.c}!connect\_to\_remote\_service\_proc@{connect\_to\_remote\_service\_proc}}
+\index{connect\_to\_remote\_service\_proc@{connect\_to\_remote\_service\_proc}!inter\_dpus\_comm.c@{inter\_dpus\_comm.c}}
+\doxysubsubsection{\texorpdfstring{connect\_to\_remote\_service\_proc()}{connect\_to\_remote\_service\_proc()}}
+{\footnotesize\ttfamily \mbox{\hyperlink{dpu__offload__common_8h_a2f49d8c1f5f6182b5128dfd3c815c3ef}{dpu\+\_\+offload\+\_\+status\+\_\+t}} connect\+\_\+to\+\_\+remote\+\_\+service\+\_\+proc (\begin{DoxyParamCaption}\item[{\mbox{\hyperlink{dpu__offload__types_8h_a709bd88b064e6b5c79548ccd5f1b9798}{remote\+\_\+service\+\_\+proc\+\_\+info\+\_\+t}} $\ast$}]{remote\+\_\+service\+\_\+proc\+\_\+info }\end{DoxyParamCaption})}
+
+\mbox{\Hypertarget{inter__dpus__comm_8c_ab7aa92d4533c6f2bb8027945febdf7b2}\label{inter__dpus__comm_8c_ab7aa92d4533c6f2bb8027945febdf7b2}} 
+\index{inter\_dpus\_comm.c@{inter\_dpus\_comm.c}!connected\_to\_server\_dpu@{connected\_to\_server\_dpu}}
+\index{connected\_to\_server\_dpu@{connected\_to\_server\_dpu}!inter\_dpus\_comm.c@{inter\_dpus\_comm.c}}
+\doxysubsubsection{\texorpdfstring{connected\_to\_server\_dpu()}{connected\_to\_server\_dpu()}}
+{\footnotesize\ttfamily void connected\+\_\+to\+\_\+server\+\_\+dpu (\begin{DoxyParamCaption}\item[{void $\ast$}]{data }\end{DoxyParamCaption})}
+
+
+
+Callback invoked when a connection to a remote server running in the context of service process on a DPU completes. This is executed in the context of clients on DPUs that are used to connect to servers on other DPUs. In other words, client-\/$>$connected\+\_\+cb is set to this pointer. 
+
+
+\begin{DoxyParams}{Parameters}
+{\em data} & Generic pointer to pass callback data \\
+\hline
+\end{DoxyParams}
+\mbox{\Hypertarget{inter__dpus__comm_8c_af49c49a6e987b7de7b00c18cb16349c5}\label{inter__dpus__comm_8c_af49c49a6e987b7de7b00c18cb16349c5}} 
+\index{inter\_dpus\_comm.c@{inter\_dpus\_comm.c}!dpu\_offload\_parse\_list\_dpus@{dpu\_offload\_parse\_list\_dpus}}
+\index{dpu\_offload\_parse\_list\_dpus@{dpu\_offload\_parse\_list\_dpus}!inter\_dpus\_comm.c@{inter\_dpus\_comm.c}}
+\doxysubsubsection{\texorpdfstring{dpu\_offload\_parse\_list\_dpus()}{dpu\_offload\_parse\_list\_dpus()}}
+{\footnotesize\ttfamily \mbox{\hyperlink{dpu__offload__common_8h_a2f49d8c1f5f6182b5128dfd3c815c3ef}{dpu\+\_\+offload\+\_\+status\+\_\+t}} dpu\+\_\+offload\+\_\+parse\+\_\+list\+\_\+dpus (\begin{DoxyParamCaption}\item[{\mbox{\hyperlink{dpu__offload__types_8h_abdda2bc51909d3f2e98a5c9dde42b0a8}{offloading\+\_\+engine\+\_\+t}} $\ast$}]{engine,  }\item[{\mbox{\hyperlink{dpu__offload__types_8h_a7d930a5e992bf8d542cb50a0f11a6276}{offloading\+\_\+config\+\_\+t}} $\ast$}]{config\+\_\+data }\end{DoxyParamCaption})}
+
+
+
+dpu\+\_\+offload\+\_\+parse\+\_\+list\+\_\+dpus parses the list of DPUs to know how service processes are supposed to connect to each other. From the list of DPUs and the number of service processes per DPU, we know the total number of service processes and can order them based on the context of the configuration files. All service processes before the current service processwill connect to it, those after will connect to them. If the hostname of the system is not in the list, the list is assumed not applicable and DO\+\_\+\+NOT\+\_\+\+APPLICABLE is returned. Note that the function gathers the list of the DPUs\textquotesingle{} hostname and prepare the structures for all the service processes. The details are extracted while parsing the configuration file or other environment variables. 
+
+
+\begin{DoxyParams}[1]{Parameters}
+\mbox{\texttt{ in}}  & {\em engine} & The offloading engine associated to the function call. \\
+\hline
+\mbox{\texttt{ in,out}}  & {\em config\+\_\+data} & All the configuration details from which we get the list of DPUs and where the result is stored \\
+\hline
+\end{DoxyParams}
+\begin{DoxyReturn}{Returns}
+dpu\+\_\+offload\+\_\+status\+\_\+t 
+\end{DoxyReturn}
+\mbox{\Hypertarget{inter__dpus__comm_8c_a5b8996936c9f3db7bbb24707f8c11247}\label{inter__dpus__comm_8c_a5b8996936c9f3db7bbb24707f8c11247}} 
+\index{inter\_dpus\_comm.c@{inter\_dpus\_comm.c}!get\_dpu\_config@{get\_dpu\_config}}
+\index{get\_dpu\_config@{get\_dpu\_config}!inter\_dpus\_comm.c@{inter\_dpus\_comm.c}}
+\doxysubsubsection{\texorpdfstring{get\_dpu\_config()}{get\_dpu\_config()}}
+{\footnotesize\ttfamily \mbox{\hyperlink{dpu__offload__common_8h_a2f49d8c1f5f6182b5128dfd3c815c3ef}{dpu\+\_\+offload\+\_\+status\+\_\+t}} get\+\_\+dpu\+\_\+config (\begin{DoxyParamCaption}\item[{\mbox{\hyperlink{dpu__offload__types_8h_abdda2bc51909d3f2e98a5c9dde42b0a8}{offloading\+\_\+engine\+\_\+t}} $\ast$}]{offload\+\_\+engine,  }\item[{\mbox{\hyperlink{dpu__offload__types_8h_a7d930a5e992bf8d542cb50a0f11a6276}{offloading\+\_\+config\+\_\+t}} $\ast$}]{config\+\_\+data }\end{DoxyParamCaption})}
+
+
+
+Get the DPU config object based on the content of the configuration file. 
+
+
+\begin{DoxyParams}[1]{Parameters}
+\mbox{\texttt{ in}}  & {\em \mbox{\hyperlink{structoffloading__engine}{offloading\+\_\+engine}}} & The offloading engine to configure with the configuration file. \\
+\hline
+ & {\em \mbox{[}in/out\mbox{]}} & dpu\+\_\+config Configuration details for all the DPUs from the configuration file. \\
+\hline
+\end{DoxyParams}
+\begin{DoxyReturn}{Returns}
+dpu\+\_\+offload\+\_\+status\+\_\+t 
+\end{DoxyReturn}
+\mbox{\Hypertarget{inter__dpus__comm_8c_a7dffca90f97a06f0e19aee3d1ea5680c}\label{inter__dpus__comm_8c_a7dffca90f97a06f0e19aee3d1ea5680c}} 
+\index{inter\_dpus\_comm.c@{inter\_dpus\_comm.c}!inter\_dpus\_connect\_mgr@{inter\_dpus\_connect\_mgr}}
+\index{inter\_dpus\_connect\_mgr@{inter\_dpus\_connect\_mgr}!inter\_dpus\_comm.c@{inter\_dpus\_comm.c}}
+\doxysubsubsection{\texorpdfstring{inter\_dpus\_connect\_mgr()}{inter\_dpus\_connect\_mgr()}}
+{\footnotesize\ttfamily \mbox{\hyperlink{dpu__offload__common_8h_a2f49d8c1f5f6182b5128dfd3c815c3ef}{dpu\+\_\+offload\+\_\+status\+\_\+t}} inter\+\_\+dpus\+\_\+connect\+\_\+mgr (\begin{DoxyParamCaption}\item[{\mbox{\hyperlink{dpu__offload__types_8h_abdda2bc51909d3f2e98a5c9dde42b0a8}{offloading\+\_\+engine\+\_\+t}} $\ast$}]{engine,  }\item[{\mbox{\hyperlink{dpu__offload__types_8h_a7d930a5e992bf8d542cb50a0f11a6276}{offloading\+\_\+config\+\_\+t}} $\ast$}]{cfg }\end{DoxyParamCaption})}
+
+\mbox{\Hypertarget{inter__dpus__comm_8c_ab07bde402553cc60ac536d085b3623b3}\label{inter__dpus__comm_8c_ab07bde402553cc60ac536d085b3623b3}} 
+\index{inter\_dpus\_comm.c@{inter\_dpus\_comm.c}!server\_init@{server\_init}}
+\index{server\_init@{server\_init}!inter\_dpus\_comm.c@{inter\_dpus\_comm.c}}
+\doxysubsubsection{\texorpdfstring{server\_init()}{server\_init()}}
+{\footnotesize\ttfamily \mbox{\hyperlink{dpu__offload__types_8h_ac95b2624b57c0005e3ca8a740316e5ab}{execution\+\_\+context\+\_\+t}}$\ast$ server\+\_\+init (\begin{DoxyParamCaption}\item[{\mbox{\hyperlink{dpu__offload__types_8h_abdda2bc51909d3f2e98a5c9dde42b0a8}{offloading\+\_\+engine\+\_\+t}} $\ast$}]{offloading\+\_\+engine,  }\item[{\mbox{\hyperlink{dpu__offload__types_8h_a42c35bf5c92dc98cf22a4818b0331608}{init\+\_\+params\+\_\+t}} $\ast$}]{init\+\_\+params }\end{DoxyParamCaption})}
+
+
+
+Initialize a connection server. 
+
+
+\begin{DoxyParams}{Parameters}
+{\em \mbox{\hyperlink{structoffloading__engine}{offloading\+\_\+engine}}} & Associated offloading engine. \\
+\hline
+{\em \mbox{\hyperlink{structconn__params}{conn\+\_\+params}}} & Connection parameters, e.\+g., port to use to listen for connections. If NULL, the configuration will be pulled from environment variables. \\
+\hline
+\end{DoxyParams}
+\begin{DoxyReturn}{Returns}
+execution\+\_\+context\+\_\+t$\ast$ 
+\end{DoxyReturn}
+
+
+\doxysubsection{Variable Documentation}
+\mbox{\Hypertarget{inter__dpus__comm_8c_a235b67257cbc555f548cdbe94b2efa6b}\label{inter__dpus__comm_8c_a235b67257cbc555f548cdbe94b2efa6b}} 
+\index{inter\_dpus\_comm.c@{inter\_dpus\_comm.c}!invalid\_group\_rank@{invalid\_group\_rank}}
+\index{invalid\_group\_rank@{invalid\_group\_rank}!inter\_dpus\_comm.c@{inter\_dpus\_comm.c}}
+\doxysubsubsection{\texorpdfstring{invalid\_group\_rank}{invalid\_group\_rank}}
+{\footnotesize\ttfamily \mbox{\hyperlink{dpu__offload__types_8h_a6846f687a61323898ab2f6903ca8766e}{rank\+\_\+info\+\_\+t}} invalid\+\_\+group\+\_\+rank}
+
+{\bfseries Initial value\+:}
+\begin{DoxyCode}{0}
+\DoxyCodeLine{= \{}
+\DoxyCodeLine{    .group\_id = \{}
+\DoxyCodeLine{        .id = \mbox{\hyperlink{dpu__offload__types_8h_a4659a930c6e544561277e47132d5e778}{INVALID\_GROUP}},}
+\DoxyCodeLine{        .lead = \mbox{\hyperlink{dpu__offload__types_8h_a05909c835ada8545c0042f78a77eb310}{INVALID\_GROUP\_LEAD}},}
+\DoxyCodeLine{    \},}
+\DoxyCodeLine{    .group\_rank = \mbox{\hyperlink{dpu__offload__types_8h_aaebbae3dc2ca01da62bd2d8d819f17c1}{INVALID\_RANK}},}
+\DoxyCodeLine{\}}
+
+\end{DoxyCode}
+
+
+invalid\+\_\+group\+\_\+rank is used when there is a need to exchange a group/rank but the current context does not have one. It is for instance used during the inter-\/dpu connections. 
+

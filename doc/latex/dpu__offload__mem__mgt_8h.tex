@@ -1,0 +1,144 @@
+\hypertarget{dpu__offload__mem__mgt_8h}{}\doxysection{/home/gvallee/\+Projects/\+DPU\+\_\+offloading/dpu\+\_\+offload\+\_\+service/src/dpu\+\_\+offload\+\_\+mem\+\_\+mgt.h File Reference}
+\label{dpu__offload__mem__mgt_8h}\index{/home/gvallee/Projects/DPU\_offloading/dpu\_offload\_service/src/dpu\_offload\_mem\_mgt.h@{/home/gvallee/Projects/DPU\_offloading/dpu\_offload\_service/src/dpu\_offload\_mem\_mgt.h}}
+{\ttfamily \#include $<$assert.\+h$>$}\newline
+{\ttfamily \#include $<$stddef.\+h$>$}\newline
+{\ttfamily \#include \char`\"{}dpu\+\_\+offload\+\_\+types.\+h\char`\"{}}\newline
+{\ttfamily \#include \char`\"{}dynamic\+\_\+structs.\+h\char`\"{}}\newline
+Include dependency graph for dpu\+\_\+offload\+\_\+mem\+\_\+mgt.\+h\+:
+\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{dpu__offload__mem__mgt_8h__incl}
+\end{center}
+\end{figure}
+This graph shows which files directly or indirectly include this file\+:
+\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{dpu__offload__mem__mgt_8h__dep__incl}
+\end{center}
+\end{figure}
+\doxysubsection*{Macros}
+\begin{DoxyCompactItemize}
+\item 
+\#define \mbox{\hyperlink{dpu__offload__mem__mgt_8h_a36d20ba74425036fd66f863bb89adeda}{MAX\+\_\+\+GROUPS}}~(128)
+\item 
+\#define \mbox{\hyperlink{dpu__offload__mem__mgt_8h_a07e8b3ad24dfe4cb79b6563f1e1a56c1}{DEFAULT\+\_\+\+NUM\+\_\+\+GROUPS}}~(32)
+\item 
+\#define \mbox{\hyperlink{dpu__offload__mem__mgt_8h_aa5f681919a813d5e73da658135738a72}{DEFAULT\+\_\+\+NUM\+\_\+\+RANKS\+\_\+\+IN\+\_\+\+GROUP}}~(2048)
+\item 
+\#define \mbox{\hyperlink{dpu__offload__mem__mgt_8h_abcd2fc1532087f80f4067b84f23459e7}{DPU\+\_\+\+OFFLOAD\+\_\+\+MALLOC}}(\+\_\+size)
+\item 
+\#define \mbox{\hyperlink{dpu__offload__mem__mgt_8h_aa0292c31c172b4bb24d7eb614fc57a43}{GROUPS\+\_\+\+CACHE\+\_\+\+INIT}}(\+\_\+cache)
+\item 
+\#define \mbox{\hyperlink{dpu__offload__mem__mgt_8h_ae74d10d15e273336c47b31cab22087f5}{GROUPS\+\_\+\+CACHE\+\_\+\+FINI}}(\+\_\+cache)
+\item 
+\#define \mbox{\hyperlink{dpu__offload__mem__mgt_8h_a00a271281cf19272bbd86cb9db7e8f0b}{GROUP\+\_\+\+CACHE\+\_\+\+INIT}}(\+\_\+cache,  \+\_\+gp\+\_\+id)
+\end{DoxyCompactItemize}
+
+
+\doxysubsection{Macro Definition Documentation}
+\mbox{\Hypertarget{dpu__offload__mem__mgt_8h_a07e8b3ad24dfe4cb79b6563f1e1a56c1}\label{dpu__offload__mem__mgt_8h_a07e8b3ad24dfe4cb79b6563f1e1a56c1}} 
+\index{dpu\_offload\_mem\_mgt.h@{dpu\_offload\_mem\_mgt.h}!DEFAULT\_NUM\_GROUPS@{DEFAULT\_NUM\_GROUPS}}
+\index{DEFAULT\_NUM\_GROUPS@{DEFAULT\_NUM\_GROUPS}!dpu\_offload\_mem\_mgt.h@{dpu\_offload\_mem\_mgt.h}}
+\doxysubsubsection{\texorpdfstring{DEFAULT\_NUM\_GROUPS}{DEFAULT\_NUM\_GROUPS}}
+{\footnotesize\ttfamily \#define DEFAULT\+\_\+\+NUM\+\_\+\+GROUPS~(32)}
+
+\mbox{\Hypertarget{dpu__offload__mem__mgt_8h_aa5f681919a813d5e73da658135738a72}\label{dpu__offload__mem__mgt_8h_aa5f681919a813d5e73da658135738a72}} 
+\index{dpu\_offload\_mem\_mgt.h@{dpu\_offload\_mem\_mgt.h}!DEFAULT\_NUM\_RANKS\_IN\_GROUP@{DEFAULT\_NUM\_RANKS\_IN\_GROUP}}
+\index{DEFAULT\_NUM\_RANKS\_IN\_GROUP@{DEFAULT\_NUM\_RANKS\_IN\_GROUP}!dpu\_offload\_mem\_mgt.h@{dpu\_offload\_mem\_mgt.h}}
+\doxysubsubsection{\texorpdfstring{DEFAULT\_NUM\_RANKS\_IN\_GROUP}{DEFAULT\_NUM\_RANKS\_IN\_GROUP}}
+{\footnotesize\ttfamily \#define DEFAULT\+\_\+\+NUM\+\_\+\+RANKS\+\_\+\+IN\+\_\+\+GROUP~(2048)}
+
+\mbox{\Hypertarget{dpu__offload__mem__mgt_8h_abcd2fc1532087f80f4067b84f23459e7}\label{dpu__offload__mem__mgt_8h_abcd2fc1532087f80f4067b84f23459e7}} 
+\index{dpu\_offload\_mem\_mgt.h@{dpu\_offload\_mem\_mgt.h}!DPU\_OFFLOAD\_MALLOC@{DPU\_OFFLOAD\_MALLOC}}
+\index{DPU\_OFFLOAD\_MALLOC@{DPU\_OFFLOAD\_MALLOC}!dpu\_offload\_mem\_mgt.h@{dpu\_offload\_mem\_mgt.h}}
+\doxysubsubsection{\texorpdfstring{DPU\_OFFLOAD\_MALLOC}{DPU\_OFFLOAD\_MALLOC}}
+{\footnotesize\ttfamily \#define DPU\+\_\+\+OFFLOAD\+\_\+\+MALLOC(\begin{DoxyParamCaption}\item[{}]{\+\_\+size }\end{DoxyParamCaption})}
+
+{\bfseries Value\+:}
+\begin{DoxyCode}{0}
+\DoxyCodeLine{    (\{ \(\backslash\)}
+\DoxyCodeLine{    void *\_ptr = malloc((\_size));    \(\backslash\)}
+\DoxyCodeLine{    if (\_ptr != NULL)                \(\backslash\)}
+\DoxyCodeLine{    \{                                \(\backslash\)}
+\DoxyCodeLine{        memset(\_ptr, 0xef, \_size);   \(\backslash\)}
+\DoxyCodeLine{    \}                                \(\backslash\)}
+\DoxyCodeLine{    \_ptr;                            \(\backslash\)}
+\DoxyCodeLine{\})}
+
+\end{DoxyCode}
+\mbox{\Hypertarget{dpu__offload__mem__mgt_8h_a00a271281cf19272bbd86cb9db7e8f0b}\label{dpu__offload__mem__mgt_8h_a00a271281cf19272bbd86cb9db7e8f0b}} 
+\index{dpu\_offload\_mem\_mgt.h@{dpu\_offload\_mem\_mgt.h}!GROUP\_CACHE\_INIT@{GROUP\_CACHE\_INIT}}
+\index{GROUP\_CACHE\_INIT@{GROUP\_CACHE\_INIT}!dpu\_offload\_mem\_mgt.h@{dpu\_offload\_mem\_mgt.h}}
+\doxysubsubsection{\texorpdfstring{GROUP\_CACHE\_INIT}{GROUP\_CACHE\_INIT}}
+{\footnotesize\ttfamily \#define GROUP\+\_\+\+CACHE\+\_\+\+INIT(\begin{DoxyParamCaption}\item[{}]{\+\_\+cache,  }\item[{}]{\+\_\+gp\+\_\+id }\end{DoxyParamCaption})}
+
+{\bfseries Value\+:}
+\begin{DoxyCode}{0}
+\DoxyCodeLine{    \textcolor{keywordflow}{do}                                                                       \(\backslash\)}
+\DoxyCodeLine{    \{                                                                        \(\backslash\)}
+\DoxyCodeLine{        void *\_gp\_cache = \_cache[\_gp\_id];                                    \(\backslash\)}
+\DoxyCodeLine{        DYN\_ARRAY\_ALLOC((\mbox{\hyperlink{structdyn__array}{dyn\_array\_t}} *)\_gp\_cache, 2048, \mbox{\hyperlink{structpeer__cache__entry}{peer\_cache\_entry\_t}}); \(\backslash\)}
+\DoxyCodeLine{    \} \textcolor{keywordflow}{while} (0)}
+
+\end{DoxyCode}
+\mbox{\Hypertarget{dpu__offload__mem__mgt_8h_ae74d10d15e273336c47b31cab22087f5}\label{dpu__offload__mem__mgt_8h_ae74d10d15e273336c47b31cab22087f5}} 
+\index{dpu\_offload\_mem\_mgt.h@{dpu\_offload\_mem\_mgt.h}!GROUPS\_CACHE\_FINI@{GROUPS\_CACHE\_FINI}}
+\index{GROUPS\_CACHE\_FINI@{GROUPS\_CACHE\_FINI}!dpu\_offload\_mem\_mgt.h@{dpu\_offload\_mem\_mgt.h}}
+\doxysubsubsection{\texorpdfstring{GROUPS\_CACHE\_FINI}{GROUPS\_CACHE\_FINI}}
+{\footnotesize\ttfamily \#define GROUPS\+\_\+\+CACHE\+\_\+\+FINI(\begin{DoxyParamCaption}\item[{}]{\+\_\+cache }\end{DoxyParamCaption})}
+
+{\bfseries Value\+:}
+\begin{DoxyCode}{0}
+\DoxyCodeLine{    \textcolor{keywordflow}{do}                                                                  \(\backslash\)}
+\DoxyCodeLine{    \{                                                                   \(\backslash\)}
+\DoxyCodeLine{        uint64\_t key;                                                   \(\backslash\)}
+\DoxyCodeLine{        group\_cache\_t *value = NULL;                                    \(\backslash\)}
+\DoxyCodeLine{        kh\_foreach((\_cache)-\/>data, key, value, \{                        \(\backslash\)}
+\DoxyCodeLine{            if (value != NULL)                                          \(\backslash\)}
+\DoxyCodeLine{            \{                                                           \(\backslash\)}
+\DoxyCodeLine{                group\_id\_t \_gp = \mbox{\hyperlink{dpu__offload__types_8h_acc89f02d97b74859a254bb35d2f80ef7}{GROUP\_KEY\_TO\_GROUP}}(key);               \(\backslash\)}
+\DoxyCodeLine{                group\_cache\_t *\_gp\_cache = NULL;                        \(\backslash\)}
+\DoxyCodeLine{                \_gp\_cache = \mbox{\hyperlink{dpu__offload__types_8h_ab88dff8ddc38bedff48a377bba30f273}{GET\_GROUP\_CACHE}}((\_cache), \&\_gp);            \(\backslash\)}
+\DoxyCodeLine{                assert(\_gp\_cache);                                      \(\backslash\)}
+\DoxyCodeLine{                dyn\_array\_t *\_\_da = NULL;                               \(\backslash\)}
+\DoxyCodeLine{                \_\_da = \&(\_gp\_cache-\/>ranks);                             \(\backslash\)}
+\DoxyCodeLine{                if (\_\_da)                                               \(\backslash\)}
+\DoxyCodeLine{                    DYN\_ARRAY\_FREE(\_\_da);                               \(\backslash\)}
+\DoxyCodeLine{            \}                                                           \(\backslash\)}
+\DoxyCodeLine{        \}) kh\_destroy(group\_hash\_t, (\_cache)-\/>data);                    \(\backslash\)}
+\DoxyCodeLine{        DYN\_ARRAY\_FREE(\&((\_cache)-\/>keys));                              \(\backslash\)}
+\DoxyCodeLine{        DYN\_LIST\_FREE((\_cache)-\/>group\_cache\_pool, \mbox{\hyperlink{structgroup__cache}{group\_cache\_t}}, item); \(\backslash\)}
+\DoxyCodeLine{        (\_cache)-\/>group\_cache\_pool = NULL;                              \(\backslash\)}
+\DoxyCodeLine{        (\_cache)-\/>size = 0;                                             \(\backslash\)}
+\DoxyCodeLine{        (\_cache)-\/>keys\_in\_use = 0;                                      \(\backslash\)}
+\DoxyCodeLine{    \} \textcolor{keywordflow}{while} (0)}
+
+\end{DoxyCode}
+\mbox{\Hypertarget{dpu__offload__mem__mgt_8h_aa0292c31c172b4bb24d7eb614fc57a43}\label{dpu__offload__mem__mgt_8h_aa0292c31c172b4bb24d7eb614fc57a43}} 
+\index{dpu\_offload\_mem\_mgt.h@{dpu\_offload\_mem\_mgt.h}!GROUPS\_CACHE\_INIT@{GROUPS\_CACHE\_INIT}}
+\index{GROUPS\_CACHE\_INIT@{GROUPS\_CACHE\_INIT}!dpu\_offload\_mem\_mgt.h@{dpu\_offload\_mem\_mgt.h}}
+\doxysubsubsection{\texorpdfstring{GROUPS\_CACHE\_INIT}{GROUPS\_CACHE\_INIT}}
+{\footnotesize\ttfamily \#define GROUPS\+\_\+\+CACHE\+\_\+\+INIT(\begin{DoxyParamCaption}\item[{}]{\+\_\+cache }\end{DoxyParamCaption})}
+
+{\bfseries Value\+:}
+\begin{DoxyCode}{0}
+\DoxyCodeLine{    \textcolor{keywordflow}{do}                                                                                       \(\backslash\)}
+\DoxyCodeLine{    \{                                                                                        \(\backslash\)}
+\DoxyCodeLine{        (\_cache)-\/>data = kh\_init(group\_hash\_t);                                              \(\backslash\)}
+\DoxyCodeLine{        DYN\_ARRAY\_ALLOC(\&((\_cache)-\/>keys), \mbox{\hyperlink{dpu__offload__mem__mgt_8h_a07e8b3ad24dfe4cb79b6563f1e1a56c1}{DEFAULT\_NUM\_GROUPS}}, int64\_t);                     \(\backslash\)}
+\DoxyCodeLine{        DYN\_LIST\_ALLOC((\_cache)-\/>group\_cache\_pool, \mbox{\hyperlink{dpu__offload__mem__mgt_8h_a07e8b3ad24dfe4cb79b6563f1e1a56c1}{DEFAULT\_NUM\_GROUPS}}, \mbox{\hyperlink{structgroup__cache}{group\_cache\_t}}, item); \(\backslash\)}
+\DoxyCodeLine{        (\_cache)-\/>size = 0;                                                                  \(\backslash\)}
+\DoxyCodeLine{        (\_cache)-\/>keys\_in\_use = 0;                                                           \(\backslash\)}
+\DoxyCodeLine{    \} \textcolor{keywordflow}{while} (0)}
+
+\end{DoxyCode}
+\mbox{\Hypertarget{dpu__offload__mem__mgt_8h_a36d20ba74425036fd66f863bb89adeda}\label{dpu__offload__mem__mgt_8h_a36d20ba74425036fd66f863bb89adeda}} 
+\index{dpu\_offload\_mem\_mgt.h@{dpu\_offload\_mem\_mgt.h}!MAX\_GROUPS@{MAX\_GROUPS}}
+\index{MAX\_GROUPS@{MAX\_GROUPS}!dpu\_offload\_mem\_mgt.h@{dpu\_offload\_mem\_mgt.h}}
+\doxysubsubsection{\texorpdfstring{MAX\_GROUPS}{MAX\_GROUPS}}
+{\footnotesize\ttfamily \#define MAX\+\_\+\+GROUPS~(128)}
+

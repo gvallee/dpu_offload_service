@@ -1,0 +1,59 @@
+\hypertarget{dpu__offload__xgvmi_8c}{}\doxysection{/home/gvallee/\+Projects/\+DPU\+\_\+offloading/dpu\+\_\+offload\+\_\+service/src/dpu\+\_\+offload\+\_\+xgvmi.c File Reference}
+\label{dpu__offload__xgvmi_8c}\index{/home/gvallee/Projects/DPU\_offloading/dpu\_offload\_service/src/dpu\_offload\_xgvmi.c@{/home/gvallee/Projects/DPU\_offloading/dpu\_offload\_service/src/dpu\_offload\_xgvmi.c}}
+{\ttfamily \#include $<$stdlib.\+h$>$}\newline
+{\ttfamily \#include $<$inttypes.\+h$>$}\newline
+{\ttfamily \#include \char`\"{}dpu\+\_\+offload\+\_\+types.\+h\char`\"{}}\newline
+{\ttfamily \#include \char`\"{}dpu\+\_\+offload\+\_\+event\+\_\+channels.\+h\char`\"{}}\newline
+{\ttfamily \#include \char`\"{}dpu\+\_\+offload\+\_\+debug.\+h\char`\"{}}\newline
+Include dependency graph for dpu\+\_\+offload\+\_\+xgvmi.\+c\+:
+\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{dpu__offload__xgvmi_8c__incl}
+\end{center}
+\end{figure}
+\doxysubsection*{Macros}
+\begin{DoxyCompactItemize}
+\item 
+\#define \mbox{\hyperlink{dpu__offload__xgvmi_8c_a3024ccd4a9af5109d24e6c57565d74a1}{\+\_\+\+POSIX\+\_\+\+C\+\_\+\+SOURCE}}~200809L
+\item 
+\#define \mbox{\hyperlink{dpu__offload__xgvmi_8c_aa69400ca6fc035e6cb24e58e0a02229d}{cgmk\+\_\+mr\+\_\+crossing\+\_\+t}}~void
+\end{DoxyCompactItemize}
+\doxysubsection*{Functions}
+\begin{DoxyCompactItemize}
+\item 
+\mbox{\hyperlink{dpu__offload__common_8h_a2f49d8c1f5f6182b5128dfd3c815c3ef}{dpu\+\_\+offload\+\_\+status\+\_\+t}} \mbox{\hyperlink{dpu__offload__xgvmi_8c_ab13900e1299925b7ddd173051e13310d}{send\+\_\+key\+\_\+to\+\_\+dpu}} (\mbox{\hyperlink{dpu__offload__types_8h_ac95b2624b57c0005e3ca8a740316e5ab}{execution\+\_\+context\+\_\+t}} $\ast$econtext, \mbox{\hyperlink{dpu__offload__xgvmi_8c_aa69400ca6fc035e6cb24e58e0a02229d}{cgmk\+\_\+mr\+\_\+crossing\+\_\+t}} $\ast$mr, size\+\_\+t mr\+\_\+size)
+\item 
+\mbox{\hyperlink{dpu__offload__common_8h_a2f49d8c1f5f6182b5128dfd3c815c3ef}{dpu\+\_\+offload\+\_\+status\+\_\+t}} \mbox{\hyperlink{dpu__offload__xgvmi_8c_abe444d3feac262fa4acae831f1463711}{revoke\+\_\+key\+\_\+on\+\_\+dpu}} (\mbox{\hyperlink{dpu__offload__types_8h_ac95b2624b57c0005e3ca8a740316e5ab}{execution\+\_\+context\+\_\+t}} $\ast$econtext, \mbox{\hyperlink{dpu__offload__xgvmi_8c_aa69400ca6fc035e6cb24e58e0a02229d}{cgmk\+\_\+mr\+\_\+crossing\+\_\+t}} $\ast$mr, size\+\_\+t mr\+\_\+size)
+\end{DoxyCompactItemize}
+
+
+\doxysubsection{Macro Definition Documentation}
+\mbox{\Hypertarget{dpu__offload__xgvmi_8c_a3024ccd4a9af5109d24e6c57565d74a1}\label{dpu__offload__xgvmi_8c_a3024ccd4a9af5109d24e6c57565d74a1}} 
+\index{dpu\_offload\_xgvmi.c@{dpu\_offload\_xgvmi.c}!\_POSIX\_C\_SOURCE@{\_POSIX\_C\_SOURCE}}
+\index{\_POSIX\_C\_SOURCE@{\_POSIX\_C\_SOURCE}!dpu\_offload\_xgvmi.c@{dpu\_offload\_xgvmi.c}}
+\doxysubsubsection{\texorpdfstring{\_POSIX\_C\_SOURCE}{\_POSIX\_C\_SOURCE}}
+{\footnotesize\ttfamily \#define \+\_\+\+POSIX\+\_\+\+C\+\_\+\+SOURCE~200809L}
+
+\mbox{\Hypertarget{dpu__offload__xgvmi_8c_aa69400ca6fc035e6cb24e58e0a02229d}\label{dpu__offload__xgvmi_8c_aa69400ca6fc035e6cb24e58e0a02229d}} 
+\index{dpu\_offload\_xgvmi.c@{dpu\_offload\_xgvmi.c}!cgmk\_mr\_crossing\_t@{cgmk\_mr\_crossing\_t}}
+\index{cgmk\_mr\_crossing\_t@{cgmk\_mr\_crossing\_t}!dpu\_offload\_xgvmi.c@{dpu\_offload\_xgvmi.c}}
+\doxysubsubsection{\texorpdfstring{cgmk\_mr\_crossing\_t}{cgmk\_mr\_crossing\_t}}
+{\footnotesize\ttfamily \#define cgmk\+\_\+mr\+\_\+crossing\+\_\+t~void}
+
+
+
+\doxysubsection{Function Documentation}
+\mbox{\Hypertarget{dpu__offload__xgvmi_8c_abe444d3feac262fa4acae831f1463711}\label{dpu__offload__xgvmi_8c_abe444d3feac262fa4acae831f1463711}} 
+\index{dpu\_offload\_xgvmi.c@{dpu\_offload\_xgvmi.c}!revoke\_key\_on\_dpu@{revoke\_key\_on\_dpu}}
+\index{revoke\_key\_on\_dpu@{revoke\_key\_on\_dpu}!dpu\_offload\_xgvmi.c@{dpu\_offload\_xgvmi.c}}
+\doxysubsubsection{\texorpdfstring{revoke\_key\_on\_dpu()}{revoke\_key\_on\_dpu()}}
+{\footnotesize\ttfamily \mbox{\hyperlink{dpu__offload__common_8h_a2f49d8c1f5f6182b5128dfd3c815c3ef}{dpu\+\_\+offload\+\_\+status\+\_\+t}} revoke\+\_\+key\+\_\+on\+\_\+dpu (\begin{DoxyParamCaption}\item[{\mbox{\hyperlink{dpu__offload__types_8h_ac95b2624b57c0005e3ca8a740316e5ab}{execution\+\_\+context\+\_\+t}} $\ast$}]{econtext,  }\item[{\mbox{\hyperlink{dpu__offload__xgvmi_8c_aa69400ca6fc035e6cb24e58e0a02229d}{cgmk\+\_\+mr\+\_\+crossing\+\_\+t}} $\ast$}]{mr,  }\item[{size\+\_\+t}]{mr\+\_\+size }\end{DoxyParamCaption})}
+
+\mbox{\Hypertarget{dpu__offload__xgvmi_8c_ab13900e1299925b7ddd173051e13310d}\label{dpu__offload__xgvmi_8c_ab13900e1299925b7ddd173051e13310d}} 
+\index{dpu\_offload\_xgvmi.c@{dpu\_offload\_xgvmi.c}!send\_key\_to\_dpu@{send\_key\_to\_dpu}}
+\index{send\_key\_to\_dpu@{send\_key\_to\_dpu}!dpu\_offload\_xgvmi.c@{dpu\_offload\_xgvmi.c}}
+\doxysubsubsection{\texorpdfstring{send\_key\_to\_dpu()}{send\_key\_to\_dpu()}}
+{\footnotesize\ttfamily \mbox{\hyperlink{dpu__offload__common_8h_a2f49d8c1f5f6182b5128dfd3c815c3ef}{dpu\+\_\+offload\+\_\+status\+\_\+t}} send\+\_\+key\+\_\+to\+\_\+dpu (\begin{DoxyParamCaption}\item[{\mbox{\hyperlink{dpu__offload__types_8h_ac95b2624b57c0005e3ca8a740316e5ab}{execution\+\_\+context\+\_\+t}} $\ast$}]{econtext,  }\item[{\mbox{\hyperlink{dpu__offload__xgvmi_8c_aa69400ca6fc035e6cb24e58e0a02229d}{cgmk\+\_\+mr\+\_\+crossing\+\_\+t}} $\ast$}]{mr,  }\item[{size\+\_\+t}]{mr\+\_\+size }\end{DoxyParamCaption})}
+

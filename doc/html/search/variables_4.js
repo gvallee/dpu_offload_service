@@ -1,0 +1,19 @@
+var searchData=
+[
+  ['econtext_1010',['econtext',['../structconnected__peer__data.html#aac3913ff1905065b3d2204027778f2a7',1,'connected_peer_data::econtext()'],['../structdpu__offload__server__t.html#a03746c7aee0e03f1d8d5305be319bc84',1,'dpu_offload_server_t::econtext()'],['../structdpu__offload__client__t.html#abe4ac08b51fd29e7590f537477aecbf0',1,'dpu_offload_client_t::econtext()'],['../structpending__notification.html#a2fefe8e3c836a6b8b32800593fda5a14',1,'pending_notification::econtext()'],['../structremote__service__proc__info.html#ac1b2047064e3b22abb5f951be18b0f02',1,'remote_service_proc_info::econtext()'],['../structdpu__offload__ev__sys.html#a46dcc2a402e807ca4a2c86de0acf6aef',1,'dpu_offload_ev_sys::econtext()']]],
+  ['element_5finit_5fcb_1011',['element_init_cb',['../structdyn__list.html#a322b2046ceb34aa1392f41846ec78ed9',1,'dyn_list']]],
+  ['element_5finit_5ffn_1012',['element_init_fn',['../structdyn__array.html#a21088f1f4cc1bd7e9e871a50d5e2a797',1,'dyn_array']]],
+  ['element_5fsize_1013',['element_size',['../structnotification__info.html#a36e8eadef273f52825433bbc33728ac6',1,'notification_info']]],
+  ['elt_5fsize_1014',['elt_size',['../structsmart__array.html#a9bfea0e982b64e782532b7b7a8ed64df',1,'smart_array::elt_size()'],['../structsmart__list.html#a4aa38c6ccb95425402091c120d72b48c',1,'smart_list::elt_size()']]],
+  ['engine_1015',['engine',['../structexecution__context.html#ab55b9c7526c8a44c16442eeb59dc092a',1,'execution_context::engine()'],['../structpending__am__rdv__recv.html#a468c74939d7c5a26f62588d33a22bf86',1,'pending_am_rdv_recv::engine()'],['../structremote__dpu__info.html#ad49326e819be6329e293ed74150016b9',1,'remote_dpu_info::engine()']]],
+  ['ep_1016',['ep',['../structremote__service__proc__info.html#a5dc2e4406c9cb19a9c25c74d5d5f3c89',1,'remote_service_proc_info::ep()'],['../structpeer__cache__entry.html#a3d777b5cbbb6ac1e3d624e4f2628b94b',1,'peer_cache_entry::ep()'],['../structdpu__offload__event.html#a8ef5170fcc3a80e5fb2daff08026ca92',1,'dpu_offload_event::ep()'],['../structpeer__info.html#a3651b2189f1bee39213aa8a8db0499f5',1,'peer_info::ep()'],['../structdest__client.html#a0eed137073d763a92c0b915aba18a508',1,'dest_client::ep()']]],
+  ['ep_5fstatus_1017',['ep_status',['../structpeer__info.html#a299cc1ab4a740bc3a848278bf133c0ce',1,'peer_info']]],
+  ['ev_1018',['ev',['../structexecution__context.html#a11c52423c3f75d2ce85f49aeaa225246',1,'execution_context']]],
+  ['ev_5fsys_1019',['ev_sys',['../structnotification__callback__entry.html#a7dc45414f4bb98d295f3b424038bceec',1,'notification_callback_entry']]],
+  ['event_5fchannels_1020',['event_channels',['../structdpu__offload__server__t.html#a89ae11ae749d7a5a76a637f74f534493',1,'dpu_offload_server_t::event_channels()'],['../structdpu__offload__client__t.html#ac7fe996129344c4584f8491779ea11a0',1,'dpu_offload_client_t::event_channels()'],['../structexecution__context.html#aa7f4090c0af059ec7692ce116cf7db6a',1,'execution_context::event_channels()']]],
+  ['event_5fid_1021',['event_id',['../structam__header.html#af0c64f4e9346a8c6b000e61c72d6058b',1,'am_header']]],
+  ['event_5fsystem_1022',['event_system',['../structdpu__offload__event.html#a1108ac06412c22bbb8445d385fdea220',1,'dpu_offload_event']]],
+  ['events_1023',['events',['../structpeer__cache__entry.html#a17323bd1d49b52b8af14b281a89b68c5',1,'peer_cache_entry']]],
+  ['events_5finitialized_1024',['events_initialized',['../structpeer__cache__entry.html#ad397812496dbc32582b1558c9707d0d2',1,'peer_cache_entry']]],
+  ['explicit_5freturn_1025',['explicit_return',['../structdpu__offload__event.html#aa9dce0b6e427dcd0d0159b5cfe34247f',1,'dpu_offload_event::explicit_return()'],['../structdpu__offload__event__info.html#ada36688d155b327b9c9ede64c40c85a0',1,'dpu_offload_event_info::explicit_return()']]]
+];

@@ -1,0 +1,358 @@
+\hypertarget{dpu__offload__comms_8h}{}\doxysection{/home/gvallee/\+Projects/\+DPU\+\_\+offloading/dpu\+\_\+offload\+\_\+service/src/dpu\+\_\+offload\+\_\+comms.h File Reference}
+\label{dpu__offload__comms_8h}\index{/home/gvallee/Projects/DPU\_offloading/dpu\_offload\_service/src/dpu\_offload\_comms.h@{/home/gvallee/Projects/DPU\_offloading/dpu\_offload\_service/src/dpu\_offload\_comms.h}}
+{\ttfamily \#include \char`\"{}dpu\+\_\+offload\+\_\+service\+\_\+daemon.\+h\char`\"{}}\newline
+Include dependency graph for dpu\+\_\+offload\+\_\+comms.\+h\+:
+\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{dpu__offload__comms_8h__incl}
+\end{center}
+\end{figure}
+This graph shows which files directly or indirectly include this file\+:
+\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{dpu__offload__comms_8h__dep__incl}
+\end{center}
+\end{figure}
+\doxysubsection*{Macros}
+\begin{DoxyCompactItemize}
+\item 
+\#define \mbox{\hyperlink{dpu__offload__comms_8h_aa26f5f7dab640aa4af7c71fc02c069ca}{MAX\+\_\+\+POSTED\+\_\+\+SENDS}}~(8)
+\item 
+\#define \mbox{\hyperlink{dpu__offload__comms_8h_aec8c1c9a9c4a28ba29bdb60ac2547da8}{OFFLOAD\+\_\+\+BIT}}(i)~(1ul $<$$<$ (i))
+\item 
+\#define \mbox{\hyperlink{dpu__offload__comms_8h_a45d0d63e1e53969649b8d63625b32d71}{OFFLOAD\+\_\+\+MASK}}(i)~(\mbox{\hyperlink{dpu__offload__comms_8h_aec8c1c9a9c4a28ba29bdb60ac2547da8}{OFFLOAD\+\_\+\+BIT}}(i) -\/ 1)
+\item 
+\#define \mbox{\hyperlink{dpu__offload__comms_8h_a90c79d0f1087908765ee23bf97ea3531}{OFFLOAD\+\_\+\+RESERVED\+\_\+\+BITS}}~2
+\item 
+\#define \mbox{\hyperlink{dpu__offload__comms_8h_ae2911ee646bf27de6f528c84660593da}{OFFLOAD\+\_\+\+SCOPE\+\_\+\+BITS}}~3
+\item 
+\#define \mbox{\hyperlink{dpu__offload__comms_8h_a959707a187dfd94bb225929e5ec99686}{OFFLOAD\+\_\+\+SCOPE\+\_\+\+ID\+\_\+\+BITS}}~3
+\item 
+\#define \mbox{\hyperlink{dpu__offload__comms_8h_acec1b9a166496c1177b1dfc09f65d0a4}{OFFLOAD\+\_\+\+TAG\+\_\+\+BITS}}~16
+\item 
+\#define \mbox{\hyperlink{dpu__offload__comms_8h_aa62ad2eb37b9720d3ca250fb55f2da24}{OFFLOAD\+\_\+\+SENDER\+\_\+\+BITS}}~24
+\item 
+\#define \mbox{\hyperlink{dpu__offload__comms_8h_a1e28ebcbceb870a94c0fa999e7f75b53}{OFFLOAD\+\_\+\+ID\+\_\+\+BITS}}~16
+\item 
+\#define \mbox{\hyperlink{dpu__offload__comms_8h_a375b72d3ab54d0dcf74ce61f0cd2e109}{OFFLOAD\+\_\+\+RESERVED\+\_\+\+BITS\+\_\+\+OFFSET}}
+\item 
+\#define \mbox{\hyperlink{dpu__offload__comms_8h_a60417d61b7b4ee5053f3ae4fbd6182c8}{OFFLOAD\+\_\+\+TAG\+\_\+\+BITS\+\_\+\+OFFSET}}
+\item 
+\#define \mbox{\hyperlink{dpu__offload__comms_8h_abc3d84f092ac5caf45de64a4f4b4245f}{OFFLOAD\+\_\+\+SCOPE\+\_\+\+BITS\+\_\+\+OFFSET}}~    (\mbox{\hyperlink{dpu__offload__comms_8h_a1e28ebcbceb870a94c0fa999e7f75b53}{OFFLOAD\+\_\+\+ID\+\_\+\+BITS}} + \mbox{\hyperlink{dpu__offload__comms_8h_aa62ad2eb37b9720d3ca250fb55f2da24}{OFFLOAD\+\_\+\+SENDER\+\_\+\+BITS}} + \mbox{\hyperlink{dpu__offload__comms_8h_a959707a187dfd94bb225929e5ec99686}{OFFLOAD\+\_\+\+SCOPE\+\_\+\+ID\+\_\+\+BITS}})
+\item 
+\#define \mbox{\hyperlink{dpu__offload__comms_8h_a70d97f65cb7f020be0333969f9203c22}{OFFLOAD\+\_\+\+SCOPE\+\_\+\+ID\+\_\+\+BITS\+\_\+\+OFFSET}}~(\mbox{\hyperlink{dpu__offload__comms_8h_a1e28ebcbceb870a94c0fa999e7f75b53}{OFFLOAD\+\_\+\+ID\+\_\+\+BITS}} + \mbox{\hyperlink{dpu__offload__comms_8h_aa62ad2eb37b9720d3ca250fb55f2da24}{OFFLOAD\+\_\+\+SENDER\+\_\+\+BITS}})
+\item 
+\#define \mbox{\hyperlink{dpu__offload__comms_8h_a8dd86050086bb4fd22faa8348cd52344}{OFFLOAD\+\_\+\+SENDER\+\_\+\+BITS\+\_\+\+OFFSET}}~(\mbox{\hyperlink{dpu__offload__comms_8h_a1e28ebcbceb870a94c0fa999e7f75b53}{OFFLOAD\+\_\+\+ID\+\_\+\+BITS}})
+\item 
+\#define \mbox{\hyperlink{dpu__offload__comms_8h_a92a7cf009174d8c1faeccd243da226da}{OFFLOAD\+\_\+\+ID\+\_\+\+BITS\+\_\+\+OFFSET}}~0
+\item 
+\#define \mbox{\hyperlink{dpu__offload__comms_8h_ae6fb8cbb41a896733d0eed8d864b46e8}{OFFLOAD\+\_\+\+MAX\+\_\+\+TAG}}~\mbox{\hyperlink{dpu__offload__comms_8h_a45d0d63e1e53969649b8d63625b32d71}{OFFLOAD\+\_\+\+MASK}}(\mbox{\hyperlink{dpu__offload__comms_8h_acec1b9a166496c1177b1dfc09f65d0a4}{OFFLOAD\+\_\+\+TAG\+\_\+\+BITS}})
+\item 
+\#define \mbox{\hyperlink{dpu__offload__comms_8h_acf293913ecd9272042256a2796777589}{OFFLOAD\+\_\+\+RESERVED\+\_\+\+TAGS}}~8
+\item 
+\#define \mbox{\hyperlink{dpu__offload__comms_8h_aed7a673a24c0a978b044beb909fbda0d}{OFFLOAD\+\_\+\+MAX\+\_\+\+COLL\+\_\+\+TAG}}~(\mbox{\hyperlink{dpu__offload__comms_8h_ae6fb8cbb41a896733d0eed8d864b46e8}{OFFLOAD\+\_\+\+MAX\+\_\+\+TAG}} -\/ \mbox{\hyperlink{dpu__offload__comms_8h_acf293913ecd9272042256a2796777589}{OFFLOAD\+\_\+\+RESERVED\+\_\+\+TAGS}})
+\item 
+\#define \mbox{\hyperlink{dpu__offload__comms_8h_a3edbb0cecaa40b1524f1d6f9484b5cd9}{OFFLOAD\+\_\+\+SERVICE\+\_\+\+TAG}}~(\mbox{\hyperlink{dpu__offload__comms_8h_aed7a673a24c0a978b044beb909fbda0d}{OFFLOAD\+\_\+\+MAX\+\_\+\+COLL\+\_\+\+TAG}} + 1)
+\item 
+\#define \mbox{\hyperlink{dpu__offload__comms_8h_a026d5a77120b7fa3206cedca5c6f3430}{OFFLOAD\+\_\+\+MAX\+\_\+\+SENDER}}~\mbox{\hyperlink{dpu__offload__comms_8h_a45d0d63e1e53969649b8d63625b32d71}{OFFLOAD\+\_\+\+MASK}}(\mbox{\hyperlink{dpu__offload__comms_8h_aa62ad2eb37b9720d3ca250fb55f2da24}{OFFLOAD\+\_\+\+SENDER\+\_\+\+BITS}})
+\item 
+\#define \mbox{\hyperlink{dpu__offload__comms_8h_ade45843c3581d8eb3da05a9a00580436}{OFFLOAD\+\_\+\+MAX\+\_\+\+ID}}~\mbox{\hyperlink{dpu__offload__comms_8h_a45d0d63e1e53969649b8d63625b32d71}{OFFLOAD\+\_\+\+MASK}}(\mbox{\hyperlink{dpu__offload__comms_8h_a1e28ebcbceb870a94c0fa999e7f75b53}{OFFLOAD\+\_\+\+ID\+\_\+\+BITS}})
+\item 
+\#define \mbox{\hyperlink{dpu__offload__comms_8h_ad2b02498b66b0c766688bf0ce1f49861}{MAKE\+\_\+\+TAG}}(\+\_\+tag,  \+\_\+rank,  \+\_\+id,  \+\_\+scope\+\_\+id,  \+\_\+scope)
+\item 
+\#define \mbox{\hyperlink{dpu__offload__comms_8h_a4fbd1f0a4d602e6cef9885d3c33cb80b}{MAKE\+\_\+\+SEND\+\_\+\+TAG}}(\+\_\+tag,  \+\_\+rank,  \+\_\+id,  \+\_\+scope\+\_\+id,  \+\_\+scope)~    \mbox{\hyperlink{dpu__offload__comms_8h_ad2b02498b66b0c766688bf0ce1f49861}{MAKE\+\_\+\+TAG}}(\+\_\+tag, \+\_\+rank, \+\_\+id, \+\_\+scope\+\_\+id, \+\_\+scope)
+\item 
+\#define \mbox{\hyperlink{dpu__offload__comms_8h_a2ed83ce36989607f11b4f989b8cfc3e3}{MAKE\+\_\+\+RECV\+\_\+\+TAG}}(\+\_\+ucp\+\_\+tag,  \+\_\+ucp\+\_\+tag\+\_\+mask,  \+\_\+tag,  \+\_\+src,  \+\_\+id,  \+\_\+scope\+\_\+id,  \+\_\+scope)
+\item 
+\#define \mbox{\hyperlink{dpu__offload__comms_8h_a8984083871c82030557d0a6073aea7b2}{PREP\+\_\+\+NOTIF\+\_\+\+RECV}}(\+\_\+ctx,  \+\_\+hdr\+\_\+recv\+\_\+param,  \+\_\+hdr\+\_\+ucp\+\_\+tag,  \+\_\+hdr\+\_\+ucp\+\_\+tag\+\_\+mask,  \+\_\+worker,  \+\_\+client\+\_\+id,  \+\_\+server\+\_\+id,  \+\_\+scope\+\_\+id)
+\item 
+\#define \mbox{\hyperlink{dpu__offload__comms_8h_a124e99cf77cdb0ba21b83f94b5078730}{CAN\+\_\+\+POST}}(\+\_\+event\+\_\+system)
+\item 
+\#define \mbox{\hyperlink{dpu__offload__comms_8h_a375b6774a096a1cbd4c03d4033b5ee7f}{GROUP\+\_\+\+CACHE\+\_\+\+EXCHANGE}}(\+\_\+engine,  \+\_\+gp\+\_\+id,  \+\_\+n\+\_\+local\+\_\+ranks)
+\item 
+\#define \mbox{\hyperlink{dpu__offload__comms_8h_a20c66974832990afac148d24bcb5e37e}{PROGRESS\+\_\+\+EVENT\+\_\+\+SEND}}(\+\_\+\+\_\+ev)
+\end{DoxyCompactItemize}
+
+
+\doxysubsection{Macro Definition Documentation}
+\mbox{\Hypertarget{dpu__offload__comms_8h_a124e99cf77cdb0ba21b83f94b5078730}\label{dpu__offload__comms_8h_a124e99cf77cdb0ba21b83f94b5078730}} 
+\index{dpu\_offload\_comms.h@{dpu\_offload\_comms.h}!CAN\_POST@{CAN\_POST}}
+\index{CAN\_POST@{CAN\_POST}!dpu\_offload\_comms.h@{dpu\_offload\_comms.h}}
+\doxysubsubsection{\texorpdfstring{CAN\_POST}{CAN\_POST}}
+{\footnotesize\ttfamily \#define CAN\+\_\+\+POST(\begin{DoxyParamCaption}\item[{}]{\+\_\+event\+\_\+system }\end{DoxyParamCaption})}
+
+{\bfseries Value\+:}
+\begin{DoxyCode}{0}
+\DoxyCodeLine{    (\{                                                   \(\backslash\)}
+\DoxyCodeLine{    bool \_can\_post = \textcolor{keyword}{false};                                                          \(\backslash\)}
+\DoxyCodeLine{    if (\mbox{\hyperlink{dpu__offload__comms_8h_aa26f5f7dab640aa4af7c71fc02c069ca}{MAX\_POSTED\_SENDS}} <= 0 || ((\_event\_system)-\/>posted\_sends < \mbox{\hyperlink{dpu__offload__comms_8h_aa26f5f7dab640aa4af7c71fc02c069ca}{MAX\_POSTED\_SENDS}})) \(\backslash\)}
+\DoxyCodeLine{        \_can\_post = \textcolor{keyword}{true};                                                            \(\backslash\)}
+\DoxyCodeLine{    \_can\_post;                                                                       \(\backslash\)}
+\DoxyCodeLine{\})}
+
+\end{DoxyCode}
+\mbox{\Hypertarget{dpu__offload__comms_8h_a375b6774a096a1cbd4c03d4033b5ee7f}\label{dpu__offload__comms_8h_a375b6774a096a1cbd4c03d4033b5ee7f}} 
+\index{dpu\_offload\_comms.h@{dpu\_offload\_comms.h}!GROUP\_CACHE\_EXCHANGE@{GROUP\_CACHE\_EXCHANGE}}
+\index{GROUP\_CACHE\_EXCHANGE@{GROUP\_CACHE\_EXCHANGE}!dpu\_offload\_comms.h@{dpu\_offload\_comms.h}}
+\doxysubsubsection{\texorpdfstring{GROUP\_CACHE\_EXCHANGE}{GROUP\_CACHE\_EXCHANGE}}
+{\footnotesize\ttfamily \#define GROUP\+\_\+\+CACHE\+\_\+\+EXCHANGE(\begin{DoxyParamCaption}\item[{}]{\+\_\+engine,  }\item[{}]{\+\_\+gp\+\_\+id,  }\item[{}]{\+\_\+n\+\_\+local\+\_\+ranks }\end{DoxyParamCaption})}
+
+\mbox{\Hypertarget{dpu__offload__comms_8h_a2ed83ce36989607f11b4f989b8cfc3e3}\label{dpu__offload__comms_8h_a2ed83ce36989607f11b4f989b8cfc3e3}} 
+\index{dpu\_offload\_comms.h@{dpu\_offload\_comms.h}!MAKE\_RECV\_TAG@{MAKE\_RECV\_TAG}}
+\index{MAKE\_RECV\_TAG@{MAKE\_RECV\_TAG}!dpu\_offload\_comms.h@{dpu\_offload\_comms.h}}
+\doxysubsubsection{\texorpdfstring{MAKE\_RECV\_TAG}{MAKE\_RECV\_TAG}}
+{\footnotesize\ttfamily \#define MAKE\+\_\+\+RECV\+\_\+\+TAG(\begin{DoxyParamCaption}\item[{}]{\+\_\+ucp\+\_\+tag,  }\item[{}]{\+\_\+ucp\+\_\+tag\+\_\+mask,  }\item[{}]{\+\_\+tag,  }\item[{}]{\+\_\+src,  }\item[{}]{\+\_\+id,  }\item[{}]{\+\_\+scope\+\_\+id,  }\item[{}]{\+\_\+scope }\end{DoxyParamCaption})}
+
+{\bfseries Value\+:}
+\begin{DoxyCode}{0}
+\DoxyCodeLine{    \textcolor{keywordflow}{do}                                                              \(\backslash\)}
+\DoxyCodeLine{    \{                                                               \(\backslash\)}
+\DoxyCodeLine{        assert((\_tag) <= \mbox{\hyperlink{dpu__offload__comms_8h_ae6fb8cbb41a896733d0eed8d864b46e8}{OFFLOAD\_MAX\_TAG}});                          \(\backslash\)}
+\DoxyCodeLine{        assert((\_src) <= \mbox{\hyperlink{dpu__offload__comms_8h_a026d5a77120b7fa3206cedca5c6f3430}{OFFLOAD\_MAX\_SENDER}});                       \(\backslash\)}
+\DoxyCodeLine{        assert((\_id) <= \mbox{\hyperlink{dpu__offload__comms_8h_ade45843c3581d8eb3da05a9a00580436}{OFFLOAD\_MAX\_ID}});                            \(\backslash\)}
+\DoxyCodeLine{        (\_ucp\_tag\_mask) = (uint64\_t)(-\/1);                           \(\backslash\)}
+\DoxyCodeLine{        (\_ucp\_tag) =                                                \(\backslash\)}
+\DoxyCodeLine{            \mbox{\hyperlink{dpu__offload__comms_8h_ad2b02498b66b0c766688bf0ce1f49861}{MAKE\_TAG}}((\_tag), (\_src), (\_id), (\_scope\_id), (\_scope)); \(\backslash\)}
+\DoxyCodeLine{    \} \textcolor{keywordflow}{while} (0)}
+
+\end{DoxyCode}
+\mbox{\Hypertarget{dpu__offload__comms_8h_a4fbd1f0a4d602e6cef9885d3c33cb80b}\label{dpu__offload__comms_8h_a4fbd1f0a4d602e6cef9885d3c33cb80b}} 
+\index{dpu\_offload\_comms.h@{dpu\_offload\_comms.h}!MAKE\_SEND\_TAG@{MAKE\_SEND\_TAG}}
+\index{MAKE\_SEND\_TAG@{MAKE\_SEND\_TAG}!dpu\_offload\_comms.h@{dpu\_offload\_comms.h}}
+\doxysubsubsection{\texorpdfstring{MAKE\_SEND\_TAG}{MAKE\_SEND\_TAG}}
+{\footnotesize\ttfamily \#define MAKE\+\_\+\+SEND\+\_\+\+TAG(\begin{DoxyParamCaption}\item[{}]{\+\_\+tag,  }\item[{}]{\+\_\+rank,  }\item[{}]{\+\_\+id,  }\item[{}]{\+\_\+scope\+\_\+id,  }\item[{}]{\+\_\+scope }\end{DoxyParamCaption})~    \mbox{\hyperlink{dpu__offload__comms_8h_ad2b02498b66b0c766688bf0ce1f49861}{MAKE\+\_\+\+TAG}}(\+\_\+tag, \+\_\+rank, \+\_\+id, \+\_\+scope\+\_\+id, \+\_\+scope)}
+
+\mbox{\Hypertarget{dpu__offload__comms_8h_ad2b02498b66b0c766688bf0ce1f49861}\label{dpu__offload__comms_8h_ad2b02498b66b0c766688bf0ce1f49861}} 
+\index{dpu\_offload\_comms.h@{dpu\_offload\_comms.h}!MAKE\_TAG@{MAKE\_TAG}}
+\index{MAKE\_TAG@{MAKE\_TAG}!dpu\_offload\_comms.h@{dpu\_offload\_comms.h}}
+\doxysubsubsection{\texorpdfstring{MAKE\_TAG}{MAKE\_TAG}}
+{\footnotesize\ttfamily \#define MAKE\+\_\+\+TAG(\begin{DoxyParamCaption}\item[{}]{\+\_\+tag,  }\item[{}]{\+\_\+rank,  }\item[{}]{\+\_\+id,  }\item[{}]{\+\_\+scope\+\_\+id,  }\item[{}]{\+\_\+scope }\end{DoxyParamCaption})}
+
+{\bfseries Value\+:}
+\begin{DoxyCode}{0}
+\DoxyCodeLine{    ((((uint64\_t)(\_tag)) << \mbox{\hyperlink{dpu__offload__comms_8h_a60417d61b7b4ee5053f3ae4fbd6182c8}{OFFLOAD\_TAG\_BITS\_OFFSET}}) |           \(\backslash\)}
+\DoxyCodeLine{     (((uint64\_t)(\_rank)) << \mbox{\hyperlink{dpu__offload__comms_8h_a8dd86050086bb4fd22faa8348cd52344}{OFFLOAD\_SENDER\_BITS\_OFFSET}}) |       \(\backslash\)}
+\DoxyCodeLine{     (((uint64\_t)(\_scope)) << \mbox{\hyperlink{dpu__offload__comms_8h_abc3d84f092ac5caf45de64a4f4b4245f}{OFFLOAD\_SCOPE\_BITS\_OFFSET}}) |       \(\backslash\)}
+\DoxyCodeLine{     (((uint64\_t)(\_scope\_id)) << \mbox{\hyperlink{dpu__offload__comms_8h_a70d97f65cb7f020be0333969f9203c22}{OFFLOAD\_SCOPE\_ID\_BITS\_OFFSET}}) | \(\backslash\)}
+\DoxyCodeLine{     (((uint64\_t)(\_id)) << \mbox{\hyperlink{dpu__offload__comms_8h_a92a7cf009174d8c1faeccd243da226da}{OFFLOAD\_ID\_BITS\_OFFSET}}))}
+
+\end{DoxyCode}
+\mbox{\Hypertarget{dpu__offload__comms_8h_aa26f5f7dab640aa4af7c71fc02c069ca}\label{dpu__offload__comms_8h_aa26f5f7dab640aa4af7c71fc02c069ca}} 
+\index{dpu\_offload\_comms.h@{dpu\_offload\_comms.h}!MAX\_POSTED\_SENDS@{MAX\_POSTED\_SENDS}}
+\index{MAX\_POSTED\_SENDS@{MAX\_POSTED\_SENDS}!dpu\_offload\_comms.h@{dpu\_offload\_comms.h}}
+\doxysubsubsection{\texorpdfstring{MAX\_POSTED\_SENDS}{MAX\_POSTED\_SENDS}}
+{\footnotesize\ttfamily \#define MAX\+\_\+\+POSTED\+\_\+\+SENDS~(8)}
+
+\mbox{\Hypertarget{dpu__offload__comms_8h_aec8c1c9a9c4a28ba29bdb60ac2547da8}\label{dpu__offload__comms_8h_aec8c1c9a9c4a28ba29bdb60ac2547da8}} 
+\index{dpu\_offload\_comms.h@{dpu\_offload\_comms.h}!OFFLOAD\_BIT@{OFFLOAD\_BIT}}
+\index{OFFLOAD\_BIT@{OFFLOAD\_BIT}!dpu\_offload\_comms.h@{dpu\_offload\_comms.h}}
+\doxysubsubsection{\texorpdfstring{OFFLOAD\_BIT}{OFFLOAD\_BIT}}
+{\footnotesize\ttfamily \#define OFFLOAD\+\_\+\+BIT(\begin{DoxyParamCaption}\item[{}]{i }\end{DoxyParamCaption})~(1ul $<$$<$ (i))}
+
+\mbox{\Hypertarget{dpu__offload__comms_8h_a1e28ebcbceb870a94c0fa999e7f75b53}\label{dpu__offload__comms_8h_a1e28ebcbceb870a94c0fa999e7f75b53}} 
+\index{dpu\_offload\_comms.h@{dpu\_offload\_comms.h}!OFFLOAD\_ID\_BITS@{OFFLOAD\_ID\_BITS}}
+\index{OFFLOAD\_ID\_BITS@{OFFLOAD\_ID\_BITS}!dpu\_offload\_comms.h@{dpu\_offload\_comms.h}}
+\doxysubsubsection{\texorpdfstring{OFFLOAD\_ID\_BITS}{OFFLOAD\_ID\_BITS}}
+{\footnotesize\ttfamily \#define OFFLOAD\+\_\+\+ID\+\_\+\+BITS~16}
+
+\mbox{\Hypertarget{dpu__offload__comms_8h_a92a7cf009174d8c1faeccd243da226da}\label{dpu__offload__comms_8h_a92a7cf009174d8c1faeccd243da226da}} 
+\index{dpu\_offload\_comms.h@{dpu\_offload\_comms.h}!OFFLOAD\_ID\_BITS\_OFFSET@{OFFLOAD\_ID\_BITS\_OFFSET}}
+\index{OFFLOAD\_ID\_BITS\_OFFSET@{OFFLOAD\_ID\_BITS\_OFFSET}!dpu\_offload\_comms.h@{dpu\_offload\_comms.h}}
+\doxysubsubsection{\texorpdfstring{OFFLOAD\_ID\_BITS\_OFFSET}{OFFLOAD\_ID\_BITS\_OFFSET}}
+{\footnotesize\ttfamily \#define OFFLOAD\+\_\+\+ID\+\_\+\+BITS\+\_\+\+OFFSET~0}
+
+\mbox{\Hypertarget{dpu__offload__comms_8h_a45d0d63e1e53969649b8d63625b32d71}\label{dpu__offload__comms_8h_a45d0d63e1e53969649b8d63625b32d71}} 
+\index{dpu\_offload\_comms.h@{dpu\_offload\_comms.h}!OFFLOAD\_MASK@{OFFLOAD\_MASK}}
+\index{OFFLOAD\_MASK@{OFFLOAD\_MASK}!dpu\_offload\_comms.h@{dpu\_offload\_comms.h}}
+\doxysubsubsection{\texorpdfstring{OFFLOAD\_MASK}{OFFLOAD\_MASK}}
+{\footnotesize\ttfamily \#define OFFLOAD\+\_\+\+MASK(\begin{DoxyParamCaption}\item[{}]{i }\end{DoxyParamCaption})~(\mbox{\hyperlink{dpu__offload__comms_8h_aec8c1c9a9c4a28ba29bdb60ac2547da8}{OFFLOAD\+\_\+\+BIT}}(i) -\/ 1)}
+
+\mbox{\Hypertarget{dpu__offload__comms_8h_aed7a673a24c0a978b044beb909fbda0d}\label{dpu__offload__comms_8h_aed7a673a24c0a978b044beb909fbda0d}} 
+\index{dpu\_offload\_comms.h@{dpu\_offload\_comms.h}!OFFLOAD\_MAX\_COLL\_TAG@{OFFLOAD\_MAX\_COLL\_TAG}}
+\index{OFFLOAD\_MAX\_COLL\_TAG@{OFFLOAD\_MAX\_COLL\_TAG}!dpu\_offload\_comms.h@{dpu\_offload\_comms.h}}
+\doxysubsubsection{\texorpdfstring{OFFLOAD\_MAX\_COLL\_TAG}{OFFLOAD\_MAX\_COLL\_TAG}}
+{\footnotesize\ttfamily \#define OFFLOAD\+\_\+\+MAX\+\_\+\+COLL\+\_\+\+TAG~(\mbox{\hyperlink{dpu__offload__comms_8h_ae6fb8cbb41a896733d0eed8d864b46e8}{OFFLOAD\+\_\+\+MAX\+\_\+\+TAG}} -\/ \mbox{\hyperlink{dpu__offload__comms_8h_acf293913ecd9272042256a2796777589}{OFFLOAD\+\_\+\+RESERVED\+\_\+\+TAGS}})}
+
+\mbox{\Hypertarget{dpu__offload__comms_8h_ade45843c3581d8eb3da05a9a00580436}\label{dpu__offload__comms_8h_ade45843c3581d8eb3da05a9a00580436}} 
+\index{dpu\_offload\_comms.h@{dpu\_offload\_comms.h}!OFFLOAD\_MAX\_ID@{OFFLOAD\_MAX\_ID}}
+\index{OFFLOAD\_MAX\_ID@{OFFLOAD\_MAX\_ID}!dpu\_offload\_comms.h@{dpu\_offload\_comms.h}}
+\doxysubsubsection{\texorpdfstring{OFFLOAD\_MAX\_ID}{OFFLOAD\_MAX\_ID}}
+{\footnotesize\ttfamily \#define OFFLOAD\+\_\+\+MAX\+\_\+\+ID~\mbox{\hyperlink{dpu__offload__comms_8h_a45d0d63e1e53969649b8d63625b32d71}{OFFLOAD\+\_\+\+MASK}}(\mbox{\hyperlink{dpu__offload__comms_8h_a1e28ebcbceb870a94c0fa999e7f75b53}{OFFLOAD\+\_\+\+ID\+\_\+\+BITS}})}
+
+\mbox{\Hypertarget{dpu__offload__comms_8h_a026d5a77120b7fa3206cedca5c6f3430}\label{dpu__offload__comms_8h_a026d5a77120b7fa3206cedca5c6f3430}} 
+\index{dpu\_offload\_comms.h@{dpu\_offload\_comms.h}!OFFLOAD\_MAX\_SENDER@{OFFLOAD\_MAX\_SENDER}}
+\index{OFFLOAD\_MAX\_SENDER@{OFFLOAD\_MAX\_SENDER}!dpu\_offload\_comms.h@{dpu\_offload\_comms.h}}
+\doxysubsubsection{\texorpdfstring{OFFLOAD\_MAX\_SENDER}{OFFLOAD\_MAX\_SENDER}}
+{\footnotesize\ttfamily \#define OFFLOAD\+\_\+\+MAX\+\_\+\+SENDER~\mbox{\hyperlink{dpu__offload__comms_8h_a45d0d63e1e53969649b8d63625b32d71}{OFFLOAD\+\_\+\+MASK}}(\mbox{\hyperlink{dpu__offload__comms_8h_aa62ad2eb37b9720d3ca250fb55f2da24}{OFFLOAD\+\_\+\+SENDER\+\_\+\+BITS}})}
+
+\mbox{\Hypertarget{dpu__offload__comms_8h_ae6fb8cbb41a896733d0eed8d864b46e8}\label{dpu__offload__comms_8h_ae6fb8cbb41a896733d0eed8d864b46e8}} 
+\index{dpu\_offload\_comms.h@{dpu\_offload\_comms.h}!OFFLOAD\_MAX\_TAG@{OFFLOAD\_MAX\_TAG}}
+\index{OFFLOAD\_MAX\_TAG@{OFFLOAD\_MAX\_TAG}!dpu\_offload\_comms.h@{dpu\_offload\_comms.h}}
+\doxysubsubsection{\texorpdfstring{OFFLOAD\_MAX\_TAG}{OFFLOAD\_MAX\_TAG}}
+{\footnotesize\ttfamily \#define OFFLOAD\+\_\+\+MAX\+\_\+\+TAG~\mbox{\hyperlink{dpu__offload__comms_8h_a45d0d63e1e53969649b8d63625b32d71}{OFFLOAD\+\_\+\+MASK}}(\mbox{\hyperlink{dpu__offload__comms_8h_acec1b9a166496c1177b1dfc09f65d0a4}{OFFLOAD\+\_\+\+TAG\+\_\+\+BITS}})}
+
+\mbox{\Hypertarget{dpu__offload__comms_8h_a90c79d0f1087908765ee23bf97ea3531}\label{dpu__offload__comms_8h_a90c79d0f1087908765ee23bf97ea3531}} 
+\index{dpu\_offload\_comms.h@{dpu\_offload\_comms.h}!OFFLOAD\_RESERVED\_BITS@{OFFLOAD\_RESERVED\_BITS}}
+\index{OFFLOAD\_RESERVED\_BITS@{OFFLOAD\_RESERVED\_BITS}!dpu\_offload\_comms.h@{dpu\_offload\_comms.h}}
+\doxysubsubsection{\texorpdfstring{OFFLOAD\_RESERVED\_BITS}{OFFLOAD\_RESERVED\_BITS}}
+{\footnotesize\ttfamily \#define OFFLOAD\+\_\+\+RESERVED\+\_\+\+BITS~2}
+
+\mbox{\Hypertarget{dpu__offload__comms_8h_a375b72d3ab54d0dcf74ce61f0cd2e109}\label{dpu__offload__comms_8h_a375b72d3ab54d0dcf74ce61f0cd2e109}} 
+\index{dpu\_offload\_comms.h@{dpu\_offload\_comms.h}!OFFLOAD\_RESERVED\_BITS\_OFFSET@{OFFLOAD\_RESERVED\_BITS\_OFFSET}}
+\index{OFFLOAD\_RESERVED\_BITS\_OFFSET@{OFFLOAD\_RESERVED\_BITS\_OFFSET}!dpu\_offload\_comms.h@{dpu\_offload\_comms.h}}
+\doxysubsubsection{\texorpdfstring{OFFLOAD\_RESERVED\_BITS\_OFFSET}{OFFLOAD\_RESERVED\_BITS\_OFFSET}}
+{\footnotesize\ttfamily \#define OFFLOAD\+\_\+\+RESERVED\+\_\+\+BITS\+\_\+\+OFFSET}
+
+{\bfseries Value\+:}
+\begin{DoxyCode}{0}
+\DoxyCodeLine{    (\mbox{\hyperlink{dpu__offload__comms_8h_a1e28ebcbceb870a94c0fa999e7f75b53}{OFFLOAD\_ID\_BITS}} + \mbox{\hyperlink{dpu__offload__comms_8h_aa62ad2eb37b9720d3ca250fb55f2da24}{OFFLOAD\_SENDER\_BITS}} + \mbox{\hyperlink{dpu__offload__comms_8h_a959707a187dfd94bb225929e5ec99686}{OFFLOAD\_SCOPE\_ID\_BITS}} + \(\backslash\)}
+\DoxyCodeLine{     OFFLOAD\_SCOPE\_BITS + \mbox{\hyperlink{dpu__offload__comms_8h_acec1b9a166496c1177b1dfc09f65d0a4}{OFFLOAD\_TAG\_BITS}})}
+
+\end{DoxyCode}
+\mbox{\Hypertarget{dpu__offload__comms_8h_acf293913ecd9272042256a2796777589}\label{dpu__offload__comms_8h_acf293913ecd9272042256a2796777589}} 
+\index{dpu\_offload\_comms.h@{dpu\_offload\_comms.h}!OFFLOAD\_RESERVED\_TAGS@{OFFLOAD\_RESERVED\_TAGS}}
+\index{OFFLOAD\_RESERVED\_TAGS@{OFFLOAD\_RESERVED\_TAGS}!dpu\_offload\_comms.h@{dpu\_offload\_comms.h}}
+\doxysubsubsection{\texorpdfstring{OFFLOAD\_RESERVED\_TAGS}{OFFLOAD\_RESERVED\_TAGS}}
+{\footnotesize\ttfamily \#define OFFLOAD\+\_\+\+RESERVED\+\_\+\+TAGS~8}
+
+\mbox{\Hypertarget{dpu__offload__comms_8h_ae2911ee646bf27de6f528c84660593da}\label{dpu__offload__comms_8h_ae2911ee646bf27de6f528c84660593da}} 
+\index{dpu\_offload\_comms.h@{dpu\_offload\_comms.h}!OFFLOAD\_SCOPE\_BITS@{OFFLOAD\_SCOPE\_BITS}}
+\index{OFFLOAD\_SCOPE\_BITS@{OFFLOAD\_SCOPE\_BITS}!dpu\_offload\_comms.h@{dpu\_offload\_comms.h}}
+\doxysubsubsection{\texorpdfstring{OFFLOAD\_SCOPE\_BITS}{OFFLOAD\_SCOPE\_BITS}}
+{\footnotesize\ttfamily \#define OFFLOAD\+\_\+\+SCOPE\+\_\+\+BITS~3}
+
+\mbox{\Hypertarget{dpu__offload__comms_8h_abc3d84f092ac5caf45de64a4f4b4245f}\label{dpu__offload__comms_8h_abc3d84f092ac5caf45de64a4f4b4245f}} 
+\index{dpu\_offload\_comms.h@{dpu\_offload\_comms.h}!OFFLOAD\_SCOPE\_BITS\_OFFSET@{OFFLOAD\_SCOPE\_BITS\_OFFSET}}
+\index{OFFLOAD\_SCOPE\_BITS\_OFFSET@{OFFLOAD\_SCOPE\_BITS\_OFFSET}!dpu\_offload\_comms.h@{dpu\_offload\_comms.h}}
+\doxysubsubsection{\texorpdfstring{OFFLOAD\_SCOPE\_BITS\_OFFSET}{OFFLOAD\_SCOPE\_BITS\_OFFSET}}
+{\footnotesize\ttfamily \#define OFFLOAD\+\_\+\+SCOPE\+\_\+\+BITS\+\_\+\+OFFSET~    (\mbox{\hyperlink{dpu__offload__comms_8h_a1e28ebcbceb870a94c0fa999e7f75b53}{OFFLOAD\+\_\+\+ID\+\_\+\+BITS}} + \mbox{\hyperlink{dpu__offload__comms_8h_aa62ad2eb37b9720d3ca250fb55f2da24}{OFFLOAD\+\_\+\+SENDER\+\_\+\+BITS}} + \mbox{\hyperlink{dpu__offload__comms_8h_a959707a187dfd94bb225929e5ec99686}{OFFLOAD\+\_\+\+SCOPE\+\_\+\+ID\+\_\+\+BITS}})}
+
+\mbox{\Hypertarget{dpu__offload__comms_8h_a959707a187dfd94bb225929e5ec99686}\label{dpu__offload__comms_8h_a959707a187dfd94bb225929e5ec99686}} 
+\index{dpu\_offload\_comms.h@{dpu\_offload\_comms.h}!OFFLOAD\_SCOPE\_ID\_BITS@{OFFLOAD\_SCOPE\_ID\_BITS}}
+\index{OFFLOAD\_SCOPE\_ID\_BITS@{OFFLOAD\_SCOPE\_ID\_BITS}!dpu\_offload\_comms.h@{dpu\_offload\_comms.h}}
+\doxysubsubsection{\texorpdfstring{OFFLOAD\_SCOPE\_ID\_BITS}{OFFLOAD\_SCOPE\_ID\_BITS}}
+{\footnotesize\ttfamily \#define OFFLOAD\+\_\+\+SCOPE\+\_\+\+ID\+\_\+\+BITS~3}
+
+\mbox{\Hypertarget{dpu__offload__comms_8h_a70d97f65cb7f020be0333969f9203c22}\label{dpu__offload__comms_8h_a70d97f65cb7f020be0333969f9203c22}} 
+\index{dpu\_offload\_comms.h@{dpu\_offload\_comms.h}!OFFLOAD\_SCOPE\_ID\_BITS\_OFFSET@{OFFLOAD\_SCOPE\_ID\_BITS\_OFFSET}}
+\index{OFFLOAD\_SCOPE\_ID\_BITS\_OFFSET@{OFFLOAD\_SCOPE\_ID\_BITS\_OFFSET}!dpu\_offload\_comms.h@{dpu\_offload\_comms.h}}
+\doxysubsubsection{\texorpdfstring{OFFLOAD\_SCOPE\_ID\_BITS\_OFFSET}{OFFLOAD\_SCOPE\_ID\_BITS\_OFFSET}}
+{\footnotesize\ttfamily \#define OFFLOAD\+\_\+\+SCOPE\+\_\+\+ID\+\_\+\+BITS\+\_\+\+OFFSET~(\mbox{\hyperlink{dpu__offload__comms_8h_a1e28ebcbceb870a94c0fa999e7f75b53}{OFFLOAD\+\_\+\+ID\+\_\+\+BITS}} + \mbox{\hyperlink{dpu__offload__comms_8h_aa62ad2eb37b9720d3ca250fb55f2da24}{OFFLOAD\+\_\+\+SENDER\+\_\+\+BITS}})}
+
+\mbox{\Hypertarget{dpu__offload__comms_8h_aa62ad2eb37b9720d3ca250fb55f2da24}\label{dpu__offload__comms_8h_aa62ad2eb37b9720d3ca250fb55f2da24}} 
+\index{dpu\_offload\_comms.h@{dpu\_offload\_comms.h}!OFFLOAD\_SENDER\_BITS@{OFFLOAD\_SENDER\_BITS}}
+\index{OFFLOAD\_SENDER\_BITS@{OFFLOAD\_SENDER\_BITS}!dpu\_offload\_comms.h@{dpu\_offload\_comms.h}}
+\doxysubsubsection{\texorpdfstring{OFFLOAD\_SENDER\_BITS}{OFFLOAD\_SENDER\_BITS}}
+{\footnotesize\ttfamily \#define OFFLOAD\+\_\+\+SENDER\+\_\+\+BITS~24}
+
+\mbox{\Hypertarget{dpu__offload__comms_8h_a8dd86050086bb4fd22faa8348cd52344}\label{dpu__offload__comms_8h_a8dd86050086bb4fd22faa8348cd52344}} 
+\index{dpu\_offload\_comms.h@{dpu\_offload\_comms.h}!OFFLOAD\_SENDER\_BITS\_OFFSET@{OFFLOAD\_SENDER\_BITS\_OFFSET}}
+\index{OFFLOAD\_SENDER\_BITS\_OFFSET@{OFFLOAD\_SENDER\_BITS\_OFFSET}!dpu\_offload\_comms.h@{dpu\_offload\_comms.h}}
+\doxysubsubsection{\texorpdfstring{OFFLOAD\_SENDER\_BITS\_OFFSET}{OFFLOAD\_SENDER\_BITS\_OFFSET}}
+{\footnotesize\ttfamily \#define OFFLOAD\+\_\+\+SENDER\+\_\+\+BITS\+\_\+\+OFFSET~(\mbox{\hyperlink{dpu__offload__comms_8h_a1e28ebcbceb870a94c0fa999e7f75b53}{OFFLOAD\+\_\+\+ID\+\_\+\+BITS}})}
+
+\mbox{\Hypertarget{dpu__offload__comms_8h_a3edbb0cecaa40b1524f1d6f9484b5cd9}\label{dpu__offload__comms_8h_a3edbb0cecaa40b1524f1d6f9484b5cd9}} 
+\index{dpu\_offload\_comms.h@{dpu\_offload\_comms.h}!OFFLOAD\_SERVICE\_TAG@{OFFLOAD\_SERVICE\_TAG}}
+\index{OFFLOAD\_SERVICE\_TAG@{OFFLOAD\_SERVICE\_TAG}!dpu\_offload\_comms.h@{dpu\_offload\_comms.h}}
+\doxysubsubsection{\texorpdfstring{OFFLOAD\_SERVICE\_TAG}{OFFLOAD\_SERVICE\_TAG}}
+{\footnotesize\ttfamily \#define OFFLOAD\+\_\+\+SERVICE\+\_\+\+TAG~(\mbox{\hyperlink{dpu__offload__comms_8h_aed7a673a24c0a978b044beb909fbda0d}{OFFLOAD\+\_\+\+MAX\+\_\+\+COLL\+\_\+\+TAG}} + 1)}
+
+\mbox{\Hypertarget{dpu__offload__comms_8h_acec1b9a166496c1177b1dfc09f65d0a4}\label{dpu__offload__comms_8h_acec1b9a166496c1177b1dfc09f65d0a4}} 
+\index{dpu\_offload\_comms.h@{dpu\_offload\_comms.h}!OFFLOAD\_TAG\_BITS@{OFFLOAD\_TAG\_BITS}}
+\index{OFFLOAD\_TAG\_BITS@{OFFLOAD\_TAG\_BITS}!dpu\_offload\_comms.h@{dpu\_offload\_comms.h}}
+\doxysubsubsection{\texorpdfstring{OFFLOAD\_TAG\_BITS}{OFFLOAD\_TAG\_BITS}}
+{\footnotesize\ttfamily \#define OFFLOAD\+\_\+\+TAG\+\_\+\+BITS~16}
+
+\mbox{\Hypertarget{dpu__offload__comms_8h_a60417d61b7b4ee5053f3ae4fbd6182c8}\label{dpu__offload__comms_8h_a60417d61b7b4ee5053f3ae4fbd6182c8}} 
+\index{dpu\_offload\_comms.h@{dpu\_offload\_comms.h}!OFFLOAD\_TAG\_BITS\_OFFSET@{OFFLOAD\_TAG\_BITS\_OFFSET}}
+\index{OFFLOAD\_TAG\_BITS\_OFFSET@{OFFLOAD\_TAG\_BITS\_OFFSET}!dpu\_offload\_comms.h@{dpu\_offload\_comms.h}}
+\doxysubsubsection{\texorpdfstring{OFFLOAD\_TAG\_BITS\_OFFSET}{OFFLOAD\_TAG\_BITS\_OFFSET}}
+{\footnotesize\ttfamily \#define OFFLOAD\+\_\+\+TAG\+\_\+\+BITS\+\_\+\+OFFSET}
+
+{\bfseries Value\+:}
+\begin{DoxyCode}{0}
+\DoxyCodeLine{    (\mbox{\hyperlink{dpu__offload__comms_8h_a1e28ebcbceb870a94c0fa999e7f75b53}{OFFLOAD\_ID\_BITS}} + \mbox{\hyperlink{dpu__offload__comms_8h_aa62ad2eb37b9720d3ca250fb55f2da24}{OFFLOAD\_SENDER\_BITS}} + \mbox{\hyperlink{dpu__offload__comms_8h_a959707a187dfd94bb225929e5ec99686}{OFFLOAD\_SCOPE\_ID\_BITS}} + \(\backslash\)}
+\DoxyCodeLine{     OFFLOAD\_SCOPE\_BITS)}
+
+\end{DoxyCode}
+\mbox{\Hypertarget{dpu__offload__comms_8h_a8984083871c82030557d0a6073aea7b2}\label{dpu__offload__comms_8h_a8984083871c82030557d0a6073aea7b2}} 
+\index{dpu\_offload\_comms.h@{dpu\_offload\_comms.h}!PREP\_NOTIF\_RECV@{PREP\_NOTIF\_RECV}}
+\index{PREP\_NOTIF\_RECV@{PREP\_NOTIF\_RECV}!dpu\_offload\_comms.h@{dpu\_offload\_comms.h}}
+\doxysubsubsection{\texorpdfstring{PREP\_NOTIF\_RECV}{PREP\_NOTIF\_RECV}}
+{\footnotesize\ttfamily \#define PREP\+\_\+\+NOTIF\+\_\+\+RECV(\begin{DoxyParamCaption}\item[{}]{\+\_\+ctx,  }\item[{}]{\+\_\+hdr\+\_\+recv\+\_\+param,  }\item[{}]{\+\_\+hdr\+\_\+ucp\+\_\+tag,  }\item[{}]{\+\_\+hdr\+\_\+ucp\+\_\+tag\+\_\+mask,  }\item[{}]{\+\_\+worker,  }\item[{}]{\+\_\+client\+\_\+id,  }\item[{}]{\+\_\+server\+\_\+id,  }\item[{}]{\+\_\+scope\+\_\+id }\end{DoxyParamCaption})}
+
+{\bfseries Value\+:}
+\begin{DoxyCode}{0}
+\DoxyCodeLine{    \textcolor{keywordflow}{do}                                                                                                                                     \(\backslash\)}
+\DoxyCodeLine{    \{                                                                                                                                      \(\backslash\)}
+\DoxyCodeLine{        \textcolor{comment}{/* Always have a recv posted so we are ready to get a header from the other side. */}                                               \(\backslash\)}
+\DoxyCodeLine{        \textcolor{comment}{/* Remember we are using one thread per bootstrap client/server. */}                                                                \(\backslash\)}
+\DoxyCodeLine{        \textcolor{comment}{/* Just to make sure the initial receive will post, we mark the two receives for */}                                                \(\backslash\)}
+\DoxyCodeLine{        \textcolor{comment}{/* any notifications as completed */}                                                                                               \(\backslash\)}
+\DoxyCodeLine{        (\_ctx).complete = \textcolor{keyword}{true};                                                                                                            \(\backslash\)}
+\DoxyCodeLine{        (\_ctx).payload\_ctx.complete = \textcolor{keyword}{true};                                                                                                \(\backslash\)}
+\DoxyCodeLine{        (\_ctx).client\_id = (\_client\_id);                                                                                                   \(\backslash\)}
+\DoxyCodeLine{        (\_ctx).server\_id = (\_server\_id);                                                                                                   \(\backslash\)}
+\DoxyCodeLine{        (\_hdr\_recv\_param).op\_attr\_mask = UCP\_OP\_ATTR\_FIELD\_CALLBACK |                                                                      \(\backslash\)}
+\DoxyCodeLine{                                         UCP\_OP\_ATTR\_FIELD\_DATATYPE |                                                                      \(\backslash\)}
+\DoxyCodeLine{                                         UCP\_OP\_ATTR\_FIELD\_USER\_DATA;                                                                      \(\backslash\)}
+\DoxyCodeLine{        (\_hdr\_recv\_param).datatype = ucp\_dt\_make\_contig(1);                                                                                \(\backslash\)}
+\DoxyCodeLine{        (\_hdr\_recv\_param).user\_data = \&(\_ctx);                                                                                             \(\backslash\)}
+\DoxyCodeLine{        (\_hdr\_recv\_param).cb.recv = notif\_hdr\_recv\_handler;                                                                                \(\backslash\)}
+\DoxyCodeLine{        \mbox{\hyperlink{dpu__offload__comms_8h_a2ed83ce36989607f11b4f989b8cfc3e3}{MAKE\_RECV\_TAG}}((\_hdr\_ucp\_tag),                                                                                                      \(\backslash\)}
+\DoxyCodeLine{                      (\_hdr\_ucp\_tag\_mask),                                                                                                 \(\backslash\)}
+\DoxyCodeLine{                      \mbox{\hyperlink{dpu__offload__types_8h_afc5071308dce72f0c9412e061ae3ed4faf6b3fc5ea090b9c2a2342e1446bf9e5a}{AM\_EVENT\_MSG\_HDR\_ID}},                                                                                                 \(\backslash\)}
+\DoxyCodeLine{                      (\_client\_id),                                                                                                        \(\backslash\)}
+\DoxyCodeLine{                      (\_server\_id),                                                                                                        \(\backslash\)}
+\DoxyCodeLine{                      (\_scope\_id),                                                                                                         \(\backslash\)}
+\DoxyCodeLine{                      0);                                                                                                                  \(\backslash\)}
+\DoxyCodeLine{        worker = \mbox{\hyperlink{dpu__offload__types_8h_a722362503170cb9c00c3b0d5f4fc1506}{GET\_WORKER}}(econtext);                                                                                                     \(\backslash\)}
+\DoxyCodeLine{        DBG(\textcolor{stringliteral}{"{} -\/> Reception of notification on econtext \%p, client\_id: \%"{}} PRIu64 \textcolor{stringliteral}{"{}, server\_id: \%"{}} PRIu64 \textcolor{stringliteral}{"{} and scope\_id \%d is now all set"{}}, \(\backslash\)}
+\DoxyCodeLine{            econtext,                                                                                                                      \(\backslash\)}
+\DoxyCodeLine{            (\_client\_id), (\_server\_id),                                                                                                    \(\backslash\)}
+\DoxyCodeLine{            (\_scope\_id));                                                                                                                  \(\backslash\)}
+\DoxyCodeLine{    \} \textcolor{keywordflow}{while} (0)}
+
+\end{DoxyCode}
+\mbox{\Hypertarget{dpu__offload__comms_8h_a20c66974832990afac148d24bcb5e37e}\label{dpu__offload__comms_8h_a20c66974832990afac148d24bcb5e37e}} 
+\index{dpu\_offload\_comms.h@{dpu\_offload\_comms.h}!PROGRESS\_EVENT\_SEND@{PROGRESS\_EVENT\_SEND}}
+\index{PROGRESS\_EVENT\_SEND@{PROGRESS\_EVENT\_SEND}!dpu\_offload\_comms.h@{dpu\_offload\_comms.h}}
+\doxysubsubsection{\texorpdfstring{PROGRESS\_EVENT\_SEND}{PROGRESS\_EVENT\_SEND}}
+{\footnotesize\ttfamily \#define PROGRESS\+\_\+\+EVENT\+\_\+\+SEND(\begin{DoxyParamCaption}\item[{}]{\+\_\+\+\_\+ev }\end{DoxyParamCaption})}
+
+{\bfseries Value\+:}
+\begin{DoxyCode}{0}
+\DoxyCodeLine{    \textcolor{keywordflow}{do}                                                                                           \(\backslash\)}
+\DoxyCodeLine{    \{                                                                                            \(\backslash\)}
+\DoxyCodeLine{        \textcolor{comment}{/* if we can post more events and the event is not posted yet, try to send it. */}        \(\backslash\)}
+\DoxyCodeLine{        if (!\mbox{\hyperlink{dpu__offload__event__channels_8h_a19cbd071483c81c1ae832985dae1c9b5}{event\_completed}}((\_\_ev)) \&\& \mbox{\hyperlink{dpu__offload__comms_8h_a124e99cf77cdb0ba21b83f94b5078730}{CAN\_POST}}((\_\_ev)-\/>event\_system) \&\& !event\_posted((\_\_ev))) \(\backslash\)}
+\DoxyCodeLine{        \{                                                                                        \(\backslash\)}
+\DoxyCodeLine{            int rc;                                                                              \(\backslash\)}
+\DoxyCodeLine{            rc = \mbox{\hyperlink{dpu__offload__event__channels_8c_a1bd4e663bd03c044468151db70a43c96}{do\_tag\_send\_event\_msg}}((\_\_ev));                                                  \(\backslash\)}
+\DoxyCodeLine{            if (rc != \mbox{\hyperlink{dpu__offload__types_8h_a96f64a286c32a7fa45af4833fa0000d6a8293b11edabed1d9148d971406747fd3}{EVENT\_DONE}} \&\& rc != \mbox{\hyperlink{dpu__offload__types_8h_a96f64a286c32a7fa45af4833fa0000d6af57bedca32251452bf1e7ef31fc82a85}{EVENT\_INPROGRESS}})                                      \(\backslash\)}
+\DoxyCodeLine{                ERR\_MSG(\textcolor{stringliteral}{"{}do\_tag\_send\_event\_msg() failed"{}});                                       \(\backslash\)}
+\DoxyCodeLine{        \}                                                                                        \(\backslash\)}
+\DoxyCodeLine{        \textcolor{comment}{/* Now check if it is completed */}                                                       \(\backslash\)}
+\DoxyCodeLine{        if (\mbox{\hyperlink{dpu__offload__event__channels_8h_a19cbd071483c81c1ae832985dae1c9b5}{event\_completed}}((\_\_ev)))                                                             \(\backslash\)}
+\DoxyCodeLine{        \{                                                                                        \(\backslash\)}
+\DoxyCodeLine{            if ((\_\_ev)-\/>is\_ongoing\_event \&\& (\_\_ev)-\/>is\_subevent)                                 \(\backslash\)}
+\DoxyCodeLine{                ERR\_MSG(\textcolor{stringliteral}{"{}sub-\/event \%p \%ld also on the ongoing list"{}}, (\_\_ev), (\_\_ev)-\/>\mbox{\hyperlink{dpu__offload__event__channels_8c_ab089bcb662b67b7825c4f33953c35da5}{seq\_num}});   \(\backslash\)}
+\DoxyCodeLine{            ucs\_list\_del(\&((\_\_ev)-\/>item));                                                       \(\backslash\)}
+\DoxyCodeLine{            if ((\_\_ev)-\/>is\_ongoing\_event)                                                        \(\backslash\)}
+\DoxyCodeLine{                (\_\_ev)-\/>is\_ongoing\_event = \textcolor{keyword}{false};                                                \(\backslash\)}
+\DoxyCodeLine{            if ((\_\_ev)-\/>is\_subevent)                                                             \(\backslash\)}
+\DoxyCodeLine{                (\_\_ev)-\/>is\_subevent = \textcolor{keyword}{false};                                                     \(\backslash\)}
+\DoxyCodeLine{            if ((\_\_ev)-\/>was\_posted)                                                              \(\backslash\)}
+\DoxyCodeLine{            \{                                                                                    \(\backslash\)}
+\DoxyCodeLine{                (\_\_ev)-\/>event\_system-\/>posted\_sends-\/-\/;                                            \(\backslash\)}
+\DoxyCodeLine{                (\_\_ev)-\/>was\_posted = \textcolor{keyword}{false};                                                      \(\backslash\)}
+\DoxyCodeLine{            \}                                                                                    \(\backslash\)}
+\DoxyCodeLine{            event\_return(\&(\_\_ev));                                                               \(\backslash\)}
+\DoxyCodeLine{        \}                                                                                        \(\backslash\)}
+\DoxyCodeLine{    \} \textcolor{keywordflow}{while} (0)}
+
+\end{DoxyCode}

@@ -1,0 +1,83 @@
+\hypertarget{structremote__dpu__info}{}\doxysection{remote\+\_\+dpu\+\_\+info Struct Reference}
+\label{structremote__dpu__info}\index{remote\_dpu\_info@{remote\_dpu\_info}}
+
+
+remote\+\_\+dpu\+\_\+info\+\_\+t gathers all the data necessary to track and connect to other DPUs.  
+
+
+
+
+{\ttfamily \#include $<$dpu\+\_\+offload\+\_\+types.\+h$>$}
+
+
+
+Collaboration diagram for remote\+\_\+dpu\+\_\+info\+:
+\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{structremote__dpu__info__coll__graph}
+\end{center}
+\end{figure}
+\doxysubsection*{Data Fields}
+\begin{DoxyCompactItemize}
+\item 
+ucs\+\_\+list\+\_\+link\+\_\+t \mbox{\hyperlink{structremote__dpu__info_a55dee82ed33c4fb782f1b11c21d40602}{item}}
+\item 
+size\+\_\+t \mbox{\hyperlink{structremote__dpu__info_ac4cb8ce36455ee8f1ea74e6220929e01}{idx}}
+\item 
+char $\ast$ \mbox{\hyperlink{structremote__dpu__info_a4cf50e9745d695470ba43ae21c57056e}{hostname}}
+\item 
+\mbox{\hyperlink{dpu__offload__types_8h_a01c361db3fa6d98bc250e8479ea3e7a9}{dpu\+\_\+config\+\_\+data\+\_\+t}} $\ast$ \mbox{\hyperlink{structremote__dpu__info_a0f5224a657ca4041cf79686fc68def87}{config}}
+\item 
+\mbox{\hyperlink{dpu__offload__types_8h_abdda2bc51909d3f2e98a5c9dde42b0a8}{offloading\+\_\+engine\+\_\+t}} $\ast$ \mbox{\hyperlink{structremote__dpu__info_ad49326e819be6329e293ed74150016b9}{engine}}
+\item 
+\mbox{\hyperlink{dynamic__structs_8h_a2dbc507ba858bb998999c26be4458daa}{simple\+\_\+list\+\_\+t}} \mbox{\hyperlink{structremote__dpu__info_a79f9a9f72a146da6f947d7ef4aa9f581}{remote\+\_\+service\+\_\+procs}}
+\end{DoxyCompactItemize}
+
+
+\doxysubsection{Detailed Description}
+remote\+\_\+dpu\+\_\+info\+\_\+t gathers all the data necessary to track and connect to other DPUs. 
+
+\doxysubsection{Field Documentation}
+\mbox{\Hypertarget{structremote__dpu__info_a0f5224a657ca4041cf79686fc68def87}\label{structremote__dpu__info_a0f5224a657ca4041cf79686fc68def87}} 
+\index{remote\_dpu\_info@{remote\_dpu\_info}!config@{config}}
+\index{config@{config}!remote\_dpu\_info@{remote\_dpu\_info}}
+\doxysubsubsection{\texorpdfstring{config}{config}}
+{\footnotesize\ttfamily \mbox{\hyperlink{dpu__offload__types_8h_a01c361db3fa6d98bc250e8479ea3e7a9}{dpu\+\_\+config\+\_\+data\+\_\+t}}$\ast$ remote\+\_\+dpu\+\_\+info\+::config}
+
+\mbox{\Hypertarget{structremote__dpu__info_ad49326e819be6329e293ed74150016b9}\label{structremote__dpu__info_ad49326e819be6329e293ed74150016b9}} 
+\index{remote\_dpu\_info@{remote\_dpu\_info}!engine@{engine}}
+\index{engine@{engine}!remote\_dpu\_info@{remote\_dpu\_info}}
+\doxysubsubsection{\texorpdfstring{engine}{engine}}
+{\footnotesize\ttfamily \mbox{\hyperlink{dpu__offload__types_8h_abdda2bc51909d3f2e98a5c9dde42b0a8}{offloading\+\_\+engine\+\_\+t}}$\ast$ remote\+\_\+dpu\+\_\+info\+::engine}
+
+\mbox{\Hypertarget{structremote__dpu__info_a4cf50e9745d695470ba43ae21c57056e}\label{structremote__dpu__info_a4cf50e9745d695470ba43ae21c57056e}} 
+\index{remote\_dpu\_info@{remote\_dpu\_info}!hostname@{hostname}}
+\index{hostname@{hostname}!remote\_dpu\_info@{remote\_dpu\_info}}
+\doxysubsubsection{\texorpdfstring{hostname}{hostname}}
+{\footnotesize\ttfamily char$\ast$ remote\+\_\+dpu\+\_\+info\+::hostname}
+
+\mbox{\Hypertarget{structremote__dpu__info_ac4cb8ce36455ee8f1ea74e6220929e01}\label{structremote__dpu__info_ac4cb8ce36455ee8f1ea74e6220929e01}} 
+\index{remote\_dpu\_info@{remote\_dpu\_info}!idx@{idx}}
+\index{idx@{idx}!remote\_dpu\_info@{remote\_dpu\_info}}
+\doxysubsubsection{\texorpdfstring{idx}{idx}}
+{\footnotesize\ttfamily size\+\_\+t remote\+\_\+dpu\+\_\+info\+::idx}
+
+\mbox{\Hypertarget{structremote__dpu__info_a55dee82ed33c4fb782f1b11c21d40602}\label{structremote__dpu__info_a55dee82ed33c4fb782f1b11c21d40602}} 
+\index{remote\_dpu\_info@{remote\_dpu\_info}!item@{item}}
+\index{item@{item}!remote\_dpu\_info@{remote\_dpu\_info}}
+\doxysubsubsection{\texorpdfstring{item}{item}}
+{\footnotesize\ttfamily ucs\+\_\+list\+\_\+link\+\_\+t remote\+\_\+dpu\+\_\+info\+::item}
+
+\mbox{\Hypertarget{structremote__dpu__info_a79f9a9f72a146da6f947d7ef4aa9f581}\label{structremote__dpu__info_a79f9a9f72a146da6f947d7ef4aa9f581}} 
+\index{remote\_dpu\_info@{remote\_dpu\_info}!remote\_service\_procs@{remote\_service\_procs}}
+\index{remote\_service\_procs@{remote\_service\_procs}!remote\_dpu\_info@{remote\_dpu\_info}}
+\doxysubsubsection{\texorpdfstring{remote\_service\_procs}{remote\_service\_procs}}
+{\footnotesize\ttfamily \mbox{\hyperlink{dynamic__structs_8h_a2dbc507ba858bb998999c26be4458daa}{simple\+\_\+list\+\_\+t}} remote\+\_\+dpu\+\_\+info\+::remote\+\_\+service\+\_\+procs}
+
+
+
+The documentation for this struct was generated from the following file\+:\begin{DoxyCompactItemize}
+\item 
+/home/gvallee/\+Projects/\+DPU\+\_\+offloading/dpu\+\_\+offload\+\_\+service/include/\mbox{\hyperlink{dpu__offload__types_8h}{dpu\+\_\+offload\+\_\+types.\+h}}\end{DoxyCompactItemize}

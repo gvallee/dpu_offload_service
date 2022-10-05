@@ -1,0 +1,99 @@
+\hypertarget{structpending__notification}{}\doxysection{pending\+\_\+notification Struct Reference}
+\label{structpending__notification}\index{pending\_notification@{pending\_notification}}
+
+
+pending\+\_\+notification\+\_\+t is the structure used to capture the data related to a event that has been received but cannot yet be delivered because a callback has not been registered yet.  
+
+
+
+
+{\ttfamily \#include $<$dpu\+\_\+offload\+\_\+types.\+h$>$}
+
+
+
+Collaboration diagram for pending\+\_\+notification\+:
+\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{structpending__notification__coll__graph}
+\end{center}
+\end{figure}
+\doxysubsection*{Data Fields}
+\begin{DoxyCompactItemize}
+\item 
+ucs\+\_\+list\+\_\+link\+\_\+t \mbox{\hyperlink{structpending__notification_a98bab07e4354d1326c01a6a18da2ec78}{item}}
+\item 
+uint64\+\_\+t \mbox{\hyperlink{structpending__notification_abbe2ae9cf1f1ed53854783461b2c9f89}{type}}
+\item 
+uint64\+\_\+t \mbox{\hyperlink{structpending__notification_afce82beb1355efb32e790a1639d718be}{src\+\_\+id}}
+\item 
+void $\ast$ \mbox{\hyperlink{structpending__notification_a7c1cf2178ccb9275d865b8a3a5301094}{header}}
+\item 
+size\+\_\+t \mbox{\hyperlink{structpending__notification_a287c7461f49fb675a663eba432d1d41e}{header\+\_\+size}}
+\item 
+void $\ast$ \mbox{\hyperlink{structpending__notification_a410cc3c0d05e20fb7235538636357865}{data}}
+\item 
+size\+\_\+t \mbox{\hyperlink{structpending__notification_a5e6d697a104badd4d092dd6603ac834e}{data\+\_\+size}}
+\item 
+\mbox{\hyperlink{dpu__offload__types_8h_ac95b2624b57c0005e3ca8a740316e5ab}{execution\+\_\+context\+\_\+t}} $\ast$ \mbox{\hyperlink{structpending__notification_a2fefe8e3c836a6b8b32800593fda5a14}{econtext}}
+\end{DoxyCompactItemize}
+
+
+\doxysubsection{Detailed Description}
+pending\+\_\+notification\+\_\+t is the structure used to capture the data related to a event that has been received but cannot yet be delivered because a callback has not been registered yet. 
+
+\doxysubsection{Field Documentation}
+\mbox{\Hypertarget{structpending__notification_a410cc3c0d05e20fb7235538636357865}\label{structpending__notification_a410cc3c0d05e20fb7235538636357865}} 
+\index{pending\_notification@{pending\_notification}!data@{data}}
+\index{data@{data}!pending\_notification@{pending\_notification}}
+\doxysubsubsection{\texorpdfstring{data}{data}}
+{\footnotesize\ttfamily void$\ast$ pending\+\_\+notification\+::data}
+
+\mbox{\Hypertarget{structpending__notification_a5e6d697a104badd4d092dd6603ac834e}\label{structpending__notification_a5e6d697a104badd4d092dd6603ac834e}} 
+\index{pending\_notification@{pending\_notification}!data\_size@{data\_size}}
+\index{data\_size@{data\_size}!pending\_notification@{pending\_notification}}
+\doxysubsubsection{\texorpdfstring{data\_size}{data\_size}}
+{\footnotesize\ttfamily size\+\_\+t pending\+\_\+notification\+::data\+\_\+size}
+
+\mbox{\Hypertarget{structpending__notification_a2fefe8e3c836a6b8b32800593fda5a14}\label{structpending__notification_a2fefe8e3c836a6b8b32800593fda5a14}} 
+\index{pending\_notification@{pending\_notification}!econtext@{econtext}}
+\index{econtext@{econtext}!pending\_notification@{pending\_notification}}
+\doxysubsubsection{\texorpdfstring{econtext}{econtext}}
+{\footnotesize\ttfamily \mbox{\hyperlink{dpu__offload__types_8h_ac95b2624b57c0005e3ca8a740316e5ab}{execution\+\_\+context\+\_\+t}}$\ast$ pending\+\_\+notification\+::econtext}
+
+\mbox{\Hypertarget{structpending__notification_a7c1cf2178ccb9275d865b8a3a5301094}\label{structpending__notification_a7c1cf2178ccb9275d865b8a3a5301094}} 
+\index{pending\_notification@{pending\_notification}!header@{header}}
+\index{header@{header}!pending\_notification@{pending\_notification}}
+\doxysubsubsection{\texorpdfstring{header}{header}}
+{\footnotesize\ttfamily void$\ast$ pending\+\_\+notification\+::header}
+
+\mbox{\Hypertarget{structpending__notification_a287c7461f49fb675a663eba432d1d41e}\label{structpending__notification_a287c7461f49fb675a663eba432d1d41e}} 
+\index{pending\_notification@{pending\_notification}!header\_size@{header\_size}}
+\index{header\_size@{header\_size}!pending\_notification@{pending\_notification}}
+\doxysubsubsection{\texorpdfstring{header\_size}{header\_size}}
+{\footnotesize\ttfamily size\+\_\+t pending\+\_\+notification\+::header\+\_\+size}
+
+\mbox{\Hypertarget{structpending__notification_a98bab07e4354d1326c01a6a18da2ec78}\label{structpending__notification_a98bab07e4354d1326c01a6a18da2ec78}} 
+\index{pending\_notification@{pending\_notification}!item@{item}}
+\index{item@{item}!pending\_notification@{pending\_notification}}
+\doxysubsubsection{\texorpdfstring{item}{item}}
+{\footnotesize\ttfamily ucs\+\_\+list\+\_\+link\+\_\+t pending\+\_\+notification\+::item}
+
+\mbox{\Hypertarget{structpending__notification_afce82beb1355efb32e790a1639d718be}\label{structpending__notification_afce82beb1355efb32e790a1639d718be}} 
+\index{pending\_notification@{pending\_notification}!src\_id@{src\_id}}
+\index{src\_id@{src\_id}!pending\_notification@{pending\_notification}}
+\doxysubsubsection{\texorpdfstring{src\_id}{src\_id}}
+{\footnotesize\ttfamily uint64\+\_\+t pending\+\_\+notification\+::src\+\_\+id}
+
+\mbox{\Hypertarget{structpending__notification_abbe2ae9cf1f1ed53854783461b2c9f89}\label{structpending__notification_abbe2ae9cf1f1ed53854783461b2c9f89}} 
+\index{pending\_notification@{pending\_notification}!type@{type}}
+\index{type@{type}!pending\_notification@{pending\_notification}}
+\doxysubsubsection{\texorpdfstring{type}{type}}
+{\footnotesize\ttfamily uint64\+\_\+t pending\+\_\+notification\+::type}
+
+
+
+The documentation for this struct was generated from the following file\+:\begin{DoxyCompactItemize}
+\item 
+/home/gvallee/\+Projects/\+DPU\+\_\+offloading/dpu\+\_\+offload\+\_\+service/include/\mbox{\hyperlink{dpu__offload__types_8h}{dpu\+\_\+offload\+\_\+types.\+h}}\end{DoxyCompactItemize}

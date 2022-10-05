@@ -1,0 +1,147 @@
+\hypertarget{structremote__service__proc__info}{}\doxysection{remote\+\_\+service\+\_\+proc\+\_\+info Struct Reference}
+\label{structremote__service__proc__info}\index{remote\_service\_proc\_info@{remote\_service\_proc\_info}}
+
+
+Datatstructure representing a remote service process that is running on a specific DPU. A service process is identified by both its local unique identifier based on how many service processes are running on the DPU and a global unique identifier based on how many service processes are available for offloading.  
+
+
+
+
+{\ttfamily \#include $<$dpu\+\_\+offload\+\_\+types.\+h$>$}
+
+
+
+Collaboration diagram for remote\+\_\+service\+\_\+proc\+\_\+info\+:
+\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{structremote__service__proc__info__coll__graph}
+\end{center}
+\end{figure}
+\doxysubsection*{Data Fields}
+\begin{DoxyCompactItemize}
+\item 
+ucs\+\_\+list\+\_\+link\+\_\+t \mbox{\hyperlink{structremote__service__proc__info_a33cb711df46513e29a26aabab31c9046}{item}}
+\item 
+size\+\_\+t \mbox{\hyperlink{structremote__service__proc__info_a2c459d980f405b62ffe98f8fb8b0cadd}{idx}}
+\item 
+\mbox{\hyperlink{dpu__offload__types_8h_a4496c87445a0e1c1ac0a30454324ca32}{service\+\_\+proc\+\_\+config\+\_\+data\+\_\+t}} $\ast$ \mbox{\hyperlink{structremote__service__proc__info_ace1cf20a802cbbf04c15e196c540fc26}{config}}
+\item 
+\mbox{\hyperlink{dpu__offload__types_8h_a378ea426481472ff6c5ec74506e18250}{remote\+\_\+dpu\+\_\+info\+\_\+t}} $\ast$ \mbox{\hyperlink{structremote__service__proc__info_a07b1e24c49026ddd60eb08e45272671b}{dpu}}
+\item 
+\mbox{\hyperlink{dpu__offload__types_8h_a5b9e2bc4633b83b0a8d79d02860c97d2}{service\+\_\+proc\+\_\+t}} \mbox{\hyperlink{structremote__service__proc__info_a8dff09591aa86aba2cf3ea306449a52f}{service\+\_\+proc}}
+\item 
+uint64\+\_\+t \mbox{\hyperlink{structremote__service__proc__info_a056e2ec01de6a55af4ac99f51a745783}{client\+\_\+id}}
+\item 
+void $\ast$ \mbox{\hyperlink{structremote__service__proc__info_a8650b4295d4d60f77b92f5a05f6d0517}{peer\+\_\+addr}}
+\item 
+\mbox{\hyperlink{dpu__offload__types_8h_a42c35bf5c92dc98cf22a4818b0331608}{init\+\_\+params\+\_\+t}} \mbox{\hyperlink{structremote__service__proc__info_ad39e3b6bf71fc4a44693c471904ead29}{init\+\_\+params}}
+\item 
+\mbox{\hyperlink{dpu__offload__types_8h_a16e71ed8f48e0d2f5f1a66c0f958785b}{connect\+\_\+status\+\_\+t}} \mbox{\hyperlink{structremote__service__proc__info_a7b4bfd7853aaf0e595fcedd96f0a6f94}{conn\+\_\+status}}
+\item 
+pthread\+\_\+t \mbox{\hyperlink{structremote__service__proc__info_ab12d9e21124d73e732cc8d3e9c43271a}{connection\+\_\+tid}}
+\item 
+\mbox{\hyperlink{dpu__offload__types_8h_abdda2bc51909d3f2e98a5c9dde42b0a8}{offloading\+\_\+engine\+\_\+t}} $\ast$ \mbox{\hyperlink{structremote__service__proc__info_a49bff48291fa801e2f038409a6ca9707}{offload\+\_\+engine}}
+\item 
+\mbox{\hyperlink{dpu__offload__types_8h_ac95b2624b57c0005e3ca8a740316e5ab}{execution\+\_\+context\+\_\+t}} $\ast$ \mbox{\hyperlink{structremote__service__proc__info_ac1b2047064e3b22abb5f951be18b0f02}{econtext}}
+\item 
+ucp\+\_\+worker\+\_\+h \mbox{\hyperlink{structremote__service__proc__info_a5f7f709ce0acd2cb4a12be2cd86d28dd}{ucp\+\_\+worker}}
+\item 
+ucp\+\_\+ep\+\_\+h \mbox{\hyperlink{structremote__service__proc__info_a5dc2e4406c9cb19a9c25c74d5d5f3c89}{ep}}
+\end{DoxyCompactItemize}
+
+
+\doxysubsection{Detailed Description}
+Datatstructure representing a remote service process that is running on a specific DPU. A service process is identified by both its local unique identifier based on how many service processes are running on the DPU and a global unique identifier based on how many service processes are available for offloading. 
+
+\doxysubsection{Field Documentation}
+\mbox{\Hypertarget{structremote__service__proc__info_a056e2ec01de6a55af4ac99f51a745783}\label{structremote__service__proc__info_a056e2ec01de6a55af4ac99f51a745783}} 
+\index{remote\_service\_proc\_info@{remote\_service\_proc\_info}!client\_id@{client\_id}}
+\index{client\_id@{client\_id}!remote\_service\_proc\_info@{remote\_service\_proc\_info}}
+\doxysubsubsection{\texorpdfstring{client\_id}{client\_id}}
+{\footnotesize\ttfamily uint64\+\_\+t remote\+\_\+service\+\_\+proc\+\_\+info\+::client\+\_\+id}
+
+\mbox{\Hypertarget{structremote__service__proc__info_ace1cf20a802cbbf04c15e196c540fc26}\label{structremote__service__proc__info_ace1cf20a802cbbf04c15e196c540fc26}} 
+\index{remote\_service\_proc\_info@{remote\_service\_proc\_info}!config@{config}}
+\index{config@{config}!remote\_service\_proc\_info@{remote\_service\_proc\_info}}
+\doxysubsubsection{\texorpdfstring{config}{config}}
+{\footnotesize\ttfamily \mbox{\hyperlink{dpu__offload__types_8h_a4496c87445a0e1c1ac0a30454324ca32}{service\+\_\+proc\+\_\+config\+\_\+data\+\_\+t}}$\ast$ remote\+\_\+service\+\_\+proc\+\_\+info\+::config}
+
+\mbox{\Hypertarget{structremote__service__proc__info_a7b4bfd7853aaf0e595fcedd96f0a6f94}\label{structremote__service__proc__info_a7b4bfd7853aaf0e595fcedd96f0a6f94}} 
+\index{remote\_service\_proc\_info@{remote\_service\_proc\_info}!conn\_status@{conn\_status}}
+\index{conn\_status@{conn\_status}!remote\_service\_proc\_info@{remote\_service\_proc\_info}}
+\doxysubsubsection{\texorpdfstring{conn\_status}{conn\_status}}
+{\footnotesize\ttfamily \mbox{\hyperlink{dpu__offload__types_8h_a16e71ed8f48e0d2f5f1a66c0f958785b}{connect\+\_\+status\+\_\+t}} remote\+\_\+service\+\_\+proc\+\_\+info\+::conn\+\_\+status}
+
+\mbox{\Hypertarget{structremote__service__proc__info_ab12d9e21124d73e732cc8d3e9c43271a}\label{structremote__service__proc__info_ab12d9e21124d73e732cc8d3e9c43271a}} 
+\index{remote\_service\_proc\_info@{remote\_service\_proc\_info}!connection\_tid@{connection\_tid}}
+\index{connection\_tid@{connection\_tid}!remote\_service\_proc\_info@{remote\_service\_proc\_info}}
+\doxysubsubsection{\texorpdfstring{connection\_tid}{connection\_tid}}
+{\footnotesize\ttfamily pthread\+\_\+t remote\+\_\+service\+\_\+proc\+\_\+info\+::connection\+\_\+tid}
+
+\mbox{\Hypertarget{structremote__service__proc__info_a07b1e24c49026ddd60eb08e45272671b}\label{structremote__service__proc__info_a07b1e24c49026ddd60eb08e45272671b}} 
+\index{remote\_service\_proc\_info@{remote\_service\_proc\_info}!dpu@{dpu}}
+\index{dpu@{dpu}!remote\_service\_proc\_info@{remote\_service\_proc\_info}}
+\doxysubsubsection{\texorpdfstring{dpu}{dpu}}
+{\footnotesize\ttfamily \mbox{\hyperlink{dpu__offload__types_8h_a378ea426481472ff6c5ec74506e18250}{remote\+\_\+dpu\+\_\+info\+\_\+t}}$\ast$ remote\+\_\+service\+\_\+proc\+\_\+info\+::dpu}
+
+\mbox{\Hypertarget{structremote__service__proc__info_ac1b2047064e3b22abb5f951be18b0f02}\label{structremote__service__proc__info_ac1b2047064e3b22abb5f951be18b0f02}} 
+\index{remote\_service\_proc\_info@{remote\_service\_proc\_info}!econtext@{econtext}}
+\index{econtext@{econtext}!remote\_service\_proc\_info@{remote\_service\_proc\_info}}
+\doxysubsubsection{\texorpdfstring{econtext}{econtext}}
+{\footnotesize\ttfamily \mbox{\hyperlink{dpu__offload__types_8h_ac95b2624b57c0005e3ca8a740316e5ab}{execution\+\_\+context\+\_\+t}}$\ast$ remote\+\_\+service\+\_\+proc\+\_\+info\+::econtext}
+
+\mbox{\Hypertarget{structremote__service__proc__info_a5dc2e4406c9cb19a9c25c74d5d5f3c89}\label{structremote__service__proc__info_a5dc2e4406c9cb19a9c25c74d5d5f3c89}} 
+\index{remote\_service\_proc\_info@{remote\_service\_proc\_info}!ep@{ep}}
+\index{ep@{ep}!remote\_service\_proc\_info@{remote\_service\_proc\_info}}
+\doxysubsubsection{\texorpdfstring{ep}{ep}}
+{\footnotesize\ttfamily ucp\+\_\+ep\+\_\+h remote\+\_\+service\+\_\+proc\+\_\+info\+::ep}
+
+\mbox{\Hypertarget{structremote__service__proc__info_a2c459d980f405b62ffe98f8fb8b0cadd}\label{structremote__service__proc__info_a2c459d980f405b62ffe98f8fb8b0cadd}} 
+\index{remote\_service\_proc\_info@{remote\_service\_proc\_info}!idx@{idx}}
+\index{idx@{idx}!remote\_service\_proc\_info@{remote\_service\_proc\_info}}
+\doxysubsubsection{\texorpdfstring{idx}{idx}}
+{\footnotesize\ttfamily size\+\_\+t remote\+\_\+service\+\_\+proc\+\_\+info\+::idx}
+
+\mbox{\Hypertarget{structremote__service__proc__info_ad39e3b6bf71fc4a44693c471904ead29}\label{structremote__service__proc__info_ad39e3b6bf71fc4a44693c471904ead29}} 
+\index{remote\_service\_proc\_info@{remote\_service\_proc\_info}!init\_params@{init\_params}}
+\index{init\_params@{init\_params}!remote\_service\_proc\_info@{remote\_service\_proc\_info}}
+\doxysubsubsection{\texorpdfstring{init\_params}{init\_params}}
+{\footnotesize\ttfamily \mbox{\hyperlink{dpu__offload__types_8h_a42c35bf5c92dc98cf22a4818b0331608}{init\+\_\+params\+\_\+t}} remote\+\_\+service\+\_\+proc\+\_\+info\+::init\+\_\+params}
+
+\mbox{\Hypertarget{structremote__service__proc__info_a33cb711df46513e29a26aabab31c9046}\label{structremote__service__proc__info_a33cb711df46513e29a26aabab31c9046}} 
+\index{remote\_service\_proc\_info@{remote\_service\_proc\_info}!item@{item}}
+\index{item@{item}!remote\_service\_proc\_info@{remote\_service\_proc\_info}}
+\doxysubsubsection{\texorpdfstring{item}{item}}
+{\footnotesize\ttfamily ucs\+\_\+list\+\_\+link\+\_\+t remote\+\_\+service\+\_\+proc\+\_\+info\+::item}
+
+\mbox{\Hypertarget{structremote__service__proc__info_a49bff48291fa801e2f038409a6ca9707}\label{structremote__service__proc__info_a49bff48291fa801e2f038409a6ca9707}} 
+\index{remote\_service\_proc\_info@{remote\_service\_proc\_info}!offload\_engine@{offload\_engine}}
+\index{offload\_engine@{offload\_engine}!remote\_service\_proc\_info@{remote\_service\_proc\_info}}
+\doxysubsubsection{\texorpdfstring{offload\_engine}{offload\_engine}}
+{\footnotesize\ttfamily \mbox{\hyperlink{dpu__offload__types_8h_abdda2bc51909d3f2e98a5c9dde42b0a8}{offloading\+\_\+engine\+\_\+t}}$\ast$ remote\+\_\+service\+\_\+proc\+\_\+info\+::offload\+\_\+engine}
+
+\mbox{\Hypertarget{structremote__service__proc__info_a8650b4295d4d60f77b92f5a05f6d0517}\label{structremote__service__proc__info_a8650b4295d4d60f77b92f5a05f6d0517}} 
+\index{remote\_service\_proc\_info@{remote\_service\_proc\_info}!peer\_addr@{peer\_addr}}
+\index{peer\_addr@{peer\_addr}!remote\_service\_proc\_info@{remote\_service\_proc\_info}}
+\doxysubsubsection{\texorpdfstring{peer\_addr}{peer\_addr}}
+{\footnotesize\ttfamily void$\ast$ remote\+\_\+service\+\_\+proc\+\_\+info\+::peer\+\_\+addr}
+
+\mbox{\Hypertarget{structremote__service__proc__info_a8dff09591aa86aba2cf3ea306449a52f}\label{structremote__service__proc__info_a8dff09591aa86aba2cf3ea306449a52f}} 
+\index{remote\_service\_proc\_info@{remote\_service\_proc\_info}!service\_proc@{service\_proc}}
+\index{service\_proc@{service\_proc}!remote\_service\_proc\_info@{remote\_service\_proc\_info}}
+\doxysubsubsection{\texorpdfstring{service\_proc}{service\_proc}}
+{\footnotesize\ttfamily \mbox{\hyperlink{dpu__offload__types_8h_a5b9e2bc4633b83b0a8d79d02860c97d2}{service\+\_\+proc\+\_\+t}} remote\+\_\+service\+\_\+proc\+\_\+info\+::service\+\_\+proc}
+
+\mbox{\Hypertarget{structremote__service__proc__info_a5f7f709ce0acd2cb4a12be2cd86d28dd}\label{structremote__service__proc__info_a5f7f709ce0acd2cb4a12be2cd86d28dd}} 
+\index{remote\_service\_proc\_info@{remote\_service\_proc\_info}!ucp\_worker@{ucp\_worker}}
+\index{ucp\_worker@{ucp\_worker}!remote\_service\_proc\_info@{remote\_service\_proc\_info}}
+\doxysubsubsection{\texorpdfstring{ucp\_worker}{ucp\_worker}}
+{\footnotesize\ttfamily ucp\+\_\+worker\+\_\+h remote\+\_\+service\+\_\+proc\+\_\+info\+::ucp\+\_\+worker}
+
+
+
+The documentation for this struct was generated from the following file\+:\begin{DoxyCompactItemize}
+\item 
+/home/gvallee/\+Projects/\+DPU\+\_\+offloading/dpu\+\_\+offload\+\_\+service/include/\mbox{\hyperlink{dpu__offload__types_8h}{dpu\+\_\+offload\+\_\+types.\+h}}\end{DoxyCompactItemize}

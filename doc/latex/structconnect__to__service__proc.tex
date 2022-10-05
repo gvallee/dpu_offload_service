@@ -1,0 +1,51 @@
+\hypertarget{structconnect__to__service__proc}{}\doxysection{connect\+\_\+to\+\_\+service\+\_\+proc Struct Reference}
+\label{structconnect__to__service__proc}\index{connect\_to\_service\_proc@{connect\_to\_service\_proc}}
+
+
+While the remote\+\_\+service\+\_\+proc\+\_\+info\+\_\+t structure is ready to be used as a list item, list items can only be on one list at a time and we need to track both the service processes per DPU, as well as the service processes to connect to. To avoid any problem, \mbox{\hyperlink{structconnect__to__service__proc}{connect\+\_\+to\+\_\+service\+\_\+proc}} is a container to be used with the list of service procs to connect to that holds a pointer to the service process structure that belongs to a remote\+\_\+dpu\+\_\+info\+\_\+t element.  
+
+
+
+
+{\ttfamily \#include $<$dpu\+\_\+offload\+\_\+types.\+h$>$}
+
+
+
+Collaboration diagram for connect\+\_\+to\+\_\+service\+\_\+proc\+:
+\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{structconnect__to__service__proc__coll__graph}
+\end{center}
+\end{figure}
+\doxysubsection*{Data Fields}
+\begin{DoxyCompactItemize}
+\item 
+ucs\+\_\+list\+\_\+link\+\_\+t \mbox{\hyperlink{structconnect__to__service__proc_acf75fb2640acd9ab9ca01796baf7308e}{item}}
+\item 
+\mbox{\hyperlink{dpu__offload__types_8h_a709bd88b064e6b5c79548ccd5f1b9798}{remote\+\_\+service\+\_\+proc\+\_\+info\+\_\+t}} $\ast$ \mbox{\hyperlink{structconnect__to__service__proc_a44bbab1703854901c579834e6ec2a0f8}{sp}}
+\end{DoxyCompactItemize}
+
+
+\doxysubsection{Detailed Description}
+While the remote\+\_\+service\+\_\+proc\+\_\+info\+\_\+t structure is ready to be used as a list item, list items can only be on one list at a time and we need to track both the service processes per DPU, as well as the service processes to connect to. To avoid any problem, \mbox{\hyperlink{structconnect__to__service__proc}{connect\+\_\+to\+\_\+service\+\_\+proc}} is a container to be used with the list of service procs to connect to that holds a pointer to the service process structure that belongs to a remote\+\_\+dpu\+\_\+info\+\_\+t element. 
+
+\doxysubsection{Field Documentation}
+\mbox{\Hypertarget{structconnect__to__service__proc_acf75fb2640acd9ab9ca01796baf7308e}\label{structconnect__to__service__proc_acf75fb2640acd9ab9ca01796baf7308e}} 
+\index{connect\_to\_service\_proc@{connect\_to\_service\_proc}!item@{item}}
+\index{item@{item}!connect\_to\_service\_proc@{connect\_to\_service\_proc}}
+\doxysubsubsection{\texorpdfstring{item}{item}}
+{\footnotesize\ttfamily ucs\+\_\+list\+\_\+link\+\_\+t connect\+\_\+to\+\_\+service\+\_\+proc\+::item}
+
+\mbox{\Hypertarget{structconnect__to__service__proc_a44bbab1703854901c579834e6ec2a0f8}\label{structconnect__to__service__proc_a44bbab1703854901c579834e6ec2a0f8}} 
+\index{connect\_to\_service\_proc@{connect\_to\_service\_proc}!sp@{sp}}
+\index{sp@{sp}!connect\_to\_service\_proc@{connect\_to\_service\_proc}}
+\doxysubsubsection{\texorpdfstring{sp}{sp}}
+{\footnotesize\ttfamily \mbox{\hyperlink{dpu__offload__types_8h_a709bd88b064e6b5c79548ccd5f1b9798}{remote\+\_\+service\+\_\+proc\+\_\+info\+\_\+t}}$\ast$ connect\+\_\+to\+\_\+service\+\_\+proc\+::sp}
+
+
+
+The documentation for this struct was generated from the following file\+:\begin{DoxyCompactItemize}
+\item 
+/home/gvallee/\+Projects/\+DPU\+\_\+offloading/dpu\+\_\+offload\+\_\+service/include/\mbox{\hyperlink{dpu__offload__types_8h}{dpu\+\_\+offload\+\_\+types.\+h}}\end{DoxyCompactItemize}

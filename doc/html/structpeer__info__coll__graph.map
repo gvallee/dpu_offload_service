@@ -1,0 +1,10 @@
+<map id="peer_info" name="peer_info">
+<area shape="rect" id="node1" title=" " alt="" coords="319,303,402,329"/>
+<area shape="rect" id="node2" href="$structrank__info.html" title=" " alt="" coords="74,213,157,240"/>
+<area shape="rect" id="node3" href="$structgroup__id.html" title=" " alt="" coords="5,95,84,121"/>
+<area shape="rect" id="node4" href="$structam__req.html" title="am_req_t is the structure used to track completion of a notification." alt="" coords="328,95,399,121"/>
+<area shape="rect" id="node6" href="$structboostrapping.html" title=" " alt="" coords="250,213,357,240"/>
+<area shape="rect" id="node5" href="$structam__header.html" title="am_header_t is the structure used to represent the header sent with UCX active messages" alt="" coords="316,5,411,32"/>
+<area shape="rect" id="node7" href="$structucx__context.html" title=" " alt="" coords="109,95,210,121"/>
+<area shape="rect" id="node8" href="$structdyn__array.html" title=" " alt="" coords="468,213,555,240"/>
+</map>

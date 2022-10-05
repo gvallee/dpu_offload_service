@@ -1,0 +1,325 @@
+\hypertarget{structoffloading__engine}{}\doxysection{offloading\+\_\+engine Struct Reference}
+\label{structoffloading__engine}\index{offloading\_engine@{offloading\_engine}}
+
+
+{\ttfamily \#include $<$dpu\+\_\+offload\+\_\+types.\+h$>$}
+
+
+
+Collaboration diagram for offloading\+\_\+engine\+:
+\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{structoffloading__engine__coll__graph}
+\end{center}
+\end{figure}
+\doxysubsection*{Data Fields}
+\begin{DoxyCompactItemize}
+\item 
+int \mbox{\hyperlink{structoffloading__engine_af8958e498364e6b32ed2e6655743f574}{done}}
+\item 
+struct \mbox{\hyperlink{structoffloading__config}{offloading\+\_\+config}} $\ast$ \mbox{\hyperlink{structoffloading__engine_ab49289f6624212e788d4135bd8c30686}{config}}
+\item 
+\begin{tabbing}
+xx\=xx\=xx\=xx\=xx\=xx\=xx\=xx\=xx\=\kill
+struct \{\\
+\>bool \mbox{\hyperlink{structoffloading__engine_a871f28285507e3ecd4602a9203bae6a9}{buddy\_buffer\_system\_enabled}}\\
+\>bool \mbox{\hyperlink{structoffloading__engine_ad7cee4f2cc985ba7d8149cf4c152be91}{ucx\_am\_backend\_enabled}}\\
+\} \mbox{\hyperlink{structoffloading__engine_aebf8b201400f7282f376ffc5f7f15d2f}{settings}}\\
+
+\end{tabbing}\item 
+\mbox{\hyperlink{dpu__offload__types_8h_ac95b2624b57c0005e3ca8a740316e5ab}{execution\+\_\+context\+\_\+t}} $\ast$ \mbox{\hyperlink{structoffloading__engine_aece97511588e63deea88e26d3bb62d12}{client}}
+\item 
+size\+\_\+t \mbox{\hyperlink{structoffloading__engine_a5a45a3e6884302ebee8bff0401bb5ac3}{num\+\_\+max\+\_\+servers}}
+\item 
+size\+\_\+t \mbox{\hyperlink{structoffloading__engine_ad515fa5c382e04acfb99c99796334f8e}{num\+\_\+servers}}
+\item 
+\mbox{\hyperlink{dpu__offload__types_8h_ac95b2624b57c0005e3ca8a740316e5ab}{execution\+\_\+context\+\_\+t}} $\ast$$\ast$ \mbox{\hyperlink{structoffloading__engine_a7f06efd9a5a9fff7ef0d40773b2ab27b}{servers}}
+\item 
+\mbox{\hyperlink{dpu__offload__types_8h_ac95b2624b57c0005e3ca8a740316e5ab}{execution\+\_\+context\+\_\+t}} $\ast$ \mbox{\hyperlink{structoffloading__engine_a32919bb3cd347e1c8ccdc3a9bf9b5c24}{self\+\_\+econtext}}
+\item 
+ucp\+\_\+worker\+\_\+h \mbox{\hyperlink{structoffloading__engine_ab31d141ab936a2c56ccdaa01b4f28a98}{ucp\+\_\+worker}}
+\item 
+bool \mbox{\hyperlink{structoffloading__engine_a460b6e8a9777b2e953640c859e2789be}{ucp\+\_\+worker\+\_\+allocated}}
+\item 
+ucp\+\_\+context\+\_\+h \mbox{\hyperlink{structoffloading__engine_a5ec66f9305e165c1ee71b811d35e84ff}{ucp\+\_\+context}}
+\item 
+bool \mbox{\hyperlink{structoffloading__engine_a62a1f0588b7a514e399527558cd028b5}{ucp\+\_\+context\+\_\+allocated}}
+\item 
+ucp\+\_\+ep\+\_\+h \mbox{\hyperlink{structoffloading__engine_ad7cfec415d776d70a6024cb4893e8251}{self\+\_\+ep}}
+\item 
+size\+\_\+t \mbox{\hyperlink{structoffloading__engine_a04a149f260a4f041e0a94d676e67474e}{num\+\_\+inter\+\_\+service\+\_\+proc\+\_\+clients}}
+\item 
+size\+\_\+t \mbox{\hyperlink{structoffloading__engine_ae69eb3b3019bdd5828ffc04a7d78206a}{num\+\_\+max\+\_\+inter\+\_\+service\+\_\+proc\+\_\+clients}}
+\item 
+\mbox{\hyperlink{dpu__offload__types_8h_aef5d31ec6adbef3159eb8fc440b3d00a}{remote\+\_\+service\+\_\+procs\+\_\+connect\+\_\+tracker\+\_\+t}} $\ast$ \mbox{\hyperlink{structoffloading__engine_a55ff2deb5c082af05e61418a2edcecc7}{inter\+\_\+service\+\_\+proc\+\_\+clients}}
+\item 
+size\+\_\+t \mbox{\hyperlink{structoffloading__engine_a827a66259f35738f808a63145dbfc284}{num\+\_\+registered\+\_\+ops}}
+\item 
+\mbox{\hyperlink{dpu__offload__types_8h_a1d9118cd58c87ce36be5efd43e09f6b8}{offload\+\_\+op\+\_\+t}} $\ast$ \mbox{\hyperlink{structoffloading__engine_a32e9c24a0e117ef0e329c9c9e4e581e6}{registered\+\_\+ops}}
+\item 
+\mbox{\hyperlink{dynamic__structs_8h_adb4673b92e39dc5bd73d30c30163a0d5}{dyn\+\_\+list\+\_\+t}} $\ast$ \mbox{\hyperlink{structoffloading__engine_a77a351cf1f4f2c8c0af2730e530b4426}{free\+\_\+op\+\_\+descs}}
+\item 
+\mbox{\hyperlink{dpu__offload__types_8h_abce0d54f5f8f4c5440cd524a574ad8eb}{cache\+\_\+t}} \mbox{\hyperlink{structoffloading__engine_aa0be6ce5b0c94b618672f742756af002}{procs\+\_\+cache}}
+\item 
+\mbox{\hyperlink{dynamic__structs_8h_adb4673b92e39dc5bd73d30c30163a0d5}{dyn\+\_\+list\+\_\+t}} $\ast$ \mbox{\hyperlink{structoffloading__engine_a44e9420c11a63a96f2f244cbda7715ae}{free\+\_\+cache\+\_\+entry\+\_\+requests}}
+\item 
+\mbox{\hyperlink{dynamic__structs_8h_adb4673b92e39dc5bd73d30c30163a0d5}{dyn\+\_\+list\+\_\+t}} $\ast$ \mbox{\hyperlink{structoffloading__engine_ab73161186f9c864cfcaa2edbbc86fd53}{pool\+\_\+conn\+\_\+params}}
+\item 
+\mbox{\hyperlink{dynamic__structs_8h_adb4673b92e39dc5bd73d30c30163a0d5}{dyn\+\_\+list\+\_\+t}} $\ast$ \mbox{\hyperlink{structoffloading__engine_a6e3cc7de5d2d4a59e16f66c077083b19}{pool\+\_\+remote\+\_\+dpu\+\_\+info}}
+\item 
+bool \mbox{\hyperlink{structoffloading__engine_a9ab2aba328cfd30b8325f76f9be9a01c}{on\+\_\+dpu}}
+\item 
+\mbox{\hyperlink{dynamic__structs_8h_aad9a80cfa65af5b2bc3eeb3abef9a1ed}{dyn\+\_\+array\+\_\+t}} \mbox{\hyperlink{structoffloading__engine_a3aa6176ddb788d60aace27fcde4402d4}{dpus}}
+\item 
+\mbox{\hyperlink{dynamic__structs_8h_aad9a80cfa65af5b2bc3eeb3abef9a1ed}{dyn\+\_\+array\+\_\+t}} \mbox{\hyperlink{structoffloading__engine_aa83f08c1fa7b35c109566c176ef5c3eb}{service\+\_\+procs}}
+\item 
+size\+\_\+t \mbox{\hyperlink{structoffloading__engine_a197607101ff540d627bd94c6894ad5fb}{num\+\_\+dpus}}
+\item 
+size\+\_\+t \mbox{\hyperlink{structoffloading__engine_af9524500bb23a4d7edddc146f66e23e3}{num\+\_\+service\+\_\+procs}}
+\item 
+size\+\_\+t \mbox{\hyperlink{structoffloading__engine_ad0ba673efba6377ef89bf89e30963963}{num\+\_\+connected\+\_\+service\+\_\+procs}}
+\item 
+\mbox{\hyperlink{dpu__offload__types_8h_a3393bcd64add76ae2292d8cb54c16fe6}{dpu\+\_\+offload\+\_\+ev\+\_\+sys\+\_\+t}} $\ast$ \mbox{\hyperlink{structoffloading__engine_a3a2f45f7a63852e32f9a8dc409cfbeff}{default\+\_\+notifications}}
+\item 
+size\+\_\+t \mbox{\hyperlink{structoffloading__engine_a375b91499bb743e924d10cfacb31c75d}{num\+\_\+default\+\_\+notifications}}
+\item 
+\mbox{\hyperlink{dynamic__structs_8h_ac0f88b8fbe096f78b3518e8aa979c402}{smart\+\_\+buffers\+\_\+t}} \mbox{\hyperlink{structoffloading__engine_a71def073060dc2ad95f539c0d9cc1224}{smart\+\_\+buffer\+\_\+sys}}
+\item 
+bool \mbox{\hyperlink{structoffloading__engine_ac6d534a243991f3f02836cf0cb9e8405}{use\+\_\+ucx\+\_\+am\+\_\+backend}}
+\item 
+\mbox{\hyperlink{dynamic__structs_8h_adb4673b92e39dc5bd73d30c30163a0d5}{dyn\+\_\+list\+\_\+t}} $\ast$ \mbox{\hyperlink{structoffloading__engine_ade13fe1633f4445be195a1b24936d499}{free\+\_\+pending\+\_\+rdv\+\_\+recv}}
+\item 
+ucs\+\_\+list\+\_\+link\+\_\+t \mbox{\hyperlink{structoffloading__engine_ab36097916f79cb1f2f0eab0570a45665}{pending\+\_\+rdv\+\_\+recvs}}
+\end{DoxyCompactItemize}
+
+
+\doxysubsection{Field Documentation}
+\mbox{\Hypertarget{structoffloading__engine_a871f28285507e3ecd4602a9203bae6a9}\label{structoffloading__engine_a871f28285507e3ecd4602a9203bae6a9}} 
+\index{offloading\_engine@{offloading\_engine}!buddy\_buffer\_system\_enabled@{buddy\_buffer\_system\_enabled}}
+\index{buddy\_buffer\_system\_enabled@{buddy\_buffer\_system\_enabled}!offloading\_engine@{offloading\_engine}}
+\doxysubsubsection{\texorpdfstring{buddy\_buffer\_system\_enabled}{buddy\_buffer\_system\_enabled}}
+{\footnotesize\ttfamily bool offloading\+\_\+engine\+::buddy\+\_\+buffer\+\_\+system\+\_\+enabled}
+
+\mbox{\Hypertarget{structoffloading__engine_aece97511588e63deea88e26d3bb62d12}\label{structoffloading__engine_aece97511588e63deea88e26d3bb62d12}} 
+\index{offloading\_engine@{offloading\_engine}!client@{client}}
+\index{client@{client}!offloading\_engine@{offloading\_engine}}
+\doxysubsubsection{\texorpdfstring{client}{client}}
+{\footnotesize\ttfamily \mbox{\hyperlink{dpu__offload__types_8h_ac95b2624b57c0005e3ca8a740316e5ab}{execution\+\_\+context\+\_\+t}}$\ast$ offloading\+\_\+engine\+::client}
+
+\mbox{\Hypertarget{structoffloading__engine_ab49289f6624212e788d4135bd8c30686}\label{structoffloading__engine_ab49289f6624212e788d4135bd8c30686}} 
+\index{offloading\_engine@{offloading\_engine}!config@{config}}
+\index{config@{config}!offloading\_engine@{offloading\_engine}}
+\doxysubsubsection{\texorpdfstring{config}{config}}
+{\footnotesize\ttfamily struct \mbox{\hyperlink{structoffloading__config}{offloading\+\_\+config}}$\ast$ offloading\+\_\+engine\+::config}
+
+\mbox{\Hypertarget{structoffloading__engine_a3a2f45f7a63852e32f9a8dc409cfbeff}\label{structoffloading__engine_a3a2f45f7a63852e32f9a8dc409cfbeff}} 
+\index{offloading\_engine@{offloading\_engine}!default\_notifications@{default\_notifications}}
+\index{default\_notifications@{default\_notifications}!offloading\_engine@{offloading\_engine}}
+\doxysubsubsection{\texorpdfstring{default\_notifications}{default\_notifications}}
+{\footnotesize\ttfamily \mbox{\hyperlink{dpu__offload__types_8h_a3393bcd64add76ae2292d8cb54c16fe6}{dpu\+\_\+offload\+\_\+ev\+\_\+sys\+\_\+t}}$\ast$ offloading\+\_\+engine\+::default\+\_\+notifications}
+
+\mbox{\Hypertarget{structoffloading__engine_af8958e498364e6b32ed2e6655743f574}\label{structoffloading__engine_af8958e498364e6b32ed2e6655743f574}} 
+\index{offloading\_engine@{offloading\_engine}!done@{done}}
+\index{done@{done}!offloading\_engine@{offloading\_engine}}
+\doxysubsubsection{\texorpdfstring{done}{done}}
+{\footnotesize\ttfamily int offloading\+\_\+engine\+::done}
+
+\mbox{\Hypertarget{structoffloading__engine_a3aa6176ddb788d60aace27fcde4402d4}\label{structoffloading__engine_a3aa6176ddb788d60aace27fcde4402d4}} 
+\index{offloading\_engine@{offloading\_engine}!dpus@{dpus}}
+\index{dpus@{dpus}!offloading\_engine@{offloading\_engine}}
+\doxysubsubsection{\texorpdfstring{dpus}{dpus}}
+{\footnotesize\ttfamily \mbox{\hyperlink{dynamic__structs_8h_aad9a80cfa65af5b2bc3eeb3abef9a1ed}{dyn\+\_\+array\+\_\+t}} offloading\+\_\+engine\+::dpus}
+
+\mbox{\Hypertarget{structoffloading__engine_a44e9420c11a63a96f2f244cbda7715ae}\label{structoffloading__engine_a44e9420c11a63a96f2f244cbda7715ae}} 
+\index{offloading\_engine@{offloading\_engine}!free\_cache\_entry\_requests@{free\_cache\_entry\_requests}}
+\index{free\_cache\_entry\_requests@{free\_cache\_entry\_requests}!offloading\_engine@{offloading\_engine}}
+\doxysubsubsection{\texorpdfstring{free\_cache\_entry\_requests}{free\_cache\_entry\_requests}}
+{\footnotesize\ttfamily \mbox{\hyperlink{dynamic__structs_8h_adb4673b92e39dc5bd73d30c30163a0d5}{dyn\+\_\+list\+\_\+t}}$\ast$ offloading\+\_\+engine\+::free\+\_\+cache\+\_\+entry\+\_\+requests}
+
+\mbox{\Hypertarget{structoffloading__engine_a77a351cf1f4f2c8c0af2730e530b4426}\label{structoffloading__engine_a77a351cf1f4f2c8c0af2730e530b4426}} 
+\index{offloading\_engine@{offloading\_engine}!free\_op\_descs@{free\_op\_descs}}
+\index{free\_op\_descs@{free\_op\_descs}!offloading\_engine@{offloading\_engine}}
+\doxysubsubsection{\texorpdfstring{free\_op\_descs}{free\_op\_descs}}
+{\footnotesize\ttfamily \mbox{\hyperlink{dynamic__structs_8h_adb4673b92e39dc5bd73d30c30163a0d5}{dyn\+\_\+list\+\_\+t}}$\ast$ offloading\+\_\+engine\+::free\+\_\+op\+\_\+descs}
+
+\mbox{\Hypertarget{structoffloading__engine_ade13fe1633f4445be195a1b24936d499}\label{structoffloading__engine_ade13fe1633f4445be195a1b24936d499}} 
+\index{offloading\_engine@{offloading\_engine}!free\_pending\_rdv\_recv@{free\_pending\_rdv\_recv}}
+\index{free\_pending\_rdv\_recv@{free\_pending\_rdv\_recv}!offloading\_engine@{offloading\_engine}}
+\doxysubsubsection{\texorpdfstring{free\_pending\_rdv\_recv}{free\_pending\_rdv\_recv}}
+{\footnotesize\ttfamily \mbox{\hyperlink{dynamic__structs_8h_adb4673b92e39dc5bd73d30c30163a0d5}{dyn\+\_\+list\+\_\+t}}$\ast$ offloading\+\_\+engine\+::free\+\_\+pending\+\_\+rdv\+\_\+recv}
+
+\mbox{\Hypertarget{structoffloading__engine_a55ff2deb5c082af05e61418a2edcecc7}\label{structoffloading__engine_a55ff2deb5c082af05e61418a2edcecc7}} 
+\index{offloading\_engine@{offloading\_engine}!inter\_service\_proc\_clients@{inter\_service\_proc\_clients}}
+\index{inter\_service\_proc\_clients@{inter\_service\_proc\_clients}!offloading\_engine@{offloading\_engine}}
+\doxysubsubsection{\texorpdfstring{inter\_service\_proc\_clients}{inter\_service\_proc\_clients}}
+{\footnotesize\ttfamily \mbox{\hyperlink{dpu__offload__types_8h_aef5d31ec6adbef3159eb8fc440b3d00a}{remote\+\_\+service\+\_\+procs\+\_\+connect\+\_\+tracker\+\_\+t}}$\ast$ offloading\+\_\+engine\+::inter\+\_\+service\+\_\+proc\+\_\+clients}
+
+\mbox{\Hypertarget{structoffloading__engine_ad0ba673efba6377ef89bf89e30963963}\label{structoffloading__engine_ad0ba673efba6377ef89bf89e30963963}} 
+\index{offloading\_engine@{offloading\_engine}!num\_connected\_service\_procs@{num\_connected\_service\_procs}}
+\index{num\_connected\_service\_procs@{num\_connected\_service\_procs}!offloading\_engine@{offloading\_engine}}
+\doxysubsubsection{\texorpdfstring{num\_connected\_service\_procs}{num\_connected\_service\_procs}}
+{\footnotesize\ttfamily size\+\_\+t offloading\+\_\+engine\+::num\+\_\+connected\+\_\+service\+\_\+procs}
+
+\mbox{\Hypertarget{structoffloading__engine_a375b91499bb743e924d10cfacb31c75d}\label{structoffloading__engine_a375b91499bb743e924d10cfacb31c75d}} 
+\index{offloading\_engine@{offloading\_engine}!num\_default\_notifications@{num\_default\_notifications}}
+\index{num\_default\_notifications@{num\_default\_notifications}!offloading\_engine@{offloading\_engine}}
+\doxysubsubsection{\texorpdfstring{num\_default\_notifications}{num\_default\_notifications}}
+{\footnotesize\ttfamily size\+\_\+t offloading\+\_\+engine\+::num\+\_\+default\+\_\+notifications}
+
+\mbox{\Hypertarget{structoffloading__engine_a197607101ff540d627bd94c6894ad5fb}\label{structoffloading__engine_a197607101ff540d627bd94c6894ad5fb}} 
+\index{offloading\_engine@{offloading\_engine}!num\_dpus@{num\_dpus}}
+\index{num\_dpus@{num\_dpus}!offloading\_engine@{offloading\_engine}}
+\doxysubsubsection{\texorpdfstring{num\_dpus}{num\_dpus}}
+{\footnotesize\ttfamily size\+\_\+t offloading\+\_\+engine\+::num\+\_\+dpus}
+
+\mbox{\Hypertarget{structoffloading__engine_a04a149f260a4f041e0a94d676e67474e}\label{structoffloading__engine_a04a149f260a4f041e0a94d676e67474e}} 
+\index{offloading\_engine@{offloading\_engine}!num\_inter\_service\_proc\_clients@{num\_inter\_service\_proc\_clients}}
+\index{num\_inter\_service\_proc\_clients@{num\_inter\_service\_proc\_clients}!offloading\_engine@{offloading\_engine}}
+\doxysubsubsection{\texorpdfstring{num\_inter\_service\_proc\_clients}{num\_inter\_service\_proc\_clients}}
+{\footnotesize\ttfamily size\+\_\+t offloading\+\_\+engine\+::num\+\_\+inter\+\_\+service\+\_\+proc\+\_\+clients}
+
+\mbox{\Hypertarget{structoffloading__engine_ae69eb3b3019bdd5828ffc04a7d78206a}\label{structoffloading__engine_ae69eb3b3019bdd5828ffc04a7d78206a}} 
+\index{offloading\_engine@{offloading\_engine}!num\_max\_inter\_service\_proc\_clients@{num\_max\_inter\_service\_proc\_clients}}
+\index{num\_max\_inter\_service\_proc\_clients@{num\_max\_inter\_service\_proc\_clients}!offloading\_engine@{offloading\_engine}}
+\doxysubsubsection{\texorpdfstring{num\_max\_inter\_service\_proc\_clients}{num\_max\_inter\_service\_proc\_clients}}
+{\footnotesize\ttfamily size\+\_\+t offloading\+\_\+engine\+::num\+\_\+max\+\_\+inter\+\_\+service\+\_\+proc\+\_\+clients}
+
+\mbox{\Hypertarget{structoffloading__engine_a5a45a3e6884302ebee8bff0401bb5ac3}\label{structoffloading__engine_a5a45a3e6884302ebee8bff0401bb5ac3}} 
+\index{offloading\_engine@{offloading\_engine}!num\_max\_servers@{num\_max\_servers}}
+\index{num\_max\_servers@{num\_max\_servers}!offloading\_engine@{offloading\_engine}}
+\doxysubsubsection{\texorpdfstring{num\_max\_servers}{num\_max\_servers}}
+{\footnotesize\ttfamily size\+\_\+t offloading\+\_\+engine\+::num\+\_\+max\+\_\+servers}
+
+\mbox{\Hypertarget{structoffloading__engine_a827a66259f35738f808a63145dbfc284}\label{structoffloading__engine_a827a66259f35738f808a63145dbfc284}} 
+\index{offloading\_engine@{offloading\_engine}!num\_registered\_ops@{num\_registered\_ops}}
+\index{num\_registered\_ops@{num\_registered\_ops}!offloading\_engine@{offloading\_engine}}
+\doxysubsubsection{\texorpdfstring{num\_registered\_ops}{num\_registered\_ops}}
+{\footnotesize\ttfamily size\+\_\+t offloading\+\_\+engine\+::num\+\_\+registered\+\_\+ops}
+
+\mbox{\Hypertarget{structoffloading__engine_ad515fa5c382e04acfb99c99796334f8e}\label{structoffloading__engine_ad515fa5c382e04acfb99c99796334f8e}} 
+\index{offloading\_engine@{offloading\_engine}!num\_servers@{num\_servers}}
+\index{num\_servers@{num\_servers}!offloading\_engine@{offloading\_engine}}
+\doxysubsubsection{\texorpdfstring{num\_servers}{num\_servers}}
+{\footnotesize\ttfamily size\+\_\+t offloading\+\_\+engine\+::num\+\_\+servers}
+
+\mbox{\Hypertarget{structoffloading__engine_af9524500bb23a4d7edddc146f66e23e3}\label{structoffloading__engine_af9524500bb23a4d7edddc146f66e23e3}} 
+\index{offloading\_engine@{offloading\_engine}!num\_service\_procs@{num\_service\_procs}}
+\index{num\_service\_procs@{num\_service\_procs}!offloading\_engine@{offloading\_engine}}
+\doxysubsubsection{\texorpdfstring{num\_service\_procs}{num\_service\_procs}}
+{\footnotesize\ttfamily size\+\_\+t offloading\+\_\+engine\+::num\+\_\+service\+\_\+procs}
+
+\mbox{\Hypertarget{structoffloading__engine_a9ab2aba328cfd30b8325f76f9be9a01c}\label{structoffloading__engine_a9ab2aba328cfd30b8325f76f9be9a01c}} 
+\index{offloading\_engine@{offloading\_engine}!on\_dpu@{on\_dpu}}
+\index{on\_dpu@{on\_dpu}!offloading\_engine@{offloading\_engine}}
+\doxysubsubsection{\texorpdfstring{on\_dpu}{on\_dpu}}
+{\footnotesize\ttfamily bool offloading\+\_\+engine\+::on\+\_\+dpu}
+
+\mbox{\Hypertarget{structoffloading__engine_ab36097916f79cb1f2f0eab0570a45665}\label{structoffloading__engine_ab36097916f79cb1f2f0eab0570a45665}} 
+\index{offloading\_engine@{offloading\_engine}!pending\_rdv\_recvs@{pending\_rdv\_recvs}}
+\index{pending\_rdv\_recvs@{pending\_rdv\_recvs}!offloading\_engine@{offloading\_engine}}
+\doxysubsubsection{\texorpdfstring{pending\_rdv\_recvs}{pending\_rdv\_recvs}}
+{\footnotesize\ttfamily ucs\+\_\+list\+\_\+link\+\_\+t offloading\+\_\+engine\+::pending\+\_\+rdv\+\_\+recvs}
+
+\mbox{\Hypertarget{structoffloading__engine_ab73161186f9c864cfcaa2edbbc86fd53}\label{structoffloading__engine_ab73161186f9c864cfcaa2edbbc86fd53}} 
+\index{offloading\_engine@{offloading\_engine}!pool\_conn\_params@{pool\_conn\_params}}
+\index{pool\_conn\_params@{pool\_conn\_params}!offloading\_engine@{offloading\_engine}}
+\doxysubsubsection{\texorpdfstring{pool\_conn\_params}{pool\_conn\_params}}
+{\footnotesize\ttfamily \mbox{\hyperlink{dynamic__structs_8h_adb4673b92e39dc5bd73d30c30163a0d5}{dyn\+\_\+list\+\_\+t}}$\ast$ offloading\+\_\+engine\+::pool\+\_\+conn\+\_\+params}
+
+\mbox{\Hypertarget{structoffloading__engine_a6e3cc7de5d2d4a59e16f66c077083b19}\label{structoffloading__engine_a6e3cc7de5d2d4a59e16f66c077083b19}} 
+\index{offloading\_engine@{offloading\_engine}!pool\_remote\_dpu\_info@{pool\_remote\_dpu\_info}}
+\index{pool\_remote\_dpu\_info@{pool\_remote\_dpu\_info}!offloading\_engine@{offloading\_engine}}
+\doxysubsubsection{\texorpdfstring{pool\_remote\_dpu\_info}{pool\_remote\_dpu\_info}}
+{\footnotesize\ttfamily \mbox{\hyperlink{dynamic__structs_8h_adb4673b92e39dc5bd73d30c30163a0d5}{dyn\+\_\+list\+\_\+t}}$\ast$ offloading\+\_\+engine\+::pool\+\_\+remote\+\_\+dpu\+\_\+info}
+
+\mbox{\Hypertarget{structoffloading__engine_aa0be6ce5b0c94b618672f742756af002}\label{structoffloading__engine_aa0be6ce5b0c94b618672f742756af002}} 
+\index{offloading\_engine@{offloading\_engine}!procs\_cache@{procs\_cache}}
+\index{procs\_cache@{procs\_cache}!offloading\_engine@{offloading\_engine}}
+\doxysubsubsection{\texorpdfstring{procs\_cache}{procs\_cache}}
+{\footnotesize\ttfamily \mbox{\hyperlink{dpu__offload__types_8h_abce0d54f5f8f4c5440cd524a574ad8eb}{cache\+\_\+t}} offloading\+\_\+engine\+::procs\+\_\+cache}
+
+\mbox{\Hypertarget{structoffloading__engine_a32e9c24a0e117ef0e329c9c9e4e581e6}\label{structoffloading__engine_a32e9c24a0e117ef0e329c9c9e4e581e6}} 
+\index{offloading\_engine@{offloading\_engine}!registered\_ops@{registered\_ops}}
+\index{registered\_ops@{registered\_ops}!offloading\_engine@{offloading\_engine}}
+\doxysubsubsection{\texorpdfstring{registered\_ops}{registered\_ops}}
+{\footnotesize\ttfamily \mbox{\hyperlink{dpu__offload__types_8h_a1d9118cd58c87ce36be5efd43e09f6b8}{offload\+\_\+op\+\_\+t}}$\ast$ offloading\+\_\+engine\+::registered\+\_\+ops}
+
+\mbox{\Hypertarget{structoffloading__engine_a32919bb3cd347e1c8ccdc3a9bf9b5c24}\label{structoffloading__engine_a32919bb3cd347e1c8ccdc3a9bf9b5c24}} 
+\index{offloading\_engine@{offloading\_engine}!self\_econtext@{self\_econtext}}
+\index{self\_econtext@{self\_econtext}!offloading\_engine@{offloading\_engine}}
+\doxysubsubsection{\texorpdfstring{self\_econtext}{self\_econtext}}
+{\footnotesize\ttfamily \mbox{\hyperlink{dpu__offload__types_8h_ac95b2624b57c0005e3ca8a740316e5ab}{execution\+\_\+context\+\_\+t}}$\ast$ offloading\+\_\+engine\+::self\+\_\+econtext}
+
+\mbox{\Hypertarget{structoffloading__engine_ad7cfec415d776d70a6024cb4893e8251}\label{structoffloading__engine_ad7cfec415d776d70a6024cb4893e8251}} 
+\index{offloading\_engine@{offloading\_engine}!self\_ep@{self\_ep}}
+\index{self\_ep@{self\_ep}!offloading\_engine@{offloading\_engine}}
+\doxysubsubsection{\texorpdfstring{self\_ep}{self\_ep}}
+{\footnotesize\ttfamily ucp\+\_\+ep\+\_\+h offloading\+\_\+engine\+::self\+\_\+ep}
+
+\mbox{\Hypertarget{structoffloading__engine_a7f06efd9a5a9fff7ef0d40773b2ab27b}\label{structoffloading__engine_a7f06efd9a5a9fff7ef0d40773b2ab27b}} 
+\index{offloading\_engine@{offloading\_engine}!servers@{servers}}
+\index{servers@{servers}!offloading\_engine@{offloading\_engine}}
+\doxysubsubsection{\texorpdfstring{servers}{servers}}
+{\footnotesize\ttfamily \mbox{\hyperlink{dpu__offload__types_8h_ac95b2624b57c0005e3ca8a740316e5ab}{execution\+\_\+context\+\_\+t}}$\ast$$\ast$ offloading\+\_\+engine\+::servers}
+
+\mbox{\Hypertarget{structoffloading__engine_aa83f08c1fa7b35c109566c176ef5c3eb}\label{structoffloading__engine_aa83f08c1fa7b35c109566c176ef5c3eb}} 
+\index{offloading\_engine@{offloading\_engine}!service\_procs@{service\_procs}}
+\index{service\_procs@{service\_procs}!offloading\_engine@{offloading\_engine}}
+\doxysubsubsection{\texorpdfstring{service\_procs}{service\_procs}}
+{\footnotesize\ttfamily \mbox{\hyperlink{dynamic__structs_8h_aad9a80cfa65af5b2bc3eeb3abef9a1ed}{dyn\+\_\+array\+\_\+t}} offloading\+\_\+engine\+::service\+\_\+procs}
+
+\mbox{\Hypertarget{structoffloading__engine_aebf8b201400f7282f376ffc5f7f15d2f}\label{structoffloading__engine_aebf8b201400f7282f376ffc5f7f15d2f}} 
+\index{offloading\_engine@{offloading\_engine}!settings@{settings}}
+\index{settings@{settings}!offloading\_engine@{offloading\_engine}}
+\doxysubsubsection{\texorpdfstring{}{}}
+{\footnotesize\ttfamily struct \{ ... \}  offloading\+\_\+engine\+::settings}
+
+\mbox{\Hypertarget{structoffloading__engine_a71def073060dc2ad95f539c0d9cc1224}\label{structoffloading__engine_a71def073060dc2ad95f539c0d9cc1224}} 
+\index{offloading\_engine@{offloading\_engine}!smart\_buffer\_sys@{smart\_buffer\_sys}}
+\index{smart\_buffer\_sys@{smart\_buffer\_sys}!offloading\_engine@{offloading\_engine}}
+\doxysubsubsection{\texorpdfstring{smart\_buffer\_sys}{smart\_buffer\_sys}}
+{\footnotesize\ttfamily \mbox{\hyperlink{dynamic__structs_8h_ac0f88b8fbe096f78b3518e8aa979c402}{smart\+\_\+buffers\+\_\+t}} offloading\+\_\+engine\+::smart\+\_\+buffer\+\_\+sys}
+
+\mbox{\Hypertarget{structoffloading__engine_a5ec66f9305e165c1ee71b811d35e84ff}\label{structoffloading__engine_a5ec66f9305e165c1ee71b811d35e84ff}} 
+\index{offloading\_engine@{offloading\_engine}!ucp\_context@{ucp\_context}}
+\index{ucp\_context@{ucp\_context}!offloading\_engine@{offloading\_engine}}
+\doxysubsubsection{\texorpdfstring{ucp\_context}{ucp\_context}}
+{\footnotesize\ttfamily ucp\+\_\+context\+\_\+h offloading\+\_\+engine\+::ucp\+\_\+context}
+
+\mbox{\Hypertarget{structoffloading__engine_a62a1f0588b7a514e399527558cd028b5}\label{structoffloading__engine_a62a1f0588b7a514e399527558cd028b5}} 
+\index{offloading\_engine@{offloading\_engine}!ucp\_context\_allocated@{ucp\_context\_allocated}}
+\index{ucp\_context\_allocated@{ucp\_context\_allocated}!offloading\_engine@{offloading\_engine}}
+\doxysubsubsection{\texorpdfstring{ucp\_context\_allocated}{ucp\_context\_allocated}}
+{\footnotesize\ttfamily bool offloading\+\_\+engine\+::ucp\+\_\+context\+\_\+allocated}
+
+\mbox{\Hypertarget{structoffloading__engine_ab31d141ab936a2c56ccdaa01b4f28a98}\label{structoffloading__engine_ab31d141ab936a2c56ccdaa01b4f28a98}} 
+\index{offloading\_engine@{offloading\_engine}!ucp\_worker@{ucp\_worker}}
+\index{ucp\_worker@{ucp\_worker}!offloading\_engine@{offloading\_engine}}
+\doxysubsubsection{\texorpdfstring{ucp\_worker}{ucp\_worker}}
+{\footnotesize\ttfamily ucp\+\_\+worker\+\_\+h offloading\+\_\+engine\+::ucp\+\_\+worker}
+
+\mbox{\Hypertarget{structoffloading__engine_a460b6e8a9777b2e953640c859e2789be}\label{structoffloading__engine_a460b6e8a9777b2e953640c859e2789be}} 
+\index{offloading\_engine@{offloading\_engine}!ucp\_worker\_allocated@{ucp\_worker\_allocated}}
+\index{ucp\_worker\_allocated@{ucp\_worker\_allocated}!offloading\_engine@{offloading\_engine}}
+\doxysubsubsection{\texorpdfstring{ucp\_worker\_allocated}{ucp\_worker\_allocated}}
+{\footnotesize\ttfamily bool offloading\+\_\+engine\+::ucp\+\_\+worker\+\_\+allocated}
+
+\mbox{\Hypertarget{structoffloading__engine_ad7cee4f2cc985ba7d8149cf4c152be91}\label{structoffloading__engine_ad7cee4f2cc985ba7d8149cf4c152be91}} 
+\index{offloading\_engine@{offloading\_engine}!ucx\_am\_backend\_enabled@{ucx\_am\_backend\_enabled}}
+\index{ucx\_am\_backend\_enabled@{ucx\_am\_backend\_enabled}!offloading\_engine@{offloading\_engine}}
+\doxysubsubsection{\texorpdfstring{ucx\_am\_backend\_enabled}{ucx\_am\_backend\_enabled}}
+{\footnotesize\ttfamily bool offloading\+\_\+engine\+::ucx\+\_\+am\+\_\+backend\+\_\+enabled}
+
+\mbox{\Hypertarget{structoffloading__engine_ac6d534a243991f3f02836cf0cb9e8405}\label{structoffloading__engine_ac6d534a243991f3f02836cf0cb9e8405}} 
+\index{offloading\_engine@{offloading\_engine}!use\_ucx\_am\_backend@{use\_ucx\_am\_backend}}
+\index{use\_ucx\_am\_backend@{use\_ucx\_am\_backend}!offloading\_engine@{offloading\_engine}}
+\doxysubsubsection{\texorpdfstring{use\_ucx\_am\_backend}{use\_ucx\_am\_backend}}
+{\footnotesize\ttfamily bool offloading\+\_\+engine\+::use\+\_\+ucx\+\_\+am\+\_\+backend}
+
+
+
+The documentation for this struct was generated from the following file\+:\begin{DoxyCompactItemize}
+\item 
+/home/gvallee/\+Projects/\+DPU\+\_\+offloading/dpu\+\_\+offload\+\_\+service/include/\mbox{\hyperlink{dpu__offload__types_8h}{dpu\+\_\+offload\+\_\+types.\+h}}\end{DoxyCompactItemize}

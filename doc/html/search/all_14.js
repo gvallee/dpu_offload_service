@@ -1,0 +1,19 @@
+var searchData=
+[
+  ['ucp_5fcontext_761',['ucp_context',['../structinit__params.html#ad5daef2960da3bc82a73de5150cb6aec',1,'init_params::ucp_context()'],['../structoffloading__engine.html#a5ec66f9305e165c1ee71b811d35e84ff',1,'offloading_engine::ucp_context()']]],
+  ['ucp_5fcontext_5fallocated_762',['ucp_context_allocated',['../structoffloading__engine.html#a62a1f0588b7a514e399527558cd028b5',1,'offloading_engine']]],
+  ['ucp_5fworker_763',['ucp_worker',['../structoffloading__engine.html#ab31d141ab936a2c56ccdaa01b4f28a98',1,'offloading_engine::ucp_worker()'],['../structremote__service__proc__info.html#a5f7f709ce0acd2cb4a12be2cd86d28dd',1,'remote_service_proc_info::ucp_worker()']]],
+  ['ucp_5fworker_5fallocated_764',['ucp_worker_allocated',['../structoffloading__engine.html#a460b6e8a9777b2e953640c859e2789be',1,'offloading_engine']]],
+  ['ucx_5faddr_5fmsg_765',['UCX_ADDR_MSG',['../dpu__offload__service__daemon_8c.html#ad8ac8f2bb9859015637caf3422d17324',1,'dpu_offload_service_daemon.c']]],
+  ['ucx_5fam_5fbackend_5fenabled_766',['ucx_am_backend_enabled',['../structoffloading__engine.html#ad7cee4f2cc985ba7d8149cf4c152be91',1,'offloading_engine']]],
+  ['ucx_5fconnect_5fdone_767',['UCX_CONNECT_DONE',['../dpu__offload__types_8h.html#aa1b8e77aa0ecc4f24f153d0b41594992ae6c04d9f60486cfca19ce88e4c7a0f9c',1,'dpu_offload_types.h']]],
+  ['ucx_5fcontext_768',['ucx_context',['../structucx__context.html',1,'']]],
+  ['ucx_5flistener_769',['ucx_listener',['../structdpu__offload__server__t.html#a83cbbeb5fb3da0ef178893af14823173',1,'dpu_offload_server_t::ucx_listener()'],['../structdpu__offload__client__t.html#ad7ff0f7e002d93e2faf478200ba75e8e',1,'dpu_offload_client_t::ucx_listener()']]],
+  ['ucx_5flistener_770',['UCX_LISTENER',['../dpu__offload__service__daemon_8h.html#a1141ba909c1592eee097396845088087ab5be948977760c833ff9b9c9cb068b25',1,'dpu_offload_service_daemon.h']]],
+  ['ucx_5fserver_5fctx_771',['ucx_server_ctx',['../structucx__server__ctx.html',1,'']]],
+  ['ucx_5fserver_5fctx_5ft_772',['ucx_server_ctx_t',['../dpu__offload__types_8h.html#af9e0f5f60e274c5b9f7df897c531f015',1,'dpu_offload_types.h']]],
+  ['use_5fam_5fimplem_773',['USE_AM_IMPLEM',['../dpu__offload__types_8h.html#a7d52bed75fc17e59ef2e073154178036',1,'dpu_offload_types.h']]],
+  ['use_5fucx_5fam_5fbackend_774',['use_ucx_am_backend',['../structoffloading__engine.html#ac6d534a243991f3f02836cf0cb9e8405',1,'offloading_engine']]],
+  ['user_5fcontext_775',['user_context',['../structdpu__offload__event.html#a6037e6e0531be6d04e632c66ceac7c1b',1,'dpu_offload_event']]],
+  ['user_5fdata_776',['user_data',['../structpending__am__rdv__recv.html#a498a0d723bca5a9f8cfb852ee7634fc8',1,'pending_am_rdv_recv']]]
+];

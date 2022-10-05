@@ -1,0 +1,78 @@
+\hypertarget{structoffload__config}{}\doxysection{offload\+\_\+config Struct Reference}
+\label{structoffload__config}\index{offload\_config@{offload\_config}}
+
+
+{\ttfamily \#include $<$dpu\+\_\+offload\+\_\+types.\+h$>$}
+
+
+
+Collaboration diagram for offload\+\_\+config\+:
+\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=193pt]{structoffload__config__coll__graph}
+\end{center}
+\end{figure}
+\doxysubsection*{Data Fields}
+\begin{DoxyCompactItemize}
+\item 
+\mbox{\hyperlink{dpu__offload__types_8h_ae639c83e0e0f736d7d0ccb6bfebb422b}{dpu\+\_\+offload\+\_\+state\+\_\+t}} \mbox{\hyperlink{structoffload__config_a418b6f3eb97fec813e637926a17c0735}{state}}
+\item 
+char $\ast$ \mbox{\hyperlink{structoffload__config_af17517f4dd5fd7d49952a932270b090b}{offload\+\_\+config\+\_\+file\+\_\+path}}
+\item 
+char $\ast$ \mbox{\hyperlink{structoffload__config_a2f9a418dbd309accc54095b4d69c9d03}{associated\+\_\+bluefield}}
+\item 
+bool \mbox{\hyperlink{structoffload__config_aed7a151a2b7f60205a141db936f1de3d}{with\+\_\+pmix}}
+\item 
+\begin{tabbing}
+xx\=xx\=xx\=xx\=xx\=xx\=xx\=xx\=xx\=\kill
+union \{\\
+\>\mbox{\hyperlink{dpu__offload__types_8h_abe592b60d72cdba366f0d465488bcdca}{pmix\_infrastructure\_t}} \mbox{\hyperlink{structoffload__config_a5ab8e37c9ed7536a2bf7a91b85216ae4}{pmix}}\\
+\} \mbox{\hyperlink{structoffload__config_afc82a1f07a6666a4bdb82e03d9914d40}{infra}}\\
+
+\end{tabbing}\end{DoxyCompactItemize}
+
+
+\doxysubsection{Field Documentation}
+\mbox{\Hypertarget{structoffload__config_a2f9a418dbd309accc54095b4d69c9d03}\label{structoffload__config_a2f9a418dbd309accc54095b4d69c9d03}} 
+\index{offload\_config@{offload\_config}!associated\_bluefield@{associated\_bluefield}}
+\index{associated\_bluefield@{associated\_bluefield}!offload\_config@{offload\_config}}
+\doxysubsubsection{\texorpdfstring{associated\_bluefield}{associated\_bluefield}}
+{\footnotesize\ttfamily char$\ast$ offload\+\_\+config\+::associated\+\_\+bluefield}
+
+\mbox{\Hypertarget{structoffload__config_afc82a1f07a6666a4bdb82e03d9914d40}\label{structoffload__config_afc82a1f07a6666a4bdb82e03d9914d40}} 
+\index{offload\_config@{offload\_config}!infra@{infra}}
+\index{infra@{infra}!offload\_config@{offload\_config}}
+\doxysubsubsection{\texorpdfstring{}{}}
+{\footnotesize\ttfamily union \{ ... \}  offload\+\_\+config\+::infra}
+
+\mbox{\Hypertarget{structoffload__config_af17517f4dd5fd7d49952a932270b090b}\label{structoffload__config_af17517f4dd5fd7d49952a932270b090b}} 
+\index{offload\_config@{offload\_config}!offload\_config\_file\_path@{offload\_config\_file\_path}}
+\index{offload\_config\_file\_path@{offload\_config\_file\_path}!offload\_config@{offload\_config}}
+\doxysubsubsection{\texorpdfstring{offload\_config\_file\_path}{offload\_config\_file\_path}}
+{\footnotesize\ttfamily char$\ast$ offload\+\_\+config\+::offload\+\_\+config\+\_\+file\+\_\+path}
+
+\mbox{\Hypertarget{structoffload__config_a5ab8e37c9ed7536a2bf7a91b85216ae4}\label{structoffload__config_a5ab8e37c9ed7536a2bf7a91b85216ae4}} 
+\index{offload\_config@{offload\_config}!pmix@{pmix}}
+\index{pmix@{pmix}!offload\_config@{offload\_config}}
+\doxysubsubsection{\texorpdfstring{pmix}{pmix}}
+{\footnotesize\ttfamily \mbox{\hyperlink{dpu__offload__types_8h_abe592b60d72cdba366f0d465488bcdca}{pmix\+\_\+infrastructure\+\_\+t}} offload\+\_\+config\+::pmix}
+
+\mbox{\Hypertarget{structoffload__config_a418b6f3eb97fec813e637926a17c0735}\label{structoffload__config_a418b6f3eb97fec813e637926a17c0735}} 
+\index{offload\_config@{offload\_config}!state@{state}}
+\index{state@{state}!offload\_config@{offload\_config}}
+\doxysubsubsection{\texorpdfstring{state}{state}}
+{\footnotesize\ttfamily \mbox{\hyperlink{dpu__offload__types_8h_ae639c83e0e0f736d7d0ccb6bfebb422b}{dpu\+\_\+offload\+\_\+state\+\_\+t}} offload\+\_\+config\+::state}
+
+\mbox{\Hypertarget{structoffload__config_aed7a151a2b7f60205a141db936f1de3d}\label{structoffload__config_aed7a151a2b7f60205a141db936f1de3d}} 
+\index{offload\_config@{offload\_config}!with\_pmix@{with\_pmix}}
+\index{with\_pmix@{with\_pmix}!offload\_config@{offload\_config}}
+\doxysubsubsection{\texorpdfstring{with\_pmix}{with\_pmix}}
+{\footnotesize\ttfamily bool offload\+\_\+config\+::with\+\_\+pmix}
+
+
+
+The documentation for this struct was generated from the following file\+:\begin{DoxyCompactItemize}
+\item 
+/home/gvallee/\+Projects/\+DPU\+\_\+offloading/dpu\+\_\+offload\+\_\+service/include/\mbox{\hyperlink{dpu__offload__types_8h}{dpu\+\_\+offload\+\_\+types.\+h}}\end{DoxyCompactItemize}

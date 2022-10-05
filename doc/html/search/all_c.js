@@ -1,0 +1,21 @@
+var searchData=
+[
+  ['make_5frecv_5ftag_424',['MAKE_RECV_TAG',['../dpu__offload__comms_8h.html#a2ed83ce36989607f11b4f989b8cfc3e3',1,'dpu_offload_comms.h']]],
+  ['make_5fsend_5ftag_425',['MAKE_SEND_TAG',['../dpu__offload__comms_8h.html#a4fbd1f0a4d602e6cef9885d3c33cb80b',1,'dpu_offload_comms.h']]],
+  ['make_5ftag_426',['MAKE_TAG',['../dpu__offload__comms_8h.html#ad2b02498b66b0c766688bf0ce1f49861',1,'dpu_offload_comms.h']]],
+  ['manage_5fpayload_5fbuf_427',['manage_payload_buf',['../structdpu__offload__event.html#a21f04b43c04b8df72892c86cd9fcf641',1,'dpu_offload_event']]],
+  ['max_5faddr_5flen_428',['MAX_ADDR_LEN',['../dpu__offload__types_8h.html#a9d64033e83a9e020108fb078fd35fc4a',1,'dpu_offload_types.h']]],
+  ['max_5fcache_5fentries_5fper_5fproc_429',['MAX_CACHE_ENTRIES_PER_PROC',['../dpu__offload__service__daemon_8c.html#a5bea922f66b8f0d13a8d29d06a07f715',1,'dpu_offload_service_daemon.c']]],
+  ['max_5fgroups_430',['MAX_GROUPS',['../dpu__offload__mem__mgt_8h.html#a36d20ba74425036fd66f863bb89adeda',1,'dpu_offload_mem_mgt.h']]],
+  ['max_5fposted_5fsends_431',['MAX_POSTED_SENDS',['../dpu__offload__comms_8h.html#aa26f5f7dab640aa4af7c71fc02c069ca',1,'dpu_offload_comms.h']]],
+  ['max_5fshadow_5fservice_5fprocs_432',['MAX_SHADOW_SERVICE_PROCS',['../dpu__offload__types_8h.html#ae703b924862338ec4490d8af863d73b6',1,'dpu_offload_types.h']]],
+  ['max_5fsize_433',['max_size',['../structsmart__bucket.html#ae54452aeedfd2bfc18939cc8827bdcd2',1,'smart_bucket']]],
+  ['mem_5fchunk_434',['mem_chunk',['../structmem__chunk.html',1,'']]],
+  ['mem_5fchunk_5ft_435',['mem_chunk_t',['../dynamic__structs_8h.html#adccb9c116f47faedb3af11d17cffb42e',1,'dynamic_structs.h']]],
+  ['mem_5fchunks_436',['mem_chunks',['../structdyn__list.html#adb625a7aed01523cb666c5df4f5ac9f3',1,'dyn_list']]],
+  ['mem_5fpool_437',['mem_pool',['../structnotification__info.html#a561906ae8a2bcf4abc178ec03390e814',1,'notification_info']]],
+  ['meta_5fevent_5ftype_438',['META_EVENT_TYPE',['../dpu__offload__types_8h.html#afc5071308dce72f0c9412e061ae3ed4fa930432ed5263fb9aed410a1fe7dcb647',1,'dpu_offload_types.h']]],
+  ['min_5fsize_439',['min_size',['../structsmart__bucket.html#a0523238b016a1c329b930ff44e11769d',1,'smart_bucket']]],
+  ['mode_440',['mode',['../structdpu__offload__server__t.html#a73fbe9c81daf8163243ea90f09a294d9',1,'dpu_offload_server_t::mode()'],['../structdpu__offload__client__t.html#ab7df4b9842f2f0689593f744de0e35ea',1,'dpu_offload_client_t::mode()']]],
+  ['my_5fhostname_441',['my_hostname',['../structdebug__config.html#a985f7dc750328849311723dd8d8b28a9',1,'debug_config']]]
+];

@@ -1,0 +1,91 @@
+\hypertarget{structpeer__cache__entry}{}\doxysection{peer\+\_\+cache\+\_\+entry Struct Reference}
+\label{structpeer__cache__entry}\index{peer\_cache\_entry@{peer\_cache\_entry}}
+
+
+{\ttfamily \#include $<$dpu\+\_\+offload\+\_\+types.\+h$>$}
+
+
+
+Collaboration diagram for peer\+\_\+cache\+\_\+entry\+:
+\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=234pt]{structpeer__cache__entry__coll__graph}
+\end{center}
+\end{figure}
+\doxysubsection*{Data Fields}
+\begin{DoxyCompactItemize}
+\item 
+bool \mbox{\hyperlink{structpeer__cache__entry_a0f0be303524b7a30185b1d6abefa774b}{set}}
+\item 
+\mbox{\hyperlink{dpu__offload__types_8h_a1c455f141a1d59e3e758337c4a5f27eb}{peer\+\_\+data\+\_\+t}} \mbox{\hyperlink{structpeer__cache__entry_a9b3cc35687f5fd226922238a1c4f0e7b}{peer}}
+\item 
+uint64\+\_\+t \mbox{\hyperlink{structpeer__cache__entry_a9188059647115453b4eae37c10e25a18}{client\+\_\+id}}
+\item 
+ucp\+\_\+ep\+\_\+h \mbox{\hyperlink{structpeer__cache__entry_a3d777b5cbbb6ac1e3d624e4f2628b94b}{ep}}
+\item 
+size\+\_\+t \mbox{\hyperlink{structpeer__cache__entry_aaa8dbfc5a4c0981ec226c573beb5d209}{num\+\_\+shadow\+\_\+service\+\_\+procs}}
+\item 
+uint64\+\_\+t \mbox{\hyperlink{structpeer__cache__entry_a0e164d87b419b1b2be9159fa99b9f04f}{shadow\+\_\+service\+\_\+procs}} \mbox{[}\mbox{\hyperlink{dpu__offload__types_8h_ae703b924862338ec4490d8af863d73b6}{MAX\+\_\+\+SHADOW\+\_\+\+SERVICE\+\_\+\+PROCS}}\mbox{]}
+\item 
+bool \mbox{\hyperlink{structpeer__cache__entry_ad397812496dbc32582b1558c9707d0d2}{events\+\_\+initialized}}
+\item 
+\mbox{\hyperlink{dynamic__structs_8h_a2dbc507ba858bb998999c26be4458daa}{simple\+\_\+list\+\_\+t}} \mbox{\hyperlink{structpeer__cache__entry_a17323bd1d49b52b8af14b281a89b68c5}{events}}
+\end{DoxyCompactItemize}
+
+
+\doxysubsection{Field Documentation}
+\mbox{\Hypertarget{structpeer__cache__entry_a9188059647115453b4eae37c10e25a18}\label{structpeer__cache__entry_a9188059647115453b4eae37c10e25a18}} 
+\index{peer\_cache\_entry@{peer\_cache\_entry}!client\_id@{client\_id}}
+\index{client\_id@{client\_id}!peer\_cache\_entry@{peer\_cache\_entry}}
+\doxysubsubsection{\texorpdfstring{client\_id}{client\_id}}
+{\footnotesize\ttfamily uint64\+\_\+t peer\+\_\+cache\+\_\+entry\+::client\+\_\+id}
+
+\mbox{\Hypertarget{structpeer__cache__entry_a3d777b5cbbb6ac1e3d624e4f2628b94b}\label{structpeer__cache__entry_a3d777b5cbbb6ac1e3d624e4f2628b94b}} 
+\index{peer\_cache\_entry@{peer\_cache\_entry}!ep@{ep}}
+\index{ep@{ep}!peer\_cache\_entry@{peer\_cache\_entry}}
+\doxysubsubsection{\texorpdfstring{ep}{ep}}
+{\footnotesize\ttfamily ucp\+\_\+ep\+\_\+h peer\+\_\+cache\+\_\+entry\+::ep}
+
+\mbox{\Hypertarget{structpeer__cache__entry_a17323bd1d49b52b8af14b281a89b68c5}\label{structpeer__cache__entry_a17323bd1d49b52b8af14b281a89b68c5}} 
+\index{peer\_cache\_entry@{peer\_cache\_entry}!events@{events}}
+\index{events@{events}!peer\_cache\_entry@{peer\_cache\_entry}}
+\doxysubsubsection{\texorpdfstring{events}{events}}
+{\footnotesize\ttfamily \mbox{\hyperlink{dynamic__structs_8h_a2dbc507ba858bb998999c26be4458daa}{simple\+\_\+list\+\_\+t}} peer\+\_\+cache\+\_\+entry\+::events}
+
+\mbox{\Hypertarget{structpeer__cache__entry_ad397812496dbc32582b1558c9707d0d2}\label{structpeer__cache__entry_ad397812496dbc32582b1558c9707d0d2}} 
+\index{peer\_cache\_entry@{peer\_cache\_entry}!events\_initialized@{events\_initialized}}
+\index{events\_initialized@{events\_initialized}!peer\_cache\_entry@{peer\_cache\_entry}}
+\doxysubsubsection{\texorpdfstring{events\_initialized}{events\_initialized}}
+{\footnotesize\ttfamily bool peer\+\_\+cache\+\_\+entry\+::events\+\_\+initialized}
+
+\mbox{\Hypertarget{structpeer__cache__entry_aaa8dbfc5a4c0981ec226c573beb5d209}\label{structpeer__cache__entry_aaa8dbfc5a4c0981ec226c573beb5d209}} 
+\index{peer\_cache\_entry@{peer\_cache\_entry}!num\_shadow\_service\_procs@{num\_shadow\_service\_procs}}
+\index{num\_shadow\_service\_procs@{num\_shadow\_service\_procs}!peer\_cache\_entry@{peer\_cache\_entry}}
+\doxysubsubsection{\texorpdfstring{num\_shadow\_service\_procs}{num\_shadow\_service\_procs}}
+{\footnotesize\ttfamily size\+\_\+t peer\+\_\+cache\+\_\+entry\+::num\+\_\+shadow\+\_\+service\+\_\+procs}
+
+\mbox{\Hypertarget{structpeer__cache__entry_a9b3cc35687f5fd226922238a1c4f0e7b}\label{structpeer__cache__entry_a9b3cc35687f5fd226922238a1c4f0e7b}} 
+\index{peer\_cache\_entry@{peer\_cache\_entry}!peer@{peer}}
+\index{peer@{peer}!peer\_cache\_entry@{peer\_cache\_entry}}
+\doxysubsubsection{\texorpdfstring{peer}{peer}}
+{\footnotesize\ttfamily \mbox{\hyperlink{dpu__offload__types_8h_a1c455f141a1d59e3e758337c4a5f27eb}{peer\+\_\+data\+\_\+t}} peer\+\_\+cache\+\_\+entry\+::peer}
+
+\mbox{\Hypertarget{structpeer__cache__entry_a0f0be303524b7a30185b1d6abefa774b}\label{structpeer__cache__entry_a0f0be303524b7a30185b1d6abefa774b}} 
+\index{peer\_cache\_entry@{peer\_cache\_entry}!set@{set}}
+\index{set@{set}!peer\_cache\_entry@{peer\_cache\_entry}}
+\doxysubsubsection{\texorpdfstring{set}{set}}
+{\footnotesize\ttfamily bool peer\+\_\+cache\+\_\+entry\+::set}
+
+\mbox{\Hypertarget{structpeer__cache__entry_a0e164d87b419b1b2be9159fa99b9f04f}\label{structpeer__cache__entry_a0e164d87b419b1b2be9159fa99b9f04f}} 
+\index{peer\_cache\_entry@{peer\_cache\_entry}!shadow\_service\_procs@{shadow\_service\_procs}}
+\index{shadow\_service\_procs@{shadow\_service\_procs}!peer\_cache\_entry@{peer\_cache\_entry}}
+\doxysubsubsection{\texorpdfstring{shadow\_service\_procs}{shadow\_service\_procs}}
+{\footnotesize\ttfamily uint64\+\_\+t peer\+\_\+cache\+\_\+entry\+::shadow\+\_\+service\+\_\+procs\mbox{[}\mbox{\hyperlink{dpu__offload__types_8h_ae703b924862338ec4490d8af863d73b6}{MAX\+\_\+\+SHADOW\+\_\+\+SERVICE\+\_\+\+PROCS}}\mbox{]}}
+
+
+
+The documentation for this struct was generated from the following file\+:\begin{DoxyCompactItemize}
+\item 
+/home/gvallee/\+Projects/\+DPU\+\_\+offloading/dpu\+\_\+offload\+\_\+service/include/\mbox{\hyperlink{dpu__offload__types_8h}{dpu\+\_\+offload\+\_\+types.\+h}}\end{DoxyCompactItemize}

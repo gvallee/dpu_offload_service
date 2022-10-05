@@ -1,0 +1,221 @@
+\hypertarget{structdpu__offload__event}{}\doxysection{dpu\+\_\+offload\+\_\+event Struct Reference}
+\label{structdpu__offload__event}\index{dpu\_offload\_event@{dpu\_offload\_event}}
+
+
+dpu\+\_\+offload\+\_\+event\+\_\+t represents an event, i.\+e., the implementation of a notification  
+
+
+
+
+{\ttfamily \#include $<$dpu\+\_\+offload\+\_\+types.\+h$>$}
+
+
+
+Collaboration diagram for dpu\+\_\+offload\+\_\+event\+:
+\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{structdpu__offload__event__coll__graph}
+\end{center}
+\end{figure}
+\doxysubsection*{Data Fields}
+\begin{DoxyCompactItemize}
+\item 
+ucs\+\_\+list\+\_\+link\+\_\+t \mbox{\hyperlink{structdpu__offload__event_ab7fd250f545ecc7393d7e40a610a4012}{item}}
+\item 
+uint64\+\_\+t \mbox{\hyperlink{structdpu__offload__event_ae48838dc151f926c22056ca500c79284}{seq\+\_\+num}}
+\item 
+\mbox{\hyperlink{dpu__offload__types_8h_a72628297afac67c30bc29297b5033ff0}{am\+\_\+req\+\_\+t}} \mbox{\hyperlink{structdpu__offload__event_aa50255408a9f9cb14c4b8e9875fe9cc4}{ctx}}
+\item 
+int \mbox{\hyperlink{structdpu__offload__event_a7858f8329e7f0db363064bece0ac61ed}{scope\+\_\+id}}
+\item 
+uint64\+\_\+t \mbox{\hyperlink{structdpu__offload__event_a36750ac104c3652ad22992d0b5606104}{client\+\_\+id}}
+\item 
+uint64\+\_\+t \mbox{\hyperlink{structdpu__offload__event_a3fc027cde7c1aa1060a3f88c15b09094}{server\+\_\+id}}
+\item 
+ucs\+\_\+list\+\_\+link\+\_\+t \mbox{\hyperlink{structdpu__offload__event_a26d6ac7ab2ecce4e1d2dc51278ed4972}{sub\+\_\+events}}
+\item 
+bool \mbox{\hyperlink{structdpu__offload__event_aa6b9f16313ddd6551c917cdd24b1cf4d}{sub\+\_\+events\+\_\+initialized}}
+\item 
+bool \mbox{\hyperlink{structdpu__offload__event_a76584363043e98a16f22a8c9400262bf}{is\+\_\+subevent}}
+\item 
+bool \mbox{\hyperlink{structdpu__offload__event_a7c4c3bad14a40a50a47b181590f0d36a}{is\+\_\+ongoing\+\_\+event}}
+\item 
+bool \mbox{\hyperlink{structdpu__offload__event_a6739ca885c46f6271b8abdebe9d0bf9c}{was\+\_\+posted}}
+\item 
+void $\ast$ \mbox{\hyperlink{structdpu__offload__event_a1296bf62c5203408c4810fc5967dfa67}{req}}
+\item 
+void $\ast$ \mbox{\hyperlink{structdpu__offload__event_aed3eedd8b262b0117983582dbc16079f}{context}}
+\item 
+void $\ast$ \mbox{\hyperlink{structdpu__offload__event_aedb2c8985e1ec58a0ba07e1f13e14027}{data}}
+\item 
+void $\ast$ \mbox{\hyperlink{structdpu__offload__event_a6037e6e0531be6d04e632c66ceac7c1b}{user\+\_\+context}}
+\item 
+bool \mbox{\hyperlink{structdpu__offload__event_aa9dce0b6e427dcd0d0159b5cfe34247f}{explicit\+\_\+return}}
+\item 
+bool \mbox{\hyperlink{structdpu__offload__event_a21f04b43c04b8df72892c86cd9fcf641}{manage\+\_\+payload\+\_\+buf}}
+\item 
+void $\ast$ \mbox{\hyperlink{structdpu__offload__event_a6b2903c98eacc79ed0ab50358fda3e3b}{payload}}
+\item 
+\begin{tabbing}
+xx\=xx\=xx\=xx\=xx\=xx\=xx\=xx\=xx\=\kill
+struct \{\\
+\>ucp\_ep\_h \mbox{\hyperlink{structdpu__offload__event_a8ef5170fcc3a80e5fb2daff08026ca92}{ep}}\\
+\>uint64\_t \mbox{\hyperlink{structdpu__offload__event_a93ff90e8d02c9427c768c1eacfc34831}{id}}\\
+\} \mbox{\hyperlink{structdpu__offload__event_a4003e3d28903fecef4a2d122582f4a8b}{dest}}\\
+
+\end{tabbing}\item 
+\mbox{\hyperlink{dpu__offload__types_8h_a3393bcd64add76ae2292d8cb54c16fe6}{dpu\+\_\+offload\+\_\+ev\+\_\+sys\+\_\+t}} $\ast$ \mbox{\hyperlink{structdpu__offload__event_a1108ac06412c22bbb8445d385fdea220}{event\+\_\+system}}
+\item 
+\mbox{\hyperlink{dpu__offload__types_8h_a9814ec7d07717e4fe56a4083ff5ecce6}{notification\+\_\+info\+\_\+t}} \mbox{\hyperlink{structdpu__offload__event_a460d455ccda29565765f8f81c0169d99}{info}}
+\end{DoxyCompactItemize}
+
+
+\doxysubsection{Detailed Description}
+dpu\+\_\+offload\+\_\+event\+\_\+t represents an event, i.\+e., the implementation of a notification 
+
+\doxysubsection{Field Documentation}
+\mbox{\Hypertarget{structdpu__offload__event_a36750ac104c3652ad22992d0b5606104}\label{structdpu__offload__event_a36750ac104c3652ad22992d0b5606104}} 
+\index{dpu\_offload\_event@{dpu\_offload\_event}!client\_id@{client\_id}}
+\index{client\_id@{client\_id}!dpu\_offload\_event@{dpu\_offload\_event}}
+\doxysubsubsection{\texorpdfstring{client\_id}{client\_id}}
+{\footnotesize\ttfamily uint64\+\_\+t dpu\+\_\+offload\+\_\+event\+::client\+\_\+id}
+
+\mbox{\Hypertarget{structdpu__offload__event_aed3eedd8b262b0117983582dbc16079f}\label{structdpu__offload__event_aed3eedd8b262b0117983582dbc16079f}} 
+\index{dpu\_offload\_event@{dpu\_offload\_event}!context@{context}}
+\index{context@{context}!dpu\_offload\_event@{dpu\_offload\_event}}
+\doxysubsubsection{\texorpdfstring{context}{context}}
+{\footnotesize\ttfamily void$\ast$ dpu\+\_\+offload\+\_\+event\+::context}
+
+\mbox{\Hypertarget{structdpu__offload__event_aa50255408a9f9cb14c4b8e9875fe9cc4}\label{structdpu__offload__event_aa50255408a9f9cb14c4b8e9875fe9cc4}} 
+\index{dpu\_offload\_event@{dpu\_offload\_event}!ctx@{ctx}}
+\index{ctx@{ctx}!dpu\_offload\_event@{dpu\_offload\_event}}
+\doxysubsubsection{\texorpdfstring{ctx}{ctx}}
+{\footnotesize\ttfamily \mbox{\hyperlink{dpu__offload__types_8h_a72628297afac67c30bc29297b5033ff0}{am\+\_\+req\+\_\+t}} dpu\+\_\+offload\+\_\+event\+::ctx}
+
+\mbox{\Hypertarget{structdpu__offload__event_aedb2c8985e1ec58a0ba07e1f13e14027}\label{structdpu__offload__event_aedb2c8985e1ec58a0ba07e1f13e14027}} 
+\index{dpu\_offload\_event@{dpu\_offload\_event}!data@{data}}
+\index{data@{data}!dpu\_offload\_event@{dpu\_offload\_event}}
+\doxysubsubsection{\texorpdfstring{data}{data}}
+{\footnotesize\ttfamily void$\ast$ dpu\+\_\+offload\+\_\+event\+::data}
+
+\mbox{\Hypertarget{structdpu__offload__event_a4003e3d28903fecef4a2d122582f4a8b}\label{structdpu__offload__event_a4003e3d28903fecef4a2d122582f4a8b}} 
+\index{dpu\_offload\_event@{dpu\_offload\_event}!dest@{dest}}
+\index{dest@{dest}!dpu\_offload\_event@{dpu\_offload\_event}}
+\doxysubsubsection{\texorpdfstring{}{}}
+{\footnotesize\ttfamily struct \{ ... \}  dpu\+\_\+offload\+\_\+event\+::dest}
+
+\mbox{\Hypertarget{structdpu__offload__event_a8ef5170fcc3a80e5fb2daff08026ca92}\label{structdpu__offload__event_a8ef5170fcc3a80e5fb2daff08026ca92}} 
+\index{dpu\_offload\_event@{dpu\_offload\_event}!ep@{ep}}
+\index{ep@{ep}!dpu\_offload\_event@{dpu\_offload\_event}}
+\doxysubsubsection{\texorpdfstring{ep}{ep}}
+{\footnotesize\ttfamily ucp\+\_\+ep\+\_\+h dpu\+\_\+offload\+\_\+event\+::ep}
+
+\mbox{\Hypertarget{structdpu__offload__event_a1108ac06412c22bbb8445d385fdea220}\label{structdpu__offload__event_a1108ac06412c22bbb8445d385fdea220}} 
+\index{dpu\_offload\_event@{dpu\_offload\_event}!event\_system@{event\_system}}
+\index{event\_system@{event\_system}!dpu\_offload\_event@{dpu\_offload\_event}}
+\doxysubsubsection{\texorpdfstring{event\_system}{event\_system}}
+{\footnotesize\ttfamily \mbox{\hyperlink{dpu__offload__types_8h_a3393bcd64add76ae2292d8cb54c16fe6}{dpu\+\_\+offload\+\_\+ev\+\_\+sys\+\_\+t}}$\ast$ dpu\+\_\+offload\+\_\+event\+::event\+\_\+system}
+
+\mbox{\Hypertarget{structdpu__offload__event_aa9dce0b6e427dcd0d0159b5cfe34247f}\label{structdpu__offload__event_aa9dce0b6e427dcd0d0159b5cfe34247f}} 
+\index{dpu\_offload\_event@{dpu\_offload\_event}!explicit\_return@{explicit\_return}}
+\index{explicit\_return@{explicit\_return}!dpu\_offload\_event@{dpu\_offload\_event}}
+\doxysubsubsection{\texorpdfstring{explicit\_return}{explicit\_return}}
+{\footnotesize\ttfamily bool dpu\+\_\+offload\+\_\+event\+::explicit\+\_\+return}
+
+\mbox{\Hypertarget{structdpu__offload__event_a93ff90e8d02c9427c768c1eacfc34831}\label{structdpu__offload__event_a93ff90e8d02c9427c768c1eacfc34831}} 
+\index{dpu\_offload\_event@{dpu\_offload\_event}!id@{id}}
+\index{id@{id}!dpu\_offload\_event@{dpu\_offload\_event}}
+\doxysubsubsection{\texorpdfstring{id}{id}}
+{\footnotesize\ttfamily uint64\+\_\+t dpu\+\_\+offload\+\_\+event\+::id}
+
+\mbox{\Hypertarget{structdpu__offload__event_a460d455ccda29565765f8f81c0169d99}\label{structdpu__offload__event_a460d455ccda29565765f8f81c0169d99}} 
+\index{dpu\_offload\_event@{dpu\_offload\_event}!info@{info}}
+\index{info@{info}!dpu\_offload\_event@{dpu\_offload\_event}}
+\doxysubsubsection{\texorpdfstring{info}{info}}
+{\footnotesize\ttfamily \mbox{\hyperlink{dpu__offload__types_8h_a9814ec7d07717e4fe56a4083ff5ecce6}{notification\+\_\+info\+\_\+t}} dpu\+\_\+offload\+\_\+event\+::info}
+
+\mbox{\Hypertarget{structdpu__offload__event_a7c4c3bad14a40a50a47b181590f0d36a}\label{structdpu__offload__event_a7c4c3bad14a40a50a47b181590f0d36a}} 
+\index{dpu\_offload\_event@{dpu\_offload\_event}!is\_ongoing\_event@{is\_ongoing\_event}}
+\index{is\_ongoing\_event@{is\_ongoing\_event}!dpu\_offload\_event@{dpu\_offload\_event}}
+\doxysubsubsection{\texorpdfstring{is\_ongoing\_event}{is\_ongoing\_event}}
+{\footnotesize\ttfamily bool dpu\+\_\+offload\+\_\+event\+::is\+\_\+ongoing\+\_\+event}
+
+\mbox{\Hypertarget{structdpu__offload__event_a76584363043e98a16f22a8c9400262bf}\label{structdpu__offload__event_a76584363043e98a16f22a8c9400262bf}} 
+\index{dpu\_offload\_event@{dpu\_offload\_event}!is\_subevent@{is\_subevent}}
+\index{is\_subevent@{is\_subevent}!dpu\_offload\_event@{dpu\_offload\_event}}
+\doxysubsubsection{\texorpdfstring{is\_subevent}{is\_subevent}}
+{\footnotesize\ttfamily bool dpu\+\_\+offload\+\_\+event\+::is\+\_\+subevent}
+
+\mbox{\Hypertarget{structdpu__offload__event_ab7fd250f545ecc7393d7e40a610a4012}\label{structdpu__offload__event_ab7fd250f545ecc7393d7e40a610a4012}} 
+\index{dpu\_offload\_event@{dpu\_offload\_event}!item@{item}}
+\index{item@{item}!dpu\_offload\_event@{dpu\_offload\_event}}
+\doxysubsubsection{\texorpdfstring{item}{item}}
+{\footnotesize\ttfamily ucs\+\_\+list\+\_\+link\+\_\+t dpu\+\_\+offload\+\_\+event\+::item}
+
+\mbox{\Hypertarget{structdpu__offload__event_a21f04b43c04b8df72892c86cd9fcf641}\label{structdpu__offload__event_a21f04b43c04b8df72892c86cd9fcf641}} 
+\index{dpu\_offload\_event@{dpu\_offload\_event}!manage\_payload\_buf@{manage\_payload\_buf}}
+\index{manage\_payload\_buf@{manage\_payload\_buf}!dpu\_offload\_event@{dpu\_offload\_event}}
+\doxysubsubsection{\texorpdfstring{manage\_payload\_buf}{manage\_payload\_buf}}
+{\footnotesize\ttfamily bool dpu\+\_\+offload\+\_\+event\+::manage\+\_\+payload\+\_\+buf}
+
+\mbox{\Hypertarget{structdpu__offload__event_a6b2903c98eacc79ed0ab50358fda3e3b}\label{structdpu__offload__event_a6b2903c98eacc79ed0ab50358fda3e3b}} 
+\index{dpu\_offload\_event@{dpu\_offload\_event}!payload@{payload}}
+\index{payload@{payload}!dpu\_offload\_event@{dpu\_offload\_event}}
+\doxysubsubsection{\texorpdfstring{payload}{payload}}
+{\footnotesize\ttfamily void$\ast$ dpu\+\_\+offload\+\_\+event\+::payload}
+
+\mbox{\Hypertarget{structdpu__offload__event_a1296bf62c5203408c4810fc5967dfa67}\label{structdpu__offload__event_a1296bf62c5203408c4810fc5967dfa67}} 
+\index{dpu\_offload\_event@{dpu\_offload\_event}!req@{req}}
+\index{req@{req}!dpu\_offload\_event@{dpu\_offload\_event}}
+\doxysubsubsection{\texorpdfstring{req}{req}}
+{\footnotesize\ttfamily void$\ast$ dpu\+\_\+offload\+\_\+event\+::req}
+
+\mbox{\Hypertarget{structdpu__offload__event_a7858f8329e7f0db363064bece0ac61ed}\label{structdpu__offload__event_a7858f8329e7f0db363064bece0ac61ed}} 
+\index{dpu\_offload\_event@{dpu\_offload\_event}!scope\_id@{scope\_id}}
+\index{scope\_id@{scope\_id}!dpu\_offload\_event@{dpu\_offload\_event}}
+\doxysubsubsection{\texorpdfstring{scope\_id}{scope\_id}}
+{\footnotesize\ttfamily int dpu\+\_\+offload\+\_\+event\+::scope\+\_\+id}
+
+\mbox{\Hypertarget{structdpu__offload__event_ae48838dc151f926c22056ca500c79284}\label{structdpu__offload__event_ae48838dc151f926c22056ca500c79284}} 
+\index{dpu\_offload\_event@{dpu\_offload\_event}!seq\_num@{seq\_num}}
+\index{seq\_num@{seq\_num}!dpu\_offload\_event@{dpu\_offload\_event}}
+\doxysubsubsection{\texorpdfstring{seq\_num}{seq\_num}}
+{\footnotesize\ttfamily uint64\+\_\+t dpu\+\_\+offload\+\_\+event\+::seq\+\_\+num}
+
+\mbox{\Hypertarget{structdpu__offload__event_a3fc027cde7c1aa1060a3f88c15b09094}\label{structdpu__offload__event_a3fc027cde7c1aa1060a3f88c15b09094}} 
+\index{dpu\_offload\_event@{dpu\_offload\_event}!server\_id@{server\_id}}
+\index{server\_id@{server\_id}!dpu\_offload\_event@{dpu\_offload\_event}}
+\doxysubsubsection{\texorpdfstring{server\_id}{server\_id}}
+{\footnotesize\ttfamily uint64\+\_\+t dpu\+\_\+offload\+\_\+event\+::server\+\_\+id}
+
+\mbox{\Hypertarget{structdpu__offload__event_a26d6ac7ab2ecce4e1d2dc51278ed4972}\label{structdpu__offload__event_a26d6ac7ab2ecce4e1d2dc51278ed4972}} 
+\index{dpu\_offload\_event@{dpu\_offload\_event}!sub\_events@{sub\_events}}
+\index{sub\_events@{sub\_events}!dpu\_offload\_event@{dpu\_offload\_event}}
+\doxysubsubsection{\texorpdfstring{sub\_events}{sub\_events}}
+{\footnotesize\ttfamily ucs\+\_\+list\+\_\+link\+\_\+t dpu\+\_\+offload\+\_\+event\+::sub\+\_\+events}
+
+\mbox{\Hypertarget{structdpu__offload__event_aa6b9f16313ddd6551c917cdd24b1cf4d}\label{structdpu__offload__event_aa6b9f16313ddd6551c917cdd24b1cf4d}} 
+\index{dpu\_offload\_event@{dpu\_offload\_event}!sub\_events\_initialized@{sub\_events\_initialized}}
+\index{sub\_events\_initialized@{sub\_events\_initialized}!dpu\_offload\_event@{dpu\_offload\_event}}
+\doxysubsubsection{\texorpdfstring{sub\_events\_initialized}{sub\_events\_initialized}}
+{\footnotesize\ttfamily bool dpu\+\_\+offload\+\_\+event\+::sub\+\_\+events\+\_\+initialized}
+
+\mbox{\Hypertarget{structdpu__offload__event_a6037e6e0531be6d04e632c66ceac7c1b}\label{structdpu__offload__event_a6037e6e0531be6d04e632c66ceac7c1b}} 
+\index{dpu\_offload\_event@{dpu\_offload\_event}!user\_context@{user\_context}}
+\index{user\_context@{user\_context}!dpu\_offload\_event@{dpu\_offload\_event}}
+\doxysubsubsection{\texorpdfstring{user\_context}{user\_context}}
+{\footnotesize\ttfamily void$\ast$ dpu\+\_\+offload\+\_\+event\+::user\+\_\+context}
+
+\mbox{\Hypertarget{structdpu__offload__event_a6739ca885c46f6271b8abdebe9d0bf9c}\label{structdpu__offload__event_a6739ca885c46f6271b8abdebe9d0bf9c}} 
+\index{dpu\_offload\_event@{dpu\_offload\_event}!was\_posted@{was\_posted}}
+\index{was\_posted@{was\_posted}!dpu\_offload\_event@{dpu\_offload\_event}}
+\doxysubsubsection{\texorpdfstring{was\_posted}{was\_posted}}
+{\footnotesize\ttfamily bool dpu\+\_\+offload\+\_\+event\+::was\+\_\+posted}
+
+
+
+The documentation for this struct was generated from the following file\+:\begin{DoxyCompactItemize}
+\item 
+/home/gvallee/\+Projects/\+DPU\+\_\+offloading/dpu\+\_\+offload\+\_\+service/include/\mbox{\hyperlink{dpu__offload__types_8h}{dpu\+\_\+offload\+\_\+types.\+h}}\end{DoxyCompactItemize}

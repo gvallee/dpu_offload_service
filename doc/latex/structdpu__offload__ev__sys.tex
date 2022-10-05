@@ -1,0 +1,91 @@
+\hypertarget{structdpu__offload__ev__sys}{}\doxysection{dpu\+\_\+offload\+\_\+ev\+\_\+sys Struct Reference}
+\label{structdpu__offload__ev__sys}\index{dpu\_offload\_ev\_sys@{dpu\_offload\_ev\_sys}}
+
+
+dpu\+\_\+offload\+\_\+ev\+\_\+sys\+\_\+t is the structure representing the event system used to implement notifications.  
+
+
+
+
+{\ttfamily \#include $<$dpu\+\_\+offload\+\_\+types.\+h$>$}
+
+
+
+Collaboration diagram for dpu\+\_\+offload\+\_\+ev\+\_\+sys\+:
+\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{structdpu__offload__ev__sys__coll__graph}
+\end{center}
+\end{figure}
+\doxysubsection*{Data Fields}
+\begin{DoxyCompactItemize}
+\item 
+\mbox{\hyperlink{dynamic__structs_8h_adb4673b92e39dc5bd73d30c30163a0d5}{dyn\+\_\+list\+\_\+t}} $\ast$ \mbox{\hyperlink{structdpu__offload__ev__sys_a514265dafb34715b9fc04525ff5d2c21}{free\+\_\+evs}}
+\item 
+size\+\_\+t \mbox{\hyperlink{structdpu__offload__ev__sys_acf2e0df99c03dcbe194a1be95cc97d3d}{num\+\_\+used\+\_\+evs}}
+\item 
+size\+\_\+t \mbox{\hyperlink{structdpu__offload__ev__sys_a3fb4e1855ba1fce9a39af1019254f0cf}{posted\+\_\+sends}}
+\item 
+ucs\+\_\+list\+\_\+link\+\_\+t \mbox{\hyperlink{structdpu__offload__ev__sys_a1384f1f1e07b40e4bfba63d0ef27b78d}{pending\+\_\+notifications}}
+\item 
+\mbox{\hyperlink{dynamic__structs_8h_adb4673b92e39dc5bd73d30c30163a0d5}{dyn\+\_\+list\+\_\+t}} $\ast$ \mbox{\hyperlink{structdpu__offload__ev__sys_af10b07acac8be0c3c5640c25ba800ac0}{free\+\_\+pending\+\_\+notifications}}
+\item 
+\mbox{\hyperlink{dynamic__structs_8h_aad9a80cfa65af5b2bc3eeb3abef9a1ed}{dyn\+\_\+array\+\_\+t}} \mbox{\hyperlink{structdpu__offload__ev__sys_af0279286e0ae77f9a67fef8feefdb02b}{notification\+\_\+callbacks}}
+\item 
+struct \mbox{\hyperlink{structexecution__context}{execution\+\_\+context}} $\ast$ \mbox{\hyperlink{structdpu__offload__ev__sys_a46dcc2a402e807ca4a2c86de0acf6aef}{econtext}}
+\end{DoxyCompactItemize}
+
+
+\doxysubsection{Detailed Description}
+dpu\+\_\+offload\+\_\+ev\+\_\+sys\+\_\+t is the structure representing the event system used to implement notifications. 
+
+\doxysubsection{Field Documentation}
+\mbox{\Hypertarget{structdpu__offload__ev__sys_a46dcc2a402e807ca4a2c86de0acf6aef}\label{structdpu__offload__ev__sys_a46dcc2a402e807ca4a2c86de0acf6aef}} 
+\index{dpu\_offload\_ev\_sys@{dpu\_offload\_ev\_sys}!econtext@{econtext}}
+\index{econtext@{econtext}!dpu\_offload\_ev\_sys@{dpu\_offload\_ev\_sys}}
+\doxysubsubsection{\texorpdfstring{econtext}{econtext}}
+{\footnotesize\ttfamily struct \mbox{\hyperlink{structexecution__context}{execution\+\_\+context}}$\ast$ dpu\+\_\+offload\+\_\+ev\+\_\+sys\+::econtext}
+
+\mbox{\Hypertarget{structdpu__offload__ev__sys_a514265dafb34715b9fc04525ff5d2c21}\label{structdpu__offload__ev__sys_a514265dafb34715b9fc04525ff5d2c21}} 
+\index{dpu\_offload\_ev\_sys@{dpu\_offload\_ev\_sys}!free\_evs@{free\_evs}}
+\index{free\_evs@{free\_evs}!dpu\_offload\_ev\_sys@{dpu\_offload\_ev\_sys}}
+\doxysubsubsection{\texorpdfstring{free\_evs}{free\_evs}}
+{\footnotesize\ttfamily \mbox{\hyperlink{dynamic__structs_8h_adb4673b92e39dc5bd73d30c30163a0d5}{dyn\+\_\+list\+\_\+t}}$\ast$ dpu\+\_\+offload\+\_\+ev\+\_\+sys\+::free\+\_\+evs}
+
+\mbox{\Hypertarget{structdpu__offload__ev__sys_af10b07acac8be0c3c5640c25ba800ac0}\label{structdpu__offload__ev__sys_af10b07acac8be0c3c5640c25ba800ac0}} 
+\index{dpu\_offload\_ev\_sys@{dpu\_offload\_ev\_sys}!free\_pending\_notifications@{free\_pending\_notifications}}
+\index{free\_pending\_notifications@{free\_pending\_notifications}!dpu\_offload\_ev\_sys@{dpu\_offload\_ev\_sys}}
+\doxysubsubsection{\texorpdfstring{free\_pending\_notifications}{free\_pending\_notifications}}
+{\footnotesize\ttfamily \mbox{\hyperlink{dynamic__structs_8h_adb4673b92e39dc5bd73d30c30163a0d5}{dyn\+\_\+list\+\_\+t}}$\ast$ dpu\+\_\+offload\+\_\+ev\+\_\+sys\+::free\+\_\+pending\+\_\+notifications}
+
+\mbox{\Hypertarget{structdpu__offload__ev__sys_af0279286e0ae77f9a67fef8feefdb02b}\label{structdpu__offload__ev__sys_af0279286e0ae77f9a67fef8feefdb02b}} 
+\index{dpu\_offload\_ev\_sys@{dpu\_offload\_ev\_sys}!notification\_callbacks@{notification\_callbacks}}
+\index{notification\_callbacks@{notification\_callbacks}!dpu\_offload\_ev\_sys@{dpu\_offload\_ev\_sys}}
+\doxysubsubsection{\texorpdfstring{notification\_callbacks}{notification\_callbacks}}
+{\footnotesize\ttfamily \mbox{\hyperlink{dynamic__structs_8h_aad9a80cfa65af5b2bc3eeb3abef9a1ed}{dyn\+\_\+array\+\_\+t}} dpu\+\_\+offload\+\_\+ev\+\_\+sys\+::notification\+\_\+callbacks}
+
+\mbox{\Hypertarget{structdpu__offload__ev__sys_acf2e0df99c03dcbe194a1be95cc97d3d}\label{structdpu__offload__ev__sys_acf2e0df99c03dcbe194a1be95cc97d3d}} 
+\index{dpu\_offload\_ev\_sys@{dpu\_offload\_ev\_sys}!num\_used\_evs@{num\_used\_evs}}
+\index{num\_used\_evs@{num\_used\_evs}!dpu\_offload\_ev\_sys@{dpu\_offload\_ev\_sys}}
+\doxysubsubsection{\texorpdfstring{num\_used\_evs}{num\_used\_evs}}
+{\footnotesize\ttfamily size\+\_\+t dpu\+\_\+offload\+\_\+ev\+\_\+sys\+::num\+\_\+used\+\_\+evs}
+
+\mbox{\Hypertarget{structdpu__offload__ev__sys_a1384f1f1e07b40e4bfba63d0ef27b78d}\label{structdpu__offload__ev__sys_a1384f1f1e07b40e4bfba63d0ef27b78d}} 
+\index{dpu\_offload\_ev\_sys@{dpu\_offload\_ev\_sys}!pending\_notifications@{pending\_notifications}}
+\index{pending\_notifications@{pending\_notifications}!dpu\_offload\_ev\_sys@{dpu\_offload\_ev\_sys}}
+\doxysubsubsection{\texorpdfstring{pending\_notifications}{pending\_notifications}}
+{\footnotesize\ttfamily ucs\+\_\+list\+\_\+link\+\_\+t dpu\+\_\+offload\+\_\+ev\+\_\+sys\+::pending\+\_\+notifications}
+
+\mbox{\Hypertarget{structdpu__offload__ev__sys_a3fb4e1855ba1fce9a39af1019254f0cf}\label{structdpu__offload__ev__sys_a3fb4e1855ba1fce9a39af1019254f0cf}} 
+\index{dpu\_offload\_ev\_sys@{dpu\_offload\_ev\_sys}!posted\_sends@{posted\_sends}}
+\index{posted\_sends@{posted\_sends}!dpu\_offload\_ev\_sys@{dpu\_offload\_ev\_sys}}
+\doxysubsubsection{\texorpdfstring{posted\_sends}{posted\_sends}}
+{\footnotesize\ttfamily size\+\_\+t dpu\+\_\+offload\+\_\+ev\+\_\+sys\+::posted\+\_\+sends}
+
+
+
+The documentation for this struct was generated from the following file\+:\begin{DoxyCompactItemize}
+\item 
+/home/gvallee/\+Projects/\+DPU\+\_\+offloading/dpu\+\_\+offload\+\_\+service/include/\mbox{\hyperlink{dpu__offload__types_8h}{dpu\+\_\+offload\+\_\+types.\+h}}\end{DoxyCompactItemize}

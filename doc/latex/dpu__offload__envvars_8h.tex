@@ -1,0 +1,120 @@
+\hypertarget{dpu__offload__envvars_8h}{}\doxysection{/home/gvallee/\+Projects/\+DPU\+\_\+offloading/dpu\+\_\+offload\+\_\+service/include/dpu\+\_\+offload\+\_\+envvars.h File Reference}
+\label{dpu__offload__envvars_8h}\index{/home/gvallee/Projects/DPU\_offloading/dpu\_offload\_service/include/dpu\_offload\_envvars.h@{/home/gvallee/Projects/DPU\_offloading/dpu\_offload\_service/include/dpu\_offload\_envvars.h}}
+This graph shows which files directly or indirectly include this file\+:
+\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{dpu__offload__envvars_8h__dep__incl}
+\end{center}
+\end{figure}
+\doxysubsection*{Macros}
+\begin{DoxyCompactItemize}
+\item 
+\#define \mbox{\hyperlink{dpu__offload__envvars_8h_af5816eb3089840b5cbbd694c03bce9b8}{OFFLOAD\+\_\+\+CONFIG\+\_\+\+FILE\+\_\+\+PATH\+\_\+\+ENVVAR}}~\char`\"{}OFFLOAD\+\_\+\+CONFIG\+\_\+\+FILE\+\_\+\+PATH\char`\"{}
+\item 
+\#define \mbox{\hyperlink{dpu__offload__envvars_8h_aff1111512a2b7b41e8b9985fa61a8921}{BLUEFIELD\+\_\+\+NODE\+\_\+\+NAME\+\_\+\+ENVVAR}}~\char`\"{}BLUEFIELD\+\_\+\+NODE\+\_\+\+NAME\char`\"{}
+\item 
+\#define \mbox{\hyperlink{dpu__offload__envvars_8h_a643e60ea42f0e9d644af9fb24b4699fb}{SERVER\+\_\+\+PORT\+\_\+\+ENVVAR}}~\char`\"{}DPU\+\_\+\+OFFLOAD\+\_\+\+SERVER\+\_\+\+PORT\char`\"{}
+\item 
+\#define \mbox{\hyperlink{dpu__offload__envvars_8h_ae1c2c7d7c333c528b9337cd9c6f89975}{SERVER\+\_\+\+IP\+\_\+\+ADDR\+\_\+\+ENVVAR}}~\char`\"{}DPU\+\_\+\+OFFLOAD\+\_\+\+SERVER\+\_\+\+ADDR\char`\"{}
+\item 
+\#define \mbox{\hyperlink{dpu__offload__envvars_8h_ae3a43acb095203788503f1d0483ffa30}{INTER\+\_\+\+DPU\+\_\+\+ADDR\+\_\+\+ENVVAR}}~\char`\"{}INTER\+\_\+\+DPU\+\_\+\+CONN\+\_\+\+ADDR\char`\"{}
+\item 
+\#define \mbox{\hyperlink{dpu__offload__envvars_8h_a639ea802cf59ff7e0ec7d59350301ffc}{INTER\+\_\+\+DPU\+\_\+\+PORT\+\_\+\+ENVVAR}}~\char`\"{}INTER\+\_\+\+DPU\+\_\+\+CONN\+\_\+\+PORT\char`\"{}
+\item 
+\#define \mbox{\hyperlink{dpu__offload__envvars_8h_a2afbbaf6c485d8af5480452ab25aefa3}{LIST\+\_\+\+DPUS\+\_\+\+ENVVAR}}~\char`\"{}DPU\+\_\+\+OFFLOAD\+\_\+\+LIST\+\_\+\+DPUS\char`\"{}
+\begin{DoxyCompactList}\small\item\em Environment variable defining the list of DPUs to be used for offloading. When used, it should be the exact same list for all DPUs to be used. \end{DoxyCompactList}\item 
+\#define \mbox{\hyperlink{dpu__offload__envvars_8h_af083bde587f0738f8662e7e1de571651}{DPU\+\_\+\+OFFLOAD\+\_\+\+SERVICE\+\_\+\+PROCESS\+\_\+\+GLOBAL\+\_\+\+ID\+\_\+\+ENVVAR}}~\char`\"{}DPU\+\_\+\+OFFLOAD\+\_\+\+SERVICE\+\_\+\+PROCESS\+\_\+\+GLOBAL\+\_\+\+ID\char`\"{}
+\begin{DoxyCompactList}\small\item\em Environment variable defining the global ID of the service process. It should be only in the context of a service process and will be used, in conjunction with the list of DPUs to determine the configuration. If not defined, it is assumed that a single service process is running on the DPU. \end{DoxyCompactList}\item 
+\#define \mbox{\hyperlink{dpu__offload__envvars_8h_a288964a593cc48c79d561a437309202d}{DPU\+\_\+\+OFFLOAD\+\_\+\+SERVICE\+\_\+\+PROCESS\+\_\+\+LOCAL\+\_\+\+ID\+\_\+\+ENVVAR}}~\char`\"{}DPU\+\_\+\+OFFLOAD\+\_\+\+SERVICE\+\_\+\+PROCESS\+\_\+\+LOCAL\+\_\+\+ID\char`\"{}
+\begin{DoxyCompactList}\small\item\em Environment variable defining the local ID of the service process. If not defined, it is assumed that a single service process is running on the DPU. \end{DoxyCompactList}\item 
+\#define \mbox{\hyperlink{dpu__offload__envvars_8h_a744a3938c9e26b8fe2d208c41eafd724}{DPU\+\_\+\+OFFLOAD\+\_\+\+SERVICE\+\_\+\+PROCESSES\+\_\+\+PER\+\_\+\+DPU\+\_\+\+ENVVAR}}~\char`\"{}DPU\+\_\+\+OFFLOAD\+\_\+\+SERVICE\+\_\+\+PROCESSES\+\_\+\+PER\+\_\+\+DPU\char`\"{}
+\begin{DoxyCompactList}\small\item\em Environment variable defining the number of service processes per DPU. At the moment, it is assumed that the same number of service processes are running on all DPUs. \end{DoxyCompactList}\item 
+\#define \mbox{\hyperlink{dpu__offload__envvars_8h_a342858620cd11d52e8e029b12be40e17}{DPU\+\_\+\+OFFLOAD\+\_\+\+DBG\+\_\+\+VERBOSE}}~\char`\"{}DPU\+\_\+\+OFFLOAD\+\_\+\+DBG\+\_\+\+VERBOSE\char`\"{}
+\end{DoxyCompactItemize}
+
+
+\doxysubsection{Macro Definition Documentation}
+\mbox{\Hypertarget{dpu__offload__envvars_8h_aff1111512a2b7b41e8b9985fa61a8921}\label{dpu__offload__envvars_8h_aff1111512a2b7b41e8b9985fa61a8921}} 
+\index{dpu\_offload\_envvars.h@{dpu\_offload\_envvars.h}!BLUEFIELD\_NODE\_NAME\_ENVVAR@{BLUEFIELD\_NODE\_NAME\_ENVVAR}}
+\index{BLUEFIELD\_NODE\_NAME\_ENVVAR@{BLUEFIELD\_NODE\_NAME\_ENVVAR}!dpu\_offload\_envvars.h@{dpu\_offload\_envvars.h}}
+\doxysubsubsection{\texorpdfstring{BLUEFIELD\_NODE\_NAME\_ENVVAR}{BLUEFIELD\_NODE\_NAME\_ENVVAR}}
+{\footnotesize\ttfamily \#define BLUEFIELD\+\_\+\+NODE\+\_\+\+NAME\+\_\+\+ENVVAR~\char`\"{}BLUEFIELD\+\_\+\+NODE\+\_\+\+NAME\char`\"{}}
+
+\mbox{\Hypertarget{dpu__offload__envvars_8h_a342858620cd11d52e8e029b12be40e17}\label{dpu__offload__envvars_8h_a342858620cd11d52e8e029b12be40e17}} 
+\index{dpu\_offload\_envvars.h@{dpu\_offload\_envvars.h}!DPU\_OFFLOAD\_DBG\_VERBOSE@{DPU\_OFFLOAD\_DBG\_VERBOSE}}
+\index{DPU\_OFFLOAD\_DBG\_VERBOSE@{DPU\_OFFLOAD\_DBG\_VERBOSE}!dpu\_offload\_envvars.h@{dpu\_offload\_envvars.h}}
+\doxysubsubsection{\texorpdfstring{DPU\_OFFLOAD\_DBG\_VERBOSE}{DPU\_OFFLOAD\_DBG\_VERBOSE}}
+{\footnotesize\ttfamily \#define DPU\+\_\+\+OFFLOAD\+\_\+\+DBG\+\_\+\+VERBOSE~\char`\"{}DPU\+\_\+\+OFFLOAD\+\_\+\+DBG\+\_\+\+VERBOSE\char`\"{}}
+
+\mbox{\Hypertarget{dpu__offload__envvars_8h_af083bde587f0738f8662e7e1de571651}\label{dpu__offload__envvars_8h_af083bde587f0738f8662e7e1de571651}} 
+\index{dpu\_offload\_envvars.h@{dpu\_offload\_envvars.h}!DPU\_OFFLOAD\_SERVICE\_PROCESS\_GLOBAL\_ID\_ENVVAR@{DPU\_OFFLOAD\_SERVICE\_PROCESS\_GLOBAL\_ID\_ENVVAR}}
+\index{DPU\_OFFLOAD\_SERVICE\_PROCESS\_GLOBAL\_ID\_ENVVAR@{DPU\_OFFLOAD\_SERVICE\_PROCESS\_GLOBAL\_ID\_ENVVAR}!dpu\_offload\_envvars.h@{dpu\_offload\_envvars.h}}
+\doxysubsubsection{\texorpdfstring{DPU\_OFFLOAD\_SERVICE\_PROCESS\_GLOBAL\_ID\_ENVVAR}{DPU\_OFFLOAD\_SERVICE\_PROCESS\_GLOBAL\_ID\_ENVVAR}}
+{\footnotesize\ttfamily \#define DPU\+\_\+\+OFFLOAD\+\_\+\+SERVICE\+\_\+\+PROCESS\+\_\+\+GLOBAL\+\_\+\+ID\+\_\+\+ENVVAR~\char`\"{}DPU\+\_\+\+OFFLOAD\+\_\+\+SERVICE\+\_\+\+PROCESS\+\_\+\+GLOBAL\+\_\+\+ID\char`\"{}}
+
+
+
+Environment variable defining the global ID of the service process. It should be only in the context of a service process and will be used, in conjunction with the list of DPUs to determine the configuration. If not defined, it is assumed that a single service process is running on the DPU. 
+
+\mbox{\Hypertarget{dpu__offload__envvars_8h_a288964a593cc48c79d561a437309202d}\label{dpu__offload__envvars_8h_a288964a593cc48c79d561a437309202d}} 
+\index{dpu\_offload\_envvars.h@{dpu\_offload\_envvars.h}!DPU\_OFFLOAD\_SERVICE\_PROCESS\_LOCAL\_ID\_ENVVAR@{DPU\_OFFLOAD\_SERVICE\_PROCESS\_LOCAL\_ID\_ENVVAR}}
+\index{DPU\_OFFLOAD\_SERVICE\_PROCESS\_LOCAL\_ID\_ENVVAR@{DPU\_OFFLOAD\_SERVICE\_PROCESS\_LOCAL\_ID\_ENVVAR}!dpu\_offload\_envvars.h@{dpu\_offload\_envvars.h}}
+\doxysubsubsection{\texorpdfstring{DPU\_OFFLOAD\_SERVICE\_PROCESS\_LOCAL\_ID\_ENVVAR}{DPU\_OFFLOAD\_SERVICE\_PROCESS\_LOCAL\_ID\_ENVVAR}}
+{\footnotesize\ttfamily \#define DPU\+\_\+\+OFFLOAD\+\_\+\+SERVICE\+\_\+\+PROCESS\+\_\+\+LOCAL\+\_\+\+ID\+\_\+\+ENVVAR~\char`\"{}DPU\+\_\+\+OFFLOAD\+\_\+\+SERVICE\+\_\+\+PROCESS\+\_\+\+LOCAL\+\_\+\+ID\char`\"{}}
+
+
+
+Environment variable defining the local ID of the service process. If not defined, it is assumed that a single service process is running on the DPU. 
+
+\mbox{\Hypertarget{dpu__offload__envvars_8h_a744a3938c9e26b8fe2d208c41eafd724}\label{dpu__offload__envvars_8h_a744a3938c9e26b8fe2d208c41eafd724}} 
+\index{dpu\_offload\_envvars.h@{dpu\_offload\_envvars.h}!DPU\_OFFLOAD\_SERVICE\_PROCESSES\_PER\_DPU\_ENVVAR@{DPU\_OFFLOAD\_SERVICE\_PROCESSES\_PER\_DPU\_ENVVAR}}
+\index{DPU\_OFFLOAD\_SERVICE\_PROCESSES\_PER\_DPU\_ENVVAR@{DPU\_OFFLOAD\_SERVICE\_PROCESSES\_PER\_DPU\_ENVVAR}!dpu\_offload\_envvars.h@{dpu\_offload\_envvars.h}}
+\doxysubsubsection{\texorpdfstring{DPU\_OFFLOAD\_SERVICE\_PROCESSES\_PER\_DPU\_ENVVAR}{DPU\_OFFLOAD\_SERVICE\_PROCESSES\_PER\_DPU\_ENVVAR}}
+{\footnotesize\ttfamily \#define DPU\+\_\+\+OFFLOAD\+\_\+\+SERVICE\+\_\+\+PROCESSES\+\_\+\+PER\+\_\+\+DPU\+\_\+\+ENVVAR~\char`\"{}DPU\+\_\+\+OFFLOAD\+\_\+\+SERVICE\+\_\+\+PROCESSES\+\_\+\+PER\+\_\+\+DPU\char`\"{}}
+
+
+
+Environment variable defining the number of service processes per DPU. At the moment, it is assumed that the same number of service processes are running on all DPUs. 
+
+\mbox{\Hypertarget{dpu__offload__envvars_8h_ae3a43acb095203788503f1d0483ffa30}\label{dpu__offload__envvars_8h_ae3a43acb095203788503f1d0483ffa30}} 
+\index{dpu\_offload\_envvars.h@{dpu\_offload\_envvars.h}!INTER\_DPU\_ADDR\_ENVVAR@{INTER\_DPU\_ADDR\_ENVVAR}}
+\index{INTER\_DPU\_ADDR\_ENVVAR@{INTER\_DPU\_ADDR\_ENVVAR}!dpu\_offload\_envvars.h@{dpu\_offload\_envvars.h}}
+\doxysubsubsection{\texorpdfstring{INTER\_DPU\_ADDR\_ENVVAR}{INTER\_DPU\_ADDR\_ENVVAR}}
+{\footnotesize\ttfamily \#define INTER\+\_\+\+DPU\+\_\+\+ADDR\+\_\+\+ENVVAR~\char`\"{}INTER\+\_\+\+DPU\+\_\+\+CONN\+\_\+\+ADDR\char`\"{}}
+
+\mbox{\Hypertarget{dpu__offload__envvars_8h_a639ea802cf59ff7e0ec7d59350301ffc}\label{dpu__offload__envvars_8h_a639ea802cf59ff7e0ec7d59350301ffc}} 
+\index{dpu\_offload\_envvars.h@{dpu\_offload\_envvars.h}!INTER\_DPU\_PORT\_ENVVAR@{INTER\_DPU\_PORT\_ENVVAR}}
+\index{INTER\_DPU\_PORT\_ENVVAR@{INTER\_DPU\_PORT\_ENVVAR}!dpu\_offload\_envvars.h@{dpu\_offload\_envvars.h}}
+\doxysubsubsection{\texorpdfstring{INTER\_DPU\_PORT\_ENVVAR}{INTER\_DPU\_PORT\_ENVVAR}}
+{\footnotesize\ttfamily \#define INTER\+\_\+\+DPU\+\_\+\+PORT\+\_\+\+ENVVAR~\char`\"{}INTER\+\_\+\+DPU\+\_\+\+CONN\+\_\+\+PORT\char`\"{}}
+
+\mbox{\Hypertarget{dpu__offload__envvars_8h_a2afbbaf6c485d8af5480452ab25aefa3}\label{dpu__offload__envvars_8h_a2afbbaf6c485d8af5480452ab25aefa3}} 
+\index{dpu\_offload\_envvars.h@{dpu\_offload\_envvars.h}!LIST\_DPUS\_ENVVAR@{LIST\_DPUS\_ENVVAR}}
+\index{LIST\_DPUS\_ENVVAR@{LIST\_DPUS\_ENVVAR}!dpu\_offload\_envvars.h@{dpu\_offload\_envvars.h}}
+\doxysubsubsection{\texorpdfstring{LIST\_DPUS\_ENVVAR}{LIST\_DPUS\_ENVVAR}}
+{\footnotesize\ttfamily \#define LIST\+\_\+\+DPUS\+\_\+\+ENVVAR~\char`\"{}DPU\+\_\+\+OFFLOAD\+\_\+\+LIST\+\_\+\+DPUS\char`\"{}}
+
+
+
+Environment variable defining the list of DPUs to be used for offloading. When used, it should be the exact same list for all DPUs to be used. 
+
+\mbox{\Hypertarget{dpu__offload__envvars_8h_af5816eb3089840b5cbbd694c03bce9b8}\label{dpu__offload__envvars_8h_af5816eb3089840b5cbbd694c03bce9b8}} 
+\index{dpu\_offload\_envvars.h@{dpu\_offload\_envvars.h}!OFFLOAD\_CONFIG\_FILE\_PATH\_ENVVAR@{OFFLOAD\_CONFIG\_FILE\_PATH\_ENVVAR}}
+\index{OFFLOAD\_CONFIG\_FILE\_PATH\_ENVVAR@{OFFLOAD\_CONFIG\_FILE\_PATH\_ENVVAR}!dpu\_offload\_envvars.h@{dpu\_offload\_envvars.h}}
+\doxysubsubsection{\texorpdfstring{OFFLOAD\_CONFIG\_FILE\_PATH\_ENVVAR}{OFFLOAD\_CONFIG\_FILE\_PATH\_ENVVAR}}
+{\footnotesize\ttfamily \#define OFFLOAD\+\_\+\+CONFIG\+\_\+\+FILE\+\_\+\+PATH\+\_\+\+ENVVAR~\char`\"{}OFFLOAD\+\_\+\+CONFIG\+\_\+\+FILE\+\_\+\+PATH\char`\"{}}
+
+\mbox{\Hypertarget{dpu__offload__envvars_8h_ae1c2c7d7c333c528b9337cd9c6f89975}\label{dpu__offload__envvars_8h_ae1c2c7d7c333c528b9337cd9c6f89975}} 
+\index{dpu\_offload\_envvars.h@{dpu\_offload\_envvars.h}!SERVER\_IP\_ADDR\_ENVVAR@{SERVER\_IP\_ADDR\_ENVVAR}}
+\index{SERVER\_IP\_ADDR\_ENVVAR@{SERVER\_IP\_ADDR\_ENVVAR}!dpu\_offload\_envvars.h@{dpu\_offload\_envvars.h}}
+\doxysubsubsection{\texorpdfstring{SERVER\_IP\_ADDR\_ENVVAR}{SERVER\_IP\_ADDR\_ENVVAR}}
+{\footnotesize\ttfamily \#define SERVER\+\_\+\+IP\+\_\+\+ADDR\+\_\+\+ENVVAR~\char`\"{}DPU\+\_\+\+OFFLOAD\+\_\+\+SERVER\+\_\+\+ADDR\char`\"{}}
+
+\mbox{\Hypertarget{dpu__offload__envvars_8h_a643e60ea42f0e9d644af9fb24b4699fb}\label{dpu__offload__envvars_8h_a643e60ea42f0e9d644af9fb24b4699fb}} 
+\index{dpu\_offload\_envvars.h@{dpu\_offload\_envvars.h}!SERVER\_PORT\_ENVVAR@{SERVER\_PORT\_ENVVAR}}
+\index{SERVER\_PORT\_ENVVAR@{SERVER\_PORT\_ENVVAR}!dpu\_offload\_envvars.h@{dpu\_offload\_envvars.h}}
+\doxysubsubsection{\texorpdfstring{SERVER\_PORT\_ENVVAR}{SERVER\_PORT\_ENVVAR}}
+{\footnotesize\ttfamily \#define SERVER\+\_\+\+PORT\+\_\+\+ENVVAR~\char`\"{}DPU\+\_\+\+OFFLOAD\+\_\+\+SERVER\+\_\+\+PORT\char`\"{}}
+

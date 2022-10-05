@@ -1,0 +1,7 @@
+<map id="smart_bucket" name="smart_bucket">
+<area shape="rect" id="node1" title=" " alt="" coords="5,291,116,317"/>
+<area shape="rect" id="node2" href="$structsmart__buffers.html" title=" " alt="" coords="65,201,177,228"/>
+<area shape="rect" id="node3" href="$structdyn__list.html" title=" " alt="" coords="65,103,139,130"/>
+<area shape="rect" id="node4" href="$structsimple__list.html" title="simple_list_t aims at offering an alternative to ucs_list_link_t without the huge performance impact ..." alt="" coords="13,5,106,32"/>
+<area shape="rect" id="node5" href="$structdyn__array.html" title=" " alt="" coords="140,5,227,32"/>
+</map>

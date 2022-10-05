@@ -1,0 +1,67 @@
+\hypertarget{structam__req}{}\doxysection{am\+\_\+req Struct Reference}
+\label{structam__req}\index{am\_req@{am\_req}}
+
+
+am\+\_\+req\+\_\+t is the structure used to track completion of a notification.  
+
+
+
+
+{\ttfamily \#include $<$dpu\+\_\+offload\+\_\+types.\+h$>$}
+
+
+
+Collaboration diagram for am\+\_\+req\+:
+\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=151pt]{structam__req__coll__graph}
+\end{center}
+\end{figure}
+\doxysubsection*{Data Fields}
+\begin{DoxyCompactItemize}
+\item 
+\mbox{\hyperlink{dpu__offload__types_8h_a4d511600b522bd25ed146b9d11a3c2a9}{am\+\_\+header\+\_\+t}} \mbox{\hyperlink{structam__req_a0a20c96ba0c4de202fe9464d8353eab9}{hdr}}
+\item 
+bool \mbox{\hyperlink{structam__req_a09aff00b55c1f41b4e814f22a17cda65}{complete}}
+\item 
+\mbox{\hyperlink{dpu__offload__types_8h_a576c274d9379aaaedee8b57db966cf7e}{request\+\_\+compl\+\_\+cb\+\_\+t}} \mbox{\hyperlink{structam__req_a2494244216520e9c40f01730d180b9b4}{completion\+\_\+cb}}
+\item 
+void $\ast$ \mbox{\hyperlink{structam__req_a1df6c416b95cdfa136377c7b6b398eae}{completion\+\_\+cb\+\_\+ctx}}
+\end{DoxyCompactItemize}
+
+
+\doxysubsection{Detailed Description}
+am\+\_\+req\+\_\+t is the structure used to track completion of a notification. 
+
+\doxysubsection{Field Documentation}
+\mbox{\Hypertarget{structam__req_a09aff00b55c1f41b4e814f22a17cda65}\label{structam__req_a09aff00b55c1f41b4e814f22a17cda65}} 
+\index{am\_req@{am\_req}!complete@{complete}}
+\index{complete@{complete}!am\_req@{am\_req}}
+\doxysubsubsection{\texorpdfstring{complete}{complete}}
+{\footnotesize\ttfamily bool am\+\_\+req\+::complete}
+
+\mbox{\Hypertarget{structam__req_a2494244216520e9c40f01730d180b9b4}\label{structam__req_a2494244216520e9c40f01730d180b9b4}} 
+\index{am\_req@{am\_req}!completion\_cb@{completion\_cb}}
+\index{completion\_cb@{completion\_cb}!am\_req@{am\_req}}
+\doxysubsubsection{\texorpdfstring{completion\_cb}{completion\_cb}}
+{\footnotesize\ttfamily \mbox{\hyperlink{dpu__offload__types_8h_a576c274d9379aaaedee8b57db966cf7e}{request\+\_\+compl\+\_\+cb\+\_\+t}} am\+\_\+req\+::completion\+\_\+cb}
+
+\mbox{\Hypertarget{structam__req_a1df6c416b95cdfa136377c7b6b398eae}\label{structam__req_a1df6c416b95cdfa136377c7b6b398eae}} 
+\index{am\_req@{am\_req}!completion\_cb\_ctx@{completion\_cb\_ctx}}
+\index{completion\_cb\_ctx@{completion\_cb\_ctx}!am\_req@{am\_req}}
+\doxysubsubsection{\texorpdfstring{completion\_cb\_ctx}{completion\_cb\_ctx}}
+{\footnotesize\ttfamily void$\ast$ am\+\_\+req\+::completion\+\_\+cb\+\_\+ctx}
+
+\mbox{\Hypertarget{structam__req_a0a20c96ba0c4de202fe9464d8353eab9}\label{structam__req_a0a20c96ba0c4de202fe9464d8353eab9}} 
+\index{am\_req@{am\_req}!hdr@{hdr}}
+\index{hdr@{hdr}!am\_req@{am\_req}}
+\doxysubsubsection{\texorpdfstring{hdr}{hdr}}
+{\footnotesize\ttfamily \mbox{\hyperlink{dpu__offload__types_8h_a4d511600b522bd25ed146b9d11a3c2a9}{am\+\_\+header\+\_\+t}} am\+\_\+req\+::hdr}
+
+
+
+The documentation for this struct was generated from the following file\+:\begin{DoxyCompactItemize}
+\item 
+/home/gvallee/\+Projects/\+DPU\+\_\+offloading/dpu\+\_\+offload\+\_\+service/include/\mbox{\hyperlink{dpu__offload__types_8h}{dpu\+\_\+offload\+\_\+types.\+h}}\end{DoxyCompactItemize}

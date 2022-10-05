@@ -1,0 +1,6 @@
+<map id="boostrapping" name="boostrapping">
+<area shape="rect" id="node1" title=" " alt="" coords="77,213,184,240"/>
+<area shape="rect" id="node2" href="$structucx__context.html" title=" " alt="" coords="5,95,107,121"/>
+<area shape="rect" id="node3" href="$structam__req.html" title="am_req_t is the structure used to track completion of a notification." alt="" coords="170,95,241,121"/>
+<area shape="rect" id="node4" href="$structam__header.html" title="am_header_t is the structure used to represent the header sent with UCX active messages" alt="" coords="158,5,253,32"/>
+</map>

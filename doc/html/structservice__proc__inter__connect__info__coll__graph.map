@@ -1,0 +1,6 @@
+<map id="service_proc_inter_connect_info" name="service_proc_inter_connect_info">
+<area shape="rect" id="node1" title=" " alt="" coords="39,184,180,225"/>
+<area shape="rect" id="node2" href="$structdyn__list.html" title=" " alt="" coords="73,95,146,121"/>
+<area shape="rect" id="node3" href="$structsimple__list.html" title="simple_list_t aims at offering an alternative to ucs_list_link_t without the huge performance impact ..." alt="" coords="5,5,99,32"/>
+<area shape="rect" id="node4" href="$structdyn__array.html" title=" " alt="" coords="123,5,210,32"/>
+</map>

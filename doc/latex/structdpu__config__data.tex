@@ -1,0 +1,95 @@
+\hypertarget{structdpu__config__data}{}\doxysection{dpu\+\_\+config\+\_\+data Struct Reference}
+\label{structdpu__config__data}\index{dpu\_config\_data@{dpu\_config\_data}}
+
+
+Data structure used when parsing a configuration file.  
+
+
+
+
+{\ttfamily \#include $<$dpu\+\_\+offload\+\_\+types.\+h$>$}
+
+
+
+Collaboration diagram for dpu\+\_\+config\+\_\+data\+:
+\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=199pt]{structdpu__config__data__coll__graph}
+\end{center}
+\end{figure}
+\doxysubsection*{Data Fields}
+\begin{DoxyCompactItemize}
+\item 
+\begin{tabbing}
+xx\=xx\=xx\=xx\=xx\=xx\=xx\=xx\=xx\=\kill
+union \{\\
+\>struct \{\\
+\>\>char $\ast$ \mbox{\hyperlink{structdpu__config__data_a0ae84819e4f16904cf1d60343e342753}{hostname}}\\
+\>\>char $\ast$ \mbox{\hyperlink{structdpu__config__data_a9553ba4738f14e359abe057d78dc209e}{addr}}\\
+\>\>size\_t \mbox{\hyperlink{structdpu__config__data_a6b3ce7ac4d196a562ade7d0bbf0ec657}{num\_host\_ports}}\\
+\>\>\mbox{\hyperlink{dynamic__structs_8h_aad9a80cfa65af5b2bc3eeb3abef9a1ed}{dyn\_array\_t}} \mbox{\hyperlink{structdpu__config__data_aa131c758c3b97d93c353bd233e214ca0}{host\_ports}}\\
+\>\>size\_t \mbox{\hyperlink{structdpu__config__data_a511222c590c303a0b7edcd971e36f8e2}{num\_interdpu\_ports}}\\
+\>\>\mbox{\hyperlink{dynamic__structs_8h_aad9a80cfa65af5b2bc3eeb3abef9a1ed}{dyn\_array\_t}} \mbox{\hyperlink{structdpu__config__data_a61ea29a269e9f068130486032ee1920a}{interdpu\_ports}}\\
+\>\} \mbox{\hyperlink{structdpu__config__data_a688616b3822c8f0c344319c2d43e3ad1}{version\_1}}\\
+\}; \\
+
+\end{tabbing}\end{DoxyCompactItemize}
+
+
+\doxysubsection{Detailed Description}
+Data structure used when parsing a configuration file. 
+
+\doxysubsection{Field Documentation}
+\mbox{\Hypertarget{structdpu__config__data_adb06866639cdbef4bfd2bbbb7bc4324d}\label{structdpu__config__data_adb06866639cdbef4bfd2bbbb7bc4324d}} 
+\doxysubsubsection{\texorpdfstring{}{}}
+{\footnotesize\ttfamily union \{ ... \} }
+
+\mbox{\Hypertarget{structdpu__config__data_a9553ba4738f14e359abe057d78dc209e}\label{structdpu__config__data_a9553ba4738f14e359abe057d78dc209e}} 
+\index{dpu\_config\_data@{dpu\_config\_data}!addr@{addr}}
+\index{addr@{addr}!dpu\_config\_data@{dpu\_config\_data}}
+\doxysubsubsection{\texorpdfstring{addr}{addr}}
+{\footnotesize\ttfamily char$\ast$ dpu\+\_\+config\+\_\+data\+::addr}
+
+\mbox{\Hypertarget{structdpu__config__data_aa131c758c3b97d93c353bd233e214ca0}\label{structdpu__config__data_aa131c758c3b97d93c353bd233e214ca0}} 
+\index{dpu\_config\_data@{dpu\_config\_data}!host\_ports@{host\_ports}}
+\index{host\_ports@{host\_ports}!dpu\_config\_data@{dpu\_config\_data}}
+\doxysubsubsection{\texorpdfstring{host\_ports}{host\_ports}}
+{\footnotesize\ttfamily \mbox{\hyperlink{dynamic__structs_8h_aad9a80cfa65af5b2bc3eeb3abef9a1ed}{dyn\+\_\+array\+\_\+t}} dpu\+\_\+config\+\_\+data\+::host\+\_\+ports}
+
+\mbox{\Hypertarget{structdpu__config__data_a0ae84819e4f16904cf1d60343e342753}\label{structdpu__config__data_a0ae84819e4f16904cf1d60343e342753}} 
+\index{dpu\_config\_data@{dpu\_config\_data}!hostname@{hostname}}
+\index{hostname@{hostname}!dpu\_config\_data@{dpu\_config\_data}}
+\doxysubsubsection{\texorpdfstring{hostname}{hostname}}
+{\footnotesize\ttfamily char$\ast$ dpu\+\_\+config\+\_\+data\+::hostname}
+
+\mbox{\Hypertarget{structdpu__config__data_a61ea29a269e9f068130486032ee1920a}\label{structdpu__config__data_a61ea29a269e9f068130486032ee1920a}} 
+\index{dpu\_config\_data@{dpu\_config\_data}!interdpu\_ports@{interdpu\_ports}}
+\index{interdpu\_ports@{interdpu\_ports}!dpu\_config\_data@{dpu\_config\_data}}
+\doxysubsubsection{\texorpdfstring{interdpu\_ports}{interdpu\_ports}}
+{\footnotesize\ttfamily \mbox{\hyperlink{dynamic__structs_8h_aad9a80cfa65af5b2bc3eeb3abef9a1ed}{dyn\+\_\+array\+\_\+t}} dpu\+\_\+config\+\_\+data\+::interdpu\+\_\+ports}
+
+\mbox{\Hypertarget{structdpu__config__data_a6b3ce7ac4d196a562ade7d0bbf0ec657}\label{structdpu__config__data_a6b3ce7ac4d196a562ade7d0bbf0ec657}} 
+\index{dpu\_config\_data@{dpu\_config\_data}!num\_host\_ports@{num\_host\_ports}}
+\index{num\_host\_ports@{num\_host\_ports}!dpu\_config\_data@{dpu\_config\_data}}
+\doxysubsubsection{\texorpdfstring{num\_host\_ports}{num\_host\_ports}}
+{\footnotesize\ttfamily size\+\_\+t dpu\+\_\+config\+\_\+data\+::num\+\_\+host\+\_\+ports}
+
+\mbox{\Hypertarget{structdpu__config__data_a511222c590c303a0b7edcd971e36f8e2}\label{structdpu__config__data_a511222c590c303a0b7edcd971e36f8e2}} 
+\index{dpu\_config\_data@{dpu\_config\_data}!num\_interdpu\_ports@{num\_interdpu\_ports}}
+\index{num\_interdpu\_ports@{num\_interdpu\_ports}!dpu\_config\_data@{dpu\_config\_data}}
+\doxysubsubsection{\texorpdfstring{num\_interdpu\_ports}{num\_interdpu\_ports}}
+{\footnotesize\ttfamily size\+\_\+t dpu\+\_\+config\+\_\+data\+::num\+\_\+interdpu\+\_\+ports}
+
+\mbox{\Hypertarget{structdpu__config__data_a688616b3822c8f0c344319c2d43e3ad1}\label{structdpu__config__data_a688616b3822c8f0c344319c2d43e3ad1}} 
+\index{dpu\_config\_data@{dpu\_config\_data}!version\_1@{version\_1}}
+\index{version\_1@{version\_1}!dpu\_config\_data@{dpu\_config\_data}}
+\doxysubsubsection{\texorpdfstring{}{}}
+{\footnotesize\ttfamily struct \{ ... \}  dpu\+\_\+config\+\_\+data\+::version\+\_\+1}
+
+
+
+The documentation for this struct was generated from the following file\+:\begin{DoxyCompactItemize}
+\item 
+/home/gvallee/\+Projects/\+DPU\+\_\+offloading/dpu\+\_\+offload\+\_\+service/include/\mbox{\hyperlink{dpu__offload__types_8h}{dpu\+\_\+offload\+\_\+types.\+h}}\end{DoxyCompactItemize}

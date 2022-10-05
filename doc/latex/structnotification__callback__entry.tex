@@ -1,0 +1,67 @@
+\hypertarget{structnotification__callback__entry}{}\doxysection{notification\+\_\+callback\+\_\+entry Struct Reference}
+\label{structnotification__callback__entry}\index{notification\_callback\_entry@{notification\_callback\_entry}}
+
+
+notification\+\_\+callback\+\_\+entry\+\_\+t is the structure representing a callback. The event system has a vector of such structures. The type associated to the callback is its index in the vector used to track all callbacks (one and only one callback per type)  
+
+
+
+
+{\ttfamily \#include $<$dpu\+\_\+offload\+\_\+types.\+h$>$}
+
+
+
+Collaboration diagram for notification\+\_\+callback\+\_\+entry\+:
+\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{structnotification__callback__entry__coll__graph}
+\end{center}
+\end{figure}
+\doxysubsection*{Data Fields}
+\begin{DoxyCompactItemize}
+\item 
+bool \mbox{\hyperlink{structnotification__callback__entry_af71500a192bc3de944792bf9bfcf429a}{set}}
+\item 
+struct \mbox{\hyperlink{structdpu__offload__ev__sys}{dpu\+\_\+offload\+\_\+ev\+\_\+sys}} $\ast$ \mbox{\hyperlink{structnotification__callback__entry_a7dc45414f4bb98d295f3b424038bceec}{ev\+\_\+sys}}
+\item 
+\mbox{\hyperlink{dpu__offload__types_8h_ad1af340e916dc299527aa2467e0fe11e}{notification\+\_\+cb}} \mbox{\hyperlink{structnotification__callback__entry_a1745d5e193c6cc78b22bec999083018c}{cb}}
+\item 
+\mbox{\hyperlink{dpu__offload__types_8h_a9814ec7d07717e4fe56a4083ff5ecce6}{notification\+\_\+info\+\_\+t}} \mbox{\hyperlink{structnotification__callback__entry_ae49bf820a0afb75a822317630f86986b}{info}}
+\end{DoxyCompactItemize}
+
+
+\doxysubsection{Detailed Description}
+notification\+\_\+callback\+\_\+entry\+\_\+t is the structure representing a callback. The event system has a vector of such structures. The type associated to the callback is its index in the vector used to track all callbacks (one and only one callback per type) 
+
+\doxysubsection{Field Documentation}
+\mbox{\Hypertarget{structnotification__callback__entry_a1745d5e193c6cc78b22bec999083018c}\label{structnotification__callback__entry_a1745d5e193c6cc78b22bec999083018c}} 
+\index{notification\_callback\_entry@{notification\_callback\_entry}!cb@{cb}}
+\index{cb@{cb}!notification\_callback\_entry@{notification\_callback\_entry}}
+\doxysubsubsection{\texorpdfstring{cb}{cb}}
+{\footnotesize\ttfamily \mbox{\hyperlink{dpu__offload__types_8h_ad1af340e916dc299527aa2467e0fe11e}{notification\+\_\+cb}} notification\+\_\+callback\+\_\+entry\+::cb}
+
+\mbox{\Hypertarget{structnotification__callback__entry_a7dc45414f4bb98d295f3b424038bceec}\label{structnotification__callback__entry_a7dc45414f4bb98d295f3b424038bceec}} 
+\index{notification\_callback\_entry@{notification\_callback\_entry}!ev\_sys@{ev\_sys}}
+\index{ev\_sys@{ev\_sys}!notification\_callback\_entry@{notification\_callback\_entry}}
+\doxysubsubsection{\texorpdfstring{ev\_sys}{ev\_sys}}
+{\footnotesize\ttfamily struct \mbox{\hyperlink{structdpu__offload__ev__sys}{dpu\+\_\+offload\+\_\+ev\+\_\+sys}}$\ast$ notification\+\_\+callback\+\_\+entry\+::ev\+\_\+sys}
+
+\mbox{\Hypertarget{structnotification__callback__entry_ae49bf820a0afb75a822317630f86986b}\label{structnotification__callback__entry_ae49bf820a0afb75a822317630f86986b}} 
+\index{notification\_callback\_entry@{notification\_callback\_entry}!info@{info}}
+\index{info@{info}!notification\_callback\_entry@{notification\_callback\_entry}}
+\doxysubsubsection{\texorpdfstring{info}{info}}
+{\footnotesize\ttfamily \mbox{\hyperlink{dpu__offload__types_8h_a9814ec7d07717e4fe56a4083ff5ecce6}{notification\+\_\+info\+\_\+t}} notification\+\_\+callback\+\_\+entry\+::info}
+
+\mbox{\Hypertarget{structnotification__callback__entry_af71500a192bc3de944792bf9bfcf429a}\label{structnotification__callback__entry_af71500a192bc3de944792bf9bfcf429a}} 
+\index{notification\_callback\_entry@{notification\_callback\_entry}!set@{set}}
+\index{set@{set}!notification\_callback\_entry@{notification\_callback\_entry}}
+\doxysubsubsection{\texorpdfstring{set}{set}}
+{\footnotesize\ttfamily bool notification\+\_\+callback\+\_\+entry\+::set}
+
+
+
+The documentation for this struct was generated from the following file\+:\begin{DoxyCompactItemize}
+\item 
+/home/gvallee/\+Projects/\+DPU\+\_\+offloading/dpu\+\_\+offload\+\_\+service/include/\mbox{\hyperlink{dpu__offload__types_8h}{dpu\+\_\+offload\+\_\+types.\+h}}\end{DoxyCompactItemize}

@@ -1,0 +1,142 @@
+\hypertarget{structexecution__context}{}\doxysection{execution\+\_\+context Struct Reference}
+\label{structexecution__context}\index{execution\_context@{execution\_context}}
+
+
+execution\+\_\+context\+\_\+t is the structure holding all the information related to DPU offloading, both on the hosts and DPUs. The primary goal of the structure is too abstract whether the process is a client or server during bootstrapping and how many clients and servers are used for the deployment of the infrastructure. It recommanded to use the associated macros in order to make the code more abstract and mainly rely on execution contexts.  
+
+
+
+
+{\ttfamily \#include $<$dpu\+\_\+offload\+\_\+types.\+h$>$}
+
+
+
+Collaboration diagram for execution\+\_\+context\+:
+\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{structexecution__context__coll__graph}
+\end{center}
+\end{figure}
+\doxysubsection*{Data Fields}
+\begin{DoxyCompactItemize}
+\item 
+\mbox{\hyperlink{dpu__offload__types_8h_a52ea05b6b87557962d24a0e57bef2492}{daemon\+\_\+type\+\_\+t}} \mbox{\hyperlink{structexecution__context_a75efe0a15f2b47e105058c47799650dd}{type}}
+\item 
+\mbox{\hyperlink{dpu__offload__types_8h_af7b5d3dcfb37d6a873d2e632719535ad}{execution\+\_\+scope\+\_\+t}} \mbox{\hyperlink{structexecution__context_aaa6a734a8b45be8acd4c6fa2b8df6f24}{scope\+\_\+id}}
+\item 
+struct \mbox{\hyperlink{structoffloading__engine}{offloading\+\_\+engine}} $\ast$ \mbox{\hyperlink{structexecution__context_ab55b9c7526c8a44c16442eeb59dc092a}{engine}}
+\item 
+\mbox{\hyperlink{dpu__offload__types_8h_a3393bcd64add76ae2292d8cb54c16fe6}{dpu\+\_\+offload\+\_\+ev\+\_\+sys\+\_\+t}} $\ast$ \mbox{\hyperlink{structexecution__context_aa7f4090c0af059ec7692ce116cf7db6a}{event\+\_\+channels}}
+\item 
+ucs\+\_\+list\+\_\+link\+\_\+t \mbox{\hyperlink{structexecution__context_a54bfe8903900ca63789fd2e3834d265d}{ongoing\+\_\+events}}
+\item 
+\mbox{\hyperlink{dpu__offload__types_8h_a0fc527139618b03e5508ecb96888aa31}{execution\+\_\+context\+\_\+progress\+\_\+fn}} \mbox{\hyperlink{structexecution__context_a4d81e30e6e881a29afce04e2275dfb1f}{progress}}
+\item 
+\mbox{\hyperlink{dpu__offload__types_8h_a6846f687a61323898ab2f6903ca8766e}{rank\+\_\+info\+\_\+t}} \mbox{\hyperlink{structexecution__context_ad52042043a64d0fca2d3c742f6d58f42}{rank}}
+\item 
+ucs\+\_\+list\+\_\+link\+\_\+t \mbox{\hyperlink{structexecution__context_ad97288341ba399d0b49aef1497d120b8}{active\+\_\+ops}}
+\item 
+\begin{tabbing}
+xx\=xx\=xx\=xx\=xx\=xx\=xx\=xx\=xx\=\kill
+struct \{\\
+\>struct \mbox{\hyperlink{structdpu__offload__event}{dpu\_offload\_event}} $\ast$ \mbox{\hyperlink{structexecution__context_a11c52423c3f75d2ce85f49aeaa225246}{ev}}\\
+\} \mbox{\hyperlink{structexecution__context_a585278f3b1ed4c90df5942e21109b498}{term}}\\
+
+\end{tabbing}\item 
+\begin{tabbing}
+xx\=xx\=xx\=xx\=xx\=xx\=xx\=xx\=xx\=\kill
+union \{\\
+\>\mbox{\hyperlink{structdpu__offload__client__t}{dpu\_offload\_client\_t}} $\ast$ \mbox{\hyperlink{structexecution__context_a4a2324851ba1aa43e61bb0957255cc4f}{client}}\\
+\>\mbox{\hyperlink{structdpu__offload__server__t}{dpu\_offload\_server\_t}} $\ast$ \mbox{\hyperlink{structexecution__context_a9eee24e9fae49b88d5950ebd54b2abf9}{server}}\\
+\}; \\
+
+\end{tabbing}\end{DoxyCompactItemize}
+
+
+\doxysubsection{Detailed Description}
+execution\+\_\+context\+\_\+t is the structure holding all the information related to DPU offloading, both on the hosts and DPUs. The primary goal of the structure is too abstract whether the process is a client or server during bootstrapping and how many clients and servers are used for the deployment of the infrastructure. It recommanded to use the associated macros in order to make the code more abstract and mainly rely on execution contexts. 
+
+\doxysubsection{Field Documentation}
+\mbox{\Hypertarget{structexecution__context_abf87328e9ea0c46a88b2c5f545ee51fc}\label{structexecution__context_abf87328e9ea0c46a88b2c5f545ee51fc}} 
+\doxysubsubsection{\texorpdfstring{}{}}
+{\footnotesize\ttfamily union \{ ... \} }
+
+\mbox{\Hypertarget{structexecution__context_ad97288341ba399d0b49aef1497d120b8}\label{structexecution__context_ad97288341ba399d0b49aef1497d120b8}} 
+\index{execution\_context@{execution\_context}!active\_ops@{active\_ops}}
+\index{active\_ops@{active\_ops}!execution\_context@{execution\_context}}
+\doxysubsubsection{\texorpdfstring{active\_ops}{active\_ops}}
+{\footnotesize\ttfamily ucs\+\_\+list\+\_\+link\+\_\+t execution\+\_\+context\+::active\+\_\+ops}
+
+\mbox{\Hypertarget{structexecution__context_a4a2324851ba1aa43e61bb0957255cc4f}\label{structexecution__context_a4a2324851ba1aa43e61bb0957255cc4f}} 
+\index{execution\_context@{execution\_context}!client@{client}}
+\index{client@{client}!execution\_context@{execution\_context}}
+\doxysubsubsection{\texorpdfstring{client}{client}}
+{\footnotesize\ttfamily \mbox{\hyperlink{structdpu__offload__client__t}{dpu\+\_\+offload\+\_\+client\+\_\+t}}$\ast$ execution\+\_\+context\+::client}
+
+\mbox{\Hypertarget{structexecution__context_ab55b9c7526c8a44c16442eeb59dc092a}\label{structexecution__context_ab55b9c7526c8a44c16442eeb59dc092a}} 
+\index{execution\_context@{execution\_context}!engine@{engine}}
+\index{engine@{engine}!execution\_context@{execution\_context}}
+\doxysubsubsection{\texorpdfstring{engine}{engine}}
+{\footnotesize\ttfamily struct \mbox{\hyperlink{structoffloading__engine}{offloading\+\_\+engine}}$\ast$ execution\+\_\+context\+::engine}
+
+\mbox{\Hypertarget{structexecution__context_a11c52423c3f75d2ce85f49aeaa225246}\label{structexecution__context_a11c52423c3f75d2ce85f49aeaa225246}} 
+\index{execution\_context@{execution\_context}!ev@{ev}}
+\index{ev@{ev}!execution\_context@{execution\_context}}
+\doxysubsubsection{\texorpdfstring{ev}{ev}}
+{\footnotesize\ttfamily struct \mbox{\hyperlink{structdpu__offload__event}{dpu\+\_\+offload\+\_\+event}}$\ast$ execution\+\_\+context\+::ev}
+
+\mbox{\Hypertarget{structexecution__context_aa7f4090c0af059ec7692ce116cf7db6a}\label{structexecution__context_aa7f4090c0af059ec7692ce116cf7db6a}} 
+\index{execution\_context@{execution\_context}!event\_channels@{event\_channels}}
+\index{event\_channels@{event\_channels}!execution\_context@{execution\_context}}
+\doxysubsubsection{\texorpdfstring{event\_channels}{event\_channels}}
+{\footnotesize\ttfamily \mbox{\hyperlink{dpu__offload__types_8h_a3393bcd64add76ae2292d8cb54c16fe6}{dpu\+\_\+offload\+\_\+ev\+\_\+sys\+\_\+t}}$\ast$ execution\+\_\+context\+::event\+\_\+channels}
+
+\mbox{\Hypertarget{structexecution__context_a54bfe8903900ca63789fd2e3834d265d}\label{structexecution__context_a54bfe8903900ca63789fd2e3834d265d}} 
+\index{execution\_context@{execution\_context}!ongoing\_events@{ongoing\_events}}
+\index{ongoing\_events@{ongoing\_events}!execution\_context@{execution\_context}}
+\doxysubsubsection{\texorpdfstring{ongoing\_events}{ongoing\_events}}
+{\footnotesize\ttfamily ucs\+\_\+list\+\_\+link\+\_\+t execution\+\_\+context\+::ongoing\+\_\+events}
+
+\mbox{\Hypertarget{structexecution__context_a4d81e30e6e881a29afce04e2275dfb1f}\label{structexecution__context_a4d81e30e6e881a29afce04e2275dfb1f}} 
+\index{execution\_context@{execution\_context}!progress@{progress}}
+\index{progress@{progress}!execution\_context@{execution\_context}}
+\doxysubsubsection{\texorpdfstring{progress}{progress}}
+{\footnotesize\ttfamily \mbox{\hyperlink{dpu__offload__types_8h_a0fc527139618b03e5508ecb96888aa31}{execution\+\_\+context\+\_\+progress\+\_\+fn}} execution\+\_\+context\+::progress}
+
+\mbox{\Hypertarget{structexecution__context_ad52042043a64d0fca2d3c742f6d58f42}\label{structexecution__context_ad52042043a64d0fca2d3c742f6d58f42}} 
+\index{execution\_context@{execution\_context}!rank@{rank}}
+\index{rank@{rank}!execution\_context@{execution\_context}}
+\doxysubsubsection{\texorpdfstring{rank}{rank}}
+{\footnotesize\ttfamily \mbox{\hyperlink{dpu__offload__types_8h_a6846f687a61323898ab2f6903ca8766e}{rank\+\_\+info\+\_\+t}} execution\+\_\+context\+::rank}
+
+\mbox{\Hypertarget{structexecution__context_aaa6a734a8b45be8acd4c6fa2b8df6f24}\label{structexecution__context_aaa6a734a8b45be8acd4c6fa2b8df6f24}} 
+\index{execution\_context@{execution\_context}!scope\_id@{scope\_id}}
+\index{scope\_id@{scope\_id}!execution\_context@{execution\_context}}
+\doxysubsubsection{\texorpdfstring{scope\_id}{scope\_id}}
+{\footnotesize\ttfamily \mbox{\hyperlink{dpu__offload__types_8h_af7b5d3dcfb37d6a873d2e632719535ad}{execution\+\_\+scope\+\_\+t}} execution\+\_\+context\+::scope\+\_\+id}
+
+\mbox{\Hypertarget{structexecution__context_a9eee24e9fae49b88d5950ebd54b2abf9}\label{structexecution__context_a9eee24e9fae49b88d5950ebd54b2abf9}} 
+\index{execution\_context@{execution\_context}!server@{server}}
+\index{server@{server}!execution\_context@{execution\_context}}
+\doxysubsubsection{\texorpdfstring{server}{server}}
+{\footnotesize\ttfamily \mbox{\hyperlink{structdpu__offload__server__t}{dpu\+\_\+offload\+\_\+server\+\_\+t}}$\ast$ execution\+\_\+context\+::server}
+
+\mbox{\Hypertarget{structexecution__context_a585278f3b1ed4c90df5942e21109b498}\label{structexecution__context_a585278f3b1ed4c90df5942e21109b498}} 
+\index{execution\_context@{execution\_context}!term@{term}}
+\index{term@{term}!execution\_context@{execution\_context}}
+\doxysubsubsection{\texorpdfstring{}{}}
+{\footnotesize\ttfamily struct \{ ... \}  execution\+\_\+context\+::term}
+
+\mbox{\Hypertarget{structexecution__context_a75efe0a15f2b47e105058c47799650dd}\label{structexecution__context_a75efe0a15f2b47e105058c47799650dd}} 
+\index{execution\_context@{execution\_context}!type@{type}}
+\index{type@{type}!execution\_context@{execution\_context}}
+\doxysubsubsection{\texorpdfstring{type}{type}}
+{\footnotesize\ttfamily \mbox{\hyperlink{dpu__offload__types_8h_a52ea05b6b87557962d24a0e57bef2492}{daemon\+\_\+type\+\_\+t}} execution\+\_\+context\+::type}
+
+
+
+The documentation for this struct was generated from the following file\+:\begin{DoxyCompactItemize}
+\item 
+/home/gvallee/\+Projects/\+DPU\+\_\+offloading/dpu\+\_\+offload\+\_\+service/include/\mbox{\hyperlink{dpu__offload__types_8h}{dpu\+\_\+offload\+\_\+types.\+h}}\end{DoxyCompactItemize}

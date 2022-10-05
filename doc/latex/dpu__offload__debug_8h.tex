@@ -1,0 +1,232 @@
+\hypertarget{dpu__offload__debug_8h}{}\doxysection{/home/gvallee/\+Projects/\+DPU\+\_\+offloading/dpu\+\_\+offload\+\_\+service/src/dpu\+\_\+offload\+\_\+debug.h File Reference}
+\label{dpu__offload__debug_8h}\index{/home/gvallee/Projects/DPU\_offloading/dpu\_offload\_service/src/dpu\_offload\_debug.h@{/home/gvallee/Projects/DPU\_offloading/dpu\_offload\_service/src/dpu\_offload\_debug.h}}
+{\ttfamily \#include $<$sys/types.\+h$>$}\newline
+{\ttfamily \#include $<$unistd.\+h$>$}\newline
+{\ttfamily \#include \char`\"{}dpu\+\_\+offload\+\_\+envvars.\+h\char`\"{}}\newline
+Include dependency graph for dpu\+\_\+offload\+\_\+debug.\+h\+:
+\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{dpu__offload__debug_8h__incl}
+\end{center}
+\end{figure}
+This graph shows which files directly or indirectly include this file\+:
+\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{dpu__offload__debug_8h__dep__incl}
+\end{center}
+\end{figure}
+\doxysubsection*{Data Structures}
+\begin{DoxyCompactItemize}
+\item 
+struct \mbox{\hyperlink{structdebug__config}{debug\+\_\+config}}
+\end{DoxyCompactItemize}
+\doxysubsection*{Macros}
+\begin{DoxyCompactItemize}
+\item 
+\#define \mbox{\hyperlink{dpu__offload__debug_8h_af15947d6d19ad0ddc84a03431182c25a}{DBG}}(\+\_\+dbg\+\_\+fmt, ...)
+\item 
+\#define \mbox{\hyperlink{dpu__offload__debug_8h_a1e35b5b30efa988e1dd815f367747b5c}{ERR\+\_\+\+MSG}}(\+\_\+err\+\_\+fmt, ...)
+\item 
+\#define \mbox{\hyperlink{dpu__offload__debug_8h_ab041cf9da24b7b5cc840aa3828738521}{WARN\+\_\+\+MSG}}(\+\_\+warn\+\_\+fmt, ...)
+\item 
+\#define \mbox{\hyperlink{dpu__offload__debug_8h_aa72dc535dbf1c7091494a52c90ea64dd}{INFO\+\_\+\+MSG}}(\+\_\+info\+\_\+fmt, ...)
+\item 
+\#define \mbox{\hyperlink{dpu__offload__debug_8h_ab629425ef6b2f719145f035e2a4cf22c}{CHECK\+\_\+\+ERR\+\_\+\+GOTO}}(\+\_\+exp,  \+\_\+label,  \+\_\+check\+\_\+fmt, ...)
+\item 
+\#define \mbox{\hyperlink{dpu__offload__debug_8h_a479e59658e4f14a77a442c6b3e43c868}{CHECK\+\_\+\+ERR\+\_\+\+RETURN}}(\+\_\+exp,  \+\_\+rc,  \+\_\+check\+\_\+fmt, ...)
+\end{DoxyCompactItemize}
+\doxysubsection*{Typedefs}
+\begin{DoxyCompactItemize}
+\item 
+typedef struct \mbox{\hyperlink{structdebug__config}{debug\+\_\+config}} \mbox{\hyperlink{dpu__offload__debug_8h_acacca5e836212792f278e28e8c5cbdee}{debug\+\_\+config\+\_\+t}}
+\end{DoxyCompactItemize}
+\doxysubsection*{Variables}
+\begin{DoxyCompactItemize}
+\item 
+\mbox{\hyperlink{dpu__offload__debug_8h_acacca5e836212792f278e28e8c5cbdee}{debug\+\_\+config\+\_\+t}} \mbox{\hyperlink{dpu__offload__debug_8h_a8c1ff660127011d941f7138087377492}{dbg\+\_\+cfg}}
+\end{DoxyCompactItemize}
+
+
+\doxysubsection{Macro Definition Documentation}
+\mbox{\Hypertarget{dpu__offload__debug_8h_ab629425ef6b2f719145f035e2a4cf22c}\label{dpu__offload__debug_8h_ab629425ef6b2f719145f035e2a4cf22c}} 
+\index{dpu\_offload\_debug.h@{dpu\_offload\_debug.h}!CHECK\_ERR\_GOTO@{CHECK\_ERR\_GOTO}}
+\index{CHECK\_ERR\_GOTO@{CHECK\_ERR\_GOTO}!dpu\_offload\_debug.h@{dpu\_offload\_debug.h}}
+\doxysubsubsection{\texorpdfstring{CHECK\_ERR\_GOTO}{CHECK\_ERR\_GOTO}}
+{\footnotesize\ttfamily \#define CHECK\+\_\+\+ERR\+\_\+\+GOTO(\begin{DoxyParamCaption}\item[{}]{\+\_\+exp,  }\item[{}]{\+\_\+label,  }\item[{}]{\+\_\+check\+\_\+fmt,  }\item[{}]{... }\end{DoxyParamCaption})}
+
+{\bfseries Value\+:}
+\begin{DoxyCode}{0}
+\DoxyCodeLine{    \textcolor{keywordflow}{do}                                                \(\backslash\)}
+\DoxyCodeLine{    \{                                                 \(\backslash\)}
+\DoxyCodeLine{        if (\_exp)                                     \(\backslash\)}
+\DoxyCodeLine{        \{                                             \(\backslash\)}
+\DoxyCodeLine{            ERR\_MSG(\_check\_fmt, \_\_VA\_ARGS\_\_);         \(\backslash\)}
+\DoxyCodeLine{            goto \_label;                              \(\backslash\)}
+\DoxyCodeLine{        \}                                             \(\backslash\)}
+\DoxyCodeLine{    \} \textcolor{keywordflow}{while} (0)}
+
+\end{DoxyCode}
+\mbox{\Hypertarget{dpu__offload__debug_8h_a479e59658e4f14a77a442c6b3e43c868}\label{dpu__offload__debug_8h_a479e59658e4f14a77a442c6b3e43c868}} 
+\index{dpu\_offload\_debug.h@{dpu\_offload\_debug.h}!CHECK\_ERR\_RETURN@{CHECK\_ERR\_RETURN}}
+\index{CHECK\_ERR\_RETURN@{CHECK\_ERR\_RETURN}!dpu\_offload\_debug.h@{dpu\_offload\_debug.h}}
+\doxysubsubsection{\texorpdfstring{CHECK\_ERR\_RETURN}{CHECK\_ERR\_RETURN}}
+{\footnotesize\ttfamily \#define CHECK\+\_\+\+ERR\+\_\+\+RETURN(\begin{DoxyParamCaption}\item[{}]{\+\_\+exp,  }\item[{}]{\+\_\+rc,  }\item[{}]{\+\_\+check\+\_\+fmt,  }\item[{}]{... }\end{DoxyParamCaption})}
+
+{\bfseries Value\+:}
+\begin{DoxyCode}{0}
+\DoxyCodeLine{    \textcolor{keywordflow}{do}                                               \(\backslash\)}
+\DoxyCodeLine{    \{                                                \(\backslash\)}
+\DoxyCodeLine{        if (\_exp)                                    \(\backslash\)}
+\DoxyCodeLine{        \{                                            \(\backslash\)}
+\DoxyCodeLine{            ERR\_MSG(\_check\_fmt, \_\_VA\_ARGS\_\_);        \(\backslash\)}
+\DoxyCodeLine{            return \_rc;                              \(\backslash\)}
+\DoxyCodeLine{        \}                                            \(\backslash\)}
+\DoxyCodeLine{    \} \textcolor{keywordflow}{while} (0)}
+
+\end{DoxyCode}
+\mbox{\Hypertarget{dpu__offload__debug_8h_af15947d6d19ad0ddc84a03431182c25a}\label{dpu__offload__debug_8h_af15947d6d19ad0ddc84a03431182c25a}} 
+\index{dpu\_offload\_debug.h@{dpu\_offload\_debug.h}!DBG@{DBG}}
+\index{DBG@{DBG}!dpu\_offload\_debug.h@{dpu\_offload\_debug.h}}
+\doxysubsubsection{\texorpdfstring{DBG}{DBG}}
+{\footnotesize\ttfamily \#define DBG(\begin{DoxyParamCaption}\item[{}]{\+\_\+dbg\+\_\+fmt,  }\item[{}]{... }\end{DoxyParamCaption})}
+
+{\bfseries Value\+:}
+\begin{DoxyCode}{0}
+\DoxyCodeLine{    \textcolor{keywordflow}{do}                                                                                \(\backslash\)}
+\DoxyCodeLine{    \{                                                                                 \(\backslash\)}
+\DoxyCodeLine{        if (\mbox{\hyperlink{dpu__offload__debug_8h_a8c1ff660127011d941f7138087377492}{dbg\_cfg}}.\mbox{\hyperlink{structdebug__config_a985f7dc750328849311723dd8d8b28a9}{my\_hostname}} == NULL)                                              \(\backslash\)}
+\DoxyCodeLine{        \{                                                                             \(\backslash\)}
+\DoxyCodeLine{            dbg\_cfg.my\_hostname = malloc(1024);                                       \(\backslash\)}
+\DoxyCodeLine{            dbg\_cfg.my\_hostname[1023] = \textcolor{charliteral}{'\(\backslash\)0'};                                         \(\backslash\)}
+\DoxyCodeLine{            gethostname(\mbox{\hyperlink{dpu__offload__debug_8h_a8c1ff660127011d941f7138087377492}{dbg\_cfg}}.\mbox{\hyperlink{structdebug__config_a985f7dc750328849311723dd8d8b28a9}{my\_hostname}}, 1023);                                   \(\backslash\)}
+\DoxyCodeLine{            dbg\_cfg.verbose = 0;                                                      \(\backslash\)}
+\DoxyCodeLine{            char *verbose\_str = getenv(\mbox{\hyperlink{dpu__offload__envvars_8h_a342858620cd11d52e8e029b12be40e17}{DPU\_OFFLOAD\_DBG\_VERBOSE}});                      \(\backslash\)}
+\DoxyCodeLine{            if (verbose\_str)                                                          \(\backslash\)}
+\DoxyCodeLine{                dbg\_cfg.verbose = atoi(verbose\_str);                                  \(\backslash\)}
+\DoxyCodeLine{            dbg\_cfg.sp\_id\_str = getenv(\mbox{\hyperlink{dpu__offload__envvars_8h_af083bde587f0738f8662e7e1de571651}{DPU\_OFFLOAD\_SERVICE\_PROCESS\_GLOBAL\_ID\_ENVVAR}}); \(\backslash\)}
+\DoxyCodeLine{            if (\mbox{\hyperlink{dpu__offload__debug_8h_a8c1ff660127011d941f7138087377492}{dbg\_cfg}}.\mbox{\hyperlink{structdebug__config_a77c6e1c40276daf38a2876b38956a99a}{sp\_id\_str}} != NULL)                                            \(\backslash\)}
+\DoxyCodeLine{                dbg\_cfg.sp\_id = atoi(\mbox{\hyperlink{dpu__offload__debug_8h_a8c1ff660127011d941f7138087377492}{dbg\_cfg}}.\mbox{\hyperlink{structdebug__config_a77c6e1c40276daf38a2876b38956a99a}{sp\_id\_str}});                              \(\backslash\)}
+\DoxyCodeLine{        \}                                                                             \(\backslash\)}
+\DoxyCodeLine{        if (\mbox{\hyperlink{dpu__offload__debug_8h_a8c1ff660127011d941f7138087377492}{dbg\_cfg}}.\mbox{\hyperlink{structdebug__config_ade17ff4cb6997cf87d36311ea05bc426}{verbose}} > 0)                                                      \(\backslash\)}
+\DoxyCodeLine{        \{                                                                             \(\backslash\)}
+\DoxyCodeLine{            if (\mbox{\hyperlink{dpu__offload__debug_8h_a8c1ff660127011d941f7138087377492}{dbg\_cfg}}.\mbox{\hyperlink{structdebug__config_a77c6e1c40276daf38a2876b38956a99a}{sp\_id\_str}} == NULL)                                            \(\backslash\)}
+\DoxyCodeLine{                fprintf(stdout, \textcolor{stringliteral}{"{}[\%s:l.\%d:\%s():\%s:pid=\%d] "{}} \_dbg\_fmt \textcolor{stringliteral}{"{}\(\backslash\)n"{}},            \(\backslash\)}
+\DoxyCodeLine{                        \_\_FILE\_\_, \_\_LINE\_\_, \_\_func\_\_, \mbox{\hyperlink{dpu__offload__debug_8h_a8c1ff660127011d941f7138087377492}{dbg\_cfg}}.\mbox{\hyperlink{structdebug__config_a985f7dc750328849311723dd8d8b28a9}{my\_hostname}},            \(\backslash\)}
+\DoxyCodeLine{                        getpid() \_\_VA\_OPT\_\_(, ) \_\_VA\_ARGS\_\_);                         \(\backslash\)}
+\DoxyCodeLine{            else                                                                      \(\backslash\)}
+\DoxyCodeLine{                fprintf(stdout, \textcolor{stringliteral}{"{}[\%s:l.\%d:\%s():\%s:pid=\%d,SP=\%d] "{}} \_dbg\_fmt \textcolor{stringliteral}{"{}\(\backslash\)n"{}},      \(\backslash\)}
+\DoxyCodeLine{                        \_\_FILE\_\_, \_\_LINE\_\_, \_\_func\_\_, \mbox{\hyperlink{dpu__offload__debug_8h_a8c1ff660127011d941f7138087377492}{dbg\_cfg}}.\mbox{\hyperlink{structdebug__config_a985f7dc750328849311723dd8d8b28a9}{my\_hostname}},            \(\backslash\)}
+\DoxyCodeLine{                        getpid(), \mbox{\hyperlink{dpu__offload__debug_8h_a8c1ff660127011d941f7138087377492}{dbg\_cfg}}.\mbox{\hyperlink{structdebug__config_a4f354cf8bd2c22da66ccb8343a77b9b5}{sp\_id}} \_\_VA\_OPT\_\_(, ) \_\_VA\_ARGS\_\_);          \(\backslash\)}
+\DoxyCodeLine{        \}                                                                             \(\backslash\)}
+\DoxyCodeLine{    \} \textcolor{keywordflow}{while} (0)}
+
+\end{DoxyCode}
+\mbox{\Hypertarget{dpu__offload__debug_8h_a1e35b5b30efa988e1dd815f367747b5c}\label{dpu__offload__debug_8h_a1e35b5b30efa988e1dd815f367747b5c}} 
+\index{dpu\_offload\_debug.h@{dpu\_offload\_debug.h}!ERR\_MSG@{ERR\_MSG}}
+\index{ERR\_MSG@{ERR\_MSG}!dpu\_offload\_debug.h@{dpu\_offload\_debug.h}}
+\doxysubsubsection{\texorpdfstring{ERR\_MSG}{ERR\_MSG}}
+{\footnotesize\ttfamily \#define ERR\+\_\+\+MSG(\begin{DoxyParamCaption}\item[{}]{\+\_\+err\+\_\+fmt,  }\item[{}]{... }\end{DoxyParamCaption})}
+
+{\bfseries Value\+:}
+\begin{DoxyCode}{0}
+\DoxyCodeLine{    \textcolor{keywordflow}{do}                                                                                      \(\backslash\)}
+\DoxyCodeLine{    \{                                                                                       \(\backslash\)}
+\DoxyCodeLine{        char myhostname[1024];                                                              \(\backslash\)}
+\DoxyCodeLine{        myhostname[1023] = \textcolor{charliteral}{'\(\backslash\)0'};                                                            \(\backslash\)}
+\DoxyCodeLine{        gethostname(myhostname, 1023);                                                      \(\backslash\)}
+\DoxyCodeLine{        if (getenv(\mbox{\hyperlink{dpu__offload__envvars_8h_af083bde587f0738f8662e7e1de571651}{DPU\_OFFLOAD\_SERVICE\_PROCESS\_GLOBAL\_ID\_ENVVAR}}))                           \(\backslash\)}
+\DoxyCodeLine{        \{                                                                                   \(\backslash\)}
+\DoxyCodeLine{            int \_\_sp = atoi(getenv(\mbox{\hyperlink{dpu__offload__envvars_8h_af083bde587f0738f8662e7e1de571651}{DPU\_OFFLOAD\_SERVICE\_PROCESS\_GLOBAL\_ID\_ENVVAR}}));          \(\backslash\)}
+\DoxyCodeLine{            fprintf(stderr, \textcolor{stringliteral}{"{}[\%s:l.\%d:\%s:pid=\%d:SP=\%d] ERROR: \%s() failed. "{}} \_err\_fmt \textcolor{stringliteral}{"{}\(\backslash\)n"{}}, \(\backslash\)}
+\DoxyCodeLine{                    \_\_FILE\_\_, \_\_LINE\_\_, myhostname, getpid(), \_\_sp,                         \(\backslash\)}
+\DoxyCodeLine{                    \_\_func\_\_ \_\_VA\_OPT\_\_(, ) \_\_VA\_ARGS\_\_);                                   \(\backslash\)}
+\DoxyCodeLine{        \}                                                                                   \(\backslash\)}
+\DoxyCodeLine{        else                                                                                \(\backslash\)}
+\DoxyCodeLine{        \{                                                                                   \(\backslash\)}
+\DoxyCodeLine{            fprintf(stderr, \textcolor{stringliteral}{"{}[\%s:l.\%d:\%s:pid=\%d] ERROR: \%s() failed. "{}} \_err\_fmt \textcolor{stringliteral}{"{}\(\backslash\)n"{}},       \(\backslash\)}
+\DoxyCodeLine{                    \_\_FILE\_\_, \_\_LINE\_\_, myhostname, getpid(),                               \(\backslash\)}
+\DoxyCodeLine{                    \_\_func\_\_ \_\_VA\_OPT\_\_(, ) \_\_VA\_ARGS\_\_);                                   \(\backslash\)}
+\DoxyCodeLine{        \}                                                                                   \(\backslash\)}
+\DoxyCodeLine{    \} \textcolor{keywordflow}{while} (0)}
+
+\end{DoxyCode}
+\mbox{\Hypertarget{dpu__offload__debug_8h_aa72dc535dbf1c7091494a52c90ea64dd}\label{dpu__offload__debug_8h_aa72dc535dbf1c7091494a52c90ea64dd}} 
+\index{dpu\_offload\_debug.h@{dpu\_offload\_debug.h}!INFO\_MSG@{INFO\_MSG}}
+\index{INFO\_MSG@{INFO\_MSG}!dpu\_offload\_debug.h@{dpu\_offload\_debug.h}}
+\doxysubsubsection{\texorpdfstring{INFO\_MSG}{INFO\_MSG}}
+{\footnotesize\ttfamily \#define INFO\+\_\+\+MSG(\begin{DoxyParamCaption}\item[{}]{\+\_\+info\+\_\+fmt,  }\item[{}]{... }\end{DoxyParamCaption})}
+
+{\bfseries Value\+:}
+\begin{DoxyCode}{0}
+\DoxyCodeLine{    \textcolor{keywordflow}{do}                                                                              \(\backslash\)}
+\DoxyCodeLine{    \{                                                                               \(\backslash\)}
+\DoxyCodeLine{        char myhostname[1024];                                                      \(\backslash\)}
+\DoxyCodeLine{        myhostname[1023] = \textcolor{charliteral}{'\(\backslash\)0'};                                                    \(\backslash\)}
+\DoxyCodeLine{        gethostname(myhostname, 1023);                                              \(\backslash\)}
+\DoxyCodeLine{        if (getenv(\mbox{\hyperlink{dpu__offload__envvars_8h_af083bde587f0738f8662e7e1de571651}{DPU\_OFFLOAD\_SERVICE\_PROCESS\_GLOBAL\_ID\_ENVVAR}}))                   \(\backslash\)}
+\DoxyCodeLine{        \{                                                                           \(\backslash\)}
+\DoxyCodeLine{            int \_\_sp = atoi(getenv(\mbox{\hyperlink{dpu__offload__envvars_8h_af083bde587f0738f8662e7e1de571651}{DPU\_OFFLOAD\_SERVICE\_PROCESS\_GLOBAL\_ID\_ENVVAR}}));  \(\backslash\)}
+\DoxyCodeLine{            fprintf(stderr, \textcolor{stringliteral}{"{}[\%s:l.\%d:\%s():\%s:pid=\%d:SP=\%d] INFO: "{}} \_info\_fmt \textcolor{stringliteral}{"{}\(\backslash\)n"{}}, \(\backslash\)}
+\DoxyCodeLine{                    \_\_FILE\_\_, \_\_LINE\_\_, \_\_func\_\_, myhostname,                       \(\backslash\)}
+\DoxyCodeLine{                    getpid(), \_\_sp \_\_VA\_OPT\_\_(, ) \_\_VA\_ARGS\_\_);                     \(\backslash\)}
+\DoxyCodeLine{        \}                                                                           \(\backslash\)}
+\DoxyCodeLine{        else                                                                        \(\backslash\)}
+\DoxyCodeLine{        \{                                                                           \(\backslash\)}
+\DoxyCodeLine{            fprintf(stderr, \textcolor{stringliteral}{"{}[\%s:l.\%d:\%s():\%s:pid=\%d] INFO: "{}} \_info\_fmt \textcolor{stringliteral}{"{}\(\backslash\)n"{}},       \(\backslash\)}
+\DoxyCodeLine{                    \_\_FILE\_\_, \_\_LINE\_\_, \_\_func\_\_, myhostname,                       \(\backslash\)}
+\DoxyCodeLine{                    getpid() \_\_VA\_OPT\_\_(, ) \_\_VA\_ARGS\_\_);                           \(\backslash\)}
+\DoxyCodeLine{        \}                                                                           \(\backslash\)}
+\DoxyCodeLine{    \} \textcolor{keywordflow}{while} (0)}
+
+\end{DoxyCode}
+\mbox{\Hypertarget{dpu__offload__debug_8h_ab041cf9da24b7b5cc840aa3828738521}\label{dpu__offload__debug_8h_ab041cf9da24b7b5cc840aa3828738521}} 
+\index{dpu\_offload\_debug.h@{dpu\_offload\_debug.h}!WARN\_MSG@{WARN\_MSG}}
+\index{WARN\_MSG@{WARN\_MSG}!dpu\_offload\_debug.h@{dpu\_offload\_debug.h}}
+\doxysubsubsection{\texorpdfstring{WARN\_MSG}{WARN\_MSG}}
+{\footnotesize\ttfamily \#define WARN\+\_\+\+MSG(\begin{DoxyParamCaption}\item[{}]{\+\_\+warn\+\_\+fmt,  }\item[{}]{... }\end{DoxyParamCaption})}
+
+{\bfseries Value\+:}
+\begin{DoxyCode}{0}
+\DoxyCodeLine{    \textcolor{keywordflow}{do}                                                                              \(\backslash\)}
+\DoxyCodeLine{    \{                                                                               \(\backslash\)}
+\DoxyCodeLine{        char myhostname[1024];                                                      \(\backslash\)}
+\DoxyCodeLine{        myhostname[1023] = \textcolor{charliteral}{'\(\backslash\)0'};                                                    \(\backslash\)}
+\DoxyCodeLine{        gethostname(myhostname, 1023);                                              \(\backslash\)}
+\DoxyCodeLine{        if (getenv(\mbox{\hyperlink{dpu__offload__envvars_8h_af083bde587f0738f8662e7e1de571651}{DPU\_OFFLOAD\_SERVICE\_PROCESS\_GLOBAL\_ID\_ENVVAR}}))                   \(\backslash\)}
+\DoxyCodeLine{        \{                                                                           \(\backslash\)}
+\DoxyCodeLine{            int \_\_sp = atoi(getenv(\mbox{\hyperlink{dpu__offload__envvars_8h_af083bde587f0738f8662e7e1de571651}{DPU\_OFFLOAD\_SERVICE\_PROCESS\_GLOBAL\_ID\_ENVVAR}}));  \(\backslash\)}
+\DoxyCodeLine{            fprintf(stderr, \textcolor{stringliteral}{"{}[\%s:l.\%d:\%s():\%s:pid=\%d:SP=\%d] WARN: "{}} \_warn\_fmt \textcolor{stringliteral}{"{}\(\backslash\)n"{}}, \(\backslash\)}
+\DoxyCodeLine{                    \_\_FILE\_\_, \_\_LINE\_\_, \_\_func\_\_, myhostname,                       \(\backslash\)}
+\DoxyCodeLine{                    getpid(), \_\_sp \_\_VA\_OPT\_\_(, ) \_\_VA\_ARGS\_\_);                     \(\backslash\)}
+\DoxyCodeLine{        \}                                                                           \(\backslash\)}
+\DoxyCodeLine{        else                                                                        \(\backslash\)}
+\DoxyCodeLine{        \{                                                                           \(\backslash\)}
+\DoxyCodeLine{            fprintf(stderr, \textcolor{stringliteral}{"{}[\%s:l.\%d:\%s():\%s:pid=\%d] WARN: "{}} \_warn\_fmt \textcolor{stringliteral}{"{}\(\backslash\)n"{}},       \(\backslash\)}
+\DoxyCodeLine{                    \_\_FILE\_\_, \_\_LINE\_\_, \_\_func\_\_, myhostname,                       \(\backslash\)}
+\DoxyCodeLine{                    getpid() \_\_VA\_OPT\_\_(, ) \_\_VA\_ARGS\_\_);                           \(\backslash\)}
+\DoxyCodeLine{        \}                                                                           \(\backslash\)}
+\DoxyCodeLine{    \} \textcolor{keywordflow}{while} (0)}
+
+\end{DoxyCode}
+
+
+\doxysubsection{Typedef Documentation}
+\mbox{\Hypertarget{dpu__offload__debug_8h_acacca5e836212792f278e28e8c5cbdee}\label{dpu__offload__debug_8h_acacca5e836212792f278e28e8c5cbdee}} 
+\index{dpu\_offload\_debug.h@{dpu\_offload\_debug.h}!debug\_config\_t@{debug\_config\_t}}
+\index{debug\_config\_t@{debug\_config\_t}!dpu\_offload\_debug.h@{dpu\_offload\_debug.h}}
+\doxysubsubsection{\texorpdfstring{debug\_config\_t}{debug\_config\_t}}
+{\footnotesize\ttfamily typedef struct \mbox{\hyperlink{structdebug__config}{debug\+\_\+config}} \mbox{\hyperlink{dpu__offload__debug_8h_acacca5e836212792f278e28e8c5cbdee}{debug\+\_\+config\+\_\+t}}}
+
+
+
+\doxysubsection{Variable Documentation}
+\mbox{\Hypertarget{dpu__offload__debug_8h_a8c1ff660127011d941f7138087377492}\label{dpu__offload__debug_8h_a8c1ff660127011d941f7138087377492}} 
+\index{dpu\_offload\_debug.h@{dpu\_offload\_debug.h}!dbg\_cfg@{dbg\_cfg}}
+\index{dbg\_cfg@{dbg\_cfg}!dpu\_offload\_debug.h@{dpu\_offload\_debug.h}}
+\doxysubsubsection{\texorpdfstring{dbg\_cfg}{dbg\_cfg}}
+{\footnotesize\ttfamily \mbox{\hyperlink{dpu__offload__debug_8h_acacca5e836212792f278e28e8c5cbdee}{debug\+\_\+config\+\_\+t}} dbg\+\_\+cfg\hspace{0.3cm}{\ttfamily [extern]}}
+

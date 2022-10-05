@@ -1,0 +1,138 @@
+\hypertarget{dpu__offload__ops_8h}{}\doxysection{/home/gvallee/\+Projects/\+DPU\+\_\+offloading/dpu\+\_\+offload\+\_\+service/include/dpu\+\_\+offload\+\_\+ops.h File Reference}
+\label{dpu__offload__ops_8h}\index{/home/gvallee/Projects/DPU\_offloading/dpu\_offload\_service/include/dpu\_offload\_ops.h@{/home/gvallee/Projects/DPU\_offloading/dpu\_offload\_service/include/dpu\_offload\_ops.h}}
+{\ttfamily \#include $<$inttypes.\+h$>$}\newline
+{\ttfamily \#include \char`\"{}dpu\+\_\+offload\+\_\+types.\+h\char`\"{}}\newline
+Include dependency graph for dpu\+\_\+offload\+\_\+ops.\+h\+:
+\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{dpu__offload__ops_8h__incl}
+\end{center}
+\end{figure}
+This graph shows which files directly or indirectly include this file\+:
+\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=267pt]{dpu__offload__ops_8h__dep__incl}
+\end{center}
+\end{figure}
+\doxysubsection*{Functions}
+\begin{DoxyCompactItemize}
+\item 
+uint64\+\_\+t \mbox{\hyperlink{dpu__offload__ops_8h_a33e99b28a5cbcbcde9d18849d51bd743}{register\+\_\+new\+\_\+op}} (\mbox{\hyperlink{dpu__offload__types_8h_abdda2bc51909d3f2e98a5c9dde42b0a8}{offloading\+\_\+engine\+\_\+t}} $\ast$engine, \mbox{\hyperlink{dpu__offload__types_8h_a1d9118cd58c87ce36be5efd43e09f6b8}{offload\+\_\+op\+\_\+t}} $\ast$op)
+\begin{DoxyCompactList}\small\item\em Register a new operation, i.\+e., implementation of an algorithm in the offload engine. \end{DoxyCompactList}\item 
+\mbox{\hyperlink{dpu__offload__common_8h_a2f49d8c1f5f6182b5128dfd3c815c3ef}{dpu\+\_\+offload\+\_\+status\+\_\+t}} \mbox{\hyperlink{dpu__offload__ops_8h_aaeb3d1c0a356abdc46e2fea40d71b927}{op\+\_\+desc\+\_\+get}} (\mbox{\hyperlink{dpu__offload__types_8h_abdda2bc51909d3f2e98a5c9dde42b0a8}{offloading\+\_\+engine\+\_\+t}} $\ast$engine, const uint64\+\_\+t id, uint64\+\_\+t op\+\_\+id, \mbox{\hyperlink{dpu__offload__types_8h_ac339072f5b1133aa48de2a0e086400ac}{op\+\_\+desc\+\_\+t}} $\ast$$\ast$desc)
+\begin{DoxyCompactList}\small\item\em Get a descriptor for the execution of a new operation. \end{DoxyCompactList}\item 
+\mbox{\hyperlink{dpu__offload__common_8h_a2f49d8c1f5f6182b5128dfd3c815c3ef}{dpu\+\_\+offload\+\_\+status\+\_\+t}} \mbox{\hyperlink{dpu__offload__ops_8h_a6e0283c55e854f555c60e6a3d08ceb12}{op\+\_\+desc\+\_\+submit}} (\mbox{\hyperlink{dpu__offload__types_8h_abdda2bc51909d3f2e98a5c9dde42b0a8}{offloading\+\_\+engine\+\_\+t}} $\ast$engine, \mbox{\hyperlink{dpu__offload__types_8h_ac339072f5b1133aa48de2a0e086400ac}{op\+\_\+desc\+\_\+t}} $\ast$desc)
+\begin{DoxyCompactList}\small\item\em Start the execution of a operation descriptor. \end{DoxyCompactList}\item 
+\mbox{\hyperlink{dpu__offload__common_8h_a2f49d8c1f5f6182b5128dfd3c815c3ef}{dpu\+\_\+offload\+\_\+status\+\_\+t}} \mbox{\hyperlink{dpu__offload__ops_8h_a86d80fb21fc6fea666621b5b4cdb027f}{op\+\_\+desc\+\_\+return}} (\mbox{\hyperlink{dpu__offload__types_8h_abdda2bc51909d3f2e98a5c9dde42b0a8}{offloading\+\_\+engine\+\_\+t}} $\ast$engine, \mbox{\hyperlink{dpu__offload__types_8h_ac339072f5b1133aa48de2a0e086400ac}{op\+\_\+desc\+\_\+t}} $\ast$$\ast$desc)
+\begin{DoxyCompactList}\small\item\em Return the descriptor of a completed operation. Returning a non-\/completed operation is an error. \end{DoxyCompactList}\item 
+\mbox{\hyperlink{dpu__offload__common_8h_a2f49d8c1f5f6182b5128dfd3c815c3ef}{dpu\+\_\+offload\+\_\+status\+\_\+t}} \mbox{\hyperlink{dpu__offload__ops_8h_ad7e5e011addb3ac4770dae752cbd1ca9}{progress\+\_\+active\+\_\+ops}} (\mbox{\hyperlink{dpu__offload__types_8h_ac95b2624b57c0005e3ca8a740316e5ab}{execution\+\_\+context\+\_\+t}} $\ast$econtext)
+\begin{DoxyCompactList}\small\item\em Progress all the active operations on a given execution context. \end{DoxyCompactList}\end{DoxyCompactItemize}
+
+
+\doxysubsection{Function Documentation}
+\mbox{\Hypertarget{dpu__offload__ops_8h_aaeb3d1c0a356abdc46e2fea40d71b927}\label{dpu__offload__ops_8h_aaeb3d1c0a356abdc46e2fea40d71b927}} 
+\index{dpu\_offload\_ops.h@{dpu\_offload\_ops.h}!op\_desc\_get@{op\_desc\_get}}
+\index{op\_desc\_get@{op\_desc\_get}!dpu\_offload\_ops.h@{dpu\_offload\_ops.h}}
+\doxysubsubsection{\texorpdfstring{op\_desc\_get()}{op\_desc\_get()}}
+{\footnotesize\ttfamily \mbox{\hyperlink{dpu__offload__common_8h_a2f49d8c1f5f6182b5128dfd3c815c3ef}{dpu\+\_\+offload\+\_\+status\+\_\+t}} op\+\_\+desc\+\_\+get (\begin{DoxyParamCaption}\item[{\mbox{\hyperlink{dpu__offload__types_8h_abdda2bc51909d3f2e98a5c9dde42b0a8}{offloading\+\_\+engine\+\_\+t}} $\ast$}]{engine,  }\item[{const uint64\+\_\+t}]{id,  }\item[{uint64\+\_\+t}]{op\+\_\+id,  }\item[{\mbox{\hyperlink{dpu__offload__types_8h_ac339072f5b1133aa48de2a0e086400ac}{op\+\_\+desc\+\_\+t}} $\ast$$\ast$}]{desc }\end{DoxyParamCaption})}
+
+
+
+Get a descriptor for the execution of a new operation. 
+
+
+\begin{DoxyParams}{Parameters}
+{\em engine} & Associated offload engine. \\
+\hline
+{\em id} & Unique identifier associated with the operation. For collective operation, it must be the same for all app processes. \\
+\hline
+{\em op\+\_\+id} & Registration identifier returned by \mbox{\hyperlink{dpu__offload__ops_8h_a33e99b28a5cbcbcde9d18849d51bd743}{register\+\_\+new\+\_\+op()}}. \\
+\hline
+{\em desc} & Returned descriptor. The operation is active only once submited. \\
+\hline
+\end{DoxyParams}
+\begin{DoxyReturn}{Returns}
+dpu\+\_\+offload\+\_\+status\+\_\+t 
+\end{DoxyReturn}
+\mbox{\Hypertarget{dpu__offload__ops_8h_a86d80fb21fc6fea666621b5b4cdb027f}\label{dpu__offload__ops_8h_a86d80fb21fc6fea666621b5b4cdb027f}} 
+\index{dpu\_offload\_ops.h@{dpu\_offload\_ops.h}!op\_desc\_return@{op\_desc\_return}}
+\index{op\_desc\_return@{op\_desc\_return}!dpu\_offload\_ops.h@{dpu\_offload\_ops.h}}
+\doxysubsubsection{\texorpdfstring{op\_desc\_return()}{op\_desc\_return()}}
+{\footnotesize\ttfamily \mbox{\hyperlink{dpu__offload__common_8h_a2f49d8c1f5f6182b5128dfd3c815c3ef}{dpu\+\_\+offload\+\_\+status\+\_\+t}} op\+\_\+desc\+\_\+return (\begin{DoxyParamCaption}\item[{\mbox{\hyperlink{dpu__offload__types_8h_abdda2bc51909d3f2e98a5c9dde42b0a8}{offloading\+\_\+engine\+\_\+t}} $\ast$}]{engine,  }\item[{\mbox{\hyperlink{dpu__offload__types_8h_ac339072f5b1133aa48de2a0e086400ac}{op\+\_\+desc\+\_\+t}} $\ast$$\ast$}]{desc }\end{DoxyParamCaption})}
+
+
+
+Return the descriptor of a completed operation. Returning a non-\/completed operation is an error. 
+
+
+\begin{DoxyParams}{Parameters}
+{\em engine} & Associated offload engine. \\
+\hline
+{\em desc} & Descriptor of the operation to return. In case of error, the descriptor is in an undefined step; upon success the descriptor shall be NULL. \\
+\hline
+\end{DoxyParams}
+\begin{DoxyReturn}{Returns}
+dpu\+\_\+offload\+\_\+status\+\_\+t 
+\end{DoxyReturn}
+\mbox{\Hypertarget{dpu__offload__ops_8h_a6e0283c55e854f555c60e6a3d08ceb12}\label{dpu__offload__ops_8h_a6e0283c55e854f555c60e6a3d08ceb12}} 
+\index{dpu\_offload\_ops.h@{dpu\_offload\_ops.h}!op\_desc\_submit@{op\_desc\_submit}}
+\index{op\_desc\_submit@{op\_desc\_submit}!dpu\_offload\_ops.h@{dpu\_offload\_ops.h}}
+\doxysubsubsection{\texorpdfstring{op\_desc\_submit()}{op\_desc\_submit()}}
+{\footnotesize\ttfamily \mbox{\hyperlink{dpu__offload__common_8h_a2f49d8c1f5f6182b5128dfd3c815c3ef}{dpu\+\_\+offload\+\_\+status\+\_\+t}} op\+\_\+desc\+\_\+submit (\begin{DoxyParamCaption}\item[{\mbox{\hyperlink{dpu__offload__types_8h_abdda2bc51909d3f2e98a5c9dde42b0a8}{offloading\+\_\+engine\+\_\+t}} $\ast$}]{engine,  }\item[{\mbox{\hyperlink{dpu__offload__types_8h_ac339072f5b1133aa48de2a0e086400ac}{op\+\_\+desc\+\_\+t}} $\ast$}]{desc }\end{DoxyParamCaption})}
+
+
+
+Start the execution of a operation descriptor. 
+
+
+\begin{DoxyParams}{Parameters}
+{\em engine} & Associated offload engine. \\
+\hline
+{\em desc} & Descriptor of the operation to execute. \\
+\hline
+\end{DoxyParams}
+\begin{DoxyReturn}{Returns}
+dpu\+\_\+offload\+\_\+status\+\_\+t 
+\end{DoxyReturn}
+\mbox{\Hypertarget{dpu__offload__ops_8h_ad7e5e011addb3ac4770dae752cbd1ca9}\label{dpu__offload__ops_8h_ad7e5e011addb3ac4770dae752cbd1ca9}} 
+\index{dpu\_offload\_ops.h@{dpu\_offload\_ops.h}!progress\_active\_ops@{progress\_active\_ops}}
+\index{progress\_active\_ops@{progress\_active\_ops}!dpu\_offload\_ops.h@{dpu\_offload\_ops.h}}
+\doxysubsubsection{\texorpdfstring{progress\_active\_ops()}{progress\_active\_ops()}}
+{\footnotesize\ttfamily \mbox{\hyperlink{dpu__offload__common_8h_a2f49d8c1f5f6182b5128dfd3c815c3ef}{dpu\+\_\+offload\+\_\+status\+\_\+t}} progress\+\_\+active\+\_\+ops (\begin{DoxyParamCaption}\item[{\mbox{\hyperlink{dpu__offload__types_8h_ac95b2624b57c0005e3ca8a740316e5ab}{execution\+\_\+context\+\_\+t}} $\ast$}]{econtext }\end{DoxyParamCaption})}
+
+
+
+Progress all the active operations on a given execution context. 
+
+
+\begin{DoxyParams}{Parameters}
+{\em econtext} & Execution context on which the active operations need to be progressed. \\
+\hline
+\end{DoxyParams}
+\begin{DoxyReturn}{Returns}
+dpu\+\_\+offload\+\_\+status\+\_\+t 
+\end{DoxyReturn}
+\mbox{\Hypertarget{dpu__offload__ops_8h_a33e99b28a5cbcbcde9d18849d51bd743}\label{dpu__offload__ops_8h_a33e99b28a5cbcbcde9d18849d51bd743}} 
+\index{dpu\_offload\_ops.h@{dpu\_offload\_ops.h}!register\_new\_op@{register\_new\_op}}
+\index{register\_new\_op@{register\_new\_op}!dpu\_offload\_ops.h@{dpu\_offload\_ops.h}}
+\doxysubsubsection{\texorpdfstring{register\_new\_op()}{register\_new\_op()}}
+{\footnotesize\ttfamily uint64\+\_\+t register\+\_\+new\+\_\+op (\begin{DoxyParamCaption}\item[{\mbox{\hyperlink{dpu__offload__types_8h_abdda2bc51909d3f2e98a5c9dde42b0a8}{offloading\+\_\+engine\+\_\+t}} $\ast$}]{engine,  }\item[{\mbox{\hyperlink{dpu__offload__types_8h_a1d9118cd58c87ce36be5efd43e09f6b8}{offload\+\_\+op\+\_\+t}} $\ast$}]{op }\end{DoxyParamCaption})}
+
+
+
+Register a new operation, i.\+e., implementation of an algorithm in the offload engine. 
+
+
+\begin{DoxyParams}{Parameters}
+{\em engine} & Offload engine on the host or DPU where the operation needs to be registered. \\
+\hline
+{\em op} & Description of the operation. \\
+\hline
+\end{DoxyParams}
+\begin{DoxyReturn}{Returns}
+uint64\+\_\+t 
+\end{DoxyReturn}

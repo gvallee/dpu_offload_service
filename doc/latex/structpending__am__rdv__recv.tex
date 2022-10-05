@@ -1,0 +1,115 @@
+\hypertarget{structpending__am__rdv__recv}{}\doxysection{pending\+\_\+am\+\_\+rdv\+\_\+recv Struct Reference}
+\label{structpending__am__rdv__recv}\index{pending\_am\_rdv\_recv@{pending\_am\_rdv\_recv}}
+
+
+{\ttfamily \#include $<$dpu\+\_\+offload\+\_\+types.\+h$>$}
+
+
+
+Collaboration diagram for pending\+\_\+am\+\_\+rdv\+\_\+recv\+:
+\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{structpending__am__rdv__recv__coll__graph}
+\end{center}
+\end{figure}
+\doxysubsection*{Data Fields}
+\begin{DoxyCompactItemize}
+\item 
+ucs\+\_\+list\+\_\+link\+\_\+t \mbox{\hyperlink{structpending__am__rdv__recv_a7432ba54f93cd76545707edde947b646}{item}}
+\item 
+\mbox{\hyperlink{dpu__offload__types_8h_abdda2bc51909d3f2e98a5c9dde42b0a8}{offloading\+\_\+engine\+\_\+t}} $\ast$ \mbox{\hyperlink{structpending__am__rdv__recv_a468c74939d7c5a26f62588d33a22bf86}{engine}}
+\item 
+size\+\_\+t \mbox{\hyperlink{structpending__am__rdv__recv_af42f8e7dde54a08ff672e5201ff06a70}{hdr\+\_\+len}}
+\item 
+\mbox{\hyperlink{dpu__offload__types_8h_a4d511600b522bd25ed146b9d11a3c2a9}{am\+\_\+header\+\_\+t}} $\ast$ \mbox{\hyperlink{structpending__am__rdv__recv_ae15734fda73055a5d72138ad3d1b6b93}{hdr}}
+\item 
+ucs\+\_\+status\+\_\+ptr\+\_\+t \mbox{\hyperlink{structpending__am__rdv__recv_a2bd46d9d3db164374c8ce5af3f06e5d3}{req}}
+\item 
+size\+\_\+t \mbox{\hyperlink{structpending__am__rdv__recv_abdcba01efd93a9c7c444f739cba91e7b}{payload\+\_\+size}}
+\item 
+size\+\_\+t \mbox{\hyperlink{structpending__am__rdv__recv_a3b6466a97a8c8357bbb76f09d453d341}{buff\+\_\+size}}
+\item 
+void $\ast$ \mbox{\hyperlink{structpending__am__rdv__recv_a1f8b72f2056c777904474499c05f8ffc}{desc}}
+\item 
+void $\ast$ \mbox{\hyperlink{structpending__am__rdv__recv_a498a0d723bca5a9f8cfb852ee7634fc8}{user\+\_\+data}}
+\item 
+\mbox{\hyperlink{dpu__offload__types_8h_a9814ec7d07717e4fe56a4083ff5ecce6}{notification\+\_\+info\+\_\+t}} \mbox{\hyperlink{structpending__am__rdv__recv_a7ee3438e59175a48e7c3da86bb834a1c}{pool}}
+\item 
+\mbox{\hyperlink{structsmart__chunk__t}{smart\+\_\+chunk\+\_\+t}} $\ast$ \mbox{\hyperlink{structpending__am__rdv__recv_afb32d0fed22e6f836ffc091d11e92780}{smart\+\_\+chunk}}
+\end{DoxyCompactItemize}
+
+
+\doxysubsection{Field Documentation}
+\mbox{\Hypertarget{structpending__am__rdv__recv_a3b6466a97a8c8357bbb76f09d453d341}\label{structpending__am__rdv__recv_a3b6466a97a8c8357bbb76f09d453d341}} 
+\index{pending\_am\_rdv\_recv@{pending\_am\_rdv\_recv}!buff\_size@{buff\_size}}
+\index{buff\_size@{buff\_size}!pending\_am\_rdv\_recv@{pending\_am\_rdv\_recv}}
+\doxysubsubsection{\texorpdfstring{buff\_size}{buff\_size}}
+{\footnotesize\ttfamily size\+\_\+t pending\+\_\+am\+\_\+rdv\+\_\+recv\+::buff\+\_\+size}
+
+\mbox{\Hypertarget{structpending__am__rdv__recv_a1f8b72f2056c777904474499c05f8ffc}\label{structpending__am__rdv__recv_a1f8b72f2056c777904474499c05f8ffc}} 
+\index{pending\_am\_rdv\_recv@{pending\_am\_rdv\_recv}!desc@{desc}}
+\index{desc@{desc}!pending\_am\_rdv\_recv@{pending\_am\_rdv\_recv}}
+\doxysubsubsection{\texorpdfstring{desc}{desc}}
+{\footnotesize\ttfamily void$\ast$ pending\+\_\+am\+\_\+rdv\+\_\+recv\+::desc}
+
+\mbox{\Hypertarget{structpending__am__rdv__recv_a468c74939d7c5a26f62588d33a22bf86}\label{structpending__am__rdv__recv_a468c74939d7c5a26f62588d33a22bf86}} 
+\index{pending\_am\_rdv\_recv@{pending\_am\_rdv\_recv}!engine@{engine}}
+\index{engine@{engine}!pending\_am\_rdv\_recv@{pending\_am\_rdv\_recv}}
+\doxysubsubsection{\texorpdfstring{engine}{engine}}
+{\footnotesize\ttfamily \mbox{\hyperlink{dpu__offload__types_8h_abdda2bc51909d3f2e98a5c9dde42b0a8}{offloading\+\_\+engine\+\_\+t}}$\ast$ pending\+\_\+am\+\_\+rdv\+\_\+recv\+::engine}
+
+\mbox{\Hypertarget{structpending__am__rdv__recv_ae15734fda73055a5d72138ad3d1b6b93}\label{structpending__am__rdv__recv_ae15734fda73055a5d72138ad3d1b6b93}} 
+\index{pending\_am\_rdv\_recv@{pending\_am\_rdv\_recv}!hdr@{hdr}}
+\index{hdr@{hdr}!pending\_am\_rdv\_recv@{pending\_am\_rdv\_recv}}
+\doxysubsubsection{\texorpdfstring{hdr}{hdr}}
+{\footnotesize\ttfamily \mbox{\hyperlink{dpu__offload__types_8h_a4d511600b522bd25ed146b9d11a3c2a9}{am\+\_\+header\+\_\+t}}$\ast$ pending\+\_\+am\+\_\+rdv\+\_\+recv\+::hdr}
+
+\mbox{\Hypertarget{structpending__am__rdv__recv_af42f8e7dde54a08ff672e5201ff06a70}\label{structpending__am__rdv__recv_af42f8e7dde54a08ff672e5201ff06a70}} 
+\index{pending\_am\_rdv\_recv@{pending\_am\_rdv\_recv}!hdr\_len@{hdr\_len}}
+\index{hdr\_len@{hdr\_len}!pending\_am\_rdv\_recv@{pending\_am\_rdv\_recv}}
+\doxysubsubsection{\texorpdfstring{hdr\_len}{hdr\_len}}
+{\footnotesize\ttfamily size\+\_\+t pending\+\_\+am\+\_\+rdv\+\_\+recv\+::hdr\+\_\+len}
+
+\mbox{\Hypertarget{structpending__am__rdv__recv_a7432ba54f93cd76545707edde947b646}\label{structpending__am__rdv__recv_a7432ba54f93cd76545707edde947b646}} 
+\index{pending\_am\_rdv\_recv@{pending\_am\_rdv\_recv}!item@{item}}
+\index{item@{item}!pending\_am\_rdv\_recv@{pending\_am\_rdv\_recv}}
+\doxysubsubsection{\texorpdfstring{item}{item}}
+{\footnotesize\ttfamily ucs\+\_\+list\+\_\+link\+\_\+t pending\+\_\+am\+\_\+rdv\+\_\+recv\+::item}
+
+\mbox{\Hypertarget{structpending__am__rdv__recv_abdcba01efd93a9c7c444f739cba91e7b}\label{structpending__am__rdv__recv_abdcba01efd93a9c7c444f739cba91e7b}} 
+\index{pending\_am\_rdv\_recv@{pending\_am\_rdv\_recv}!payload\_size@{payload\_size}}
+\index{payload\_size@{payload\_size}!pending\_am\_rdv\_recv@{pending\_am\_rdv\_recv}}
+\doxysubsubsection{\texorpdfstring{payload\_size}{payload\_size}}
+{\footnotesize\ttfamily size\+\_\+t pending\+\_\+am\+\_\+rdv\+\_\+recv\+::payload\+\_\+size}
+
+\mbox{\Hypertarget{structpending__am__rdv__recv_a7ee3438e59175a48e7c3da86bb834a1c}\label{structpending__am__rdv__recv_a7ee3438e59175a48e7c3da86bb834a1c}} 
+\index{pending\_am\_rdv\_recv@{pending\_am\_rdv\_recv}!pool@{pool}}
+\index{pool@{pool}!pending\_am\_rdv\_recv@{pending\_am\_rdv\_recv}}
+\doxysubsubsection{\texorpdfstring{pool}{pool}}
+{\footnotesize\ttfamily \mbox{\hyperlink{dpu__offload__types_8h_a9814ec7d07717e4fe56a4083ff5ecce6}{notification\+\_\+info\+\_\+t}} pending\+\_\+am\+\_\+rdv\+\_\+recv\+::pool}
+
+\mbox{\Hypertarget{structpending__am__rdv__recv_a2bd46d9d3db164374c8ce5af3f06e5d3}\label{structpending__am__rdv__recv_a2bd46d9d3db164374c8ce5af3f06e5d3}} 
+\index{pending\_am\_rdv\_recv@{pending\_am\_rdv\_recv}!req@{req}}
+\index{req@{req}!pending\_am\_rdv\_recv@{pending\_am\_rdv\_recv}}
+\doxysubsubsection{\texorpdfstring{req}{req}}
+{\footnotesize\ttfamily ucs\+\_\+status\+\_\+ptr\+\_\+t pending\+\_\+am\+\_\+rdv\+\_\+recv\+::req}
+
+\mbox{\Hypertarget{structpending__am__rdv__recv_afb32d0fed22e6f836ffc091d11e92780}\label{structpending__am__rdv__recv_afb32d0fed22e6f836ffc091d11e92780}} 
+\index{pending\_am\_rdv\_recv@{pending\_am\_rdv\_recv}!smart\_chunk@{smart\_chunk}}
+\index{smart\_chunk@{smart\_chunk}!pending\_am\_rdv\_recv@{pending\_am\_rdv\_recv}}
+\doxysubsubsection{\texorpdfstring{smart\_chunk}{smart\_chunk}}
+{\footnotesize\ttfamily \mbox{\hyperlink{structsmart__chunk__t}{smart\+\_\+chunk\+\_\+t}}$\ast$ pending\+\_\+am\+\_\+rdv\+\_\+recv\+::smart\+\_\+chunk}
+
+\mbox{\Hypertarget{structpending__am__rdv__recv_a498a0d723bca5a9f8cfb852ee7634fc8}\label{structpending__am__rdv__recv_a498a0d723bca5a9f8cfb852ee7634fc8}} 
+\index{pending\_am\_rdv\_recv@{pending\_am\_rdv\_recv}!user\_data@{user\_data}}
+\index{user\_data@{user\_data}!pending\_am\_rdv\_recv@{pending\_am\_rdv\_recv}}
+\doxysubsubsection{\texorpdfstring{user\_data}{user\_data}}
+{\footnotesize\ttfamily void$\ast$ pending\+\_\+am\+\_\+rdv\+\_\+recv\+::user\+\_\+data}
+
+
+
+The documentation for this struct was generated from the following file\+:\begin{DoxyCompactItemize}
+\item 
+/home/gvallee/\+Projects/\+DPU\+\_\+offloading/dpu\+\_\+offload\+\_\+service/include/\mbox{\hyperlink{dpu__offload__types_8h}{dpu\+\_\+offload\+\_\+types.\+h}}\end{DoxyCompactItemize}

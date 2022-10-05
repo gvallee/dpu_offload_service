@@ -1,0 +1,27 @@
+var searchData=
+[
+  ['cache_5fentries_971',['cache_entries',['../structpeer__info.html#ab7c1456682d187a368b02dc65e6ac8fb',1,'peer_info']]],
+  ['cb_972',['cb',['../structnotification__callback__entry.html#a1745d5e193c6cc78b22bec999083018c',1,'notification_callback_entry']]],
+  ['client_973',['client',['../structexecution__context.html#a4a2324851ba1aa43e61bb0957255cc4f',1,'execution_context::client()'],['../structoffloading__engine.html#aece97511588e63deea88e26d3bb62d12',1,'offloading_engine::client()']]],
+  ['client_5fecontext_974',['client_econtext',['../structremote__dpu__connect__tracker.html#a50999f25fd42364244b1e9b3623f3d54',1,'remote_dpu_connect_tracker']]],
+  ['client_5fid_975',['client_id',['../structpeer__cache__entry.html#a9188059647115453b4eae37c10e25a18',1,'peer_cache_entry::client_id()'],['../structam__header.html#a632ab45f8e805763668ecc411b86eecd',1,'am_header::client_id()'],['../structdpu__offload__event.html#a36750ac104c3652ad22992d0b5606104',1,'dpu_offload_event::client_id()'],['../structremote__service__proc__info.html#a056e2ec01de6a55af4ac99f51a745783',1,'remote_service_proc_info::client_id()']]],
+  ['clients_976',['clients',['../structconnected__clients.html#a174236af9b14fc7685f497a4decbd08a',1,'connected_clients']]],
+  ['complete_977',['complete',['../structam__req.html#a09aff00b55c1f41b4e814f22a17cda65',1,'am_req']]],
+  ['completed_978',['completed',['../structucx__context.html#a93f4c115bc405a83a9592bf4c9d5ba26',1,'ucx_context::completed()'],['../structop__desc.html#ac6e58ad1f129b68eed8a7f718f18c436',1,'op_desc::completed()']]],
+  ['completion_5fcb_979',['completion_cb',['../structam__req.html#a2494244216520e9c40f01730d180b9b4',1,'am_req::completion_cb()'],['../structevent__req.html#ae835b5b2de9afef8bcd6e0b3ffb624bd',1,'event_req::completion_cb()']]],
+  ['completion_5fcb_5fctx_980',['completion_cb_ctx',['../structam__req.html#a1df6c416b95cdfa136377c7b6b398eae',1,'am_req::completion_cb_ctx()'],['../structevent__req.html#a0b72ecaabda10929d76c048c75495ed0',1,'event_req::completion_cb_ctx()']]],
+  ['config_981',['config',['../structoffloading__config.html#a62f9b8d168a976c3f77b7ff06644bb74',1,'offloading_config::config()'],['../structremote__service__proc__info.html#ace1cf20a802cbbf04c15e196c540fc26',1,'remote_service_proc_info::config()'],['../structoffloading__engine.html#ab49289f6624212e788d4135bd8c30686',1,'offloading_engine::config()'],['../structremote__dpu__info.html#a0f5224a657ca4041cf79686fc68def87',1,'remote_dpu_info::config()']]],
+  ['config_5ffile_982',['config_file',['../structoffloading__config.html#a38ce855454181ee55ac73485dd6d65c1',1,'offloading_config']]],
+  ['config_5ffile_5fversion_5ftoken_983',['config_file_version_token',['../dpu__offload__utils_8c.html#a157cedd1ccb06433b6671306b29f9163',1,'dpu_offload_utils.c']]],
+  ['conn_5fdata_984',['conn_data',['../structdpu__offload__client__t.html#ab56996271af9c3240c0d6c394732395e',1,'dpu_offload_client_t::conn_data()'],['../structdpu__offload__server__t.html#a43e0875bf69ea436f34ac9e3d58042da',1,'dpu_offload_server_t::conn_data()']]],
+  ['conn_5fparams_985',['conn_params',['../structinit__params.html#a44328eee34c39431ac3bb020d534ca09',1,'init_params::conn_params()'],['../structdpu__offload__client__t.html#a95caf9a6f7cf4eb12d26c1997f5e8afe',1,'dpu_offload_client_t::conn_params()'],['../structdpu__offload__server__t.html#afac3ca64d76a3851143b233ef65c7868',1,'dpu_offload_server_t::conn_params()']]],
+  ['conn_5frequest_986',['conn_request',['../structucx__server__ctx.html#a110ec08c434d68bf36aef9cb629a0dc1',1,'ucx_server_ctx']]],
+  ['conn_5fstatus_987',['conn_status',['../structremote__service__proc__info.html#a7b4bfd7853aaf0e595fcedd96f0a6f94',1,'remote_service_proc_info']]],
+  ['connect_5faddr_988',['connect_addr',['../structdpu__offload__client__t.html#a2b505c7e631ea5c2654f745523e4989b',1,'dpu_offload_client_t']]],
+  ['connect_5ftid_989',['connect_tid',['../structdpu__offload__server__t.html#a7db7e24db72d405808bd35808f296721',1,'dpu_offload_server_t']]],
+  ['connected_5fcb_990',['connected_cb',['../structinit__params.html#a22eaa18e195746e7d8a7748025fa37a2',1,'init_params::connected_cb()'],['../structdpu__offload__server__t.html#a1887ebdb788b0320a021b84808bc7f68',1,'dpu_offload_server_t::connected_cb()'],['../structdpu__offload__client__t.html#a41bd8e1f1b2219bbf8b8d7d2ba50d67b',1,'dpu_offload_client_t::connected_cb()']]],
+  ['connected_5fclients_991',['connected_clients',['../structdpu__offload__server__t.html#a42294734d6e48b5d6054cf7fad819d9f',1,'dpu_offload_server_t']]],
+  ['connection_5ftid_992',['connection_tid',['../structremote__service__proc__info.html#ab12d9e21124d73e732cc8d3e9c43271a',1,'remote_service_proc_info']]],
+  ['context_993',['context',['../structdpu__offload__server__t.html#aa9f37c73e9845371ff2b6b59a6f4277f',1,'dpu_offload_server_t::context()'],['../structdpu__offload__event.html#aed3eedd8b262b0117983582dbc16079f',1,'dpu_offload_event::context()']]],
+  ['ctx_994',['ctx',['../structpeer__info.html#a901ea0221dc26edaf73dd3ab2a7d08ad',1,'peer_info::ctx()'],['../structdpu__offload__event.html#aa50255408a9f9cb14c4b8e9875fe9cc4',1,'dpu_offload_event::ctx()']]]
+];

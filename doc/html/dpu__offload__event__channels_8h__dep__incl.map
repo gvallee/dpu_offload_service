@@ -1,0 +1,11 @@
+<map id="/home/gvallee/Projects/DPU_offloading/dpu_offload_service/include/dpu_offload_event_channels.h" name="/home/gvallee/Projects/DPU_offloading/dpu_offload_service/include/dpu_offload_event_channels.h">
+<area shape="rect" id="node1" title=" " alt="" coords="513,5,720,76"/>
+<area shape="rect" id="node2" href="$dpu__offload__service__daemon_8h.html" title=" " alt="" coords="273,124,480,195"/>
+<area shape="rect" id="node4" href="$dpu__offload__event__channels_8c.html" title=" " alt="" coords="471,347,693,417"/>
+<area shape="rect" id="node5" href="$dpu__offload__service__daemon_8c.html" title=" " alt="" coords="180,347,413,417"/>
+<area shape="rect" id="node6" href="$inter__dpus__comm_8c.html" title=" " alt="" coords="28,243,259,299"/>
+<area shape="rect" id="node7" href="$dpu__offload__ops_8c.html" title=" " alt="" coords="655,131,875,187"/>
+<area shape="rect" id="node8" href="$dpu__offload__utils_8c.html" title=" " alt="" coords="899,131,1124,187"/>
+<area shape="rect" id="node9" href="$dpu__offload__xgvmi_8c.html" title=" " alt="" coords="1148,131,1387,187"/>
+<area shape="rect" id="node3" href="$dpu__offload__comms_8h.html" title=" " alt="" coords="333,243,580,299"/>
+</map>

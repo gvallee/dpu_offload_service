@@ -1,0 +1,200 @@
+\hypertarget{structoffloading__config}{}\doxysection{offloading\+\_\+config Struct Reference}
+\label{structoffloading__config}\index{offloading\_config@{offloading\_config}}
+
+
+offloading\+\_\+config\+\_\+t represents the configuration that will be used by the offloading infrastructure. It reflects for instance the content of the configuration when a configuration file is used.  
+
+
+
+
+{\ttfamily \#include $<$dpu\+\_\+offload\+\_\+types.\+h$>$}
+
+
+
+Collaboration diagram for offloading\+\_\+config\+:
+\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{structoffloading__config__coll__graph}
+\end{center}
+\end{figure}
+\doxysubsection*{Data Fields}
+\begin{DoxyCompactItemize}
+\item 
+char $\ast$ \mbox{\hyperlink{structoffloading__config_aa954375fbee58a8547d13f033f8387b9}{list\+\_\+dpus}}
+\item 
+char $\ast$ \mbox{\hyperlink{structoffloading__config_a38ce855454181ee55ac73485dd6d65c1}{config\+\_\+file}}
+\item 
+char $\ast$ \mbox{\hyperlink{structoffloading__config_a6482b42f539697f5f879ea511184e431}{num\+\_\+service\+\_\+procs\+\_\+per\+\_\+dpu\+\_\+str}}
+\item 
+uint64\+\_\+t \mbox{\hyperlink{structoffloading__config_a6855af25a243bb7c844e0fc745865030}{num\+\_\+service\+\_\+procs\+\_\+per\+\_\+dpu}}
+\item 
+int \mbox{\hyperlink{structoffloading__config_a81e14c358c286328bc05e5e1c38712e0}{format\+\_\+version}}
+\item 
+\mbox{\hyperlink{dpu__offload__types_8h_abdda2bc51909d3f2e98a5c9dde42b0a8}{offloading\+\_\+engine\+\_\+t}} $\ast$ \mbox{\hyperlink{structoffloading__config_a1f1fafecf620658cc951a80cfe0a39f2}{offloading\+\_\+engine}}
+\item 
+bool \mbox{\hyperlink{structoffloading__config_a2a8b97914e934415ff69ebc60542e63f}{service\+\_\+proc\+\_\+found}}
+\item 
+size\+\_\+t \mbox{\hyperlink{structoffloading__config_a375d38423b7aebe10155503378cfe0be}{num\+\_\+connecting\+\_\+service\+\_\+procs}}
+\item 
+\mbox{\hyperlink{dpu__offload__types_8h_ac00567d026d1f28f6ea08de100b6320f}{service\+\_\+procs\+\_\+inter\+\_\+connect\+\_\+info\+\_\+t}} \mbox{\hyperlink{structoffloading__config_a5e5fbb749670cfd81dc163ff3bf7b1b9}{info\+\_\+connecting\+\_\+to}}
+\item 
+size\+\_\+t \mbox{\hyperlink{structoffloading__config_a2361119f610228a8bfa3b6410dcad1ef}{num\+\_\+dpus}}
+\item 
+size\+\_\+t \mbox{\hyperlink{structoffloading__config_a23fbcb0c7cf9f9fe067729ae23dea0c9}{num\+\_\+service\+\_\+procs}}
+\item 
+\mbox{\hyperlink{dynamic__structs_8h_aad9a80cfa65af5b2bc3eeb3abef9a1ed}{dyn\+\_\+array\+\_\+t}} \mbox{\hyperlink{structoffloading__config_aba65377300c2684236dd5a81e4938345}{dpus\+\_\+config}}
+\item 
+\mbox{\hyperlink{dynamic__structs_8h_aad9a80cfa65af5b2bc3eeb3abef9a1ed}{dyn\+\_\+array\+\_\+t}} \mbox{\hyperlink{structoffloading__config_a72530d0d7718c5f7b9766f5ef3d3e4c4}{sps\+\_\+configs}}
+\item 
+\begin{tabbing}
+xx\=xx\=xx\=xx\=xx\=xx\=xx\=xx\=xx\=\kill
+struct \{\\
+\>\mbox{\hyperlink{dpu__offload__types_8h_a5b9e2bc4633b83b0a8d79d02860c97d2}{service\_proc\_t}} \mbox{\hyperlink{structoffloading__config_ab84f90fcdd6365ea1ae4d0186441b0c5}{info}}\\
+\>\mbox{\hyperlink{dpu__offload__types_8h_a4496c87445a0e1c1ac0a30454324ca32}{service\_proc\_config\_data\_t}} $\ast$ \mbox{\hyperlink{structoffloading__config_a62f9b8d168a976c3f77b7ff06644bb74}{config}}\\
+\>char \mbox{\hyperlink{structoffloading__config_a07414652da185985232f3d7562ca7941}{hostname}} \mbox{[}1024\mbox{]}\\
+\>\mbox{\hyperlink{dpu__offload__types_8h_a3873b77cd04f5ee9378a390abe9ddab0}{conn\_params\_t}} \mbox{\hyperlink{structoffloading__config_a91d56330bff2e32dc53777742b45c978}{inter\_service\_procs\_conn\_params}}\\
+\>\mbox{\hyperlink{dpu__offload__types_8h_a3873b77cd04f5ee9378a390abe9ddab0}{conn\_params\_t}} \mbox{\hyperlink{structoffloading__config_a688b62a56cecbe23b13cf17c937efdc3}{host\_conn\_params}}\\
+\>\mbox{\hyperlink{dpu__offload__types_8h_a42c35bf5c92dc98cf22a4818b0331608}{init\_params\_t}} \mbox{\hyperlink{structoffloading__config_a0c2fe328e4a67f61ed04801f5c13f4e0}{inter\_service\_procs\_init\_params}}\\
+\>\mbox{\hyperlink{dpu__offload__types_8h_a42c35bf5c92dc98cf22a4818b0331608}{init\_params\_t}} \mbox{\hyperlink{structoffloading__config_a735e9517d195158562781ffba8339f30}{host\_init\_params}}\\
+\} \mbox{\hyperlink{structoffloading__config_a3d2c6e09fef76eb94cefa8da131dddf1}{local\_service\_proc}}\\
+
+\end{tabbing}\end{DoxyCompactItemize}
+
+
+\doxysubsection{Detailed Description}
+offloading\+\_\+config\+\_\+t represents the configuration that will be used by the offloading infrastructure. It reflects for instance the content of the configuration when a configuration file is used. 
+
+\doxysubsection{Field Documentation}
+\mbox{\Hypertarget{structoffloading__config_a62f9b8d168a976c3f77b7ff06644bb74}\label{structoffloading__config_a62f9b8d168a976c3f77b7ff06644bb74}} 
+\index{offloading\_config@{offloading\_config}!config@{config}}
+\index{config@{config}!offloading\_config@{offloading\_config}}
+\doxysubsubsection{\texorpdfstring{config}{config}}
+{\footnotesize\ttfamily \mbox{\hyperlink{dpu__offload__types_8h_a4496c87445a0e1c1ac0a30454324ca32}{service\+\_\+proc\+\_\+config\+\_\+data\+\_\+t}}$\ast$ offloading\+\_\+config\+::config}
+
+\mbox{\Hypertarget{structoffloading__config_a38ce855454181ee55ac73485dd6d65c1}\label{structoffloading__config_a38ce855454181ee55ac73485dd6d65c1}} 
+\index{offloading\_config@{offloading\_config}!config\_file@{config\_file}}
+\index{config\_file@{config\_file}!offloading\_config@{offloading\_config}}
+\doxysubsubsection{\texorpdfstring{config\_file}{config\_file}}
+{\footnotesize\ttfamily char$\ast$ offloading\+\_\+config\+::config\+\_\+file}
+
+\mbox{\Hypertarget{structoffloading__config_aba65377300c2684236dd5a81e4938345}\label{structoffloading__config_aba65377300c2684236dd5a81e4938345}} 
+\index{offloading\_config@{offloading\_config}!dpus\_config@{dpus\_config}}
+\index{dpus\_config@{dpus\_config}!offloading\_config@{offloading\_config}}
+\doxysubsubsection{\texorpdfstring{dpus\_config}{dpus\_config}}
+{\footnotesize\ttfamily \mbox{\hyperlink{dynamic__structs_8h_aad9a80cfa65af5b2bc3eeb3abef9a1ed}{dyn\+\_\+array\+\_\+t}} offloading\+\_\+config\+::dpus\+\_\+config}
+
+\mbox{\Hypertarget{structoffloading__config_a81e14c358c286328bc05e5e1c38712e0}\label{structoffloading__config_a81e14c358c286328bc05e5e1c38712e0}} 
+\index{offloading\_config@{offloading\_config}!format\_version@{format\_version}}
+\index{format\_version@{format\_version}!offloading\_config@{offloading\_config}}
+\doxysubsubsection{\texorpdfstring{format\_version}{format\_version}}
+{\footnotesize\ttfamily int offloading\+\_\+config\+::format\+\_\+version}
+
+\mbox{\Hypertarget{structoffloading__config_a688b62a56cecbe23b13cf17c937efdc3}\label{structoffloading__config_a688b62a56cecbe23b13cf17c937efdc3}} 
+\index{offloading\_config@{offloading\_config}!host\_conn\_params@{host\_conn\_params}}
+\index{host\_conn\_params@{host\_conn\_params}!offloading\_config@{offloading\_config}}
+\doxysubsubsection{\texorpdfstring{host\_conn\_params}{host\_conn\_params}}
+{\footnotesize\ttfamily \mbox{\hyperlink{dpu__offload__types_8h_a3873b77cd04f5ee9378a390abe9ddab0}{conn\+\_\+params\+\_\+t}} offloading\+\_\+config\+::host\+\_\+conn\+\_\+params}
+
+\mbox{\Hypertarget{structoffloading__config_a735e9517d195158562781ffba8339f30}\label{structoffloading__config_a735e9517d195158562781ffba8339f30}} 
+\index{offloading\_config@{offloading\_config}!host\_init\_params@{host\_init\_params}}
+\index{host\_init\_params@{host\_init\_params}!offloading\_config@{offloading\_config}}
+\doxysubsubsection{\texorpdfstring{host\_init\_params}{host\_init\_params}}
+{\footnotesize\ttfamily \mbox{\hyperlink{dpu__offload__types_8h_a42c35bf5c92dc98cf22a4818b0331608}{init\+\_\+params\+\_\+t}} offloading\+\_\+config\+::host\+\_\+init\+\_\+params}
+
+\mbox{\Hypertarget{structoffloading__config_a07414652da185985232f3d7562ca7941}\label{structoffloading__config_a07414652da185985232f3d7562ca7941}} 
+\index{offloading\_config@{offloading\_config}!hostname@{hostname}}
+\index{hostname@{hostname}!offloading\_config@{offloading\_config}}
+\doxysubsubsection{\texorpdfstring{hostname}{hostname}}
+{\footnotesize\ttfamily char offloading\+\_\+config\+::hostname\mbox{[}1024\mbox{]}}
+
+\mbox{\Hypertarget{structoffloading__config_ab84f90fcdd6365ea1ae4d0186441b0c5}\label{structoffloading__config_ab84f90fcdd6365ea1ae4d0186441b0c5}} 
+\index{offloading\_config@{offloading\_config}!info@{info}}
+\index{info@{info}!offloading\_config@{offloading\_config}}
+\doxysubsubsection{\texorpdfstring{info}{info}}
+{\footnotesize\ttfamily \mbox{\hyperlink{dpu__offload__types_8h_a5b9e2bc4633b83b0a8d79d02860c97d2}{service\+\_\+proc\+\_\+t}} offloading\+\_\+config\+::info}
+
+\mbox{\Hypertarget{structoffloading__config_a5e5fbb749670cfd81dc163ff3bf7b1b9}\label{structoffloading__config_a5e5fbb749670cfd81dc163ff3bf7b1b9}} 
+\index{offloading\_config@{offloading\_config}!info\_connecting\_to@{info\_connecting\_to}}
+\index{info\_connecting\_to@{info\_connecting\_to}!offloading\_config@{offloading\_config}}
+\doxysubsubsection{\texorpdfstring{info\_connecting\_to}{info\_connecting\_to}}
+{\footnotesize\ttfamily \mbox{\hyperlink{dpu__offload__types_8h_ac00567d026d1f28f6ea08de100b6320f}{service\+\_\+procs\+\_\+inter\+\_\+connect\+\_\+info\+\_\+t}} offloading\+\_\+config\+::info\+\_\+connecting\+\_\+to}
+
+\mbox{\Hypertarget{structoffloading__config_a91d56330bff2e32dc53777742b45c978}\label{structoffloading__config_a91d56330bff2e32dc53777742b45c978}} 
+\index{offloading\_config@{offloading\_config}!inter\_service\_procs\_conn\_params@{inter\_service\_procs\_conn\_params}}
+\index{inter\_service\_procs\_conn\_params@{inter\_service\_procs\_conn\_params}!offloading\_config@{offloading\_config}}
+\doxysubsubsection{\texorpdfstring{inter\_service\_procs\_conn\_params}{inter\_service\_procs\_conn\_params}}
+{\footnotesize\ttfamily \mbox{\hyperlink{dpu__offload__types_8h_a3873b77cd04f5ee9378a390abe9ddab0}{conn\+\_\+params\+\_\+t}} offloading\+\_\+config\+::inter\+\_\+service\+\_\+procs\+\_\+conn\+\_\+params}
+
+\mbox{\Hypertarget{structoffloading__config_a0c2fe328e4a67f61ed04801f5c13f4e0}\label{structoffloading__config_a0c2fe328e4a67f61ed04801f5c13f4e0}} 
+\index{offloading\_config@{offloading\_config}!inter\_service\_procs\_init\_params@{inter\_service\_procs\_init\_params}}
+\index{inter\_service\_procs\_init\_params@{inter\_service\_procs\_init\_params}!offloading\_config@{offloading\_config}}
+\doxysubsubsection{\texorpdfstring{inter\_service\_procs\_init\_params}{inter\_service\_procs\_init\_params}}
+{\footnotesize\ttfamily \mbox{\hyperlink{dpu__offload__types_8h_a42c35bf5c92dc98cf22a4818b0331608}{init\+\_\+params\+\_\+t}} offloading\+\_\+config\+::inter\+\_\+service\+\_\+procs\+\_\+init\+\_\+params}
+
+\mbox{\Hypertarget{structoffloading__config_aa954375fbee58a8547d13f033f8387b9}\label{structoffloading__config_aa954375fbee58a8547d13f033f8387b9}} 
+\index{offloading\_config@{offloading\_config}!list\_dpus@{list\_dpus}}
+\index{list\_dpus@{list\_dpus}!offloading\_config@{offloading\_config}}
+\doxysubsubsection{\texorpdfstring{list\_dpus}{list\_dpus}}
+{\footnotesize\ttfamily char$\ast$ offloading\+\_\+config\+::list\+\_\+dpus}
+
+\mbox{\Hypertarget{structoffloading__config_a3d2c6e09fef76eb94cefa8da131dddf1}\label{structoffloading__config_a3d2c6e09fef76eb94cefa8da131dddf1}} 
+\index{offloading\_config@{offloading\_config}!local\_service\_proc@{local\_service\_proc}}
+\index{local\_service\_proc@{local\_service\_proc}!offloading\_config@{offloading\_config}}
+\doxysubsubsection{\texorpdfstring{}{}}
+{\footnotesize\ttfamily struct \{ ... \}  offloading\+\_\+config\+::local\+\_\+service\+\_\+proc}
+
+\mbox{\Hypertarget{structoffloading__config_a375d38423b7aebe10155503378cfe0be}\label{structoffloading__config_a375d38423b7aebe10155503378cfe0be}} 
+\index{offloading\_config@{offloading\_config}!num\_connecting\_service\_procs@{num\_connecting\_service\_procs}}
+\index{num\_connecting\_service\_procs@{num\_connecting\_service\_procs}!offloading\_config@{offloading\_config}}
+\doxysubsubsection{\texorpdfstring{num\_connecting\_service\_procs}{num\_connecting\_service\_procs}}
+{\footnotesize\ttfamily size\+\_\+t offloading\+\_\+config\+::num\+\_\+connecting\+\_\+service\+\_\+procs}
+
+\mbox{\Hypertarget{structoffloading__config_a2361119f610228a8bfa3b6410dcad1ef}\label{structoffloading__config_a2361119f610228a8bfa3b6410dcad1ef}} 
+\index{offloading\_config@{offloading\_config}!num\_dpus@{num\_dpus}}
+\index{num\_dpus@{num\_dpus}!offloading\_config@{offloading\_config}}
+\doxysubsubsection{\texorpdfstring{num\_dpus}{num\_dpus}}
+{\footnotesize\ttfamily size\+\_\+t offloading\+\_\+config\+::num\+\_\+dpus}
+
+\mbox{\Hypertarget{structoffloading__config_a23fbcb0c7cf9f9fe067729ae23dea0c9}\label{structoffloading__config_a23fbcb0c7cf9f9fe067729ae23dea0c9}} 
+\index{offloading\_config@{offloading\_config}!num\_service\_procs@{num\_service\_procs}}
+\index{num\_service\_procs@{num\_service\_procs}!offloading\_config@{offloading\_config}}
+\doxysubsubsection{\texorpdfstring{num\_service\_procs}{num\_service\_procs}}
+{\footnotesize\ttfamily size\+\_\+t offloading\+\_\+config\+::num\+\_\+service\+\_\+procs}
+
+\mbox{\Hypertarget{structoffloading__config_a6855af25a243bb7c844e0fc745865030}\label{structoffloading__config_a6855af25a243bb7c844e0fc745865030}} 
+\index{offloading\_config@{offloading\_config}!num\_service\_procs\_per\_dpu@{num\_service\_procs\_per\_dpu}}
+\index{num\_service\_procs\_per\_dpu@{num\_service\_procs\_per\_dpu}!offloading\_config@{offloading\_config}}
+\doxysubsubsection{\texorpdfstring{num\_service\_procs\_per\_dpu}{num\_service\_procs\_per\_dpu}}
+{\footnotesize\ttfamily uint64\+\_\+t offloading\+\_\+config\+::num\+\_\+service\+\_\+procs\+\_\+per\+\_\+dpu}
+
+\mbox{\Hypertarget{structoffloading__config_a6482b42f539697f5f879ea511184e431}\label{structoffloading__config_a6482b42f539697f5f879ea511184e431}} 
+\index{offloading\_config@{offloading\_config}!num\_service\_procs\_per\_dpu\_str@{num\_service\_procs\_per\_dpu\_str}}
+\index{num\_service\_procs\_per\_dpu\_str@{num\_service\_procs\_per\_dpu\_str}!offloading\_config@{offloading\_config}}
+\doxysubsubsection{\texorpdfstring{num\_service\_procs\_per\_dpu\_str}{num\_service\_procs\_per\_dpu\_str}}
+{\footnotesize\ttfamily char$\ast$ offloading\+\_\+config\+::num\+\_\+service\+\_\+procs\+\_\+per\+\_\+dpu\+\_\+str}
+
+\mbox{\Hypertarget{structoffloading__config_a1f1fafecf620658cc951a80cfe0a39f2}\label{structoffloading__config_a1f1fafecf620658cc951a80cfe0a39f2}} 
+\index{offloading\_config@{offloading\_config}!offloading\_engine@{offloading\_engine}}
+\index{offloading\_engine@{offloading\_engine}!offloading\_config@{offloading\_config}}
+\doxysubsubsection{\texorpdfstring{offloading\_engine}{offloading\_engine}}
+{\footnotesize\ttfamily \mbox{\hyperlink{dpu__offload__types_8h_abdda2bc51909d3f2e98a5c9dde42b0a8}{offloading\+\_\+engine\+\_\+t}}$\ast$ offloading\+\_\+config\+::offloading\+\_\+engine}
+
+\mbox{\Hypertarget{structoffloading__config_a2a8b97914e934415ff69ebc60542e63f}\label{structoffloading__config_a2a8b97914e934415ff69ebc60542e63f}} 
+\index{offloading\_config@{offloading\_config}!service\_proc\_found@{service\_proc\_found}}
+\index{service\_proc\_found@{service\_proc\_found}!offloading\_config@{offloading\_config}}
+\doxysubsubsection{\texorpdfstring{service\_proc\_found}{service\_proc\_found}}
+{\footnotesize\ttfamily bool offloading\+\_\+config\+::service\+\_\+proc\+\_\+found}
+
+\mbox{\Hypertarget{structoffloading__config_a72530d0d7718c5f7b9766f5ef3d3e4c4}\label{structoffloading__config_a72530d0d7718c5f7b9766f5ef3d3e4c4}} 
+\index{offloading\_config@{offloading\_config}!sps\_configs@{sps\_configs}}
+\index{sps\_configs@{sps\_configs}!offloading\_config@{offloading\_config}}
+\doxysubsubsection{\texorpdfstring{sps\_configs}{sps\_configs}}
+{\footnotesize\ttfamily \mbox{\hyperlink{dynamic__structs_8h_aad9a80cfa65af5b2bc3eeb3abef9a1ed}{dyn\+\_\+array\+\_\+t}} offloading\+\_\+config\+::sps\+\_\+configs}
+
+
+
+The documentation for this struct was generated from the following file\+:\begin{DoxyCompactItemize}
+\item 
+/home/gvallee/\+Projects/\+DPU\+\_\+offloading/dpu\+\_\+offload\+\_\+service/include/\mbox{\hyperlink{dpu__offload__types_8h}{dpu\+\_\+offload\+\_\+types.\+h}}\end{DoxyCompactItemize}

@@ -1,0 +1,8 @@
+<map id="smart_chunk_t" name="smart_chunk_t">
+<area shape="rect" id="node1" title=" " alt="" coords="5,380,124,407"/>
+<area shape="rect" id="node2" href="$structsmart__bucket.html" title=" " alt="" coords="9,291,120,317"/>
+<area shape="rect" id="node3" href="$structsmart__buffers.html" title=" " alt="" coords="69,201,181,228"/>
+<area shape="rect" id="node4" href="$structdyn__list.html" title=" " alt="" coords="69,103,143,130"/>
+<area shape="rect" id="node5" href="$structsimple__list.html" title="simple_list_t aims at offering an alternative to ucs_list_link_t without the huge performance impact ..." alt="" coords="17,5,110,32"/>
+<area shape="rect" id="node6" href="$structdyn__array.html" title=" " alt="" coords="144,5,231,32"/>
+</map>

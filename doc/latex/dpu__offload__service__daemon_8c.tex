@@ -1,0 +1,356 @@
+\hypertarget{dpu__offload__service__daemon_8c}{}\doxysection{/home/gvallee/\+Projects/\+DPU\+\_\+offloading/dpu\+\_\+offload\+\_\+service/src/dpu\+\_\+offload\+\_\+service\+\_\+daemon.c File Reference}
+\label{dpu__offload__service__daemon_8c}\index{/home/gvallee/Projects/DPU\_offloading/dpu\_offload\_service/src/dpu\_offload\_service\_daemon.c@{/home/gvallee/Projects/DPU\_offloading/dpu\_offload\_service/src/dpu\_offload\_service\_daemon.c}}
+{\ttfamily \#include $<$stdio.\+h$>$}\newline
+{\ttfamily \#include $<$stdlib.\+h$>$}\newline
+{\ttfamily \#include $<$unistd.\+h$>$}\newline
+{\ttfamily \#include $<$stdbool.\+h$>$}\newline
+{\ttfamily \#include $<$inttypes.\+h$>$}\newline
+{\ttfamily \#include $<$string.\+h$>$}\newline
+{\ttfamily \#include $<$errno.\+h$>$}\newline
+{\ttfamily \#include \char`\"{}dpu\+\_\+offload\+\_\+service\+\_\+daemon.\+h\char`\"{}}\newline
+{\ttfamily \#include \char`\"{}dpu\+\_\+offload\+\_\+event\+\_\+channels.\+h\char`\"{}}\newline
+{\ttfamily \#include \char`\"{}dpu\+\_\+offload\+\_\+envvars.\+h\char`\"{}}\newline
+{\ttfamily \#include \char`\"{}dynamic\+\_\+structs.\+h\char`\"{}}\newline
+{\ttfamily \#include \char`\"{}dpu\+\_\+offload\+\_\+debug.\+h\char`\"{}}\newline
+{\ttfamily \#include \char`\"{}dpu\+\_\+offload\+\_\+mem\+\_\+mgt.\+h\char`\"{}}\newline
+{\ttfamily \#include \char`\"{}dpu\+\_\+offload\+\_\+ops.\+h\char`\"{}}\newline
+{\ttfamily \#include \char`\"{}dpu\+\_\+offload\+\_\+comms.\+h\char`\"{}}\newline
+Include dependency graph for dpu\+\_\+offload\+\_\+service\+\_\+daemon.\+c\+:
+\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{dpu__offload__service__daemon_8c__incl}
+\end{center}
+\end{figure}
+\doxysubsection*{Data Structures}
+\begin{DoxyCompactItemize}
+\item 
+struct {\bfseries err\+\_\+handling}
+\item 
+struct \mbox{\hyperlink{structoob__msg}{oob\+\_\+msg}}
+\end{DoxyCompactItemize}
+\doxysubsection*{Macros}
+\begin{DoxyCompactItemize}
+\item 
+\#define \mbox{\hyperlink{dpu__offload__service__daemon_8c_a3024ccd4a9af5109d24e6c57565d74a1}{\+\_\+\+POSIX\+\_\+\+C\+\_\+\+SOURCE}}~200809L
+\item 
+\#define \mbox{\hyperlink{dpu__offload__service__daemon_8c_ae416310c3ca25597ef484c724209bf6e}{DEFAULT\+\_\+\+MAX\+\_\+\+NUM\+\_\+\+CLIENTS}}~(256)
+\item 
+\#define \mbox{\hyperlink{dpu__offload__service__daemon_8c_abfc833dda07e005fdd0eae9629aa9e5f}{DEFAULT\+\_\+\+MAX\+\_\+\+NUM\+\_\+\+SERVERS}}~(256)
+\item 
+\#define \mbox{\hyperlink{dpu__offload__service__daemon_8c_ad81dbcbb914cfb5501e1c020f125061d}{IP\+\_\+\+STRING\+\_\+\+LEN}}~50
+\item 
+\#define \mbox{\hyperlink{dpu__offload__service__daemon_8c_a2c282e15322ad7ba3c93bd9b5623fb5e}{PORT\+\_\+\+STRING\+\_\+\+LEN}}~8
+\item 
+\#define \mbox{\hyperlink{dpu__offload__service__daemon_8c_adc2cf8951396ed80ee742b4549ec086f}{OOB\+\_\+\+DEFAULT\+\_\+\+TAG}}~0x1388u
+\item 
+\#define \mbox{\hyperlink{dpu__offload__service__daemon_8c_ad8ac8f2bb9859015637caf3422d17324}{UCX\+\_\+\+ADDR\+\_\+\+MSG}}~\char`\"{}UCX address message\char`\"{}
+\item 
+\#define \mbox{\hyperlink{dpu__offload__service__daemon_8c_aeefdeabd6f841fe14bd6675323c6d4bc}{ADD\+\_\+\+DEFAULT\+\_\+\+ENGINE\+\_\+\+CALLBACKS}}(\+\_\+engine,  \+\_\+econtext)
+\item 
+\#define \mbox{\hyperlink{dpu__offload__service__daemon_8c_ac21ad5ead02b1ab70d3848bfec444e2b}{\+\_\+\+\_\+\+DO\+\_\+\+INIT\+\_\+\+WORKER}}(\+\_\+econtext,  \+\_\+init\+\_\+params)
+\item 
+\#define \mbox{\hyperlink{dpu__offload__service__daemon_8c_af6a739cde00cd751fc77607371136c51}{DO\+\_\+\+INIT\+\_\+\+WORKER}}(\+\_\+econtext,  \+\_\+init\+\_\+params)
+\item 
+\#define \mbox{\hyperlink{dpu__offload__service__daemon_8c_a5bea922f66b8f0d13a8d29d06a07f715}{MAX\+\_\+\+CACHE\+\_\+\+ENTRIES\+\_\+\+PER\+\_\+\+PROC}}~(8)
+\end{DoxyCompactItemize}
+\doxysubsection*{Functions}
+\begin{DoxyCompactItemize}
+\item 
+\mbox{\hyperlink{dpu__offload__common_8h_a2f49d8c1f5f6182b5128dfd3c815c3ef}{dpu\+\_\+offload\+\_\+status\+\_\+t}} \mbox{\hyperlink{dpu__offload__service__daemon_8c_a5ac1ff22d720202c928fdfb00c155cdc}{register\+\_\+default\+\_\+notifications}} (\mbox{\hyperlink{dpu__offload__types_8h_a3393bcd64add76ae2292d8cb54c16fe6}{dpu\+\_\+offload\+\_\+ev\+\_\+sys\+\_\+t}} $\ast$)
+\item 
+int \mbox{\hyperlink{dpu__offload__service__daemon_8c_a30450e3576ed64dd399cda3b67eb32ac}{tag\+\_\+send\+\_\+event\+\_\+msg}} (\mbox{\hyperlink{dpu__offload__types_8h_a5872fe6516c1dd159957efdfabc9ad2a}{dpu\+\_\+offload\+\_\+event\+\_\+t}} $\ast$$\ast$event)
+\item 
+\mbox{\hyperlink{dpu__offload__common_8h_a2f49d8c1f5f6182b5128dfd3c815c3ef}{dpu\+\_\+offload\+\_\+status\+\_\+t}} \mbox{\hyperlink{dpu__offload__service__daemon_8c_ad79a85541d799e524f41c1e863d85c84}{get\+\_\+env\+\_\+config}} (\mbox{\hyperlink{dpu__offload__types_8h_a3873b77cd04f5ee9378a390abe9ddab0}{conn\+\_\+params\+\_\+t}} $\ast$params)
+\item 
+\mbox{\hyperlink{dpu__offload__common_8h_a2f49d8c1f5f6182b5128dfd3c815c3ef}{dpu\+\_\+offload\+\_\+status\+\_\+t}} \mbox{\hyperlink{dpu__offload__service__daemon_8c_aa639a853cafdb4b31f815bbf9b946671}{set\+\_\+sock\+\_\+addr}} (char $\ast$addr, uint16\+\_\+t port, struct sockaddr\+\_\+storage $\ast$saddr)
+\item 
+\mbox{\hyperlink{dpu__offload__common_8h_a2f49d8c1f5f6182b5128dfd3c815c3ef}{dpu\+\_\+offload\+\_\+status\+\_\+t}} \mbox{\hyperlink{dpu__offload__service__daemon_8c_a1cc814df002b0655f07e77f085013d97}{oob\+\_\+client\+\_\+connect}} (\mbox{\hyperlink{structdpu__offload__client__t}{dpu\+\_\+offload\+\_\+client\+\_\+t}} $\ast$client, sa\+\_\+family\+\_\+t af)
+\item 
+\mbox{\hyperlink{dpu__offload__common_8h_a2f49d8c1f5f6182b5128dfd3c815c3ef}{dpu\+\_\+offload\+\_\+status\+\_\+t}} \mbox{\hyperlink{dpu__offload__service__daemon_8c_a69c0608d6fee064d5cdb094e7611fe56}{client\+\_\+init\+\_\+context}} (\mbox{\hyperlink{dpu__offload__types_8h_ac95b2624b57c0005e3ca8a740316e5ab}{execution\+\_\+context\+\_\+t}} $\ast$econtext, \mbox{\hyperlink{dpu__offload__types_8h_a42c35bf5c92dc98cf22a4818b0331608}{init\+\_\+params\+\_\+t}} $\ast$\mbox{\hyperlink{structinit__params}{init\+\_\+params}})
+\item 
+\mbox{\hyperlink{dpu__offload__common_8h_a2f49d8c1f5f6182b5128dfd3c815c3ef}{dpu\+\_\+offload\+\_\+status\+\_\+t}} \mbox{\hyperlink{dpu__offload__service__daemon_8c_ae8b896cf0076816e174c59d409950ed7}{finalize\+\_\+connection\+\_\+to\+\_\+remote\+\_\+service\+\_\+proc}} (\mbox{\hyperlink{dpu__offload__types_8h_abdda2bc51909d3f2e98a5c9dde42b0a8}{offloading\+\_\+engine\+\_\+t}} $\ast$offload\+\_\+engine, \mbox{\hyperlink{dpu__offload__types_8h_a709bd88b064e6b5c79548ccd5f1b9798}{remote\+\_\+service\+\_\+proc\+\_\+info\+\_\+t}} $\ast$remote\+\_\+sp, \mbox{\hyperlink{dpu__offload__types_8h_ac95b2624b57c0005e3ca8a740316e5ab}{execution\+\_\+context\+\_\+t}} $\ast$client)
+\item 
+\mbox{\hyperlink{dpu__offload__common_8h_a2f49d8c1f5f6182b5128dfd3c815c3ef}{dpu\+\_\+offload\+\_\+status\+\_\+t}} \mbox{\hyperlink{dpu__offload__service__daemon_8c_ab1fe819ca6e425c029b86a8f08818f17}{offload\+\_\+engine\+\_\+progress}} (\mbox{\hyperlink{dpu__offload__types_8h_abdda2bc51909d3f2e98a5c9dde42b0a8}{offloading\+\_\+engine\+\_\+t}} $\ast$engine)
+\begin{DoxyCompactList}\small\item\em offload\+\_\+engine\+\_\+progress progresses the entire offloading engine, i.\+e., all the associated execution context. It is for instance used to progress all communications between DPUs and ensure completions of ongoing communications. \end{DoxyCompactList}\item 
+\mbox{\hyperlink{dpu__offload__common_8h_a2f49d8c1f5f6182b5128dfd3c815c3ef}{dpu\+\_\+offload\+\_\+status\+\_\+t}} \mbox{\hyperlink{dpu__offload__service__daemon_8c_ad4e7f8fb73b9bc3e73bb3cb6351ea09b}{lib\+\_\+progress}} (\mbox{\hyperlink{dpu__offload__types_8h_ac95b2624b57c0005e3ca8a740316e5ab}{execution\+\_\+context\+\_\+t}} $\ast$econtext)
+\begin{DoxyCompactList}\small\item\em Progress the entrie library, i.\+e., all the engines and execution contexts, based on an execution context. \end{DoxyCompactList}\item 
+void \mbox{\hyperlink{dpu__offload__service__daemon_8c_afd5ebfae79276c0ea9143dc7c92386ce}{init\+\_\+remote\+\_\+dpu\+\_\+info\+\_\+struct}} (void $\ast$data)
+\item 
+\mbox{\hyperlink{dpu__offload__common_8h_a2f49d8c1f5f6182b5128dfd3c815c3ef}{dpu\+\_\+offload\+\_\+status\+\_\+t}} \mbox{\hyperlink{dpu__offload__service__daemon_8c_a9801a3eb984a376ade72d8a645babb9e}{offload\+\_\+engine\+\_\+init}} (\mbox{\hyperlink{dpu__offload__types_8h_abdda2bc51909d3f2e98a5c9dde42b0a8}{offloading\+\_\+engine\+\_\+t}} $\ast$$\ast$engine)
+\item 
+void \mbox{\hyperlink{dpu__offload__service__daemon_8c_ac9953edc063b6380e3f06c031d6cda7a}{local\+\_\+rank\+\_\+connect\+\_\+default\+\_\+callback}} (void $\ast$data)
+\begin{DoxyCompactList}\small\item\em callback that servers (service processes acting as servers) on DPUs can set (server-\/$>$connected\+\_\+cb) to have implicit management of caches, especially when all the ranks of the group are on the local host. In such a situation, it will be detected when the last ranks connects, the group cache therefore completes and the cache is then sent back to local ranks. \end{DoxyCompactList}\item 
+\mbox{\hyperlink{dpu__offload__types_8h_ac95b2624b57c0005e3ca8a740316e5ab}{execution\+\_\+context\+\_\+t}} $\ast$ \mbox{\hyperlink{dpu__offload__service__daemon_8c_a7cf6a1b1f9ab51b1a7f4814ca3aa081f}{client\+\_\+init}} (\mbox{\hyperlink{dpu__offload__types_8h_abdda2bc51909d3f2e98a5c9dde42b0a8}{offloading\+\_\+engine\+\_\+t}} $\ast$offload\+\_\+engine, \mbox{\hyperlink{dpu__offload__types_8h_a42c35bf5c92dc98cf22a4818b0331608}{init\+\_\+params\+\_\+t}} $\ast$\mbox{\hyperlink{structinit__params}{init\+\_\+params}})
+\begin{DoxyCompactList}\small\item\em client\+\_\+init initialize the datastructure representing a client and perform the bootstrapping procedure \end{DoxyCompactList}\item 
+void \mbox{\hyperlink{dpu__offload__service__daemon_8c_aa32ac4b83b37c79b6fe17109c7d02c7a}{offload\+\_\+engine\+\_\+fini}} (\mbox{\hyperlink{dpu__offload__types_8h_abdda2bc51909d3f2e98a5c9dde42b0a8}{offloading\+\_\+engine\+\_\+t}} $\ast$$\ast$offload\+\_\+engine)
+\item 
+void \mbox{\hyperlink{dpu__offload__service__daemon_8c_aff33504ec5a4f32992cb27c38a603d09}{client\+\_\+fini}} (\mbox{\hyperlink{dpu__offload__types_8h_ac95b2624b57c0005e3ca8a740316e5ab}{execution\+\_\+context\+\_\+t}} $\ast$$\ast$exec\+\_\+ctx)
+\begin{DoxyCompactList}\small\item\em client\+\_\+fini finalizes an execution context that is being used as a client. Practically, a termination message is sent to the associated server (if any) vi a notification and the function will block until the notification completes. Then the object is entirely freed. In other words, upon returning from the function, the execution context is guaranteed to have been terminated, completely freed and the potential associated server notified of the termination. \end{DoxyCompactList}\item 
+\mbox{\hyperlink{dpu__offload__common_8h_a2f49d8c1f5f6182b5128dfd3c815c3ef}{dpu\+\_\+offload\+\_\+status\+\_\+t}} \mbox{\hyperlink{dpu__offload__service__daemon_8c_a8168327727da3a3b5174eecf45a5f7d4}{server\+\_\+init\+\_\+context}} (\mbox{\hyperlink{dpu__offload__types_8h_ac95b2624b57c0005e3ca8a740316e5ab}{execution\+\_\+context\+\_\+t}} $\ast$econtext, \mbox{\hyperlink{dpu__offload__types_8h_a42c35bf5c92dc98cf22a4818b0331608}{init\+\_\+params\+\_\+t}} $\ast$\mbox{\hyperlink{structinit__params}{init\+\_\+params}})
+\item 
+\mbox{\hyperlink{dpu__offload__types_8h_ac95b2624b57c0005e3ca8a740316e5ab}{execution\+\_\+context\+\_\+t}} $\ast$ \mbox{\hyperlink{dpu__offload__service__daemon_8c_ac59353421afd74f179d598422752a63e}{server\+\_\+init}} (\mbox{\hyperlink{dpu__offload__types_8h_abdda2bc51909d3f2e98a5c9dde42b0a8}{offloading\+\_\+engine\+\_\+t}} $\ast$\mbox{\hyperlink{structoffloading__engine}{offloading\+\_\+engine}}, \mbox{\hyperlink{dpu__offload__types_8h_a42c35bf5c92dc98cf22a4818b0331608}{init\+\_\+params\+\_\+t}} $\ast$\mbox{\hyperlink{structinit__params}{init\+\_\+params}})
+\begin{DoxyCompactList}\small\item\em Initialize a connection server. \end{DoxyCompactList}\item 
+void \mbox{\hyperlink{dpu__offload__service__daemon_8c_a927f1a5271b1e177a1a39cc4c51574b0}{server\+\_\+fini}} (\mbox{\hyperlink{dpu__offload__types_8h_ac95b2624b57c0005e3ca8a740316e5ab}{execution\+\_\+context\+\_\+t}} $\ast$$\ast$exec\+\_\+ctx)
+\end{DoxyCompactItemize}
+
+
+\doxysubsection{Macro Definition Documentation}
+\mbox{\Hypertarget{dpu__offload__service__daemon_8c_ac21ad5ead02b1ab70d3848bfec444e2b}\label{dpu__offload__service__daemon_8c_ac21ad5ead02b1ab70d3848bfec444e2b}} 
+\index{dpu\_offload\_service\_daemon.c@{dpu\_offload\_service\_daemon.c}!\_\_DO\_INIT\_WORKER@{\_\_DO\_INIT\_WORKER}}
+\index{\_\_DO\_INIT\_WORKER@{\_\_DO\_INIT\_WORKER}!dpu\_offload\_service\_daemon.c@{dpu\_offload\_service\_daemon.c}}
+\doxysubsubsection{\texorpdfstring{\_\_DO\_INIT\_WORKER}{\_\_DO\_INIT\_WORKER}}
+{\footnotesize\ttfamily \#define \+\_\+\+\_\+\+DO\+\_\+\+INIT\+\_\+\+WORKER(\begin{DoxyParamCaption}\item[{}]{\+\_\+econtext,  }\item[{}]{\+\_\+init\+\_\+params }\end{DoxyParamCaption})}
+
+\mbox{\Hypertarget{dpu__offload__service__daemon_8c_a3024ccd4a9af5109d24e6c57565d74a1}\label{dpu__offload__service__daemon_8c_a3024ccd4a9af5109d24e6c57565d74a1}} 
+\index{dpu\_offload\_service\_daemon.c@{dpu\_offload\_service\_daemon.c}!\_POSIX\_C\_SOURCE@{\_POSIX\_C\_SOURCE}}
+\index{\_POSIX\_C\_SOURCE@{\_POSIX\_C\_SOURCE}!dpu\_offload\_service\_daemon.c@{dpu\_offload\_service\_daemon.c}}
+\doxysubsubsection{\texorpdfstring{\_POSIX\_C\_SOURCE}{\_POSIX\_C\_SOURCE}}
+{\footnotesize\ttfamily \#define \+\_\+\+POSIX\+\_\+\+C\+\_\+\+SOURCE~200809L}
+
+\mbox{\Hypertarget{dpu__offload__service__daemon_8c_aeefdeabd6f841fe14bd6675323c6d4bc}\label{dpu__offload__service__daemon_8c_aeefdeabd6f841fe14bd6675323c6d4bc}} 
+\index{dpu\_offload\_service\_daemon.c@{dpu\_offload\_service\_daemon.c}!ADD\_DEFAULT\_ENGINE\_CALLBACKS@{ADD\_DEFAULT\_ENGINE\_CALLBACKS}}
+\index{ADD\_DEFAULT\_ENGINE\_CALLBACKS@{ADD\_DEFAULT\_ENGINE\_CALLBACKS}!dpu\_offload\_service\_daemon.c@{dpu\_offload\_service\_daemon.c}}
+\doxysubsubsection{\texorpdfstring{ADD\_DEFAULT\_ENGINE\_CALLBACKS}{ADD\_DEFAULT\_ENGINE\_CALLBACKS}}
+{\footnotesize\ttfamily \#define ADD\+\_\+\+DEFAULT\+\_\+\+ENGINE\+\_\+\+CALLBACKS(\begin{DoxyParamCaption}\item[{}]{\+\_\+engine,  }\item[{}]{\+\_\+econtext }\end{DoxyParamCaption})}
+
+\mbox{\Hypertarget{dpu__offload__service__daemon_8c_ae416310c3ca25597ef484c724209bf6e}\label{dpu__offload__service__daemon_8c_ae416310c3ca25597ef484c724209bf6e}} 
+\index{dpu\_offload\_service\_daemon.c@{dpu\_offload\_service\_daemon.c}!DEFAULT\_MAX\_NUM\_CLIENTS@{DEFAULT\_MAX\_NUM\_CLIENTS}}
+\index{DEFAULT\_MAX\_NUM\_CLIENTS@{DEFAULT\_MAX\_NUM\_CLIENTS}!dpu\_offload\_service\_daemon.c@{dpu\_offload\_service\_daemon.c}}
+\doxysubsubsection{\texorpdfstring{DEFAULT\_MAX\_NUM\_CLIENTS}{DEFAULT\_MAX\_NUM\_CLIENTS}}
+{\footnotesize\ttfamily \#define DEFAULT\+\_\+\+MAX\+\_\+\+NUM\+\_\+\+CLIENTS~(256)}
+
+\mbox{\Hypertarget{dpu__offload__service__daemon_8c_abfc833dda07e005fdd0eae9629aa9e5f}\label{dpu__offload__service__daemon_8c_abfc833dda07e005fdd0eae9629aa9e5f}} 
+\index{dpu\_offload\_service\_daemon.c@{dpu\_offload\_service\_daemon.c}!DEFAULT\_MAX\_NUM\_SERVERS@{DEFAULT\_MAX\_NUM\_SERVERS}}
+\index{DEFAULT\_MAX\_NUM\_SERVERS@{DEFAULT\_MAX\_NUM\_SERVERS}!dpu\_offload\_service\_daemon.c@{dpu\_offload\_service\_daemon.c}}
+\doxysubsubsection{\texorpdfstring{DEFAULT\_MAX\_NUM\_SERVERS}{DEFAULT\_MAX\_NUM\_SERVERS}}
+{\footnotesize\ttfamily \#define DEFAULT\+\_\+\+MAX\+\_\+\+NUM\+\_\+\+SERVERS~(256)}
+
+\mbox{\Hypertarget{dpu__offload__service__daemon_8c_af6a739cde00cd751fc77607371136c51}\label{dpu__offload__service__daemon_8c_af6a739cde00cd751fc77607371136c51}} 
+\index{dpu\_offload\_service\_daemon.c@{dpu\_offload\_service\_daemon.c}!DO\_INIT\_WORKER@{DO\_INIT\_WORKER}}
+\index{DO\_INIT\_WORKER@{DO\_INIT\_WORKER}!dpu\_offload\_service\_daemon.c@{dpu\_offload\_service\_daemon.c}}
+\doxysubsubsection{\texorpdfstring{DO\_INIT\_WORKER}{DO\_INIT\_WORKER}}
+{\footnotesize\ttfamily \#define DO\+\_\+\+INIT\+\_\+\+WORKER(\begin{DoxyParamCaption}\item[{}]{\+\_\+econtext,  }\item[{}]{\+\_\+init\+\_\+params }\end{DoxyParamCaption})}
+
+{\bfseries Value\+:}
+\begin{DoxyCode}{0}
+\DoxyCodeLine{    \textcolor{keywordflow}{do}                                                                                            \(\backslash\)}
+\DoxyCodeLine{    \{                                                                                             \(\backslash\)}
+\DoxyCodeLine{        bool \_worker\_set = \mbox{\hyperlink{dpu__offload__service__daemon_8c_ac21ad5ead02b1ab70d3848bfec444e2b}{\_\_DO\_INIT\_WORKER}}(\_econtext, \_init\_params);                             \(\backslash\)}
+\DoxyCodeLine{        if (\_worker\_set == \textcolor{keyword}{true})                                                                  \(\backslash\)}
+\DoxyCodeLine{        \{                                                                                         \(\backslash\)}
+\DoxyCodeLine{            \textcolor{comment}{/* As soon as the worker is set, we can finish to initialize notifications to self */} \(\backslash\)}
+\DoxyCodeLine{            progress\_self\_event\_recv((\_econtext)-\/>engine-\/>self\_econtext);                         \(\backslash\)}
+\DoxyCodeLine{        \}                                                                                         \(\backslash\)}
+\DoxyCodeLine{    \} \textcolor{keywordflow}{while} (0)}
+
+\end{DoxyCode}
+\mbox{\Hypertarget{dpu__offload__service__daemon_8c_ad81dbcbb914cfb5501e1c020f125061d}\label{dpu__offload__service__daemon_8c_ad81dbcbb914cfb5501e1c020f125061d}} 
+\index{dpu\_offload\_service\_daemon.c@{dpu\_offload\_service\_daemon.c}!IP\_STRING\_LEN@{IP\_STRING\_LEN}}
+\index{IP\_STRING\_LEN@{IP\_STRING\_LEN}!dpu\_offload\_service\_daemon.c@{dpu\_offload\_service\_daemon.c}}
+\doxysubsubsection{\texorpdfstring{IP\_STRING\_LEN}{IP\_STRING\_LEN}}
+{\footnotesize\ttfamily \#define IP\+\_\+\+STRING\+\_\+\+LEN~50}
+
+\mbox{\Hypertarget{dpu__offload__service__daemon_8c_a5bea922f66b8f0d13a8d29d06a07f715}\label{dpu__offload__service__daemon_8c_a5bea922f66b8f0d13a8d29d06a07f715}} 
+\index{dpu\_offload\_service\_daemon.c@{dpu\_offload\_service\_daemon.c}!MAX\_CACHE\_ENTRIES\_PER\_PROC@{MAX\_CACHE\_ENTRIES\_PER\_PROC}}
+\index{MAX\_CACHE\_ENTRIES\_PER\_PROC@{MAX\_CACHE\_ENTRIES\_PER\_PROC}!dpu\_offload\_service\_daemon.c@{dpu\_offload\_service\_daemon.c}}
+\doxysubsubsection{\texorpdfstring{MAX\_CACHE\_ENTRIES\_PER\_PROC}{MAX\_CACHE\_ENTRIES\_PER\_PROC}}
+{\footnotesize\ttfamily \#define MAX\+\_\+\+CACHE\+\_\+\+ENTRIES\+\_\+\+PER\+\_\+\+PROC~(8)}
+
+\mbox{\Hypertarget{dpu__offload__service__daemon_8c_adc2cf8951396ed80ee742b4549ec086f}\label{dpu__offload__service__daemon_8c_adc2cf8951396ed80ee742b4549ec086f}} 
+\index{dpu\_offload\_service\_daemon.c@{dpu\_offload\_service\_daemon.c}!OOB\_DEFAULT\_TAG@{OOB\_DEFAULT\_TAG}}
+\index{OOB\_DEFAULT\_TAG@{OOB\_DEFAULT\_TAG}!dpu\_offload\_service\_daemon.c@{dpu\_offload\_service\_daemon.c}}
+\doxysubsubsection{\texorpdfstring{OOB\_DEFAULT\_TAG}{OOB\_DEFAULT\_TAG}}
+{\footnotesize\ttfamily \#define OOB\+\_\+\+DEFAULT\+\_\+\+TAG~0x1388u}
+
+\mbox{\Hypertarget{dpu__offload__service__daemon_8c_a2c282e15322ad7ba3c93bd9b5623fb5e}\label{dpu__offload__service__daemon_8c_a2c282e15322ad7ba3c93bd9b5623fb5e}} 
+\index{dpu\_offload\_service\_daemon.c@{dpu\_offload\_service\_daemon.c}!PORT\_STRING\_LEN@{PORT\_STRING\_LEN}}
+\index{PORT\_STRING\_LEN@{PORT\_STRING\_LEN}!dpu\_offload\_service\_daemon.c@{dpu\_offload\_service\_daemon.c}}
+\doxysubsubsection{\texorpdfstring{PORT\_STRING\_LEN}{PORT\_STRING\_LEN}}
+{\footnotesize\ttfamily \#define PORT\+\_\+\+STRING\+\_\+\+LEN~8}
+
+\mbox{\Hypertarget{dpu__offload__service__daemon_8c_ad8ac8f2bb9859015637caf3422d17324}\label{dpu__offload__service__daemon_8c_ad8ac8f2bb9859015637caf3422d17324}} 
+\index{dpu\_offload\_service\_daemon.c@{dpu\_offload\_service\_daemon.c}!UCX\_ADDR\_MSG@{UCX\_ADDR\_MSG}}
+\index{UCX\_ADDR\_MSG@{UCX\_ADDR\_MSG}!dpu\_offload\_service\_daemon.c@{dpu\_offload\_service\_daemon.c}}
+\doxysubsubsection{\texorpdfstring{UCX\_ADDR\_MSG}{UCX\_ADDR\_MSG}}
+{\footnotesize\ttfamily \#define UCX\+\_\+\+ADDR\+\_\+\+MSG~\char`\"{}UCX address message\char`\"{}}
+
+
+
+\doxysubsection{Function Documentation}
+\mbox{\Hypertarget{dpu__offload__service__daemon_8c_aff33504ec5a4f32992cb27c38a603d09}\label{dpu__offload__service__daemon_8c_aff33504ec5a4f32992cb27c38a603d09}} 
+\index{dpu\_offload\_service\_daemon.c@{dpu\_offload\_service\_daemon.c}!client\_fini@{client\_fini}}
+\index{client\_fini@{client\_fini}!dpu\_offload\_service\_daemon.c@{dpu\_offload\_service\_daemon.c}}
+\doxysubsubsection{\texorpdfstring{client\_fini()}{client\_fini()}}
+{\footnotesize\ttfamily void client\+\_\+fini (\begin{DoxyParamCaption}\item[{\mbox{\hyperlink{dpu__offload__types_8h_ac95b2624b57c0005e3ca8a740316e5ab}{execution\+\_\+context\+\_\+t}} $\ast$$\ast$}]{ctx }\end{DoxyParamCaption})}
+
+
+
+client\+\_\+fini finalizes an execution context that is being used as a client. Practically, a termination message is sent to the associated server (if any) vi a notification and the function will block until the notification completes. Then the object is entirely freed. In other words, upon returning from the function, the execution context is guaranteed to have been terminated, completely freed and the potential associated server notified of the termination. 
+
+
+\begin{DoxyParams}[1]{Parameters}
+\mbox{\texttt{ in,out}}  & {\em ctx} & Pointer of pointer to the execution to finalize. Upon success the execution context is set to NULL so it cannot be used any longer. \\
+\hline
+\end{DoxyParams}
+\mbox{\Hypertarget{dpu__offload__service__daemon_8c_a7cf6a1b1f9ab51b1a7f4814ca3aa081f}\label{dpu__offload__service__daemon_8c_a7cf6a1b1f9ab51b1a7f4814ca3aa081f}} 
+\index{dpu\_offload\_service\_daemon.c@{dpu\_offload\_service\_daemon.c}!client\_init@{client\_init}}
+\index{client\_init@{client\_init}!dpu\_offload\_service\_daemon.c@{dpu\_offload\_service\_daemon.c}}
+\doxysubsubsection{\texorpdfstring{client\_init()}{client\_init()}}
+{\footnotesize\ttfamily \mbox{\hyperlink{dpu__offload__types_8h_ac95b2624b57c0005e3ca8a740316e5ab}{execution\+\_\+context\+\_\+t}}$\ast$ client\+\_\+init (\begin{DoxyParamCaption}\item[{\mbox{\hyperlink{dpu__offload__types_8h_abdda2bc51909d3f2e98a5c9dde42b0a8}{offloading\+\_\+engine\+\_\+t}} $\ast$}]{offload\+\_\+engine,  }\item[{\mbox{\hyperlink{dpu__offload__types_8h_a42c35bf5c92dc98cf22a4818b0331608}{init\+\_\+params\+\_\+t}} $\ast$}]{init\+\_\+params }\end{DoxyParamCaption})}
+
+
+
+client\+\_\+init initialize the datastructure representing a client and perform the bootstrapping procedure 
+
+client\+\_\+init creates and returns a new execution context object that can later on be used as a client. Trying to use it as a server is invalid.
+
+
+\begin{DoxyParams}{Parameters}
+{\em offload\+\_\+engine} & offloading engine the client is associated with. \\
+\hline
+{\em \mbox{\hyperlink{structinit__params}{init\+\_\+params}}} & Handle gathering all the initialization parameters that can be customized by the caller. Can be NULL to use defaults. \\
+\hline
+\end{DoxyParams}
+\begin{DoxyReturn}{Returns}
+execution\+\_\+context\+\_\+t$\ast$ 
+\end{DoxyReturn}
+\mbox{\Hypertarget{dpu__offload__service__daemon_8c_a69c0608d6fee064d5cdb094e7611fe56}\label{dpu__offload__service__daemon_8c_a69c0608d6fee064d5cdb094e7611fe56}} 
+\index{dpu\_offload\_service\_daemon.c@{dpu\_offload\_service\_daemon.c}!client\_init\_context@{client\_init\_context}}
+\index{client\_init\_context@{client\_init\_context}!dpu\_offload\_service\_daemon.c@{dpu\_offload\_service\_daemon.c}}
+\doxysubsubsection{\texorpdfstring{client\_init\_context()}{client\_init\_context()}}
+{\footnotesize\ttfamily \mbox{\hyperlink{dpu__offload__common_8h_a2f49d8c1f5f6182b5128dfd3c815c3ef}{dpu\+\_\+offload\+\_\+status\+\_\+t}} client\+\_\+init\+\_\+context (\begin{DoxyParamCaption}\item[{\mbox{\hyperlink{dpu__offload__types_8h_ac95b2624b57c0005e3ca8a740316e5ab}{execution\+\_\+context\+\_\+t}} $\ast$}]{econtext,  }\item[{\mbox{\hyperlink{dpu__offload__types_8h_a42c35bf5c92dc98cf22a4818b0331608}{init\+\_\+params\+\_\+t}} $\ast$}]{init\+\_\+params }\end{DoxyParamCaption})}
+
+\mbox{\Hypertarget{dpu__offload__service__daemon_8c_ae8b896cf0076816e174c59d409950ed7}\label{dpu__offload__service__daemon_8c_ae8b896cf0076816e174c59d409950ed7}} 
+\index{dpu\_offload\_service\_daemon.c@{dpu\_offload\_service\_daemon.c}!finalize\_connection\_to\_remote\_service\_proc@{finalize\_connection\_to\_remote\_service\_proc}}
+\index{finalize\_connection\_to\_remote\_service\_proc@{finalize\_connection\_to\_remote\_service\_proc}!dpu\_offload\_service\_daemon.c@{dpu\_offload\_service\_daemon.c}}
+\doxysubsubsection{\texorpdfstring{finalize\_connection\_to\_remote\_service\_proc()}{finalize\_connection\_to\_remote\_service\_proc()}}
+{\footnotesize\ttfamily \mbox{\hyperlink{dpu__offload__common_8h_a2f49d8c1f5f6182b5128dfd3c815c3ef}{dpu\+\_\+offload\+\_\+status\+\_\+t}} finalize\+\_\+connection\+\_\+to\+\_\+remote\+\_\+service\+\_\+proc (\begin{DoxyParamCaption}\item[{\mbox{\hyperlink{dpu__offload__types_8h_abdda2bc51909d3f2e98a5c9dde42b0a8}{offloading\+\_\+engine\+\_\+t}} $\ast$}]{offload\+\_\+engine,  }\item[{\mbox{\hyperlink{dpu__offload__types_8h_a709bd88b064e6b5c79548ccd5f1b9798}{remote\+\_\+service\+\_\+proc\+\_\+info\+\_\+t}} $\ast$}]{remote\+\_\+sp,  }\item[{\mbox{\hyperlink{dpu__offload__types_8h_ac95b2624b57c0005e3ca8a740316e5ab}{execution\+\_\+context\+\_\+t}} $\ast$}]{client }\end{DoxyParamCaption})}
+
+\mbox{\Hypertarget{dpu__offload__service__daemon_8c_ad79a85541d799e524f41c1e863d85c84}\label{dpu__offload__service__daemon_8c_ad79a85541d799e524f41c1e863d85c84}} 
+\index{dpu\_offload\_service\_daemon.c@{dpu\_offload\_service\_daemon.c}!get\_env\_config@{get\_env\_config}}
+\index{get\_env\_config@{get\_env\_config}!dpu\_offload\_service\_daemon.c@{dpu\_offload\_service\_daemon.c}}
+\doxysubsubsection{\texorpdfstring{get\_env\_config()}{get\_env\_config()}}
+{\footnotesize\ttfamily \mbox{\hyperlink{dpu__offload__common_8h_a2f49d8c1f5f6182b5128dfd3c815c3ef}{dpu\+\_\+offload\+\_\+status\+\_\+t}} get\+\_\+env\+\_\+config (\begin{DoxyParamCaption}\item[{\mbox{\hyperlink{dpu__offload__types_8h_a3873b77cd04f5ee9378a390abe9ddab0}{conn\+\_\+params\+\_\+t}} $\ast$}]{params }\end{DoxyParamCaption})}
+
+\mbox{\Hypertarget{dpu__offload__service__daemon_8c_afd5ebfae79276c0ea9143dc7c92386ce}\label{dpu__offload__service__daemon_8c_afd5ebfae79276c0ea9143dc7c92386ce}} 
+\index{dpu\_offload\_service\_daemon.c@{dpu\_offload\_service\_daemon.c}!init\_remote\_dpu\_info\_struct@{init\_remote\_dpu\_info\_struct}}
+\index{init\_remote\_dpu\_info\_struct@{init\_remote\_dpu\_info\_struct}!dpu\_offload\_service\_daemon.c@{dpu\_offload\_service\_daemon.c}}
+\doxysubsubsection{\texorpdfstring{init\_remote\_dpu\_info\_struct()}{init\_remote\_dpu\_info\_struct()}}
+{\footnotesize\ttfamily void init\+\_\+remote\+\_\+dpu\+\_\+info\+\_\+struct (\begin{DoxyParamCaption}\item[{void $\ast$}]{data }\end{DoxyParamCaption})}
+
+\mbox{\Hypertarget{dpu__offload__service__daemon_8c_ad4e7f8fb73b9bc3e73bb3cb6351ea09b}\label{dpu__offload__service__daemon_8c_ad4e7f8fb73b9bc3e73bb3cb6351ea09b}} 
+\index{dpu\_offload\_service\_daemon.c@{dpu\_offload\_service\_daemon.c}!lib\_progress@{lib\_progress}}
+\index{lib\_progress@{lib\_progress}!dpu\_offload\_service\_daemon.c@{dpu\_offload\_service\_daemon.c}}
+\doxysubsubsection{\texorpdfstring{lib\_progress()}{lib\_progress()}}
+{\footnotesize\ttfamily \mbox{\hyperlink{dpu__offload__common_8h_a2f49d8c1f5f6182b5128dfd3c815c3ef}{dpu\+\_\+offload\+\_\+status\+\_\+t}} lib\+\_\+progress (\begin{DoxyParamCaption}\item[{\mbox{\hyperlink{dpu__offload__types_8h_ac95b2624b57c0005e3ca8a740316e5ab}{execution\+\_\+context\+\_\+t}} $\ast$}]{econtext }\end{DoxyParamCaption})}
+
+
+
+Progress the entrie library, i.\+e., all the engines and execution contexts, based on an execution context. 
+
+
+\begin{DoxyParams}[1]{Parameters}
+\mbox{\texttt{ in}}  & {\em econtext} & Execution context from which to start progressing the entire library. \\
+\hline
+\end{DoxyParams}
+\begin{DoxyReturn}{Returns}
+dpu\+\_\+offload\+\_\+status\+\_\+t 
+\end{DoxyReturn}
+\mbox{\Hypertarget{dpu__offload__service__daemon_8c_ac9953edc063b6380e3f06c031d6cda7a}\label{dpu__offload__service__daemon_8c_ac9953edc063b6380e3f06c031d6cda7a}} 
+\index{dpu\_offload\_service\_daemon.c@{dpu\_offload\_service\_daemon.c}!local\_rank\_connect\_default\_callback@{local\_rank\_connect\_default\_callback}}
+\index{local\_rank\_connect\_default\_callback@{local\_rank\_connect\_default\_callback}!dpu\_offload\_service\_daemon.c@{dpu\_offload\_service\_daemon.c}}
+\doxysubsubsection{\texorpdfstring{local\_rank\_connect\_default\_callback()}{local\_rank\_connect\_default\_callback()}}
+{\footnotesize\ttfamily void local\+\_\+rank\+\_\+connect\+\_\+default\+\_\+callback (\begin{DoxyParamCaption}\item[{void $\ast$}]{data }\end{DoxyParamCaption})}
+
+
+
+callback that servers (service processes acting as servers) on DPUs can set (server-\/$>$connected\+\_\+cb) to have implicit management of caches, especially when all the ranks of the group are on the local host. In such a situation, it will be detected when the last ranks connects, the group cache therefore completes and the cache is then sent back to local ranks. 
+
+\mbox{\Hypertarget{dpu__offload__service__daemon_8c_aa32ac4b83b37c79b6fe17109c7d02c7a}\label{dpu__offload__service__daemon_8c_aa32ac4b83b37c79b6fe17109c7d02c7a}} 
+\index{dpu\_offload\_service\_daemon.c@{dpu\_offload\_service\_daemon.c}!offload\_engine\_fini@{offload\_engine\_fini}}
+\index{offload\_engine\_fini@{offload\_engine\_fini}!dpu\_offload\_service\_daemon.c@{dpu\_offload\_service\_daemon.c}}
+\doxysubsubsection{\texorpdfstring{offload\_engine\_fini()}{offload\_engine\_fini()}}
+{\footnotesize\ttfamily void offload\+\_\+engine\+\_\+fini (\begin{DoxyParamCaption}\item[{\mbox{\hyperlink{dpu__offload__types_8h_abdda2bc51909d3f2e98a5c9dde42b0a8}{offloading\+\_\+engine\+\_\+t}} $\ast$$\ast$}]{offload\+\_\+engine }\end{DoxyParamCaption})}
+
+\mbox{\Hypertarget{dpu__offload__service__daemon_8c_a9801a3eb984a376ade72d8a645babb9e}\label{dpu__offload__service__daemon_8c_a9801a3eb984a376ade72d8a645babb9e}} 
+\index{dpu\_offload\_service\_daemon.c@{dpu\_offload\_service\_daemon.c}!offload\_engine\_init@{offload\_engine\_init}}
+\index{offload\_engine\_init@{offload\_engine\_init}!dpu\_offload\_service\_daemon.c@{dpu\_offload\_service\_daemon.c}}
+\doxysubsubsection{\texorpdfstring{offload\_engine\_init()}{offload\_engine\_init()}}
+{\footnotesize\ttfamily \mbox{\hyperlink{dpu__offload__common_8h_a2f49d8c1f5f6182b5128dfd3c815c3ef}{dpu\+\_\+offload\+\_\+status\+\_\+t}} offload\+\_\+engine\+\_\+init (\begin{DoxyParamCaption}\item[{\mbox{\hyperlink{dpu__offload__types_8h_abdda2bc51909d3f2e98a5c9dde42b0a8}{offloading\+\_\+engine\+\_\+t}} $\ast$$\ast$}]{engine }\end{DoxyParamCaption})}
+
+\mbox{\Hypertarget{dpu__offload__service__daemon_8c_ab1fe819ca6e425c029b86a8f08818f17}\label{dpu__offload__service__daemon_8c_ab1fe819ca6e425c029b86a8f08818f17}} 
+\index{dpu\_offload\_service\_daemon.c@{dpu\_offload\_service\_daemon.c}!offload\_engine\_progress@{offload\_engine\_progress}}
+\index{offload\_engine\_progress@{offload\_engine\_progress}!dpu\_offload\_service\_daemon.c@{dpu\_offload\_service\_daemon.c}}
+\doxysubsubsection{\texorpdfstring{offload\_engine\_progress()}{offload\_engine\_progress()}}
+{\footnotesize\ttfamily \mbox{\hyperlink{dpu__offload__common_8h_a2f49d8c1f5f6182b5128dfd3c815c3ef}{dpu\+\_\+offload\+\_\+status\+\_\+t}} offload\+\_\+engine\+\_\+progress (\begin{DoxyParamCaption}\item[{\mbox{\hyperlink{dpu__offload__types_8h_abdda2bc51909d3f2e98a5c9dde42b0a8}{offloading\+\_\+engine\+\_\+t}} $\ast$}]{engine }\end{DoxyParamCaption})}
+
+
+
+offload\+\_\+engine\+\_\+progress progresses the entire offloading engine, i.\+e., all the associated execution context. It is for instance used to progress all communications between DPUs and ensure completions of ongoing communications. 
+
+
+\begin{DoxyParams}[1]{Parameters}
+\mbox{\texttt{ in}}  & {\em engine} & The offloading engine to progress \\
+\hline
+\end{DoxyParams}
+\begin{DoxyReturn}{Returns}
+dpu\+\_\+offload\+\_\+status\+\_\+t 
+\end{DoxyReturn}
+\mbox{\Hypertarget{dpu__offload__service__daemon_8c_a1cc814df002b0655f07e77f085013d97}\label{dpu__offload__service__daemon_8c_a1cc814df002b0655f07e77f085013d97}} 
+\index{dpu\_offload\_service\_daemon.c@{dpu\_offload\_service\_daemon.c}!oob\_client\_connect@{oob\_client\_connect}}
+\index{oob\_client\_connect@{oob\_client\_connect}!dpu\_offload\_service\_daemon.c@{dpu\_offload\_service\_daemon.c}}
+\doxysubsubsection{\texorpdfstring{oob\_client\_connect()}{oob\_client\_connect()}}
+{\footnotesize\ttfamily \mbox{\hyperlink{dpu__offload__common_8h_a2f49d8c1f5f6182b5128dfd3c815c3ef}{dpu\+\_\+offload\+\_\+status\+\_\+t}} oob\+\_\+client\+\_\+connect (\begin{DoxyParamCaption}\item[{\mbox{\hyperlink{structdpu__offload__client__t}{dpu\+\_\+offload\+\_\+client\+\_\+t}} $\ast$}]{client,  }\item[{sa\+\_\+family\+\_\+t}]{af }\end{DoxyParamCaption})}
+
+\mbox{\Hypertarget{dpu__offload__service__daemon_8c_a5ac1ff22d720202c928fdfb00c155cdc}\label{dpu__offload__service__daemon_8c_a5ac1ff22d720202c928fdfb00c155cdc}} 
+\index{dpu\_offload\_service\_daemon.c@{dpu\_offload\_service\_daemon.c}!register\_default\_notifications@{register\_default\_notifications}}
+\index{register\_default\_notifications@{register\_default\_notifications}!dpu\_offload\_service\_daemon.c@{dpu\_offload\_service\_daemon.c}}
+\doxysubsubsection{\texorpdfstring{register\_default\_notifications()}{register\_default\_notifications()}}
+{\footnotesize\ttfamily \mbox{\hyperlink{dpu__offload__common_8h_a2f49d8c1f5f6182b5128dfd3c815c3ef}{dpu\+\_\+offload\+\_\+status\+\_\+t}} register\+\_\+default\+\_\+notifications (\begin{DoxyParamCaption}\item[{\mbox{\hyperlink{dpu__offload__types_8h_a3393bcd64add76ae2292d8cb54c16fe6}{dpu\+\_\+offload\+\_\+ev\+\_\+sys\+\_\+t}} $\ast$}]{ev\+\_\+sys }\end{DoxyParamCaption})}
+
+\mbox{\Hypertarget{dpu__offload__service__daemon_8c_a927f1a5271b1e177a1a39cc4c51574b0}\label{dpu__offload__service__daemon_8c_a927f1a5271b1e177a1a39cc4c51574b0}} 
+\index{dpu\_offload\_service\_daemon.c@{dpu\_offload\_service\_daemon.c}!server\_fini@{server\_fini}}
+\index{server\_fini@{server\_fini}!dpu\_offload\_service\_daemon.c@{dpu\_offload\_service\_daemon.c}}
+\doxysubsubsection{\texorpdfstring{server\_fini()}{server\_fini()}}
+{\footnotesize\ttfamily void server\+\_\+fini (\begin{DoxyParamCaption}\item[{\mbox{\hyperlink{dpu__offload__types_8h_ac95b2624b57c0005e3ca8a740316e5ab}{execution\+\_\+context\+\_\+t}} $\ast$$\ast$}]{exec\+\_\+ctx }\end{DoxyParamCaption})}
+
+\mbox{\Hypertarget{dpu__offload__service__daemon_8c_ac59353421afd74f179d598422752a63e}\label{dpu__offload__service__daemon_8c_ac59353421afd74f179d598422752a63e}} 
+\index{dpu\_offload\_service\_daemon.c@{dpu\_offload\_service\_daemon.c}!server\_init@{server\_init}}
+\index{server\_init@{server\_init}!dpu\_offload\_service\_daemon.c@{dpu\_offload\_service\_daemon.c}}
+\doxysubsubsection{\texorpdfstring{server\_init()}{server\_init()}}
+{\footnotesize\ttfamily \mbox{\hyperlink{dpu__offload__types_8h_ac95b2624b57c0005e3ca8a740316e5ab}{execution\+\_\+context\+\_\+t}}$\ast$ server\+\_\+init (\begin{DoxyParamCaption}\item[{\mbox{\hyperlink{dpu__offload__types_8h_abdda2bc51909d3f2e98a5c9dde42b0a8}{offloading\+\_\+engine\+\_\+t}} $\ast$}]{offloading\+\_\+engine,  }\item[{\mbox{\hyperlink{dpu__offload__types_8h_a42c35bf5c92dc98cf22a4818b0331608}{init\+\_\+params\+\_\+t}} $\ast$}]{init\+\_\+params }\end{DoxyParamCaption})}
+
+
+
+Initialize a connection server. 
+
+
+\begin{DoxyParams}{Parameters}
+{\em \mbox{\hyperlink{structoffloading__engine}{offloading\+\_\+engine}}} & Associated offloading engine. \\
+\hline
+{\em \mbox{\hyperlink{structconn__params}{conn\+\_\+params}}} & Connection parameters, e.\+g., port to use to listen for connections. If NULL, the configuration will be pulled from environment variables. \\
+\hline
+\end{DoxyParams}
+\begin{DoxyReturn}{Returns}
+execution\+\_\+context\+\_\+t$\ast$ 
+\end{DoxyReturn}
+\mbox{\Hypertarget{dpu__offload__service__daemon_8c_a8168327727da3a3b5174eecf45a5f7d4}\label{dpu__offload__service__daemon_8c_a8168327727da3a3b5174eecf45a5f7d4}} 
+\index{dpu\_offload\_service\_daemon.c@{dpu\_offload\_service\_daemon.c}!server\_init\_context@{server\_init\_context}}
+\index{server\_init\_context@{server\_init\_context}!dpu\_offload\_service\_daemon.c@{dpu\_offload\_service\_daemon.c}}
+\doxysubsubsection{\texorpdfstring{server\_init\_context()}{server\_init\_context()}}
+{\footnotesize\ttfamily \mbox{\hyperlink{dpu__offload__common_8h_a2f49d8c1f5f6182b5128dfd3c815c3ef}{dpu\+\_\+offload\+\_\+status\+\_\+t}} server\+\_\+init\+\_\+context (\begin{DoxyParamCaption}\item[{\mbox{\hyperlink{dpu__offload__types_8h_ac95b2624b57c0005e3ca8a740316e5ab}{execution\+\_\+context\+\_\+t}} $\ast$}]{econtext,  }\item[{\mbox{\hyperlink{dpu__offload__types_8h_a42c35bf5c92dc98cf22a4818b0331608}{init\+\_\+params\+\_\+t}} $\ast$}]{init\+\_\+params }\end{DoxyParamCaption})}
+
+\mbox{\Hypertarget{dpu__offload__service__daemon_8c_aa639a853cafdb4b31f815bbf9b946671}\label{dpu__offload__service__daemon_8c_aa639a853cafdb4b31f815bbf9b946671}} 
+\index{dpu\_offload\_service\_daemon.c@{dpu\_offload\_service\_daemon.c}!set\_sock\_addr@{set\_sock\_addr}}
+\index{set\_sock\_addr@{set\_sock\_addr}!dpu\_offload\_service\_daemon.c@{dpu\_offload\_service\_daemon.c}}
+\doxysubsubsection{\texorpdfstring{set\_sock\_addr()}{set\_sock\_addr()}}
+{\footnotesize\ttfamily \mbox{\hyperlink{dpu__offload__common_8h_a2f49d8c1f5f6182b5128dfd3c815c3ef}{dpu\+\_\+offload\+\_\+status\+\_\+t}} set\+\_\+sock\+\_\+addr (\begin{DoxyParamCaption}\item[{char $\ast$}]{addr,  }\item[{uint16\+\_\+t}]{port,  }\item[{struct sockaddr\+\_\+storage $\ast$}]{saddr }\end{DoxyParamCaption})}
+
+\mbox{\Hypertarget{dpu__offload__service__daemon_8c_a30450e3576ed64dd399cda3b67eb32ac}\label{dpu__offload__service__daemon_8c_a30450e3576ed64dd399cda3b67eb32ac}} 
+\index{dpu\_offload\_service\_daemon.c@{dpu\_offload\_service\_daemon.c}!tag\_send\_event\_msg@{tag\_send\_event\_msg}}
+\index{tag\_send\_event\_msg@{tag\_send\_event\_msg}!dpu\_offload\_service\_daemon.c@{dpu\_offload\_service\_daemon.c}}
+\doxysubsubsection{\texorpdfstring{tag\_send\_event\_msg()}{tag\_send\_event\_msg()}}
+{\footnotesize\ttfamily int tag\+\_\+send\+\_\+event\+\_\+msg (\begin{DoxyParamCaption}\item[{\mbox{\hyperlink{dpu__offload__types_8h_a5872fe6516c1dd159957efdfabc9ad2a}{dpu\+\_\+offload\+\_\+event\+\_\+t}} $\ast$$\ast$}]{event }\end{DoxyParamCaption})}
+

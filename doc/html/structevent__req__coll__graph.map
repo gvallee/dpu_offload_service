@@ -1,0 +1,4 @@
+<map id="event_req" name="event_req">
+<area shape="rect" id="node1" title=" " alt="" coords="9,95,96,121"/>
+<area shape="rect" id="node2" href="$structam__header.html" title="am_header_t is the structure used to represent the header sent with UCX active messages" alt="" coords="5,5,100,32"/>
+</map>

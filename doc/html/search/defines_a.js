@@ -1,0 +1,26 @@
+var searchData=
+[
+  ['offload_5fbit_1477',['OFFLOAD_BIT',['../dpu__offload__comms_8h.html#aec8c1c9a9c4a28ba29bdb60ac2547da8',1,'dpu_offload_comms.h']]],
+  ['offload_5fconfig_5ffile_5fpath_5fenvvar_1478',['OFFLOAD_CONFIG_FILE_PATH_ENVVAR',['../dpu__offload__envvars_8h.html#af5816eb3089840b5cbbd694c03bce9b8',1,'dpu_offload_envvars.h']]],
+  ['offload_5fid_5fbits_1479',['OFFLOAD_ID_BITS',['../dpu__offload__comms_8h.html#a1e28ebcbceb870a94c0fa999e7f75b53',1,'dpu_offload_comms.h']]],
+  ['offload_5fid_5fbits_5foffset_1480',['OFFLOAD_ID_BITS_OFFSET',['../dpu__offload__comms_8h.html#a92a7cf009174d8c1faeccd243da226da',1,'dpu_offload_comms.h']]],
+  ['offload_5fmask_1481',['OFFLOAD_MASK',['../dpu__offload__comms_8h.html#a45d0d63e1e53969649b8d63625b32d71',1,'dpu_offload_comms.h']]],
+  ['offload_5fmax_5fcoll_5ftag_1482',['OFFLOAD_MAX_COLL_TAG',['../dpu__offload__comms_8h.html#aed7a673a24c0a978b044beb909fbda0d',1,'dpu_offload_comms.h']]],
+  ['offload_5fmax_5fid_1483',['OFFLOAD_MAX_ID',['../dpu__offload__comms_8h.html#ade45843c3581d8eb3da05a9a00580436',1,'dpu_offload_comms.h']]],
+  ['offload_5fmax_5fsender_1484',['OFFLOAD_MAX_SENDER',['../dpu__offload__comms_8h.html#a026d5a77120b7fa3206cedca5c6f3430',1,'dpu_offload_comms.h']]],
+  ['offload_5fmax_5ftag_1485',['OFFLOAD_MAX_TAG',['../dpu__offload__comms_8h.html#ae6fb8cbb41a896733d0eed8d864b46e8',1,'dpu_offload_comms.h']]],
+  ['offload_5freserved_5fbits_1486',['OFFLOAD_RESERVED_BITS',['../dpu__offload__comms_8h.html#a90c79d0f1087908765ee23bf97ea3531',1,'dpu_offload_comms.h']]],
+  ['offload_5freserved_5fbits_5foffset_1487',['OFFLOAD_RESERVED_BITS_OFFSET',['../dpu__offload__comms_8h.html#a375b72d3ab54d0dcf74ce61f0cd2e109',1,'dpu_offload_comms.h']]],
+  ['offload_5freserved_5ftags_1488',['OFFLOAD_RESERVED_TAGS',['../dpu__offload__comms_8h.html#acf293913ecd9272042256a2796777589',1,'dpu_offload_comms.h']]],
+  ['offload_5fscope_5fbits_1489',['OFFLOAD_SCOPE_BITS',['../dpu__offload__comms_8h.html#ae2911ee646bf27de6f528c84660593da',1,'dpu_offload_comms.h']]],
+  ['offload_5fscope_5fbits_5foffset_1490',['OFFLOAD_SCOPE_BITS_OFFSET',['../dpu__offload__comms_8h.html#abc3d84f092ac5caf45de64a4f4b4245f',1,'dpu_offload_comms.h']]],
+  ['offload_5fscope_5fid_5fbits_1491',['OFFLOAD_SCOPE_ID_BITS',['../dpu__offload__comms_8h.html#a959707a187dfd94bb225929e5ec99686',1,'dpu_offload_comms.h']]],
+  ['offload_5fscope_5fid_5fbits_5foffset_1492',['OFFLOAD_SCOPE_ID_BITS_OFFSET',['../dpu__offload__comms_8h.html#a70d97f65cb7f020be0333969f9203c22',1,'dpu_offload_comms.h']]],
+  ['offload_5fsender_5fbits_1493',['OFFLOAD_SENDER_BITS',['../dpu__offload__comms_8h.html#aa62ad2eb37b9720d3ca250fb55f2da24',1,'dpu_offload_comms.h']]],
+  ['offload_5fsender_5fbits_5foffset_1494',['OFFLOAD_SENDER_BITS_OFFSET',['../dpu__offload__comms_8h.html#a8dd86050086bb4fd22faa8348cd52344',1,'dpu_offload_comms.h']]],
+  ['offload_5fservice_5ftag_1495',['OFFLOAD_SERVICE_TAG',['../dpu__offload__comms_8h.html#a3edbb0cecaa40b1524f1d6f9484b5cd9',1,'dpu_offload_comms.h']]],
+  ['offload_5ftag_5fbits_1496',['OFFLOAD_TAG_BITS',['../dpu__offload__comms_8h.html#acec1b9a166496c1177b1dfc09f65d0a4',1,'dpu_offload_comms.h']]],
+  ['offload_5ftag_5fbits_5foffset_1497',['OFFLOAD_TAG_BITS_OFFSET',['../dpu__offload__comms_8h.html#a60417d61b7b4ee5053f3ae4fbd6182c8',1,'dpu_offload_comms.h']]],
+  ['offloading_5fmt_5fenable_1498',['OFFLOADING_MT_ENABLE',['../dpu__offload__types_8h.html#a95a8043c0a9f8e50b9424a9921c1bc3f',1,'dpu_offload_types.h']]],
+  ['oob_5fdefault_5ftag_1499',['OOB_DEFAULT_TAG',['../dpu__offload__service__daemon_8c.html#adc2cf8951396ed80ee742b4549ec086f',1,'dpu_offload_service_daemon.c']]]
+];

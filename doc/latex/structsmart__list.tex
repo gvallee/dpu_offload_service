@@ -1,0 +1,83 @@
+\hypertarget{structsmart__list}{}\doxysection{smart\+\_\+list Struct Reference}
+\label{structsmart__list}\index{smart\_list@{smart\_list}}
+
+
+{\ttfamily \#include $<$dynamic\+\_\+structs.\+h$>$}
+
+
+
+Collaboration diagram for smart\+\_\+list\+:
+\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{structsmart__list__coll__graph}
+\end{center}
+\end{figure}
+\doxysubsection*{Data Fields}
+\begin{DoxyCompactItemize}
+\item 
+size\+\_\+t \mbox{\hyperlink{structsmart__list_ae2df07760758bb29b040a88daaefe28d}{num\+\_\+elts}}
+\item 
+size\+\_\+t \mbox{\hyperlink{structsmart__list_a72fe6b104b859f48b1e363061eb2a986}{num\+\_\+elts\+\_\+alloc}}
+\item 
+size\+\_\+t \mbox{\hyperlink{structsmart__list_a4aa38c6ccb95425402091c120d72b48c}{elt\+\_\+size}}
+\item 
+\mbox{\hyperlink{structsmart__chunk__t}{smart\+\_\+chunk\+\_\+t}} $\ast$ \mbox{\hyperlink{structsmart__list_a1641c39310be43b4c7052772d630d2e0}{base\+\_\+smart\+\_\+chunk}}
+\item 
+\mbox{\hyperlink{dynamic__structs_8h_a2dbc507ba858bb998999c26be4458daa}{simple\+\_\+list\+\_\+t}} \mbox{\hyperlink{structsmart__list_a8e1fa851b1ec89070ed2e456d670b67f}{list}}
+\item 
+size\+\_\+t \mbox{\hyperlink{structsmart__list_a7b9573f76d3bd95f579ef2b77f1687a6}{num\+\_\+smart\+\_\+chunks}}
+\item 
+\mbox{\hyperlink{dynamic__structs_8h_a70bf7a47116d2e3387117c1393ed0445}{smart\+\_\+array\+\_\+t}} \mbox{\hyperlink{structsmart__list_a184c3381bc86e6f16a3a2f7c723fc7f2}{smart\+\_\+chunks}}
+\end{DoxyCompactItemize}
+
+
+\doxysubsection{Field Documentation}
+\mbox{\Hypertarget{structsmart__list_a1641c39310be43b4c7052772d630d2e0}\label{structsmart__list_a1641c39310be43b4c7052772d630d2e0}} 
+\index{smart\_list@{smart\_list}!base\_smart\_chunk@{base\_smart\_chunk}}
+\index{base\_smart\_chunk@{base\_smart\_chunk}!smart\_list@{smart\_list}}
+\doxysubsubsection{\texorpdfstring{base\_smart\_chunk}{base\_smart\_chunk}}
+{\footnotesize\ttfamily \mbox{\hyperlink{structsmart__chunk__t}{smart\+\_\+chunk\+\_\+t}}$\ast$ smart\+\_\+list\+::base\+\_\+smart\+\_\+chunk}
+
+\mbox{\Hypertarget{structsmart__list_a4aa38c6ccb95425402091c120d72b48c}\label{structsmart__list_a4aa38c6ccb95425402091c120d72b48c}} 
+\index{smart\_list@{smart\_list}!elt\_size@{elt\_size}}
+\index{elt\_size@{elt\_size}!smart\_list@{smart\_list}}
+\doxysubsubsection{\texorpdfstring{elt\_size}{elt\_size}}
+{\footnotesize\ttfamily size\+\_\+t smart\+\_\+list\+::elt\+\_\+size}
+
+\mbox{\Hypertarget{structsmart__list_a8e1fa851b1ec89070ed2e456d670b67f}\label{structsmart__list_a8e1fa851b1ec89070ed2e456d670b67f}} 
+\index{smart\_list@{smart\_list}!list@{list}}
+\index{list@{list}!smart\_list@{smart\_list}}
+\doxysubsubsection{\texorpdfstring{list}{list}}
+{\footnotesize\ttfamily \mbox{\hyperlink{dynamic__structs_8h_a2dbc507ba858bb998999c26be4458daa}{simple\+\_\+list\+\_\+t}} smart\+\_\+list\+::list}
+
+\mbox{\Hypertarget{structsmart__list_ae2df07760758bb29b040a88daaefe28d}\label{structsmart__list_ae2df07760758bb29b040a88daaefe28d}} 
+\index{smart\_list@{smart\_list}!num\_elts@{num\_elts}}
+\index{num\_elts@{num\_elts}!smart\_list@{smart\_list}}
+\doxysubsubsection{\texorpdfstring{num\_elts}{num\_elts}}
+{\footnotesize\ttfamily size\+\_\+t smart\+\_\+list\+::num\+\_\+elts}
+
+\mbox{\Hypertarget{structsmart__list_a72fe6b104b859f48b1e363061eb2a986}\label{structsmart__list_a72fe6b104b859f48b1e363061eb2a986}} 
+\index{smart\_list@{smart\_list}!num\_elts\_alloc@{num\_elts\_alloc}}
+\index{num\_elts\_alloc@{num\_elts\_alloc}!smart\_list@{smart\_list}}
+\doxysubsubsection{\texorpdfstring{num\_elts\_alloc}{num\_elts\_alloc}}
+{\footnotesize\ttfamily size\+\_\+t smart\+\_\+list\+::num\+\_\+elts\+\_\+alloc}
+
+\mbox{\Hypertarget{structsmart__list_a7b9573f76d3bd95f579ef2b77f1687a6}\label{structsmart__list_a7b9573f76d3bd95f579ef2b77f1687a6}} 
+\index{smart\_list@{smart\_list}!num\_smart\_chunks@{num\_smart\_chunks}}
+\index{num\_smart\_chunks@{num\_smart\_chunks}!smart\_list@{smart\_list}}
+\doxysubsubsection{\texorpdfstring{num\_smart\_chunks}{num\_smart\_chunks}}
+{\footnotesize\ttfamily size\+\_\+t smart\+\_\+list\+::num\+\_\+smart\+\_\+chunks}
+
+\mbox{\Hypertarget{structsmart__list_a184c3381bc86e6f16a3a2f7c723fc7f2}\label{structsmart__list_a184c3381bc86e6f16a3a2f7c723fc7f2}} 
+\index{smart\_list@{smart\_list}!smart\_chunks@{smart\_chunks}}
+\index{smart\_chunks@{smart\_chunks}!smart\_list@{smart\_list}}
+\doxysubsubsection{\texorpdfstring{smart\_chunks}{smart\_chunks}}
+{\footnotesize\ttfamily \mbox{\hyperlink{dynamic__structs_8h_a70bf7a47116d2e3387117c1393ed0445}{smart\+\_\+array\+\_\+t}} smart\+\_\+list\+::smart\+\_\+chunks}
+
+
+
+The documentation for this struct was generated from the following file\+:\begin{DoxyCompactItemize}
+\item 
+/home/gvallee/\+Projects/\+DPU\+\_\+offloading/dpu\+\_\+offload\+\_\+service/include/\mbox{\hyperlink{dynamic__structs_8h}{dynamic\+\_\+structs.\+h}}\end{DoxyCompactItemize}

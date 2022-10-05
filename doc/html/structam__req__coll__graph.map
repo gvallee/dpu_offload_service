@@ -1,0 +1,4 @@
+<map id="am_req" name="am_req">
+<area shape="rect" id="node1" title="am_req_t is the structure used to track completion of a notification." alt="" coords="17,95,88,121"/>
+<area shape="rect" id="node2" href="$structam__header.html" title="am_header_t is the structure used to represent the header sent with UCX active messages" alt="" coords="5,5,100,32"/>
+</map>

@@ -1,0 +1,120 @@
+\hypertarget{dpu__offload__common_8h}{}\doxysection{/home/gvallee/\+Projects/\+DPU\+\_\+offloading/dpu\+\_\+offload\+\_\+service/include/dpu\+\_\+offload\+\_\+common.h File Reference}
+\label{dpu__offload__common_8h}\index{/home/gvallee/Projects/DPU\_offloading/dpu\_offload\_service/include/dpu\_offload\_common.h@{/home/gvallee/Projects/DPU\_offloading/dpu\_offload\_service/include/dpu\_offload\_common.h}}
+{\ttfamily \#include $<$ucp/api/ucp.\+h$>$}\newline
+Include dependency graph for dpu\+\_\+offload\+\_\+common.\+h\+:
+\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=235pt]{dpu__offload__common_8h__incl}
+\end{center}
+\end{figure}
+This graph shows which files directly or indirectly include this file\+:
+\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{dpu__offload__common_8h__dep__incl}
+\end{center}
+\end{figure}
+\doxysubsection*{Macros}
+\begin{DoxyCompactItemize}
+\item 
+\#define \mbox{\hyperlink{dpu__offload__common_8h_acf8419f28966da7ae06820da70dc0a6c}{DPU\+\_\+\+OFFLOAD\+\_\+\+HAVE\+\_\+\+VISIBILITY}}~1
+\item 
+\#define \mbox{\hyperlink{dpu__offload__common_8h_a26f11ec5d9737cb0544732b9f00aaa4a}{DPU\+\_\+\+OFFLOAD\+\_\+\+EXPORT}}~\mbox{\hyperlink{host__dpu__offload__service_8c_a521aaa29708382a7af39b3f0e60e4a1f}{\+\_\+\+\_\+attribute\+\_\+\+\_\+}}((\+\_\+\+\_\+visibility\+\_\+\+\_\+(\char`\"{}default\char`\"{})))
+\item 
+\#define \mbox{\hyperlink{dpu__offload__common_8h_a3ddfec70f1bf7883d0ee66fd585024f0}{DPU\+\_\+\+OFFLOAD\+\_\+\+INFO\+\_\+\+CREATE}}~PMIX\+\_\+\+INFO\+\_\+\+CREATE
+\item 
+\#define \mbox{\hyperlink{dpu__offload__common_8h_ab24cad51599c4790bd6edb4512107b1b}{DPU\+\_\+\+OFFLOAD\+\_\+\+INFO\+\_\+\+LOAD}}~PMIX\+\_\+\+INFO\+\_\+\+LOAD
+\item 
+\#define \mbox{\hyperlink{dpu__offload__common_8h_a2ec337d030534f42e85f8e31f22c6c76}{DPU\+\_\+\+OFFLOAD\+\_\+\+INFO\+\_\+\+FREE}}~PMIX\+\_\+\+INFO\+\_\+\+FREE
+\item 
+\#define \mbox{\hyperlink{dpu__offload__common_8h_a6db1d56819d71cc31de9425590d4c974}{DPU\+\_\+\+OFFLOAD\+\_\+\+STRING}}~PMIX\+\_\+\+STRING
+\item 
+\#define \mbox{\hyperlink{dpu__offload__common_8h_a0fac19e25e0b17953894a0f896954caf}{DPU\+\_\+\+OFFLOAD\+\_\+\+SUCCESS}}~\mbox{\hyperlink{dpu__offload__common_8h_a2f49d8c1f5f6182b5128dfd3c815c3efa41f084ec23d5e233f296d3d50e37af95}{DO\+\_\+\+SUCCESS}}
+\item 
+\#define \mbox{\hyperlink{dpu__offload__common_8h_a7f16cfc98f9eccb956c538a5967566d0}{DPU\+\_\+\+OFFLOAD\+\_\+\+ERROR}}~\mbox{\hyperlink{dpu__offload__common_8h_a2f49d8c1f5f6182b5128dfd3c815c3efa71e5936469ea2eee8228b5e662452e3f}{DO\+\_\+\+ERROR}}
+\end{DoxyCompactItemize}
+\doxysubsection*{Enumerations}
+\begin{DoxyCompactItemize}
+\item 
+enum \mbox{\hyperlink{dpu__offload__common_8h_a2f49d8c1f5f6182b5128dfd3c815c3ef}{dpu\+\_\+offload\+\_\+status\+\_\+t}} \{ \mbox{\hyperlink{dpu__offload__common_8h_a2f49d8c1f5f6182b5128dfd3c815c3efa71e5936469ea2eee8228b5e662452e3f}{DO\+\_\+\+ERROR}} = UCS\+\_\+\+ERR\+\_\+\+NO\+\_\+\+MESSAGE
+, \mbox{\hyperlink{dpu__offload__common_8h_a2f49d8c1f5f6182b5128dfd3c815c3efa41f084ec23d5e233f296d3d50e37af95}{DO\+\_\+\+SUCCESS}} = UCS\+\_\+\+OK
+, \mbox{\hyperlink{dpu__offload__common_8h_a2f49d8c1f5f6182b5128dfd3c815c3efa681da92b0f1bdeea728a79f04dc169b5}{DO\+\_\+\+NOT\+\_\+\+APPLICABLE}} = UCS\+\_\+\+ERR\+\_\+\+LAST -\/ 1
+ \}
+\end{DoxyCompactItemize}
+
+
+\doxysubsection{Macro Definition Documentation}
+\mbox{\Hypertarget{dpu__offload__common_8h_a7f16cfc98f9eccb956c538a5967566d0}\label{dpu__offload__common_8h_a7f16cfc98f9eccb956c538a5967566d0}} 
+\index{dpu\_offload\_common.h@{dpu\_offload\_common.h}!DPU\_OFFLOAD\_ERROR@{DPU\_OFFLOAD\_ERROR}}
+\index{DPU\_OFFLOAD\_ERROR@{DPU\_OFFLOAD\_ERROR}!dpu\_offload\_common.h@{dpu\_offload\_common.h}}
+\doxysubsubsection{\texorpdfstring{DPU\_OFFLOAD\_ERROR}{DPU\_OFFLOAD\_ERROR}}
+{\footnotesize\ttfamily \#define DPU\+\_\+\+OFFLOAD\+\_\+\+ERROR~\mbox{\hyperlink{dpu__offload__common_8h_a2f49d8c1f5f6182b5128dfd3c815c3efa71e5936469ea2eee8228b5e662452e3f}{DO\+\_\+\+ERROR}}}
+
+\mbox{\Hypertarget{dpu__offload__common_8h_a26f11ec5d9737cb0544732b9f00aaa4a}\label{dpu__offload__common_8h_a26f11ec5d9737cb0544732b9f00aaa4a}} 
+\index{dpu\_offload\_common.h@{dpu\_offload\_common.h}!DPU\_OFFLOAD\_EXPORT@{DPU\_OFFLOAD\_EXPORT}}
+\index{DPU\_OFFLOAD\_EXPORT@{DPU\_OFFLOAD\_EXPORT}!dpu\_offload\_common.h@{dpu\_offload\_common.h}}
+\doxysubsubsection{\texorpdfstring{DPU\_OFFLOAD\_EXPORT}{DPU\_OFFLOAD\_EXPORT}}
+{\footnotesize\ttfamily \#define DPU\+\_\+\+OFFLOAD\+\_\+\+EXPORT~\mbox{\hyperlink{host__dpu__offload__service_8c_a521aaa29708382a7af39b3f0e60e4a1f}{\+\_\+\+\_\+attribute\+\_\+\+\_\+}}((\+\_\+\+\_\+visibility\+\_\+\+\_\+(\char`\"{}default\char`\"{})))}
+
+\mbox{\Hypertarget{dpu__offload__common_8h_acf8419f28966da7ae06820da70dc0a6c}\label{dpu__offload__common_8h_acf8419f28966da7ae06820da70dc0a6c}} 
+\index{dpu\_offload\_common.h@{dpu\_offload\_common.h}!DPU\_OFFLOAD\_HAVE\_VISIBILITY@{DPU\_OFFLOAD\_HAVE\_VISIBILITY}}
+\index{DPU\_OFFLOAD\_HAVE\_VISIBILITY@{DPU\_OFFLOAD\_HAVE\_VISIBILITY}!dpu\_offload\_common.h@{dpu\_offload\_common.h}}
+\doxysubsubsection{\texorpdfstring{DPU\_OFFLOAD\_HAVE\_VISIBILITY}{DPU\_OFFLOAD\_HAVE\_VISIBILITY}}
+{\footnotesize\ttfamily \#define DPU\+\_\+\+OFFLOAD\+\_\+\+HAVE\+\_\+\+VISIBILITY~1}
+
+\mbox{\Hypertarget{dpu__offload__common_8h_a3ddfec70f1bf7883d0ee66fd585024f0}\label{dpu__offload__common_8h_a3ddfec70f1bf7883d0ee66fd585024f0}} 
+\index{dpu\_offload\_common.h@{dpu\_offload\_common.h}!DPU\_OFFLOAD\_INFO\_CREATE@{DPU\_OFFLOAD\_INFO\_CREATE}}
+\index{DPU\_OFFLOAD\_INFO\_CREATE@{DPU\_OFFLOAD\_INFO\_CREATE}!dpu\_offload\_common.h@{dpu\_offload\_common.h}}
+\doxysubsubsection{\texorpdfstring{DPU\_OFFLOAD\_INFO\_CREATE}{DPU\_OFFLOAD\_INFO\_CREATE}}
+{\footnotesize\ttfamily \#define DPU\+\_\+\+OFFLOAD\+\_\+\+INFO\+\_\+\+CREATE~PMIX\+\_\+\+INFO\+\_\+\+CREATE}
+
+\mbox{\Hypertarget{dpu__offload__common_8h_a2ec337d030534f42e85f8e31f22c6c76}\label{dpu__offload__common_8h_a2ec337d030534f42e85f8e31f22c6c76}} 
+\index{dpu\_offload\_common.h@{dpu\_offload\_common.h}!DPU\_OFFLOAD\_INFO\_FREE@{DPU\_OFFLOAD\_INFO\_FREE}}
+\index{DPU\_OFFLOAD\_INFO\_FREE@{DPU\_OFFLOAD\_INFO\_FREE}!dpu\_offload\_common.h@{dpu\_offload\_common.h}}
+\doxysubsubsection{\texorpdfstring{DPU\_OFFLOAD\_INFO\_FREE}{DPU\_OFFLOAD\_INFO\_FREE}}
+{\footnotesize\ttfamily \#define DPU\+\_\+\+OFFLOAD\+\_\+\+INFO\+\_\+\+FREE~PMIX\+\_\+\+INFO\+\_\+\+FREE}
+
+\mbox{\Hypertarget{dpu__offload__common_8h_ab24cad51599c4790bd6edb4512107b1b}\label{dpu__offload__common_8h_ab24cad51599c4790bd6edb4512107b1b}} 
+\index{dpu\_offload\_common.h@{dpu\_offload\_common.h}!DPU\_OFFLOAD\_INFO\_LOAD@{DPU\_OFFLOAD\_INFO\_LOAD}}
+\index{DPU\_OFFLOAD\_INFO\_LOAD@{DPU\_OFFLOAD\_INFO\_LOAD}!dpu\_offload\_common.h@{dpu\_offload\_common.h}}
+\doxysubsubsection{\texorpdfstring{DPU\_OFFLOAD\_INFO\_LOAD}{DPU\_OFFLOAD\_INFO\_LOAD}}
+{\footnotesize\ttfamily \#define DPU\+\_\+\+OFFLOAD\+\_\+\+INFO\+\_\+\+LOAD~PMIX\+\_\+\+INFO\+\_\+\+LOAD}
+
+\mbox{\Hypertarget{dpu__offload__common_8h_a6db1d56819d71cc31de9425590d4c974}\label{dpu__offload__common_8h_a6db1d56819d71cc31de9425590d4c974}} 
+\index{dpu\_offload\_common.h@{dpu\_offload\_common.h}!DPU\_OFFLOAD\_STRING@{DPU\_OFFLOAD\_STRING}}
+\index{DPU\_OFFLOAD\_STRING@{DPU\_OFFLOAD\_STRING}!dpu\_offload\_common.h@{dpu\_offload\_common.h}}
+\doxysubsubsection{\texorpdfstring{DPU\_OFFLOAD\_STRING}{DPU\_OFFLOAD\_STRING}}
+{\footnotesize\ttfamily \#define DPU\+\_\+\+OFFLOAD\+\_\+\+STRING~PMIX\+\_\+\+STRING}
+
+\mbox{\Hypertarget{dpu__offload__common_8h_a0fac19e25e0b17953894a0f896954caf}\label{dpu__offload__common_8h_a0fac19e25e0b17953894a0f896954caf}} 
+\index{dpu\_offload\_common.h@{dpu\_offload\_common.h}!DPU\_OFFLOAD\_SUCCESS@{DPU\_OFFLOAD\_SUCCESS}}
+\index{DPU\_OFFLOAD\_SUCCESS@{DPU\_OFFLOAD\_SUCCESS}!dpu\_offload\_common.h@{dpu\_offload\_common.h}}
+\doxysubsubsection{\texorpdfstring{DPU\_OFFLOAD\_SUCCESS}{DPU\_OFFLOAD\_SUCCESS}}
+{\footnotesize\ttfamily \#define DPU\+\_\+\+OFFLOAD\+\_\+\+SUCCESS~\mbox{\hyperlink{dpu__offload__common_8h_a2f49d8c1f5f6182b5128dfd3c815c3efa41f084ec23d5e233f296d3d50e37af95}{DO\+\_\+\+SUCCESS}}}
+
+
+
+\doxysubsection{Enumeration Type Documentation}
+\mbox{\Hypertarget{dpu__offload__common_8h_a2f49d8c1f5f6182b5128dfd3c815c3ef}\label{dpu__offload__common_8h_a2f49d8c1f5f6182b5128dfd3c815c3ef}} 
+\index{dpu\_offload\_common.h@{dpu\_offload\_common.h}!dpu\_offload\_status\_t@{dpu\_offload\_status\_t}}
+\index{dpu\_offload\_status\_t@{dpu\_offload\_status\_t}!dpu\_offload\_common.h@{dpu\_offload\_common.h}}
+\doxysubsubsection{\texorpdfstring{dpu\_offload\_status\_t}{dpu\_offload\_status\_t}}
+{\footnotesize\ttfamily enum \mbox{\hyperlink{dpu__offload__common_8h_a2f49d8c1f5f6182b5128dfd3c815c3ef}{dpu\+\_\+offload\+\_\+status\+\_\+t}}}
+
+\begin{DoxyEnumFields}{Enumerator}
+\raisebox{\heightof{T}}[0pt][0pt]{\index{DO\_ERROR@{DO\_ERROR}!dpu\_offload\_common.h@{dpu\_offload\_common.h}}\index{dpu\_offload\_common.h@{dpu\_offload\_common.h}!DO\_ERROR@{DO\_ERROR}}}\mbox{\Hypertarget{dpu__offload__common_8h_a2f49d8c1f5f6182b5128dfd3c815c3efa71e5936469ea2eee8228b5e662452e3f}\label{dpu__offload__common_8h_a2f49d8c1f5f6182b5128dfd3c815c3efa71e5936469ea2eee8228b5e662452e3f}} 
+DO\+\_\+\+ERROR&\\
+\hline
+
+\raisebox{\heightof{T}}[0pt][0pt]{\index{DO\_SUCCESS@{DO\_SUCCESS}!dpu\_offload\_common.h@{dpu\_offload\_common.h}}\index{dpu\_offload\_common.h@{dpu\_offload\_common.h}!DO\_SUCCESS@{DO\_SUCCESS}}}\mbox{\Hypertarget{dpu__offload__common_8h_a2f49d8c1f5f6182b5128dfd3c815c3efa41f084ec23d5e233f296d3d50e37af95}\label{dpu__offload__common_8h_a2f49d8c1f5f6182b5128dfd3c815c3efa41f084ec23d5e233f296d3d50e37af95}} 
+DO\+\_\+\+SUCCESS&\\
+\hline
+
+\raisebox{\heightof{T}}[0pt][0pt]{\index{DO\_NOT\_APPLICABLE@{DO\_NOT\_APPLICABLE}!dpu\_offload\_common.h@{dpu\_offload\_common.h}}\index{dpu\_offload\_common.h@{dpu\_offload\_common.h}!DO\_NOT\_APPLICABLE@{DO\_NOT\_APPLICABLE}}}\mbox{\Hypertarget{dpu__offload__common_8h_a2f49d8c1f5f6182b5128dfd3c815c3efa681da92b0f1bdeea728a79f04dc169b5}\label{dpu__offload__common_8h_a2f49d8c1f5f6182b5128dfd3c815c3efa681da92b0f1bdeea728a79f04dc169b5}} 
+DO\+\_\+\+NOT\+\_\+\+APPLICABLE&\\
+\hline
+
+\end{DoxyEnumFields}

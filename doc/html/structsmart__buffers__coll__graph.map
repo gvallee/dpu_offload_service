@@ -1,0 +1,6 @@
+<map id="smart_buffers" name="smart_buffers">
+<area shape="rect" id="node1" title=" " alt="" coords="83,201,195,228"/>
+<area shape="rect" id="node2" href="$structdyn__list.html" title=" " alt="" coords="15,103,89,130"/>
+<area shape="rect" id="node3" href="$structsimple__list.html" title="simple_list_t aims at offering an alternative to ucs_list_link_t without the huge performance impact ..." alt="" coords="5,5,99,32"/>
+<area shape="rect" id="node4" href="$structdyn__array.html" title=" " alt="" coords="150,5,237,32"/>
+</map>

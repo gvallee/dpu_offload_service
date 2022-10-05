@@ -1,0 +1,511 @@
+\hypertarget{dpu__offload__event__channels_8c}{}\doxysection{/home/gvallee/\+Projects/\+DPU\+\_\+offloading/dpu\+\_\+offload\+\_\+service/src/dpu\+\_\+offload\+\_\+event\+\_\+channels.c File Reference}
+\label{dpu__offload__event__channels_8c}\index{/home/gvallee/Projects/DPU\_offloading/dpu\_offload\_service/src/dpu\_offload\_event\_channels.c@{/home/gvallee/Projects/DPU\_offloading/dpu\_offload\_service/src/dpu\_offload\_event\_channels.c}}
+{\ttfamily \#include $<$inttypes.\+h$>$}\newline
+{\ttfamily \#include $<$string.\+h$>$}\newline
+{\ttfamily \#include $<$errno.\+h$>$}\newline
+{\ttfamily \#include $<$ucp/api/ucp.\+h$>$}\newline
+{\ttfamily \#include \char`\"{}dpu\+\_\+offload\+\_\+types.\+h\char`\"{}}\newline
+{\ttfamily \#include \char`\"{}dpu\+\_\+offload\+\_\+mem\+\_\+mgt.\+h\char`\"{}}\newline
+{\ttfamily \#include \char`\"{}dpu\+\_\+offload\+\_\+event\+\_\+channels.\+h\char`\"{}}\newline
+{\ttfamily \#include \char`\"{}dpu\+\_\+offload\+\_\+debug.\+h\char`\"{}}\newline
+{\ttfamily \#include \char`\"{}dpu\+\_\+offload\+\_\+comms.\+h\char`\"{}}\newline
+Include dependency graph for dpu\+\_\+offload\+\_\+event\+\_\+channels.\+c\+:
+\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{dpu__offload__event__channels_8c__incl}
+\end{center}
+\end{figure}
+\doxysubsection*{Macros}
+\begin{DoxyCompactItemize}
+\item 
+\#define \mbox{\hyperlink{dpu__offload__event__channels_8c_a3024ccd4a9af5109d24e6c57565d74a1}{\+\_\+\+POSIX\+\_\+\+C\+\_\+\+SOURCE}}~200809L
+\item 
+\#define \mbox{\hyperlink{dpu__offload__event__channels_8c_a5d66c473a719eada0e41c46f086b2287}{DEFAULT\+\_\+\+NUM\+\_\+\+EVTS}}~(32)
+\item 
+\#define \mbox{\hyperlink{dpu__offload__event__channels_8c_a615b8349a996ce29d617c5a537221d57}{DEFAULT\+\_\+\+NUM\+\_\+\+NOTIFICATION\+\_\+\+CALLBACKS}}~(5000)
+\item 
+\#define \mbox{\hyperlink{dpu__offload__event__channels_8c_a9e59caa3c21b9eada5ebe64044431a38}{DISPLAY\+\_\+\+ECONTEXT\+\_\+\+ONGOING\+\_\+\+EVTS}}(\+\_\+ec)
+\item 
+\#define \mbox{\hyperlink{dpu__offload__event__channels_8c_a497343c24c409198d7cc9f5c49bd7edf}{DISPLAY\+\_\+\+ONGOING\+\_\+\+EVENTS\+\_\+\+INFO}}(\+\_\+e)
+\item 
+\#define \mbox{\hyperlink{dpu__offload__event__channels_8c_aa9ad136520618d7a2db58cee9fe0cf5d}{PREP\+\_\+\+EVENT\+\_\+\+FOR\+\_\+\+EMIT}}(\+\_\+\+\_\+ev)
+\end{DoxyCompactItemize}
+\doxysubsection*{Functions}
+\begin{DoxyCompactItemize}
+\item 
+void $\ast$ \mbox{\hyperlink{dpu__offload__event__channels_8c_a3ed2795670d13390a8ead110720a53d2}{get\+\_\+notif\+\_\+buf}} (\mbox{\hyperlink{dpu__offload__types_8h_a3393bcd64add76ae2292d8cb54c16fe6}{dpu\+\_\+offload\+\_\+ev\+\_\+sys\+\_\+t}} $\ast$ev\+\_\+sys, uint64\+\_\+t type)
+\item 
+\mbox{\hyperlink{dpu__offload__types_8h_a6baa2472eb41dbe0eb5a189ea95ba028}{notification\+\_\+callback\+\_\+entry\+\_\+t}} $\ast$ \mbox{\hyperlink{dpu__offload__event__channels_8c_a74b23f567a5986ccd8052e377d79bd12}{get\+\_\+notif\+\_\+callback\+\_\+entry}} (\mbox{\hyperlink{dpu__offload__types_8h_a3393bcd64add76ae2292d8cb54c16fe6}{dpu\+\_\+offload\+\_\+ev\+\_\+sys\+\_\+t}} $\ast$ev\+\_\+sys, uint64\+\_\+t type)
+\item 
+void \mbox{\hyperlink{dpu__offload__event__channels_8c_a11850bbefe10f2796d3b168a7dc48b98}{init\+\_\+event}} (void $\ast$ev\+\_\+ptr)
+\item 
+\mbox{\hyperlink{dpu__offload__common_8h_a2f49d8c1f5f6182b5128dfd3c815c3ef}{dpu\+\_\+offload\+\_\+status\+\_\+t}} \mbox{\hyperlink{dpu__offload__event__channels_8c_a850ed9e500e59b08766af2f19b9c75a6}{ev\+\_\+channels\+\_\+init}} (\mbox{\hyperlink{dpu__offload__types_8h_a3393bcd64add76ae2292d8cb54c16fe6}{dpu\+\_\+offload\+\_\+ev\+\_\+sys\+\_\+t}} $\ast$$\ast$ev\+\_\+channels)
+\item 
+\mbox{\hyperlink{dpu__offload__common_8h_a2f49d8c1f5f6182b5128dfd3c815c3ef}{dpu\+\_\+offload\+\_\+status\+\_\+t}} \mbox{\hyperlink{dpu__offload__event__channels_8c_ae8168b3cce6499affb26a41f42a05910}{event\+\_\+channels\+\_\+init}} (\mbox{\hyperlink{dpu__offload__types_8h_ac95b2624b57c0005e3ca8a740316e5ab}{execution\+\_\+context\+\_\+t}} $\ast$econtext)
+\item 
+\mbox{\hyperlink{dpu__offload__common_8h_a2f49d8c1f5f6182b5128dfd3c815c3ef}{dpu\+\_\+offload\+\_\+status\+\_\+t}} \mbox{\hyperlink{dpu__offload__event__channels_8c_ab47c543d6d2e49e08f9065d81b5f5c88}{event\+\_\+channel\+\_\+update}} (\mbox{\hyperlink{dpu__offload__types_8h_a3393bcd64add76ae2292d8cb54c16fe6}{dpu\+\_\+offload\+\_\+ev\+\_\+sys\+\_\+t}} $\ast$ev\+\_\+sys, uint64\+\_\+t type, \mbox{\hyperlink{dpu__offload__types_8h_a9814ec7d07717e4fe56a4083ff5ecce6}{notification\+\_\+info\+\_\+t}} $\ast$info)
+\item 
+\mbox{\hyperlink{dpu__offload__common_8h_a2f49d8c1f5f6182b5128dfd3c815c3ef}{dpu\+\_\+offload\+\_\+status\+\_\+t}} \mbox{\hyperlink{dpu__offload__event__channels_8c_a61034ff650b8b533efcb66f505b96e41}{event\+\_\+channel\+\_\+register}} (\mbox{\hyperlink{dpu__offload__types_8h_a3393bcd64add76ae2292d8cb54c16fe6}{dpu\+\_\+offload\+\_\+ev\+\_\+sys\+\_\+t}} $\ast$ev\+\_\+sys, uint64\+\_\+t type, \mbox{\hyperlink{dpu__offload__types_8h_ad1af340e916dc299527aa2467e0fe11e}{notification\+\_\+cb}} cb, \mbox{\hyperlink{dpu__offload__types_8h_a9814ec7d07717e4fe56a4083ff5ecce6}{notification\+\_\+info\+\_\+t}} $\ast$info)
+\begin{DoxyCompactList}\small\item\em Register a handler in the context of an event system for a specific type of notifications. Only one handler can be registered per notification type. If registration is performed multiple times, only the first one is active. Updates are possible using the event\+\_\+channel\+\_\+update function. It is safe to emit a new event from a handler. Note\+: the function assumes the event system is locked before it is invoked. \end{DoxyCompactList}\item 
+\mbox{\hyperlink{dpu__offload__common_8h_a2f49d8c1f5f6182b5128dfd3c815c3ef}{dpu\+\_\+offload\+\_\+status\+\_\+t}} \mbox{\hyperlink{dpu__offload__event__channels_8c_ad8714b7c46a3bb16c0ec9f5154cfd028}{engine\+\_\+update\+\_\+default\+\_\+notification\+\_\+handler}} (\mbox{\hyperlink{dpu__offload__types_8h_abdda2bc51909d3f2e98a5c9dde42b0a8}{offloading\+\_\+engine\+\_\+t}} $\ast$engine, uint64\+\_\+t type, \mbox{\hyperlink{dpu__offload__types_8h_a9814ec7d07717e4fe56a4083ff5ecce6}{notification\+\_\+info\+\_\+t}} $\ast$info)
+\item 
+\mbox{\hyperlink{dpu__offload__common_8h_a2f49d8c1f5f6182b5128dfd3c815c3ef}{dpu\+\_\+offload\+\_\+status\+\_\+t}} \mbox{\hyperlink{dpu__offload__event__channels_8c_aaa967e7476ed48dbe67352520e84d49a}{engine\+\_\+register\+\_\+default\+\_\+notification\+\_\+handler}} (\mbox{\hyperlink{dpu__offload__types_8h_abdda2bc51909d3f2e98a5c9dde42b0a8}{offloading\+\_\+engine\+\_\+t}} $\ast$engine, uint64\+\_\+t type, \mbox{\hyperlink{dpu__offload__types_8h_ad1af340e916dc299527aa2467e0fe11e}{notification\+\_\+cb}} cb, \mbox{\hyperlink{dpu__offload__types_8h_a9814ec7d07717e4fe56a4083ff5ecce6}{notification\+\_\+info\+\_\+t}} $\ast$info)
+\begin{DoxyCompactList}\small\item\em Registers a default handler at the engine level. After the registration, the handler will be automatically added to all execution context that will be created. It is not applied to execution contexts that were already previously created. The default handlers cannot be deregistered. \end{DoxyCompactList}\item 
+\mbox{\hyperlink{dpu__offload__common_8h_a2f49d8c1f5f6182b5128dfd3c815c3ef}{dpu\+\_\+offload\+\_\+status\+\_\+t}} \mbox{\hyperlink{dpu__offload__event__channels_8c_a5122efac21dc7e1776b970678b976dec}{event\+\_\+channel\+\_\+deregister}} (\mbox{\hyperlink{dpu__offload__types_8h_a3393bcd64add76ae2292d8cb54c16fe6}{dpu\+\_\+offload\+\_\+ev\+\_\+sys\+\_\+t}} $\ast$ev\+\_\+sys, uint64\+\_\+t type)
+\item 
+int \mbox{\hyperlink{dpu__offload__event__channels_8c_a1bd4e663bd03c044468151db70a43c96}{do\+\_\+tag\+\_\+send\+\_\+event\+\_\+msg}} (\mbox{\hyperlink{dpu__offload__types_8h_a5872fe6516c1dd159957efdfabc9ad2a}{dpu\+\_\+offload\+\_\+event\+\_\+t}} $\ast$event)
+\item 
+int \mbox{\hyperlink{dpu__offload__event__channels_8c_a30450e3576ed64dd399cda3b67eb32ac}{tag\+\_\+send\+\_\+event\+\_\+msg}} (\mbox{\hyperlink{dpu__offload__types_8h_a5872fe6516c1dd159957efdfabc9ad2a}{dpu\+\_\+offload\+\_\+event\+\_\+t}} $\ast$$\ast$event)
+\item 
+int \mbox{\hyperlink{dpu__offload__event__channels_8c_abd8803268ea3326cd0d6cc2cd6d6d72a}{event\+\_\+channel\+\_\+emit\+\_\+with\+\_\+payload}} (\mbox{\hyperlink{dpu__offload__types_8h_a5872fe6516c1dd159957efdfabc9ad2a}{dpu\+\_\+offload\+\_\+event\+\_\+t}} $\ast$$\ast$event, uint64\+\_\+t type, ucp\+\_\+ep\+\_\+h dest\+\_\+ep, uint64\+\_\+t dest\+\_\+id, void $\ast$ctx, void $\ast$payload, size\+\_\+t payload\+\_\+size)
+\begin{DoxyCompactList}\small\item\em event\+\_\+channel\+\_\+emit\+\_\+with\+\_\+payload triggers the communication associated to a previously locally defined event, specifying a payload to be sent during the emit. This function assumes the caller is responsible for the management of the payload buffer, which must remain available until the event completes. \end{DoxyCompactList}\item 
+int \mbox{\hyperlink{dpu__offload__event__channels_8c_a3851051371d585a857a272793e0070db}{event\+\_\+channel\+\_\+emit}} (\mbox{\hyperlink{dpu__offload__types_8h_a5872fe6516c1dd159957efdfabc9ad2a}{dpu\+\_\+offload\+\_\+event\+\_\+t}} $\ast$$\ast$event, uint64\+\_\+t type, ucp\+\_\+ep\+\_\+h dest\+\_\+ep, uint64\+\_\+t dest\+\_\+id, void $\ast$ctx)
+\begin{DoxyCompactList}\small\item\em event\+\_\+channel\+\_\+emit triggers the communication associated to a previously locally defined event. \end{DoxyCompactList}\item 
+void \mbox{\hyperlink{dpu__offload__event__channels_8c_ad7bc022d245d945e91f5a93daf1e282e}{event\+\_\+channels\+\_\+fini}} (\mbox{\hyperlink{dpu__offload__types_8h_a3393bcd64add76ae2292d8cb54c16fe6}{dpu\+\_\+offload\+\_\+ev\+\_\+sys\+\_\+t}} $\ast$$\ast$ev\+\_\+sys)
+\item 
+\mbox{\hyperlink{dpu__offload__common_8h_a2f49d8c1f5f6182b5128dfd3c815c3ef}{dpu\+\_\+offload\+\_\+status\+\_\+t}} \mbox{\hyperlink{dpu__offload__event__channels_8c_ad1348121c28743b2234170d1c44cf7f8}{event\+\_\+get}} (\mbox{\hyperlink{dpu__offload__types_8h_a3393bcd64add76ae2292d8cb54c16fe6}{dpu\+\_\+offload\+\_\+ev\+\_\+sys\+\_\+t}} $\ast$ev\+\_\+sys, \mbox{\hyperlink{dpu__offload__types_8h_aac0b90f0afd2b42e7d4a913e31b42ce9}{dpu\+\_\+offload\+\_\+event\+\_\+info\+\_\+t}} $\ast$info, \mbox{\hyperlink{dpu__offload__types_8h_a5872fe6516c1dd159957efdfabc9ad2a}{dpu\+\_\+offload\+\_\+event\+\_\+t}} $\ast$$\ast$ev)
+\begin{DoxyCompactList}\small\item\em Get an event from a pool of event. Using a pool of events prevents dynamic allocations. \end{DoxyCompactList}\item 
+\mbox{\hyperlink{dpu__offload__common_8h_a2f49d8c1f5f6182b5128dfd3c815c3ef}{dpu\+\_\+offload\+\_\+status\+\_\+t}} \mbox{\hyperlink{dpu__offload__event__channels_8c_a54552201c1f8dae12adacff5273e8721}{event\+\_\+return}} (\mbox{\hyperlink{dpu__offload__types_8h_a5872fe6516c1dd159957efdfabc9ad2a}{dpu\+\_\+offload\+\_\+event\+\_\+t}} $\ast$$\ast$ev)
+\begin{DoxyCompactList}\small\item\em Return an event once completed. \end{DoxyCompactList}\item 
+bool \mbox{\hyperlink{dpu__offload__event__channels_8c_a19cbd071483c81c1ae832985dae1c9b5}{event\+\_\+completed}} (\mbox{\hyperlink{dpu__offload__types_8h_a5872fe6516c1dd159957efdfabc9ad2a}{dpu\+\_\+offload\+\_\+event\+\_\+t}} $\ast$ev)
+\begin{DoxyCompactList}\small\item\em event\+\_\+completed is a helper function to check whether an event is completed The function is aware of sub-\/events. If all the sub-\/events are completed and the request of the event is NULL, the event is reported as completed. The caller is responsible for returning the event when reported as completed. \end{DoxyCompactList}\item 
+int \mbox{\hyperlink{dpu__offload__event__channels_8c_a9898867d6f35390fa3600944e70f5642}{send\+\_\+cache\+\_\+entry\+\_\+request}} (\mbox{\hyperlink{dpu__offload__types_8h_ac95b2624b57c0005e3ca8a740316e5ab}{execution\+\_\+context\+\_\+t}} $\ast$econtext, ucp\+\_\+ep\+\_\+h ep, \mbox{\hyperlink{dpu__offload__types_8h_a6846f687a61323898ab2f6903ca8766e}{rank\+\_\+info\+\_\+t}} $\ast$requested\+\_\+peer, \mbox{\hyperlink{dpu__offload__types_8h_a5872fe6516c1dd159957efdfabc9ad2a}{dpu\+\_\+offload\+\_\+event\+\_\+t}} $\ast$$\ast$ev)
+\item 
+\mbox{\hyperlink{dpu__offload__common_8h_a2f49d8c1f5f6182b5128dfd3c815c3ef}{dpu\+\_\+offload\+\_\+status\+\_\+t}} \mbox{\hyperlink{dpu__offload__event__channels_8c_a6c6525613f961c6737eeef57d39a3fa7}{register\+\_\+default\+\_\+notifications}} (\mbox{\hyperlink{dpu__offload__types_8h_a3393bcd64add76ae2292d8cb54c16fe6}{dpu\+\_\+offload\+\_\+ev\+\_\+sys\+\_\+t}} $\ast$ev\+\_\+sys)
+\item 
+\mbox{\hyperlink{dpu__offload__common_8h_a2f49d8c1f5f6182b5128dfd3c815c3ef}{dpu\+\_\+offload\+\_\+status\+\_\+t}} \mbox{\hyperlink{dpu__offload__event__channels_8c_ad7b40147fc8e014a5e7437e93109ee06}{send\+\_\+term\+\_\+msg}} (\mbox{\hyperlink{dpu__offload__types_8h_ac95b2624b57c0005e3ca8a740316e5ab}{execution\+\_\+context\+\_\+t}} $\ast$ctx, \mbox{\hyperlink{dpu__offload__types_8h_a16e41da3d1aff32f8f9bee0167811a32}{dest\+\_\+client\+\_\+t}} $\ast$dest\+\_\+info)
+\end{DoxyCompactItemize}
+\doxysubsection*{Variables}
+\begin{DoxyCompactItemize}
+\item 
+uint64\+\_\+t \mbox{\hyperlink{dpu__offload__event__channels_8c_ab089bcb662b67b7825c4f33953c35da5}{seq\+\_\+num}} = 0
+\end{DoxyCompactItemize}
+
+
+\doxysubsection{Macro Definition Documentation}
+\mbox{\Hypertarget{dpu__offload__event__channels_8c_a3024ccd4a9af5109d24e6c57565d74a1}\label{dpu__offload__event__channels_8c_a3024ccd4a9af5109d24e6c57565d74a1}} 
+\index{dpu\_offload\_event\_channels.c@{dpu\_offload\_event\_channels.c}!\_POSIX\_C\_SOURCE@{\_POSIX\_C\_SOURCE}}
+\index{\_POSIX\_C\_SOURCE@{\_POSIX\_C\_SOURCE}!dpu\_offload\_event\_channels.c@{dpu\_offload\_event\_channels.c}}
+\doxysubsubsection{\texorpdfstring{\_POSIX\_C\_SOURCE}{\_POSIX\_C\_SOURCE}}
+{\footnotesize\ttfamily \#define \+\_\+\+POSIX\+\_\+\+C\+\_\+\+SOURCE~200809L}
+
+\mbox{\Hypertarget{dpu__offload__event__channels_8c_a5d66c473a719eada0e41c46f086b2287}\label{dpu__offload__event__channels_8c_a5d66c473a719eada0e41c46f086b2287}} 
+\index{dpu\_offload\_event\_channels.c@{dpu\_offload\_event\_channels.c}!DEFAULT\_NUM\_EVTS@{DEFAULT\_NUM\_EVTS}}
+\index{DEFAULT\_NUM\_EVTS@{DEFAULT\_NUM\_EVTS}!dpu\_offload\_event\_channels.c@{dpu\_offload\_event\_channels.c}}
+\doxysubsubsection{\texorpdfstring{DEFAULT\_NUM\_EVTS}{DEFAULT\_NUM\_EVTS}}
+{\footnotesize\ttfamily \#define DEFAULT\+\_\+\+NUM\+\_\+\+EVTS~(32)}
+
+\mbox{\Hypertarget{dpu__offload__event__channels_8c_a615b8349a996ce29d617c5a537221d57}\label{dpu__offload__event__channels_8c_a615b8349a996ce29d617c5a537221d57}} 
+\index{dpu\_offload\_event\_channels.c@{dpu\_offload\_event\_channels.c}!DEFAULT\_NUM\_NOTIFICATION\_CALLBACKS@{DEFAULT\_NUM\_NOTIFICATION\_CALLBACKS}}
+\index{DEFAULT\_NUM\_NOTIFICATION\_CALLBACKS@{DEFAULT\_NUM\_NOTIFICATION\_CALLBACKS}!dpu\_offload\_event\_channels.c@{dpu\_offload\_event\_channels.c}}
+\doxysubsubsection{\texorpdfstring{DEFAULT\_NUM\_NOTIFICATION\_CALLBACKS}{DEFAULT\_NUM\_NOTIFICATION\_CALLBACKS}}
+{\footnotesize\ttfamily \#define DEFAULT\+\_\+\+NUM\+\_\+\+NOTIFICATION\+\_\+\+CALLBACKS~(5000)}
+
+\mbox{\Hypertarget{dpu__offload__event__channels_8c_a9e59caa3c21b9eada5ebe64044431a38}\label{dpu__offload__event__channels_8c_a9e59caa3c21b9eada5ebe64044431a38}} 
+\index{dpu\_offload\_event\_channels.c@{dpu\_offload\_event\_channels.c}!DISPLAY\_ECONTEXT\_ONGOING\_EVTS@{DISPLAY\_ECONTEXT\_ONGOING\_EVTS}}
+\index{DISPLAY\_ECONTEXT\_ONGOING\_EVTS@{DISPLAY\_ECONTEXT\_ONGOING\_EVTS}!dpu\_offload\_event\_channels.c@{dpu\_offload\_event\_channels.c}}
+\doxysubsubsection{\texorpdfstring{DISPLAY\_ECONTEXT\_ONGOING\_EVTS}{DISPLAY\_ECONTEXT\_ONGOING\_EVTS}}
+{\footnotesize\ttfamily \#define DISPLAY\+\_\+\+ECONTEXT\+\_\+\+ONGOING\+\_\+\+EVTS(\begin{DoxyParamCaption}\item[{}]{\+\_\+ec }\end{DoxyParamCaption})}
+
+{\bfseries Value\+:}
+\begin{DoxyCode}{0}
+\DoxyCodeLine{    \textcolor{keywordflow}{do}                                                              \(\backslash\)}
+\DoxyCodeLine{    \{                                                               \(\backslash\)}
+\DoxyCodeLine{        INFO\_MSG(\textcolor{stringliteral}{"{}econtext \%p: \%ld ongoing events"{}},                 \(\backslash\)}
+\DoxyCodeLine{                 (\_ec), ucs\_list\_length(\&((\_ec)-\/>ongoing\_events))); \(\backslash\)}
+\DoxyCodeLine{    \} \textcolor{keywordflow}{while}(0)}
+
+\end{DoxyCode}
+\mbox{\Hypertarget{dpu__offload__event__channels_8c_a497343c24c409198d7cc9f5c49bd7edf}\label{dpu__offload__event__channels_8c_a497343c24c409198d7cc9f5c49bd7edf}} 
+\index{dpu\_offload\_event\_channels.c@{dpu\_offload\_event\_channels.c}!DISPLAY\_ONGOING\_EVENTS\_INFO@{DISPLAY\_ONGOING\_EVENTS\_INFO}}
+\index{DISPLAY\_ONGOING\_EVENTS\_INFO@{DISPLAY\_ONGOING\_EVENTS\_INFO}!dpu\_offload\_event\_channels.c@{dpu\_offload\_event\_channels.c}}
+\doxysubsubsection{\texorpdfstring{DISPLAY\_ONGOING\_EVENTS\_INFO}{DISPLAY\_ONGOING\_EVENTS\_INFO}}
+{\footnotesize\ttfamily \#define DISPLAY\+\_\+\+ONGOING\+\_\+\+EVENTS\+\_\+\+INFO(\begin{DoxyParamCaption}\item[{}]{\+\_\+e }\end{DoxyParamCaption})}
+
+{\bfseries Value\+:}
+\begin{DoxyCode}{0}
+\DoxyCodeLine{    \textcolor{keywordflow}{do}                                                          \(\backslash\)}
+\DoxyCodeLine{    \{                                                           \(\backslash\)}
+\DoxyCodeLine{        size\_t \_i;                                              \(\backslash\)}
+\DoxyCodeLine{        for (\_i = 0; \_i < (\_e)-\/>num\_servers; \_i++)              \(\backslash\)}
+\DoxyCodeLine{        \{                                                       \(\backslash\)}
+\DoxyCodeLine{            DISPLAY\_ECONTEXT\_ONGOING\_EVTS((\_e)-\/>servers[\_i]);   \(\backslash\)}
+\DoxyCodeLine{        \}                                                       \(\backslash\)}
+\DoxyCodeLine{                                                                \(\backslash\)}
+\DoxyCodeLine{        if ((\_e)-\/>client)                                       \(\backslash\)}
+\DoxyCodeLine{        \{                                                       \(\backslash\)}
+\DoxyCodeLine{            DISPLAY\_ECONTEXT\_ONGOING\_EVTS((\_e)-\/>client);        \(\backslash\)}
+\DoxyCodeLine{        \}                                                       \(\backslash\)}
+\DoxyCodeLine{    \} \textcolor{keywordflow}{while}(0)}
+
+\end{DoxyCode}
+\mbox{\Hypertarget{dpu__offload__event__channels_8c_aa9ad136520618d7a2db58cee9fe0cf5d}\label{dpu__offload__event__channels_8c_aa9ad136520618d7a2db58cee9fe0cf5d}} 
+\index{dpu\_offload\_event\_channels.c@{dpu\_offload\_event\_channels.c}!PREP\_EVENT\_FOR\_EMIT@{PREP\_EVENT\_FOR\_EMIT}}
+\index{PREP\_EVENT\_FOR\_EMIT@{PREP\_EVENT\_FOR\_EMIT}!dpu\_offload\_event\_channels.c@{dpu\_offload\_event\_channels.c}}
+\doxysubsubsection{\texorpdfstring{PREP\_EVENT\_FOR\_EMIT}{PREP\_EVENT\_FOR\_EMIT}}
+{\footnotesize\ttfamily \#define PREP\+\_\+\+EVENT\+\_\+\+FOR\+\_\+\+EMIT(\begin{DoxyParamCaption}\item[{}]{\+\_\+\+\_\+ev }\end{DoxyParamCaption})}
+
+{\bfseries Value\+:}
+\begin{DoxyCode}{0}
+\DoxyCodeLine{    \textcolor{keywordflow}{do} \{ \(\backslash\)}
+\DoxyCodeLine{    execution\_context\_t *\_\_econtext = (\_\_ev)-\/>event\_system-\/>econtext;\(\backslash\)}
+\DoxyCodeLine{    uint64\_t \_\_cid, \_\_sid;\(\backslash\)}
+\DoxyCodeLine{    switch ((\_\_ev)-\/>event\_system-\/>econtext-\/>type)\(\backslash\)}
+\DoxyCodeLine{    \{\(\backslash\)}
+\DoxyCodeLine{    case \mbox{\hyperlink{dpu__offload__types_8h_a52ea05b6b87557962d24a0e57bef2492a1e20a50a2235486e949ac3f6b6f18eeb}{CONTEXT\_CLIENT}}:\(\backslash\)}
+\DoxyCodeLine{        \_\_cid = \_\_econtext-\/>client-\/>id;\(\backslash\)}
+\DoxyCodeLine{        \_\_sid = \_\_econtext-\/>client-\/>server\_id;\(\backslash\)}
+\DoxyCodeLine{        break;\(\backslash\)}
+\DoxyCodeLine{    case \mbox{\hyperlink{dpu__offload__types_8h_a52ea05b6b87557962d24a0e57bef2492a6392e857a250daf7dd0a85461da6d099}{CONTEXT\_SERVER}}:\(\backslash\)}
+\DoxyCodeLine{        \_\_sid = \_\_econtext-\/>server-\/>id;\(\backslash\)}
+\DoxyCodeLine{        \_\_cid = (\_\_ev)-\/>dest.id;\(\backslash\)}
+\DoxyCodeLine{        \textcolor{keywordflow}{break};\(\backslash\)}
+\DoxyCodeLine{    \textcolor{keywordflow}{case} \mbox{\hyperlink{dpu__offload__types_8h_a52ea05b6b87557962d24a0e57bef2492adc2330761d8db13ebe04b0443220614a}{CONTEXT\_SELF}}:\(\backslash\)}
+\DoxyCodeLine{        \_\_cid = 0;\(\backslash\)}
+\DoxyCodeLine{        \_\_sid = 0;\(\backslash\)}
+\DoxyCodeLine{        \textcolor{keywordflow}{break};\(\backslash\)}
+\DoxyCodeLine{    \textcolor{keywordflow}{default}:\(\backslash\)}
+\DoxyCodeLine{        \textcolor{keywordflow}{return} \mbox{\hyperlink{dpu__offload__common_8h_a2f49d8c1f5f6182b5128dfd3c815c3efa71e5936469ea2eee8228b5e662452e3f}{DO\_ERROR}};\(\backslash\)}
+\DoxyCodeLine{    \}\(\backslash\)}
+\DoxyCodeLine{    (\_\_ev)-\/>client\_id = \_\_cid;\(\backslash\)}
+\DoxyCodeLine{    (\_\_ev)-\/>server\_id = \_\_sid;\(\backslash\)}
+\DoxyCodeLine{    EVENT\_HDR\_SEQ\_NUM(\_\_ev) = (\_\_ev)-\/>\mbox{\hyperlink{dpu__offload__event__channels_8c_ab089bcb662b67b7825c4f33953c35da5}{seq\_num}};\(\backslash\)}
+\DoxyCodeLine{    EVENT\_HDR\_CLIENT\_ID(\_\_ev) = (\_\_ev)-\/>client\_id;\(\backslash\)}
+\DoxyCodeLine{    EVENT\_HDR\_SERVER\_ID(\_\_ev) = (\_\_ev)-\/>server\_id;\(\backslash\)}
+\DoxyCodeLine{\} \textcolor{keywordflow}{while}(0)}
+
+\end{DoxyCode}
+
+
+\doxysubsection{Function Documentation}
+\mbox{\Hypertarget{dpu__offload__event__channels_8c_a1bd4e663bd03c044468151db70a43c96}\label{dpu__offload__event__channels_8c_a1bd4e663bd03c044468151db70a43c96}} 
+\index{dpu\_offload\_event\_channels.c@{dpu\_offload\_event\_channels.c}!do\_tag\_send\_event\_msg@{do\_tag\_send\_event\_msg}}
+\index{do\_tag\_send\_event\_msg@{do\_tag\_send\_event\_msg}!dpu\_offload\_event\_channels.c@{dpu\_offload\_event\_channels.c}}
+\doxysubsubsection{\texorpdfstring{do\_tag\_send\_event\_msg()}{do\_tag\_send\_event\_msg()}}
+{\footnotesize\ttfamily int do\+\_\+tag\+\_\+send\+\_\+event\+\_\+msg (\begin{DoxyParamCaption}\item[{\mbox{\hyperlink{dpu__offload__types_8h_a5872fe6516c1dd159957efdfabc9ad2a}{dpu\+\_\+offload\+\_\+event\+\_\+t}} $\ast$}]{event }\end{DoxyParamCaption})}
+
+\mbox{\Hypertarget{dpu__offload__event__channels_8c_aaa967e7476ed48dbe67352520e84d49a}\label{dpu__offload__event__channels_8c_aaa967e7476ed48dbe67352520e84d49a}} 
+\index{dpu\_offload\_event\_channels.c@{dpu\_offload\_event\_channels.c}!engine\_register\_default\_notification\_handler@{engine\_register\_default\_notification\_handler}}
+\index{engine\_register\_default\_notification\_handler@{engine\_register\_default\_notification\_handler}!dpu\_offload\_event\_channels.c@{dpu\_offload\_event\_channels.c}}
+\doxysubsubsection{\texorpdfstring{engine\_register\_default\_notification\_handler()}{engine\_register\_default\_notification\_handler()}}
+{\footnotesize\ttfamily \mbox{\hyperlink{dpu__offload__common_8h_a2f49d8c1f5f6182b5128dfd3c815c3ef}{dpu\+\_\+offload\+\_\+status\+\_\+t}} engine\+\_\+register\+\_\+default\+\_\+notification\+\_\+handler (\begin{DoxyParamCaption}\item[{\mbox{\hyperlink{dpu__offload__types_8h_abdda2bc51909d3f2e98a5c9dde42b0a8}{offloading\+\_\+engine\+\_\+t}} $\ast$}]{engine,  }\item[{uint64\+\_\+t}]{type,  }\item[{\mbox{\hyperlink{dpu__offload__types_8h_ad1af340e916dc299527aa2467e0fe11e}{notification\+\_\+cb}}}]{cb,  }\item[{\mbox{\hyperlink{dpu__offload__types_8h_a9814ec7d07717e4fe56a4083ff5ecce6}{notification\+\_\+info\+\_\+t}} $\ast$}]{info }\end{DoxyParamCaption})}
+
+
+
+Registers a default handler at the engine level. After the registration, the handler will be automatically added to all execution context that will be created. It is not applied to execution contexts that were already previously created. The default handlers cannot be deregistered. 
+
+
+\begin{DoxyParams}{Parameters}
+{\em engine} & Engine to which the default handler applies. \\
+\hline
+{\em type} & Event type, i.\+e., identifier of the callback to invoke when the event is delivered at destination. \\
+\hline
+{\em cb} & Callback to invoke upon reception of the notification. \\
+\hline
+{\em info} & Optional information related to the handling of the notification (can be set to NULL). \\
+\hline
+\end{DoxyParams}
+\begin{DoxyReturn}{Returns}
+dpu\+\_\+offload\+\_\+status\+\_\+t 
+\end{DoxyReturn}
+\mbox{\Hypertarget{dpu__offload__event__channels_8c_ad8714b7c46a3bb16c0ec9f5154cfd028}\label{dpu__offload__event__channels_8c_ad8714b7c46a3bb16c0ec9f5154cfd028}} 
+\index{dpu\_offload\_event\_channels.c@{dpu\_offload\_event\_channels.c}!engine\_update\_default\_notification\_handler@{engine\_update\_default\_notification\_handler}}
+\index{engine\_update\_default\_notification\_handler@{engine\_update\_default\_notification\_handler}!dpu\_offload\_event\_channels.c@{dpu\_offload\_event\_channels.c}}
+\doxysubsubsection{\texorpdfstring{engine\_update\_default\_notification\_handler()}{engine\_update\_default\_notification\_handler()}}
+{\footnotesize\ttfamily \mbox{\hyperlink{dpu__offload__common_8h_a2f49d8c1f5f6182b5128dfd3c815c3ef}{dpu\+\_\+offload\+\_\+status\+\_\+t}} engine\+\_\+update\+\_\+default\+\_\+notification\+\_\+handler (\begin{DoxyParamCaption}\item[{\mbox{\hyperlink{dpu__offload__types_8h_abdda2bc51909d3f2e98a5c9dde42b0a8}{offloading\+\_\+engine\+\_\+t}} $\ast$}]{engine,  }\item[{uint64\+\_\+t}]{type,  }\item[{\mbox{\hyperlink{dpu__offload__types_8h_a9814ec7d07717e4fe56a4083ff5ecce6}{notification\+\_\+info\+\_\+t}} $\ast$}]{info }\end{DoxyParamCaption})}
+
+\mbox{\Hypertarget{dpu__offload__event__channels_8c_a850ed9e500e59b08766af2f19b9c75a6}\label{dpu__offload__event__channels_8c_a850ed9e500e59b08766af2f19b9c75a6}} 
+\index{dpu\_offload\_event\_channels.c@{dpu\_offload\_event\_channels.c}!ev\_channels\_init@{ev\_channels\_init}}
+\index{ev\_channels\_init@{ev\_channels\_init}!dpu\_offload\_event\_channels.c@{dpu\_offload\_event\_channels.c}}
+\doxysubsubsection{\texorpdfstring{ev\_channels\_init()}{ev\_channels\_init()}}
+{\footnotesize\ttfamily \mbox{\hyperlink{dpu__offload__common_8h_a2f49d8c1f5f6182b5128dfd3c815c3ef}{dpu\+\_\+offload\+\_\+status\+\_\+t}} ev\+\_\+channels\+\_\+init (\begin{DoxyParamCaption}\item[{\mbox{\hyperlink{dpu__offload__types_8h_a3393bcd64add76ae2292d8cb54c16fe6}{dpu\+\_\+offload\+\_\+ev\+\_\+sys\+\_\+t}} $\ast$$\ast$}]{ev\+\_\+channels }\end{DoxyParamCaption})}
+
+\mbox{\Hypertarget{dpu__offload__event__channels_8c_a5122efac21dc7e1776b970678b976dec}\label{dpu__offload__event__channels_8c_a5122efac21dc7e1776b970678b976dec}} 
+\index{dpu\_offload\_event\_channels.c@{dpu\_offload\_event\_channels.c}!event\_channel\_deregister@{event\_channel\_deregister}}
+\index{event\_channel\_deregister@{event\_channel\_deregister}!dpu\_offload\_event\_channels.c@{dpu\_offload\_event\_channels.c}}
+\doxysubsubsection{\texorpdfstring{event\_channel\_deregister()}{event\_channel\_deregister()}}
+{\footnotesize\ttfamily \mbox{\hyperlink{dpu__offload__common_8h_a2f49d8c1f5f6182b5128dfd3c815c3ef}{dpu\+\_\+offload\+\_\+status\+\_\+t}} event\+\_\+channel\+\_\+deregister (\begin{DoxyParamCaption}\item[{\mbox{\hyperlink{dpu__offload__types_8h_a3393bcd64add76ae2292d8cb54c16fe6}{dpu\+\_\+offload\+\_\+ev\+\_\+sys\+\_\+t}} $\ast$}]{ev\+\_\+sys,  }\item[{uint64\+\_\+t}]{type }\end{DoxyParamCaption})}
+
+\mbox{\Hypertarget{dpu__offload__event__channels_8c_a3851051371d585a857a272793e0070db}\label{dpu__offload__event__channels_8c_a3851051371d585a857a272793e0070db}} 
+\index{dpu\_offload\_event\_channels.c@{dpu\_offload\_event\_channels.c}!event\_channel\_emit@{event\_channel\_emit}}
+\index{event\_channel\_emit@{event\_channel\_emit}!dpu\_offload\_event\_channels.c@{dpu\_offload\_event\_channels.c}}
+\doxysubsubsection{\texorpdfstring{event\_channel\_emit()}{event\_channel\_emit()}}
+{\footnotesize\ttfamily int event\+\_\+channel\+\_\+emit (\begin{DoxyParamCaption}\item[{\mbox{\hyperlink{dpu__offload__types_8h_a5872fe6516c1dd159957efdfabc9ad2a}{dpu\+\_\+offload\+\_\+event\+\_\+t}} $\ast$$\ast$}]{ev,  }\item[{uint64\+\_\+t}]{type,  }\item[{ucp\+\_\+ep\+\_\+h}]{dest\+\_\+ep,  }\item[{uint64\+\_\+t}]{dest\+\_\+id,  }\item[{void $\ast$}]{ctx }\end{DoxyParamCaption})}
+
+
+
+event\+\_\+channel\+\_\+emit triggers the communication associated to a previously locally defined event. 
+
+
+\begin{DoxyParams}{Parameters}
+{\em ev} & Event to be emitted. The object needs to be fully initialized prior the invokation of the function (see \textquotesingle{}\mbox{\hyperlink{dpu__offload__event__channels_8h_ad1348121c28743b2234170d1c44cf7f8}{event\+\_\+get()}}\textquotesingle{} and \textquotesingle{}\mbox{\hyperlink{dpu__offload__event__channels_8h_a54552201c1f8dae12adacff5273e8721}{event\+\_\+return()}}\textquotesingle{}). \\
+\hline
+{\em type} & Event type, i.\+e., identifier of the callback to invoke when the event is delivered at destination. \\
+\hline
+{\em dest\+\_\+id} & The unique identifier to be used to send the event. It is used to identify the source of the event. \\
+\hline
+{\em dest\+\_\+ep} & Endpoint of the target of the event. \\
+\hline
+{\em ctx} & User-\/defined context to help identify the context of the event upon local completion. \\
+\hline
+\end{DoxyParams}
+\begin{DoxyReturn}{Returns}
+result of UCS\+\_\+\+PTR\+\_\+\+STATUS in the context of errors, 
+
+EVENT\+\_\+\+DONE if the emittion completed right away, 
+
+EVENT\+\_\+\+INPROGRESS if emitting the event is still in progress (e.\+g., communication not completed).
+\end{DoxyReturn}
+One can check on completion using ev-\/$>$req. \mbox{\Hypertarget{dpu__offload__event__channels_8c_abd8803268ea3326cd0d6cc2cd6d6d72a}\label{dpu__offload__event__channels_8c_abd8803268ea3326cd0d6cc2cd6d6d72a}} 
+\index{dpu\_offload\_event\_channels.c@{dpu\_offload\_event\_channels.c}!event\_channel\_emit\_with\_payload@{event\_channel\_emit\_with\_payload}}
+\index{event\_channel\_emit\_with\_payload@{event\_channel\_emit\_with\_payload}!dpu\_offload\_event\_channels.c@{dpu\_offload\_event\_channels.c}}
+\doxysubsubsection{\texorpdfstring{event\_channel\_emit\_with\_payload()}{event\_channel\_emit\_with\_payload()}}
+{\footnotesize\ttfamily int event\+\_\+channel\+\_\+emit\+\_\+with\+\_\+payload (\begin{DoxyParamCaption}\item[{\mbox{\hyperlink{dpu__offload__types_8h_a5872fe6516c1dd159957efdfabc9ad2a}{dpu\+\_\+offload\+\_\+event\+\_\+t}} $\ast$$\ast$}]{ev,  }\item[{uint64\+\_\+t}]{type,  }\item[{ucp\+\_\+ep\+\_\+h}]{dest\+\_\+ep,  }\item[{uint64\+\_\+t}]{dest\+\_\+id,  }\item[{void $\ast$}]{ctx,  }\item[{void $\ast$}]{payload,  }\item[{size\+\_\+t}]{payload\+\_\+size }\end{DoxyParamCaption})}
+
+
+
+event\+\_\+channel\+\_\+emit\+\_\+with\+\_\+payload triggers the communication associated to a previously locally defined event, specifying a payload to be sent during the emit. This function assumes the caller is responsible for the management of the payload buffer, which must remain available until the event completes. 
+
+
+\begin{DoxyParams}{Parameters}
+{\em ev} & Event to be emitted. The object needs to be fully initialized prior the invokation of the function (see \textquotesingle{}\mbox{\hyperlink{dpu__offload__event__channels_8h_ad1348121c28743b2234170d1c44cf7f8}{event\+\_\+get()}}\textquotesingle{} and \textquotesingle{}\mbox{\hyperlink{dpu__offload__event__channels_8h_a54552201c1f8dae12adacff5273e8721}{event\+\_\+return()}}\textquotesingle{}). \\
+\hline
+{\em type} & Event type, i.\+e., identifier of the callback to invoke when the event is delivered at destination. \\
+\hline
+{\em dest\+\_\+ep} & Endpoint of the target of the event. \\
+\hline
+{\em dest\+\_\+id} & The unique identifier to be used to send the event. It is used to identify the source of the event. \\
+\hline
+{\em ctx} & User-\/defined context to help identify the context of the event upon local completion. \\
+\hline
+{\em payload} & User-\/defined payload associated to the event. \\
+\hline
+{\em payload\+\_\+size} & Size of the user-\/defined payload. \\
+\hline
+\end{DoxyParams}
+\begin{DoxyReturn}{Returns}
+result of UCS\+\_\+\+PTR\+\_\+\+STATUS in the context of errors during communications. 
+
+DO\+\_\+\+ERROR in case of an error during the library\textquotesingle{}s handling of the event. 
+
+EVENT\+\_\+\+DONE if the emittion completed right away, the library returns the event. 
+
+EVENT\+\_\+\+INPROGRESS if emitting the event is still in progress (e.\+g., communication not completed). One can check on completion using \mbox{\hyperlink{dpu__offload__event__channels_8h_a19cbd071483c81c1ae832985dae1c9b5}{event\+\_\+completed()}}.
+\end{DoxyReturn}
+Example\+: the user uses the ongoing events list so that the event is implicitly returned when completed, with an event payload managed outside of the offloading library. 
+\begin{DoxyCode}{0}
+\DoxyCodeLine{dpu\_offload\_event\_t *my\_ev;}
+\DoxyCodeLine{event\_get(ev\_sys, NULL, \&my\_ev);}
+\DoxyCodeLine{int rc = event\_channel\_emit\_with\_payload(my\_ev, my\_notification\_type, dest\_ep, dest\_id, NULL, \&my\_global\_static\_object, object\_size);}
+\DoxyCodeLine{if (rc != EVENT\_DONE \&\& rc != EVENT\_INPROGRESS) \{}
+\DoxyCodeLine{    // Event is ongoing, placed on the ongoing event list. The event will be automatically removed from the list and returned during progress of the execution context upon completion.}
+\DoxyCodeLine{    ucs\_list\_add\_tail(\&(econtext-\/>ongoing\_events), \&(myev-\/>item));}
+\DoxyCodeLine{\} else \{}
+\DoxyCodeLine{    // Error case}
+\DoxyCodeLine{    return -\/1;}
+\DoxyCodeLine{\}}
+
+\end{DoxyCode}
+ \mbox{\Hypertarget{dpu__offload__event__channels_8c_a61034ff650b8b533efcb66f505b96e41}\label{dpu__offload__event__channels_8c_a61034ff650b8b533efcb66f505b96e41}} 
+\index{dpu\_offload\_event\_channels.c@{dpu\_offload\_event\_channels.c}!event\_channel\_register@{event\_channel\_register}}
+\index{event\_channel\_register@{event\_channel\_register}!dpu\_offload\_event\_channels.c@{dpu\_offload\_event\_channels.c}}
+\doxysubsubsection{\texorpdfstring{event\_channel\_register()}{event\_channel\_register()}}
+{\footnotesize\ttfamily \mbox{\hyperlink{dpu__offload__common_8h_a2f49d8c1f5f6182b5128dfd3c815c3ef}{dpu\+\_\+offload\+\_\+status\+\_\+t}} event\+\_\+channel\+\_\+register (\begin{DoxyParamCaption}\item[{\mbox{\hyperlink{dpu__offload__types_8h_a3393bcd64add76ae2292d8cb54c16fe6}{dpu\+\_\+offload\+\_\+ev\+\_\+sys\+\_\+t}} $\ast$}]{ev\+\_\+sys,  }\item[{uint64\+\_\+t}]{type,  }\item[{\mbox{\hyperlink{dpu__offload__types_8h_ad1af340e916dc299527aa2467e0fe11e}{notification\+\_\+cb}}}]{cb,  }\item[{\mbox{\hyperlink{dpu__offload__types_8h_a9814ec7d07717e4fe56a4083ff5ecce6}{notification\+\_\+info\+\_\+t}} $\ast$}]{info }\end{DoxyParamCaption})}
+
+
+
+Register a handler in the context of an event system for a specific type of notifications. Only one handler can be registered per notification type. If registration is performed multiple times, only the first one is active. Updates are possible using the event\+\_\+channel\+\_\+update function. It is safe to emit a new event from a handler. Note\+: the function assumes the event system is locked before it is invoked. 
+
+
+\begin{DoxyParams}{Parameters}
+{\em ev\+\_\+sys} & Event system to use to register the notification handler. \\
+\hline
+{\em type} & Notification type. \\
+\hline
+{\em cb} & Callback to invoke upon reception of the notification. \\
+\hline
+{\em info} & Optional information related to the handling of the notification (can be set to NULL). \\
+\hline
+\end{DoxyParams}
+\begin{DoxyReturn}{Returns}
+dpu\+\_\+offload\+\_\+status\+\_\+t 
+\end{DoxyReturn}
+\mbox{\Hypertarget{dpu__offload__event__channels_8c_ab47c543d6d2e49e08f9065d81b5f5c88}\label{dpu__offload__event__channels_8c_ab47c543d6d2e49e08f9065d81b5f5c88}} 
+\index{dpu\_offload\_event\_channels.c@{dpu\_offload\_event\_channels.c}!event\_channel\_update@{event\_channel\_update}}
+\index{event\_channel\_update@{event\_channel\_update}!dpu\_offload\_event\_channels.c@{dpu\_offload\_event\_channels.c}}
+\doxysubsubsection{\texorpdfstring{event\_channel\_update()}{event\_channel\_update()}}
+{\footnotesize\ttfamily \mbox{\hyperlink{dpu__offload__common_8h_a2f49d8c1f5f6182b5128dfd3c815c3ef}{dpu\+\_\+offload\+\_\+status\+\_\+t}} event\+\_\+channel\+\_\+update (\begin{DoxyParamCaption}\item[{\mbox{\hyperlink{dpu__offload__types_8h_a3393bcd64add76ae2292d8cb54c16fe6}{dpu\+\_\+offload\+\_\+ev\+\_\+sys\+\_\+t}} $\ast$}]{ev\+\_\+sys,  }\item[{uint64\+\_\+t}]{type,  }\item[{\mbox{\hyperlink{dpu__offload__types_8h_a9814ec7d07717e4fe56a4083ff5ecce6}{notification\+\_\+info\+\_\+t}} $\ast$}]{info }\end{DoxyParamCaption})}
+
+\mbox{\Hypertarget{dpu__offload__event__channels_8c_ad7bc022d245d945e91f5a93daf1e282e}\label{dpu__offload__event__channels_8c_ad7bc022d245d945e91f5a93daf1e282e}} 
+\index{dpu\_offload\_event\_channels.c@{dpu\_offload\_event\_channels.c}!event\_channels\_fini@{event\_channels\_fini}}
+\index{event\_channels\_fini@{event\_channels\_fini}!dpu\_offload\_event\_channels.c@{dpu\_offload\_event\_channels.c}}
+\doxysubsubsection{\texorpdfstring{event\_channels\_fini()}{event\_channels\_fini()}}
+{\footnotesize\ttfamily void event\+\_\+channels\+\_\+fini (\begin{DoxyParamCaption}\item[{\mbox{\hyperlink{dpu__offload__types_8h_a3393bcd64add76ae2292d8cb54c16fe6}{dpu\+\_\+offload\+\_\+ev\+\_\+sys\+\_\+t}} $\ast$$\ast$}]{ev\+\_\+sys }\end{DoxyParamCaption})}
+
+\mbox{\Hypertarget{dpu__offload__event__channels_8c_ae8168b3cce6499affb26a41f42a05910}\label{dpu__offload__event__channels_8c_ae8168b3cce6499affb26a41f42a05910}} 
+\index{dpu\_offload\_event\_channels.c@{dpu\_offload\_event\_channels.c}!event\_channels\_init@{event\_channels\_init}}
+\index{event\_channels\_init@{event\_channels\_init}!dpu\_offload\_event\_channels.c@{dpu\_offload\_event\_channels.c}}
+\doxysubsubsection{\texorpdfstring{event\_channels\_init()}{event\_channels\_init()}}
+{\footnotesize\ttfamily \mbox{\hyperlink{dpu__offload__common_8h_a2f49d8c1f5f6182b5128dfd3c815c3ef}{dpu\+\_\+offload\+\_\+status\+\_\+t}} event\+\_\+channels\+\_\+init (\begin{DoxyParamCaption}\item[{\mbox{\hyperlink{dpu__offload__types_8h_ac95b2624b57c0005e3ca8a740316e5ab}{execution\+\_\+context\+\_\+t}} $\ast$}]{econtext }\end{DoxyParamCaption})}
+
+\mbox{\Hypertarget{dpu__offload__event__channels_8c_a19cbd071483c81c1ae832985dae1c9b5}\label{dpu__offload__event__channels_8c_a19cbd071483c81c1ae832985dae1c9b5}} 
+\index{dpu\_offload\_event\_channels.c@{dpu\_offload\_event\_channels.c}!event\_completed@{event\_completed}}
+\index{event\_completed@{event\_completed}!dpu\_offload\_event\_channels.c@{dpu\_offload\_event\_channels.c}}
+\doxysubsubsection{\texorpdfstring{event\_completed()}{event\_completed()}}
+{\footnotesize\ttfamily bool event\+\_\+completed (\begin{DoxyParamCaption}\item[{\mbox{\hyperlink{dpu__offload__types_8h_a5872fe6516c1dd159957efdfabc9ad2a}{dpu\+\_\+offload\+\_\+event\+\_\+t}} $\ast$}]{ev }\end{DoxyParamCaption})}
+
+
+
+event\+\_\+completed is a helper function to check whether an event is completed The function is aware of sub-\/events. If all the sub-\/events are completed and the request of the event is NULL, the event is reported as completed. The caller is responsible for returning the event when reported as completed. 
+
+
+\begin{DoxyParams}{Parameters}
+{\em ev} & Event to check for completion. \\
+\hline
+\end{DoxyParams}
+\begin{DoxyReturn}{Returns}
+true when the event is completed 
+
+false when the event is still in progress 
+\end{DoxyReturn}
+\mbox{\Hypertarget{dpu__offload__event__channels_8c_ad1348121c28743b2234170d1c44cf7f8}\label{dpu__offload__event__channels_8c_ad1348121c28743b2234170d1c44cf7f8}} 
+\index{dpu\_offload\_event\_channels.c@{dpu\_offload\_event\_channels.c}!event\_get@{event\_get}}
+\index{event\_get@{event\_get}!dpu\_offload\_event\_channels.c@{dpu\_offload\_event\_channels.c}}
+\doxysubsubsection{\texorpdfstring{event\_get()}{event\_get()}}
+{\footnotesize\ttfamily \mbox{\hyperlink{dpu__offload__common_8h_a2f49d8c1f5f6182b5128dfd3c815c3ef}{dpu\+\_\+offload\+\_\+status\+\_\+t}} event\+\_\+get (\begin{DoxyParamCaption}\item[{\mbox{\hyperlink{dpu__offload__types_8h_a3393bcd64add76ae2292d8cb54c16fe6}{dpu\+\_\+offload\+\_\+ev\+\_\+sys\+\_\+t}} $\ast$}]{ev\+\_\+sys,  }\item[{\mbox{\hyperlink{dpu__offload__types_8h_aac0b90f0afd2b42e7d4a913e31b42ce9}{dpu\+\_\+offload\+\_\+event\+\_\+info\+\_\+t}} $\ast$}]{info,  }\item[{\mbox{\hyperlink{dpu__offload__types_8h_a5872fe6516c1dd159957efdfabc9ad2a}{dpu\+\_\+offload\+\_\+event\+\_\+t}} $\ast$$\ast$}]{ev }\end{DoxyParamCaption})}
+
+
+
+Get an event from a pool of event. Using a pool of events prevents dynamic allocations. 
+
+
+\begin{DoxyParams}{Parameters}
+{\em ev\+\_\+sys} & The event system from which the event must come from. \\
+\hline
+{\em info} & Information about the event. For instance, it is possible to ask the library to allocate/free the memory for a payload. See examples for details. \\
+\hline
+{\em ev} & Returned event. \\
+\hline
+\end{DoxyParams}
+\begin{DoxyReturn}{Returns}
+result of UCS\+\_\+\+PTR\+\_\+\+STATUS in the context of errors. 
+
+DO\+\_\+\+ERROR in case of an error during the library\textquotesingle{}s handling of the event. 
+
+EVENT\+\_\+\+DONE if the emittion completed right away, the library returns the event. 
+
+EVENT\+\_\+\+INPROGRESS if emitting the event is still in progress (e.\+g., communication not completed). One can check on completion using \mbox{\hyperlink{dpu__offload__event__channels_8h_a19cbd071483c81c1ae832985dae1c9b5}{event\+\_\+completed()}}.
+\end{DoxyReturn}
+Examples\+:
+\begin{DoxyItemize}
+\item get an event that does not require a payload. 
+\begin{DoxyCode}{0}
+\DoxyCodeLine{event\_get(ev\_sys, NULL, \&myev);}
+
+\end{DoxyCode}
+
+\item get and emit an event with a payload that the caller entirely control. 
+\begin{DoxyCode}{0}
+\DoxyCodeLine{event\_get(ev\_sys, NULL, \&myev);}
+\DoxyCodeLine{int rc = event\_channel\_emit\_with\_payload(myev, dest\_ep, dest\_id, NULL, my\_payload, my\_payload\_size);}
+\DoxyCodeLine{if (rc == EVENT\_DONE)}
+\DoxyCodeLine{\{}
+\DoxyCodeLine{    // Event completed right away}
+\DoxyCodeLine{    free(my\_payload);}
+\DoxyCodeLine{\}}
+\DoxyCodeLine{else if (rc != EVENT\_INPROGRESS)}
+\DoxyCodeLine{    // Error}
+\DoxyCodeLine{    return -\/1;}
+\DoxyCodeLine{\}}
+
+\end{DoxyCode}
+
+\end{DoxyItemize}
+
+get an event and let the library gives me a buffer for the payload; the library will free the payload when the event is returned. 
+\begin{DoxyCode}{0}
+\DoxyCodeLine{dpu\_offload\_event\_info\_t ev\_info = \{}
+\DoxyCodeLine{    .payload\_size = my\_payload\_size,}
+\DoxyCodeLine{\};}
+\DoxyCodeLine{event\_get(ev\_sys, \&ev\_info, \&myev);}
+\DoxyCodeLine{memcpy(myev-\/>payload, my\_data, sizeof(my\_payload\_size));}
+\DoxyCodeLine{int rc = event\_channel\_emit(myev, dest\_ep, dest\_id, NULL);}
+\DoxyCodeLine{if (rc != EVENT\_DONE \&\& rc != EVENT\_INPROGRESS)}
+\DoxyCodeLine{    // Error}
+\DoxyCodeLine{    return -\/1;}
+\DoxyCodeLine{\}}
+
+\end{DoxyCode}
+ \mbox{\Hypertarget{dpu__offload__event__channels_8c_a54552201c1f8dae12adacff5273e8721}\label{dpu__offload__event__channels_8c_a54552201c1f8dae12adacff5273e8721}} 
+\index{dpu\_offload\_event\_channels.c@{dpu\_offload\_event\_channels.c}!event\_return@{event\_return}}
+\index{event\_return@{event\_return}!dpu\_offload\_event\_channels.c@{dpu\_offload\_event\_channels.c}}
+\doxysubsubsection{\texorpdfstring{event\_return()}{event\_return()}}
+{\footnotesize\ttfamily \mbox{\hyperlink{dpu__offload__common_8h_a2f49d8c1f5f6182b5128dfd3c815c3ef}{dpu\+\_\+offload\+\_\+status\+\_\+t}} event\+\_\+return (\begin{DoxyParamCaption}\item[{\mbox{\hyperlink{dpu__offload__types_8h_a5872fe6516c1dd159957efdfabc9ad2a}{dpu\+\_\+offload\+\_\+event\+\_\+t}} $\ast$$\ast$}]{ev }\end{DoxyParamCaption})}
+
+
+
+Return an event once completed. 
+
+
+\begin{DoxyParams}{Parameters}
+{\em ev} & Pointer to the event to return. The event is set to NULL upon success so the event handle cannot be used anymore. \\
+\hline
+\end{DoxyParams}
+\begin{DoxyReturn}{Returns}
+DO\+\_\+\+SUCCESS 
+
+DO\+\_\+\+ERROR 
+\end{DoxyReturn}
+\mbox{\Hypertarget{dpu__offload__event__channels_8c_a3ed2795670d13390a8ead110720a53d2}\label{dpu__offload__event__channels_8c_a3ed2795670d13390a8ead110720a53d2}} 
+\index{dpu\_offload\_event\_channels.c@{dpu\_offload\_event\_channels.c}!get\_notif\_buf@{get\_notif\_buf}}
+\index{get\_notif\_buf@{get\_notif\_buf}!dpu\_offload\_event\_channels.c@{dpu\_offload\_event\_channels.c}}
+\doxysubsubsection{\texorpdfstring{get\_notif\_buf()}{get\_notif\_buf()}}
+{\footnotesize\ttfamily void$\ast$ get\+\_\+notif\+\_\+buf (\begin{DoxyParamCaption}\item[{\mbox{\hyperlink{dpu__offload__types_8h_a3393bcd64add76ae2292d8cb54c16fe6}{dpu\+\_\+offload\+\_\+ev\+\_\+sys\+\_\+t}} $\ast$}]{ev\+\_\+sys,  }\item[{uint64\+\_\+t}]{type }\end{DoxyParamCaption})}
+
+\mbox{\Hypertarget{dpu__offload__event__channels_8c_a74b23f567a5986ccd8052e377d79bd12}\label{dpu__offload__event__channels_8c_a74b23f567a5986ccd8052e377d79bd12}} 
+\index{dpu\_offload\_event\_channels.c@{dpu\_offload\_event\_channels.c}!get\_notif\_callback\_entry@{get\_notif\_callback\_entry}}
+\index{get\_notif\_callback\_entry@{get\_notif\_callback\_entry}!dpu\_offload\_event\_channels.c@{dpu\_offload\_event\_channels.c}}
+\doxysubsubsection{\texorpdfstring{get\_notif\_callback\_entry()}{get\_notif\_callback\_entry()}}
+{\footnotesize\ttfamily \mbox{\hyperlink{dpu__offload__types_8h_a6baa2472eb41dbe0eb5a189ea95ba028}{notification\+\_\+callback\+\_\+entry\+\_\+t}}$\ast$ get\+\_\+notif\+\_\+callback\+\_\+entry (\begin{DoxyParamCaption}\item[{\mbox{\hyperlink{dpu__offload__types_8h_a3393bcd64add76ae2292d8cb54c16fe6}{dpu\+\_\+offload\+\_\+ev\+\_\+sys\+\_\+t}} $\ast$}]{ev\+\_\+sys,  }\item[{uint64\+\_\+t}]{type }\end{DoxyParamCaption})}
+
+\mbox{\Hypertarget{dpu__offload__event__channels_8c_a11850bbefe10f2796d3b168a7dc48b98}\label{dpu__offload__event__channels_8c_a11850bbefe10f2796d3b168a7dc48b98}} 
+\index{dpu\_offload\_event\_channels.c@{dpu\_offload\_event\_channels.c}!init\_event@{init\_event}}
+\index{init\_event@{init\_event}!dpu\_offload\_event\_channels.c@{dpu\_offload\_event\_channels.c}}
+\doxysubsubsection{\texorpdfstring{init\_event()}{init\_event()}}
+{\footnotesize\ttfamily void init\+\_\+event (\begin{DoxyParamCaption}\item[{void $\ast$}]{ev\+\_\+ptr }\end{DoxyParamCaption})}
+
+\mbox{\Hypertarget{dpu__offload__event__channels_8c_a6c6525613f961c6737eeef57d39a3fa7}\label{dpu__offload__event__channels_8c_a6c6525613f961c6737eeef57d39a3fa7}} 
+\index{dpu\_offload\_event\_channels.c@{dpu\_offload\_event\_channels.c}!register\_default\_notifications@{register\_default\_notifications}}
+\index{register\_default\_notifications@{register\_default\_notifications}!dpu\_offload\_event\_channels.c@{dpu\_offload\_event\_channels.c}}
+\doxysubsubsection{\texorpdfstring{register\_default\_notifications()}{register\_default\_notifications()}}
+{\footnotesize\ttfamily \mbox{\hyperlink{dpu__offload__common_8h_a2f49d8c1f5f6182b5128dfd3c815c3ef}{dpu\+\_\+offload\+\_\+status\+\_\+t}} register\+\_\+default\+\_\+notifications (\begin{DoxyParamCaption}\item[{\mbox{\hyperlink{dpu__offload__types_8h_a3393bcd64add76ae2292d8cb54c16fe6}{dpu\+\_\+offload\+\_\+ev\+\_\+sys\+\_\+t}} $\ast$}]{ev\+\_\+sys }\end{DoxyParamCaption})}
+
+\mbox{\Hypertarget{dpu__offload__event__channels_8c_a9898867d6f35390fa3600944e70f5642}\label{dpu__offload__event__channels_8c_a9898867d6f35390fa3600944e70f5642}} 
+\index{dpu\_offload\_event\_channels.c@{dpu\_offload\_event\_channels.c}!send\_cache\_entry\_request@{send\_cache\_entry\_request}}
+\index{send\_cache\_entry\_request@{send\_cache\_entry\_request}!dpu\_offload\_event\_channels.c@{dpu\_offload\_event\_channels.c}}
+\doxysubsubsection{\texorpdfstring{send\_cache\_entry\_request()}{send\_cache\_entry\_request()}}
+{\footnotesize\ttfamily int send\+\_\+cache\+\_\+entry\+\_\+request (\begin{DoxyParamCaption}\item[{\mbox{\hyperlink{dpu__offload__types_8h_ac95b2624b57c0005e3ca8a740316e5ab}{execution\+\_\+context\+\_\+t}} $\ast$}]{econtext,  }\item[{ucp\+\_\+ep\+\_\+h}]{ep,  }\item[{\mbox{\hyperlink{dpu__offload__types_8h_a6846f687a61323898ab2f6903ca8766e}{rank\+\_\+info\+\_\+t}} $\ast$}]{requested\+\_\+peer,  }\item[{\mbox{\hyperlink{dpu__offload__types_8h_a5872fe6516c1dd159957efdfabc9ad2a}{dpu\+\_\+offload\+\_\+event\+\_\+t}} $\ast$$\ast$}]{ev }\end{DoxyParamCaption})}
+
+\mbox{\Hypertarget{dpu__offload__event__channels_8c_ad7b40147fc8e014a5e7437e93109ee06}\label{dpu__offload__event__channels_8c_ad7b40147fc8e014a5e7437e93109ee06}} 
+\index{dpu\_offload\_event\_channels.c@{dpu\_offload\_event\_channels.c}!send\_term\_msg@{send\_term\_msg}}
+\index{send\_term\_msg@{send\_term\_msg}!dpu\_offload\_event\_channels.c@{dpu\_offload\_event\_channels.c}}
+\doxysubsubsection{\texorpdfstring{send\_term\_msg()}{send\_term\_msg()}}
+{\footnotesize\ttfamily \mbox{\hyperlink{dpu__offload__common_8h_a2f49d8c1f5f6182b5128dfd3c815c3ef}{dpu\+\_\+offload\+\_\+status\+\_\+t}} send\+\_\+term\+\_\+msg (\begin{DoxyParamCaption}\item[{\mbox{\hyperlink{dpu__offload__types_8h_ac95b2624b57c0005e3ca8a740316e5ab}{execution\+\_\+context\+\_\+t}} $\ast$}]{ctx,  }\item[{\mbox{\hyperlink{dpu__offload__types_8h_a16e41da3d1aff32f8f9bee0167811a32}{dest\+\_\+client\+\_\+t}} $\ast$}]{dest\+\_\+info }\end{DoxyParamCaption})}
+
+\mbox{\Hypertarget{dpu__offload__event__channels_8c_a30450e3576ed64dd399cda3b67eb32ac}\label{dpu__offload__event__channels_8c_a30450e3576ed64dd399cda3b67eb32ac}} 
+\index{dpu\_offload\_event\_channels.c@{dpu\_offload\_event\_channels.c}!tag\_send\_event\_msg@{tag\_send\_event\_msg}}
+\index{tag\_send\_event\_msg@{tag\_send\_event\_msg}!dpu\_offload\_event\_channels.c@{dpu\_offload\_event\_channels.c}}
+\doxysubsubsection{\texorpdfstring{tag\_send\_event\_msg()}{tag\_send\_event\_msg()}}
+{\footnotesize\ttfamily int tag\+\_\+send\+\_\+event\+\_\+msg (\begin{DoxyParamCaption}\item[{\mbox{\hyperlink{dpu__offload__types_8h_a5872fe6516c1dd159957efdfabc9ad2a}{dpu\+\_\+offload\+\_\+event\+\_\+t}} $\ast$$\ast$}]{event }\end{DoxyParamCaption})}
+
+
+
+\doxysubsection{Variable Documentation}
+\mbox{\Hypertarget{dpu__offload__event__channels_8c_ab089bcb662b67b7825c4f33953c35da5}\label{dpu__offload__event__channels_8c_ab089bcb662b67b7825c4f33953c35da5}} 
+\index{dpu\_offload\_event\_channels.c@{dpu\_offload\_event\_channels.c}!seq\_num@{seq\_num}}
+\index{seq\_num@{seq\_num}!dpu\_offload\_event\_channels.c@{dpu\_offload\_event\_channels.c}}
+\doxysubsubsection{\texorpdfstring{seq\_num}{seq\_num}}
+{\footnotesize\ttfamily uint64\+\_\+t seq\+\_\+num = 0}
+

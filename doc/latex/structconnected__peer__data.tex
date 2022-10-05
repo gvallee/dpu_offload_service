@@ -1,0 +1,75 @@
+\hypertarget{structconnected__peer__data}{}\doxysection{connected\+\_\+peer\+\_\+data Struct Reference}
+\label{structconnected__peer__data}\index{connected\_peer\_data@{connected\_peer\_data}}
+
+
+\mbox{\hyperlink{structconnected__peer__data}{connected\+\_\+peer\+\_\+data}} is the data that can be passed to a connection completion callback. In other words, it gathers all the data to identify a peer that just successfully completed its connection.  
+
+
+
+
+{\ttfamily \#include $<$dpu\+\_\+offload\+\_\+types.\+h$>$}
+
+
+
+Collaboration diagram for connected\+\_\+peer\+\_\+data\+:
+\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{structconnected__peer__data__coll__graph}
+\end{center}
+\end{figure}
+\doxysubsection*{Data Fields}
+\begin{DoxyCompactItemize}
+\item 
+char $\ast$ \mbox{\hyperlink{structconnected__peer__data_a5ff0bcd022b385f4bb45f69be20d3618}{peer\+\_\+addr}}
+\item 
+struct \mbox{\hyperlink{structexecution__context}{execution\+\_\+context}} $\ast$ \mbox{\hyperlink{structconnected__peer__data_aac3913ff1905065b3d2204027778f2a7}{econtext}}
+\item 
+uint64\+\_\+t \mbox{\hyperlink{structconnected__peer__data_ad916a9a0cf8ba51df1f58a22ab222a4c}{peer\+\_\+id}}
+\item 
+uint64\+\_\+t \mbox{\hyperlink{structconnected__peer__data_ab9728f13d5662035f70f65bcfaa0417b}{global\+\_\+peer\+\_\+id}}
+\item 
+\mbox{\hyperlink{dpu__offload__types_8h_a6846f687a61323898ab2f6903ca8766e}{rank\+\_\+info\+\_\+t}} \mbox{\hyperlink{structconnected__peer__data_a945364f4640893052c1c6c8c72be3e98}{rank\+\_\+info}}
+\end{DoxyCompactItemize}
+
+
+\doxysubsection{Detailed Description}
+\mbox{\hyperlink{structconnected__peer__data}{connected\+\_\+peer\+\_\+data}} is the data that can be passed to a connection completion callback. In other words, it gathers all the data to identify a peer that just successfully completed its connection. 
+
+\doxysubsection{Field Documentation}
+\mbox{\Hypertarget{structconnected__peer__data_aac3913ff1905065b3d2204027778f2a7}\label{structconnected__peer__data_aac3913ff1905065b3d2204027778f2a7}} 
+\index{connected\_peer\_data@{connected\_peer\_data}!econtext@{econtext}}
+\index{econtext@{econtext}!connected\_peer\_data@{connected\_peer\_data}}
+\doxysubsubsection{\texorpdfstring{econtext}{econtext}}
+{\footnotesize\ttfamily struct \mbox{\hyperlink{structexecution__context}{execution\+\_\+context}}$\ast$ connected\+\_\+peer\+\_\+data\+::econtext}
+
+\mbox{\Hypertarget{structconnected__peer__data_ab9728f13d5662035f70f65bcfaa0417b}\label{structconnected__peer__data_ab9728f13d5662035f70f65bcfaa0417b}} 
+\index{connected\_peer\_data@{connected\_peer\_data}!global\_peer\_id@{global\_peer\_id}}
+\index{global\_peer\_id@{global\_peer\_id}!connected\_peer\_data@{connected\_peer\_data}}
+\doxysubsubsection{\texorpdfstring{global\_peer\_id}{global\_peer\_id}}
+{\footnotesize\ttfamily uint64\+\_\+t connected\+\_\+peer\+\_\+data\+::global\+\_\+peer\+\_\+id}
+
+\mbox{\Hypertarget{structconnected__peer__data_a5ff0bcd022b385f4bb45f69be20d3618}\label{structconnected__peer__data_a5ff0bcd022b385f4bb45f69be20d3618}} 
+\index{connected\_peer\_data@{connected\_peer\_data}!peer\_addr@{peer\_addr}}
+\index{peer\_addr@{peer\_addr}!connected\_peer\_data@{connected\_peer\_data}}
+\doxysubsubsection{\texorpdfstring{peer\_addr}{peer\_addr}}
+{\footnotesize\ttfamily char$\ast$ connected\+\_\+peer\+\_\+data\+::peer\+\_\+addr}
+
+\mbox{\Hypertarget{structconnected__peer__data_ad916a9a0cf8ba51df1f58a22ab222a4c}\label{structconnected__peer__data_ad916a9a0cf8ba51df1f58a22ab222a4c}} 
+\index{connected\_peer\_data@{connected\_peer\_data}!peer\_id@{peer\_id}}
+\index{peer\_id@{peer\_id}!connected\_peer\_data@{connected\_peer\_data}}
+\doxysubsubsection{\texorpdfstring{peer\_id}{peer\_id}}
+{\footnotesize\ttfamily uint64\+\_\+t connected\+\_\+peer\+\_\+data\+::peer\+\_\+id}
+
+\mbox{\Hypertarget{structconnected__peer__data_a945364f4640893052c1c6c8c72be3e98}\label{structconnected__peer__data_a945364f4640893052c1c6c8c72be3e98}} 
+\index{connected\_peer\_data@{connected\_peer\_data}!rank\_info@{rank\_info}}
+\index{rank\_info@{rank\_info}!connected\_peer\_data@{connected\_peer\_data}}
+\doxysubsubsection{\texorpdfstring{rank\_info}{rank\_info}}
+{\footnotesize\ttfamily \mbox{\hyperlink{dpu__offload__types_8h_a6846f687a61323898ab2f6903ca8766e}{rank\+\_\+info\+\_\+t}} connected\+\_\+peer\+\_\+data\+::rank\+\_\+info}
+
+
+
+The documentation for this struct was generated from the following file\+:\begin{DoxyCompactItemize}
+\item 
+/home/gvallee/\+Projects/\+DPU\+\_\+offloading/dpu\+\_\+offload\+\_\+service/include/\mbox{\hyperlink{dpu__offload__types_8h}{dpu\+\_\+offload\+\_\+types.\+h}}\end{DoxyCompactItemize}

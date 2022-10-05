@@ -1,0 +1,59 @@
+\doxysection{Data Structures}
+Here are the data structures with brief descriptions\+:\begin{DoxyCompactList}
+\item\contentsline{section}{\mbox{\hyperlink{structam__header}{am\+\_\+header}} \\*Am\+\_\+header\+\_\+t is the structure used to represent the header sent with UCX active messages }{\pageref{structam__header}}{}
+\item\contentsline{section}{\mbox{\hyperlink{structam__req}{am\+\_\+req}} \\*Am\+\_\+req\+\_\+t is the structure used to track completion of a notification }{\pageref{structam__req}}{}
+\item\contentsline{section}{\mbox{\hyperlink{structboostrapping}{boostrapping}} }{\pageref{structboostrapping}}{}
+\item\contentsline{section}{\mbox{\hyperlink{structcache}{cache}} }{\pageref{structcache}}{}
+\item\contentsline{section}{\mbox{\hyperlink{structcache__entry__request}{cache\+\_\+entry\+\_\+request}} }{\pageref{structcache__entry__request}}{}
+\item\contentsline{section}{\mbox{\hyperlink{structconn__params}{conn\+\_\+params}} }{\pageref{structconn__params}}{}
+\item\contentsline{section}{\mbox{\hyperlink{structconnect__to__service__proc}{connect\+\_\+to\+\_\+service\+\_\+proc}} \\*While the remote\+\_\+service\+\_\+proc\+\_\+info\+\_\+t structure is ready to be used as a list item, list items can only be on one list at a time and we need to track both the service processes per DPU, as well as the service processes to connect to. To avoid any problem, \mbox{\hyperlink{structconnect__to__service__proc}{connect\+\_\+to\+\_\+service\+\_\+proc}} is a container to be used with the list of service procs to connect to that holds a pointer to the service process structure that belongs to a remote\+\_\+dpu\+\_\+info\+\_\+t element }{\pageref{structconnect__to__service__proc}}{}
+\item\contentsline{section}{\mbox{\hyperlink{structconnected__clients}{connected\+\_\+clients}} }{\pageref{structconnected__clients}}{}
+\item\contentsline{section}{\mbox{\hyperlink{structconnected__peer__data}{connected\+\_\+peer\+\_\+data}} \\*Connected\+\_\+peer\+\_\+data is the data that can be passed to a connection completion callback. In other words, it gathers all the data to identify a peer that just successfully completed its connection }{\pageref{structconnected__peer__data}}{}
+\item\contentsline{section}{\mbox{\hyperlink{structdebug__config}{debug\+\_\+config}} }{\pageref{structdebug__config}}{}
+\item\contentsline{section}{\mbox{\hyperlink{structdest__client}{dest\+\_\+client}} }{\pageref{structdest__client}}{}
+\item\contentsline{section}{\mbox{\hyperlink{structdpu__config__data}{dpu\+\_\+config\+\_\+data}} \\*Data structure used when parsing a configuration file }{\pageref{structdpu__config__data}}{}
+\item\contentsline{section}{\mbox{\hyperlink{structdpu__offload__client__t}{dpu\+\_\+offload\+\_\+client\+\_\+t}} }{\pageref{structdpu__offload__client__t}}{}
+\item\contentsline{section}{\mbox{\hyperlink{structdpu__offload__ev__sys}{dpu\+\_\+offload\+\_\+ev\+\_\+sys}} \\*Dpu\+\_\+offload\+\_\+ev\+\_\+sys\+\_\+t is the structure representing the event system used to implement notifications }{\pageref{structdpu__offload__ev__sys}}{}
+\item\contentsline{section}{\mbox{\hyperlink{structdpu__offload__event}{dpu\+\_\+offload\+\_\+event}} \\*Dpu\+\_\+offload\+\_\+event\+\_\+t represents an event, i.\+e., the implementation of a notification }{\pageref{structdpu__offload__event}}{}
+\item\contentsline{section}{\mbox{\hyperlink{structdpu__offload__event__info}{dpu\+\_\+offload\+\_\+event\+\_\+info}} }{\pageref{structdpu__offload__event__info}}{}
+\item\contentsline{section}{\mbox{\hyperlink{structdpu__offload__server__t}{dpu\+\_\+offload\+\_\+server\+\_\+t}} }{\pageref{structdpu__offload__server__t}}{}
+\item\contentsline{section}{\mbox{\hyperlink{structdyn__array}{dyn\+\_\+array}} }{\pageref{structdyn__array}}{}
+\item\contentsline{section}{\mbox{\hyperlink{structdyn__list}{dyn\+\_\+list}} }{\pageref{structdyn__list}}{}
+\item\contentsline{section}{\mbox{\hyperlink{structevent__req}{event\+\_\+req}} }{\pageref{structevent__req}}{}
+\item\contentsline{section}{\mbox{\hyperlink{structexecution__context}{execution\+\_\+context}} \\*Execution\+\_\+context\+\_\+t is the structure holding all the information related to DPU offloading, both on the hosts and DPUs. The primary goal of the structure is too abstract whether the process is a client or server during bootstrapping and how many clients and servers are used for the deployment of the infrastructure. It recommanded to use the associated macros in order to make the code more abstract and mainly rely on execution contexts }{\pageref{structexecution__context}}{}
+\item\contentsline{section}{\mbox{\hyperlink{structgroup__cache}{group\+\_\+cache}} }{\pageref{structgroup__cache}}{}
+\item\contentsline{section}{\mbox{\hyperlink{structgroup__id}{group\+\_\+id}} }{\pageref{structgroup__id}}{}
+\item\contentsline{section}{\mbox{\hyperlink{structinit__params}{init\+\_\+params}} }{\pageref{structinit__params}}{}
+\item\contentsline{section}{\mbox{\hyperlink{structmem__chunk}{mem\+\_\+chunk}} }{\pageref{structmem__chunk}}{}
+\item\contentsline{section}{\mbox{\hyperlink{structnotification__callback__entry}{notification\+\_\+callback\+\_\+entry}} \\*Notification\+\_\+callback\+\_\+entry\+\_\+t is the structure representing a callback. The event system has a vector of such structures. The type associated to the callback is its index in the vector used to track all callbacks (one and only one callback per type) }{\pageref{structnotification__callback__entry}}{}
+\item\contentsline{section}{\mbox{\hyperlink{structnotification__info}{notification\+\_\+info}} }{\pageref{structnotification__info}}{}
+\item\contentsline{section}{\mbox{\hyperlink{structoffload__config}{offload\+\_\+config}} }{\pageref{structoffload__config}}{}
+\item\contentsline{section}{\mbox{\hyperlink{structoffload__op}{offload\+\_\+op}} }{\pageref{structoffload__op}}{}
+\item\contentsline{section}{\mbox{\hyperlink{structoffloading__config}{offloading\+\_\+config}} \\*Offloading\+\_\+config\+\_\+t represents the configuration that will be used by the offloading infrastructure. It reflects for instance the content of the configuration when a configuration file is used }{\pageref{structoffloading__config}}{}
+\item\contentsline{section}{\mbox{\hyperlink{structoffloading__engine}{offloading\+\_\+engine}} }{\pageref{structoffloading__engine}}{}
+\item\contentsline{section}{\mbox{\hyperlink{structoob__msg}{oob\+\_\+msg}} }{\pageref{structoob__msg}}{}
+\item\contentsline{section}{\mbox{\hyperlink{structop__desc}{op\+\_\+desc}} }{\pageref{structop__desc}}{}
+\item\contentsline{section}{\mbox{\hyperlink{structpeer__cache__entry}{peer\+\_\+cache\+\_\+entry}} }{\pageref{structpeer__cache__entry}}{}
+\item\contentsline{section}{\mbox{\hyperlink{structpeer__data}{peer\+\_\+data}} }{\pageref{structpeer__data}}{}
+\item\contentsline{section}{\mbox{\hyperlink{structpeer__info}{peer\+\_\+info}} }{\pageref{structpeer__info}}{}
+\item\contentsline{section}{\mbox{\hyperlink{structpending__am__rdv__recv}{pending\+\_\+am\+\_\+rdv\+\_\+recv}} }{\pageref{structpending__am__rdv__recv}}{}
+\item\contentsline{section}{\mbox{\hyperlink{structpending__notification}{pending\+\_\+notification}} \\*Pending\+\_\+notification\+\_\+t is the structure used to capture the data related to a event that has been received but cannot yet be delivered because a callback has not been registered yet }{\pageref{structpending__notification}}{}
+\item\contentsline{section}{\mbox{\hyperlink{structpmix__infrastructure}{pmix\+\_\+infrastructure}} }{\pageref{structpmix__infrastructure}}{}
+\item\contentsline{section}{\mbox{\hyperlink{structrank__info}{rank\+\_\+info}} }{\pageref{structrank__info}}{}
+\item\contentsline{section}{\mbox{\hyperlink{structremote__dpu__connect__tracker}{remote\+\_\+dpu\+\_\+connect\+\_\+tracker}} }{\pageref{structremote__dpu__connect__tracker}}{}
+\item\contentsline{section}{\mbox{\hyperlink{structremote__dpu__info}{remote\+\_\+dpu\+\_\+info}} \\*Remote\+\_\+dpu\+\_\+info\+\_\+t gathers all the data necessary to track and connect to other DPUs }{\pageref{structremote__dpu__info}}{}
+\item\contentsline{section}{\mbox{\hyperlink{structremote__service__proc__info}{remote\+\_\+service\+\_\+proc\+\_\+info}} \\*Datatstructure representing a remote service process that is running on a specific DPU. A service process is identified by both its local unique identifier based on how many service processes are running on the DPU and a global unique identifier based on how many service processes are available for offloading }{\pageref{structremote__service__proc__info}}{}
+\item\contentsline{section}{\mbox{\hyperlink{structservice__proc}{service\+\_\+proc}} }{\pageref{structservice__proc}}{}
+\item\contentsline{section}{\mbox{\hyperlink{structservice__proc__config__data}{service\+\_\+proc\+\_\+config\+\_\+data}} }{\pageref{structservice__proc__config__data}}{}
+\item\contentsline{section}{\mbox{\hyperlink{structservice__proc__inter__connect__info}{service\+\_\+proc\+\_\+inter\+\_\+connect\+\_\+info}} }{\pageref{structservice__proc__inter__connect__info}}{}
+\item\contentsline{section}{\mbox{\hyperlink{structshadow__service__proc__info}{shadow\+\_\+service\+\_\+proc\+\_\+info}} }{\pageref{structshadow__service__proc__info}}{}
+\item\contentsline{section}{\mbox{\hyperlink{structsimple__list}{simple\+\_\+list}} \\*Simple\+\_\+list\+\_\+t aims at offering an alternative to ucs\+\_\+list\+\_\+link\+\_\+t without the huge performance impact associated to them }{\pageref{structsimple__list}}{}
+\item\contentsline{section}{\mbox{\hyperlink{structsmart__array}{smart\+\_\+array}} }{\pageref{structsmart__array}}{}
+\item\contentsline{section}{\mbox{\hyperlink{structsmart__bucket}{smart\+\_\+bucket}} }{\pageref{structsmart__bucket}}{}
+\item\contentsline{section}{\mbox{\hyperlink{structsmart__buffers}{smart\+\_\+buffers}} }{\pageref{structsmart__buffers}}{}
+\item\contentsline{section}{\mbox{\hyperlink{structsmart__buffers__info__t}{smart\+\_\+buffers\+\_\+info\+\_\+t}} }{\pageref{structsmart__buffers__info__t}}{}
+\item\contentsline{section}{\mbox{\hyperlink{structsmart__chunk__t}{smart\+\_\+chunk\+\_\+t}} }{\pageref{structsmart__chunk__t}}{}
+\item\contentsline{section}{\mbox{\hyperlink{structsmart__list}{smart\+\_\+list}} }{\pageref{structsmart__list}}{}
+\item\contentsline{section}{\mbox{\hyperlink{structucx__context}{ucx\+\_\+context}} }{\pageref{structucx__context}}{}
+\item\contentsline{section}{\mbox{\hyperlink{structucx__server__ctx}{ucx\+\_\+server\+\_\+ctx}} }{\pageref{structucx__server__ctx}}{}
+\end{DoxyCompactList}

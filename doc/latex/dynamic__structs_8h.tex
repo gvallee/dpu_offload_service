@@ -1,0 +1,1029 @@
+\hypertarget{dynamic__structs_8h}{}\doxysection{/home/gvallee/\+Projects/\+DPU\+\_\+offloading/dpu\+\_\+offload\+\_\+service/include/dynamic\+\_\+structs.h File Reference}
+\label{dynamic__structs_8h}\index{/home/gvallee/Projects/DPU\_offloading/dpu\_offload\_service/include/dynamic\_structs.h@{/home/gvallee/Projects/DPU\_offloading/dpu\_offload\_service/include/dynamic\_structs.h}}
+{\ttfamily \#include $<$stdlib.\+h$>$}\newline
+{\ttfamily \#include $<$assert.\+h$>$}\newline
+{\ttfamily \#include $<$stddef.\+h$>$}\newline
+{\ttfamily \#include $<$string.\+h$>$}\newline
+{\ttfamily \#include $<$stdint.\+h$>$}\newline
+{\ttfamily \#include $<$stdio.\+h$>$}\newline
+{\ttfamily \#include $<$ucs/datastruct/list.\+h$>$}\newline
+{\ttfamily \#include $<$ucs/sys/compiler\+\_\+def.\+h$>$}\newline
+Include dependency graph for dynamic\+\_\+structs.\+h\+:
+\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{dynamic__structs_8h__incl}
+\end{center}
+\end{figure}
+This graph shows which files directly or indirectly include this file\+:
+\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{dynamic__structs_8h__dep__incl}
+\end{center}
+\end{figure}
+\doxysubsection*{Data Structures}
+\begin{DoxyCompactItemize}
+\item 
+struct \mbox{\hyperlink{structmem__chunk}{mem\+\_\+chunk}}
+\item 
+struct \mbox{\hyperlink{structsimple__list}{simple\+\_\+list}}
+\begin{DoxyCompactList}\small\item\em simple\+\_\+list\+\_\+t aims at offering an alternative to ucs\+\_\+list\+\_\+link\+\_\+t without the huge performance impact associated to them. \end{DoxyCompactList}\item 
+struct \mbox{\hyperlink{structdyn__array}{dyn\+\_\+array}}
+\item 
+struct \mbox{\hyperlink{structdyn__list}{dyn\+\_\+list}}
+\item 
+struct \mbox{\hyperlink{structsmart__chunk__t}{smart\+\_\+chunk\+\_\+t}}
+\item 
+struct \mbox{\hyperlink{structsmart__bucket}{smart\+\_\+bucket}}
+\item 
+struct \mbox{\hyperlink{structsmart__buffers}{smart\+\_\+buffers}}
+\item 
+struct \mbox{\hyperlink{structsmart__buffers__info__t}{smart\+\_\+buffers\+\_\+info\+\_\+t}}
+\item 
+struct \mbox{\hyperlink{structsmart__array}{smart\+\_\+array}}
+\item 
+struct \mbox{\hyperlink{structsmart__list}{smart\+\_\+list}}
+\end{DoxyCompactItemize}
+\doxysubsection*{Macros}
+\begin{DoxyCompactItemize}
+\item 
+\#define \mbox{\hyperlink{dynamic__structs_8h_a2f9d2a255e5ab8af8446b3e1990754ef}{DEFAULT\+\_\+\+MEM\+\_\+\+CHUNKS}}~(1024)
+\item 
+\#define \mbox{\hyperlink{dynamic__structs_8h_a7ecb72750777ed28516b2b9843c233ab}{SIMPLE\+\_\+\+LIST\+\_\+\+INIT}}(\+\_\+simple\+\_\+list\+\_\+to\+\_\+init)
+\item 
+\#define \mbox{\hyperlink{dynamic__structs_8h_a759d16e2a636b33a22f0786bd7cd178f}{SIMPLE\+\_\+\+LIST\+\_\+\+PREPEND}}(\+\_\+sl\+\_\+append,  \+\_\+sl\+\_\+elt)
+\item 
+\#define \mbox{\hyperlink{dynamic__structs_8h_a5c47371700683a1585791e86be1fdb23}{SIMPLE\+\_\+\+LIST\+\_\+\+DEL}}(\+\_\+\+\_\+sl\+\_\+del,  \+\_\+sl\+\_\+item)
+\item 
+\#define \mbox{\hyperlink{dynamic__structs_8h_aa747dd8f46a6843008a3535e5871e2e8}{SIMPLE\+\_\+\+LIST\+\_\+\+EXTRACT\+\_\+\+HEAD}}(\+\_\+sl\+\_\+eh,  \+\_\+sl\+\_\+type,  \+\_\+sl\+\_\+item)
+\item 
+\#define \mbox{\hyperlink{dynamic__structs_8h_ac30a8bb1a0d9788a21015f4390c4dfb9}{SIMPLE\+\_\+\+LIST\+\_\+\+LENGTH}}(\+\_\+\+\_\+sl\+\_\+len)
+\item 
+\#define \mbox{\hyperlink{dynamic__structs_8h_a03d0ee90292df284535b85801d6ce4a9}{SIMPLE\+\_\+\+LIST\+\_\+\+IS\+\_\+\+EMPTY}}(\+\_\+\+\_\+sl)
+\item 
+\#define \mbox{\hyperlink{dynamic__structs_8h_aacc38e14e7ac5ad65e3730768d9d1c28}{SIMPLE\+\_\+\+LIST\+\_\+\+FOR\+\_\+\+EACH}}(\+\_\+\+\_\+sl\+\_\+cur,  \+\_\+\+\_\+sl\+\_\+next,  \+\_\+\+\_\+sl,  \+\_\+\+\_\+elt)~    ucs\+\_\+list\+\_\+for\+\_\+each\+\_\+safe(\+\_\+\+\_\+sl\+\_\+cur, \+\_\+\+\_\+sl\+\_\+next, \&((\+\_\+\+\_\+sl)-\/$>$internal\+\_\+list), \+\_\+\+\_\+elt)
+\item 
+\#define \mbox{\hyperlink{dynamic__structs_8h_a30c020970a3fe5fc15dfa18ac44c8077}{DYN\+\_\+\+ARRAY\+\_\+\+ALLOC}}(\+\_\+dyn\+\_\+array\+\_\+alloc,  \+\_\+da\+\_\+alloc\+\_\+num\+\_\+elts\+\_\+alloc,  \+\_\+da\+\_\+alloc\+\_\+type)
+\item 
+\#define \mbox{\hyperlink{dynamic__structs_8h_a0b997ed0890620e9642a0909aabda32f}{DYN\+\_\+\+ARRAY\+\_\+\+ALLOC\+\_\+\+WITH\+\_\+\+INIT\+\_\+\+FN}}(\+\_\+dyn\+\_\+array,  \+\_\+num\+\_\+elts\+\_\+alloc,  \+\_\+type,  \+\_\+fn)
+\item 
+\#define \mbox{\hyperlink{dynamic__structs_8h_a6997ed8a5a346a674e08a4f58e5e96fb}{DYN\+\_\+\+ARRAY\+\_\+\+FREE}}(\+\_\+dyn\+\_\+array)
+\item 
+\#define \mbox{\hyperlink{dynamic__structs_8h_ad9ab0dff8b6029315c1257b1ebf7c7aa}{DYN\+\_\+\+ARRAY\+\_\+\+GROW}}(\+\_\+dyn\+\_\+array,  \+\_\+type,  \+\_\+size)
+\item 
+\#define \mbox{\hyperlink{dynamic__structs_8h_a0e5fa3cb758f3eefad714235c1fef266}{DYN\+\_\+\+ARRAY\+\_\+\+GET\+\_\+\+ELT}}(\+\_\+dyn\+\_\+array,  \+\_\+idx,  \+\_\+type)
+\item 
+\#define \mbox{\hyperlink{dynamic__structs_8h_ae0a88d7e3b0143761453cd49591daeff}{DYN\+\_\+\+ARRAY\+\_\+\+SET\+\_\+\+ELT}}(\+\_\+dyn\+\_\+array,  \+\_\+idx,  \+\_\+type,  \+\_\+elt)
+\item 
+\#define \mbox{\hyperlink{dynamic__structs_8h_ae8c9cbd658588dc6c4b0de828949b174}{GROW\+\_\+\+DYN\+\_\+\+LIST}}(\+\_\+\+\_\+dyn\+\_\+list,  \+\_\+\+\_\+type,  \+\_\+\+\_\+elt)
+\item 
+\#define \mbox{\hyperlink{dynamic__structs_8h_ac097651589ade85a7d03c25a6c925c2b}{DYN\+\_\+\+LIST\+\_\+\+ALLOC}}(\+\_\+dyn\+\_\+list,  \+\_\+num\+\_\+elts\+\_\+alloc,  \+\_\+type,  \+\_\+elt)
+\item 
+\#define \mbox{\hyperlink{dynamic__structs_8h_aec7ceee9b07f73cbf9211fe5ce0b3872}{DYN\+\_\+\+LIST\+\_\+\+ALLOC\+\_\+\+WITH\+\_\+\+INIT\+\_\+\+CALLBACK}}(\+\_\+dyn\+\_\+list,  \+\_\+num\+\_\+elts\+\_\+alloc,  \+\_\+type,  \+\_\+elt,  \+\_\+cb)
+\item 
+\#define \mbox{\hyperlink{dynamic__structs_8h_ac466681d1d9f603a5fc05a987df6b62c}{DYN\+\_\+\+LIST\+\_\+\+FREE}}(\+\_\+dyn\+\_\+list,  \+\_\+type,  \+\_\+elt)
+\item 
+\#define \mbox{\hyperlink{dynamic__structs_8h_a167541942aab89135e9da3893d2043db}{DYN\+\_\+\+LIST\+\_\+\+GET}}(\+\_\+dyn\+\_\+list,  \+\_\+type,  \+\_\+elt,  \+\_\+item)
+\item 
+\#define \mbox{\hyperlink{dynamic__structs_8h_a90e5a235b55f9d19d453036f405f8c66}{DYN\+\_\+\+LIST\+\_\+\+RETURN}}(\+\_\+dyn\+\_\+list,  \+\_\+item,  \+\_\+elt)
+\item 
+\#define \mbox{\hyperlink{dynamic__structs_8h_ae4ffb8055b489741e9a93b10cd6649c7}{RESET\+\_\+\+SMART\+\_\+\+CHUNK}}(\+\_\+\+\_\+sc)
+\item 
+\#define \mbox{\hyperlink{dynamic__structs_8h_aa9503171fab15f114566fb3774b65764}{RESET\+\_\+\+SMART\+\_\+\+BUCKET}}(\+\_\+\+\_\+sb)
+\item 
+\#define \mbox{\hyperlink{dynamic__structs_8h_abbd6f037bbb660af650d1e755cefa317}{SMART\+\_\+\+BUFFS\+\_\+\+GROW\+\_\+\+BUCKET}}(\+\_\+\+\_\+ptr)
+\item 
+\#define \mbox{\hyperlink{dynamic__structs_8h_a4c1a4a656eded855e7093e4e3b6216ce}{SMART\+\_\+\+BUFFS\+\_\+\+RECYCLE\+\_\+\+SMART\+\_\+\+CHUNK}}(\+\_\+\+\_\+smart\+\_\+chunk)
+\item 
+\#define \mbox{\hyperlink{dynamic__structs_8h_a811d4c6325a4306bbcf6b0e058ac5c7f}{SMART\+\_\+\+BUFFS\+\_\+\+SPLIT\+\_\+\+BUCKET}}(\+\_\+\+\_\+bsrc,  \+\_\+\+\_\+bdest)
+\item 
+\#define \mbox{\hyperlink{dynamic__structs_8h_ae5cdf800ab5556c864c14194718efad7}{SMART\+\_\+\+BUFFERS\+\_\+\+DEFAULT\+\_\+\+MEM\+\_\+\+ALLOC\+\_\+\+SIZE}}~((20 $\ast$ 1024 $\ast$ 1024))
+\item 
+\#define \mbox{\hyperlink{dynamic__structs_8h_aaa8d34ee3216d85b11165169d6aa2107}{SMART\+\_\+\+BUFFERS\+\_\+\+ALLOC\+\_\+\+SMART\+\_\+\+CHUNKS}}(\+\_\+\+\_\+sb\+\_\+sys,  \+\_\+smart\+\_\+bucket\+\_\+to\+\_\+populate,  \+\_\+\+\_\+bucket\+\_\+allocated\+\_\+mem\+\_\+size,  \+\_\+\+\_\+sc\+\_\+ptr\+\_\+base,  \+\_\+\+\_\+num\+\_\+chunks)
+\item 
+\#define \mbox{\hyperlink{dynamic__structs_8h_a5b77a013d1d343ba9f14174a517a99f5}{SMART\+\_\+\+BUFFS\+\_\+\+HANDLE\+\_\+\+INFO}}(\+\_\+\+\_\+smart\+\_\+bufs\+\_\+sys,  \+\_\+info\+\_\+in)
+\item 
+\#define \mbox{\hyperlink{dynamic__structs_8h_aa7ba0c7206b9026c8e1aa4add8a1734c}{SMART\+\_\+\+BUFFS\+\_\+\+INIT}}(\+\_\+\+\_\+smart\+\_\+bufs\+\_\+sys,  \+\_\+info\+\_\+in)
+\item 
+\#define \mbox{\hyperlink{dynamic__structs_8h_a8a526726c95a64429a60b426d08bd75c}{SMART\+\_\+\+BUFF\+\_\+\+GET}}(\+\_\+\+\_\+sys,  \+\_\+\+\_\+sz)
+\item 
+\#define \mbox{\hyperlink{dynamic__structs_8h_a5e42ddfa156f9f633685ec950ea4f841}{SMART\+\_\+\+BUFF\+\_\+\+RETURN}}(\+\_\+\+\_\+sys,  \+\_\+\+\_\+sz,  \+\_\+\+\_\+sc)
+\item 
+\#define \mbox{\hyperlink{dynamic__structs_8h_a3f90a338c3c1461723f4518a2806d0f3}{SMART\+\_\+\+BUFFS\+\_\+\+FINI}}(\+\_\+\+\_\+sys)
+\item 
+\#define \mbox{\hyperlink{dynamic__structs_8h_aea5d5d6b0d130798843b9523ac8a766e}{SMART\+\_\+\+ARRAY\+\_\+\+ALLOC}}(\+\_\+smart\+\_\+buffer\+\_\+sys,  \+\_\+smart\+\_\+array\+\_\+alloc,  \+\_\+sa\+\_\+alloc\+\_\+num\+\_\+elts\+\_\+alloc,  \+\_\+sa\+\_\+alloc\+\_\+elt\+\_\+sz)
+\item 
+\#define \mbox{\hyperlink{dynamic__structs_8h_a27ce3ddde22aa56b24f4c19fc08082aa}{SMART\+\_\+\+ARRAY\+\_\+\+FREE}}(\+\_\+smart\+\_\+buffer\+\_\+sys,  \+\_\+smart\+\_\+array)
+\item 
+\#define \mbox{\hyperlink{dynamic__structs_8h_a8da0b186a277c03aee58278097f45755}{SMART\+\_\+\+ARRAY\+\_\+\+GROW}}(\+\_\+smart\+\_\+buffer\+\_\+sys,  \+\_\+smart\+\_\+array,  \+\_\+requested\+\_\+new\+\_\+elts)
+\item 
+\#define \mbox{\hyperlink{dynamic__structs_8h_af35f2b29737faaab05a079bd901695d4}{SMART\+\_\+\+ARRAY\+\_\+\+GET\+\_\+\+ELT}}(\+\_\+smart\+\_\+buffer\+\_\+sys,  \+\_\+sa\+\_\+get,  \+\_\+sa\+\_\+get\+\_\+idx)
+\item 
+\#define \mbox{\hyperlink{dynamic__structs_8h_a17e26dd13a62054baea67d6e0e48a2ec}{SMART\+\_\+\+LIST\+\_\+\+GROW}}(\+\_\+\+\_\+smart\+\_\+buf\+\_\+sys,  \+\_\+\+\_\+smart\+\_\+list,  \+\_\+\+\_\+type,  \+\_\+\+\_\+elt)
+\item 
+\#define \mbox{\hyperlink{dynamic__structs_8h_a4f3998ca38408e84c940537936595351}{SMART\+\_\+\+LIST\+\_\+\+ALLOC}}(\+\_\+smart\+\_\+buf\+\_\+sys,  \+\_\+smart\+\_\+list,  \+\_\+num\+\_\+elts\+\_\+alloc,  \+\_\+type,  \+\_\+elt)
+\item 
+\#define \mbox{\hyperlink{dynamic__structs_8h_af683926bb2344ada269626febdb4c226}{SMART\+\_\+\+LIST\+\_\+\+FREE}}(\+\_\+smart\+\_\+buf\+\_\+sys,  \+\_\+smart\+\_\+list,  \+\_\+type,  \+\_\+elt)
+\item 
+\#define \mbox{\hyperlink{dynamic__structs_8h_aa6b87063f6fd651e83e1ae045458179b}{SMART\+\_\+\+LIST\+\_\+\+GET}}(\+\_\+smart\+\_\+buf\+\_\+sys,  \+\_\+smart\+\_\+list,  \+\_\+type,  \+\_\+elt,  \+\_\+item)
+\item 
+\#define \mbox{\hyperlink{dynamic__structs_8h_ab1f99ba1805871a079d521e8c17f6fe4}{SMART\+\_\+\+LIST\+\_\+\+RETURN}}(\+\_\+smart\+\_\+list,  \+\_\+item,  \+\_\+elt)
+\end{DoxyCompactItemize}
+\doxysubsection*{Typedefs}
+\begin{DoxyCompactItemize}
+\item 
+typedef struct \mbox{\hyperlink{structmem__chunk}{mem\+\_\+chunk}} \mbox{\hyperlink{dynamic__structs_8h_adccb9c116f47faedb3af11d17cffb42e}{mem\+\_\+chunk\+\_\+t}}
+\item 
+typedef void($\ast$ \mbox{\hyperlink{dynamic__structs_8h_aeea4cc86ba8a4d5f81e8549053a4b642}{dyn\+\_\+struct\+\_\+elt\+\_\+init\+\_\+fn}}) (void $\ast$)
+\item 
+typedef struct \mbox{\hyperlink{structsimple__list}{simple\+\_\+list}} \mbox{\hyperlink{dynamic__structs_8h_a2dbc507ba858bb998999c26be4458daa}{simple\+\_\+list\+\_\+t}}
+\begin{DoxyCompactList}\small\item\em simple\+\_\+list\+\_\+t aims at offering an alternative to ucs\+\_\+list\+\_\+link\+\_\+t without the huge performance impact associated to them. \end{DoxyCompactList}\item 
+typedef struct \mbox{\hyperlink{structdyn__array}{dyn\+\_\+array}} \mbox{\hyperlink{dynamic__structs_8h_aad9a80cfa65af5b2bc3eeb3abef9a1ed}{dyn\+\_\+array\+\_\+t}}
+\item 
+typedef struct \mbox{\hyperlink{structdyn__list}{dyn\+\_\+list}} \mbox{\hyperlink{dynamic__structs_8h_adb4673b92e39dc5bd73d30c30163a0d5}{dyn\+\_\+list\+\_\+t}}
+\item 
+typedef struct \mbox{\hyperlink{structsmart__bucket}{smart\+\_\+bucket}} \mbox{\hyperlink{dynamic__structs_8h_a72a13236b827e03ebd62708384ef94a2}{smart\+\_\+bucket\+\_\+t}}
+\item 
+typedef struct \mbox{\hyperlink{structsmart__buffers}{smart\+\_\+buffers}} \mbox{\hyperlink{dynamic__structs_8h_ac0f88b8fbe096f78b3518e8aa979c402}{smart\+\_\+buffers\+\_\+t}}
+\item 
+typedef struct \mbox{\hyperlink{structsmart__array}{smart\+\_\+array}} \mbox{\hyperlink{dynamic__structs_8h_a70bf7a47116d2e3387117c1393ed0445}{smart\+\_\+array\+\_\+t}}
+\item 
+typedef struct \mbox{\hyperlink{structsmart__list}{smart\+\_\+list}} \mbox{\hyperlink{dynamic__structs_8h_aec7c1959dcbb91eae2dca57466ab5525}{smart\+\_\+list\+\_\+t}}
+\end{DoxyCompactItemize}
+\doxysubsection*{Functions}
+\begin{DoxyCompactItemize}
+\item 
+int \mbox{\hyperlink{dynamic__structs_8h_ac8d10e09570d883b975ae8da3cbb65a7}{dynamic\+\_\+list\+\_\+return}} ()
+\end{DoxyCompactItemize}
+
+
+\doxysubsection{Macro Definition Documentation}
+\mbox{\Hypertarget{dynamic__structs_8h_a2f9d2a255e5ab8af8446b3e1990754ef}\label{dynamic__structs_8h_a2f9d2a255e5ab8af8446b3e1990754ef}} 
+\index{dynamic\_structs.h@{dynamic\_structs.h}!DEFAULT\_MEM\_CHUNKS@{DEFAULT\_MEM\_CHUNKS}}
+\index{DEFAULT\_MEM\_CHUNKS@{DEFAULT\_MEM\_CHUNKS}!dynamic\_structs.h@{dynamic\_structs.h}}
+\doxysubsubsection{\texorpdfstring{DEFAULT\_MEM\_CHUNKS}{DEFAULT\_MEM\_CHUNKS}}
+{\footnotesize\ttfamily \#define DEFAULT\+\_\+\+MEM\+\_\+\+CHUNKS~(1024)}
+
+\mbox{\Hypertarget{dynamic__structs_8h_a30c020970a3fe5fc15dfa18ac44c8077}\label{dynamic__structs_8h_a30c020970a3fe5fc15dfa18ac44c8077}} 
+\index{dynamic\_structs.h@{dynamic\_structs.h}!DYN\_ARRAY\_ALLOC@{DYN\_ARRAY\_ALLOC}}
+\index{DYN\_ARRAY\_ALLOC@{DYN\_ARRAY\_ALLOC}!dynamic\_structs.h@{dynamic\_structs.h}}
+\doxysubsubsection{\texorpdfstring{DYN\_ARRAY\_ALLOC}{DYN\_ARRAY\_ALLOC}}
+{\footnotesize\ttfamily \#define DYN\+\_\+\+ARRAY\+\_\+\+ALLOC(\begin{DoxyParamCaption}\item[{}]{\+\_\+dyn\+\_\+array\+\_\+alloc,  }\item[{}]{\+\_\+da\+\_\+alloc\+\_\+num\+\_\+elts\+\_\+alloc,  }\item[{}]{\+\_\+da\+\_\+alloc\+\_\+type }\end{DoxyParamCaption})}
+
+{\bfseries Value\+:}
+\begin{DoxyCode}{0}
+\DoxyCodeLine{    \textcolor{keywordflow}{do}                                                                                                          \(\backslash\)}
+\DoxyCodeLine{    \{                                                                                                           \(\backslash\)}
+\DoxyCodeLine{        assert(\_da\_alloc\_num\_elts\_alloc);                                                                       \(\backslash\)}
+\DoxyCodeLine{        (\_dyn\_array\_alloc)-\/>num\_elts\_alloc = \_da\_alloc\_num\_elts\_alloc;                                          \(\backslash\)}
+\DoxyCodeLine{        (\_dyn\_array\_alloc)-\/>num\_elts = \_da\_alloc\_num\_elts\_alloc;                                                \(\backslash\)}
+\DoxyCodeLine{        (\_dyn\_array\_alloc)-\/>type\_size = \textcolor{keyword}{sizeof}(\_da\_alloc\_type);                                                 \(\backslash\)}
+\DoxyCodeLine{        (\_dyn\_array\_alloc)-\/>element\_init\_fn = NULL;                                                             \(\backslash\)}
+\DoxyCodeLine{        (\_dyn\_array\_alloc)-\/>base = malloc((\_dyn\_array\_alloc)-\/>num\_elts\_alloc * (\_dyn\_array\_alloc)-\/>type\_size);  \(\backslash\)}
+\DoxyCodeLine{        assert((\_dyn\_array\_alloc)-\/>base);                                                                       \(\backslash\)}
+\DoxyCodeLine{        memset((\_dyn\_array\_alloc)-\/>base, 0, (\_dyn\_array\_alloc)-\/>num\_elts\_alloc *(\_dyn\_array\_alloc)-\/>type\_size); \(\backslash\)}
+\DoxyCodeLine{    \} \textcolor{keywordflow}{while} (0)}
+
+\end{DoxyCode}
+\mbox{\Hypertarget{dynamic__structs_8h_a0b997ed0890620e9642a0909aabda32f}\label{dynamic__structs_8h_a0b997ed0890620e9642a0909aabda32f}} 
+\index{dynamic\_structs.h@{dynamic\_structs.h}!DYN\_ARRAY\_ALLOC\_WITH\_INIT\_FN@{DYN\_ARRAY\_ALLOC\_WITH\_INIT\_FN}}
+\index{DYN\_ARRAY\_ALLOC\_WITH\_INIT\_FN@{DYN\_ARRAY\_ALLOC\_WITH\_INIT\_FN}!dynamic\_structs.h@{dynamic\_structs.h}}
+\doxysubsubsection{\texorpdfstring{DYN\_ARRAY\_ALLOC\_WITH\_INIT\_FN}{DYN\_ARRAY\_ALLOC\_WITH\_INIT\_FN}}
+{\footnotesize\ttfamily \#define DYN\+\_\+\+ARRAY\+\_\+\+ALLOC\+\_\+\+WITH\+\_\+\+INIT\+\_\+\+FN(\begin{DoxyParamCaption}\item[{}]{\+\_\+dyn\+\_\+array,  }\item[{}]{\+\_\+num\+\_\+elts\+\_\+alloc,  }\item[{}]{\+\_\+type,  }\item[{}]{\+\_\+fn }\end{DoxyParamCaption})}
+
+{\bfseries Value\+:}
+\begin{DoxyCode}{0}
+\DoxyCodeLine{    \textcolor{keywordflow}{do}                                                                             \(\backslash\)}
+\DoxyCodeLine{    \{                                                                              \(\backslash\)}
+\DoxyCodeLine{        size\_t \_da\_alloc\_x;                                                        \(\backslash\)}
+\DoxyCodeLine{        assert(\_num\_elts\_alloc);                                                   \(\backslash\)}
+\DoxyCodeLine{        (\_dyn\_array)-\/>num\_elts\_alloc = \_num\_elts\_alloc;                            \(\backslash\)}
+\DoxyCodeLine{        (\_dyn\_array)-\/>num\_elts = \_num\_elts\_alloc;                                  \(\backslash\)}
+\DoxyCodeLine{        (\_dyn\_array)-\/>element\_init\_fn = \_fn;                                       \(\backslash\)}
+\DoxyCodeLine{        (\_dyn\_array)-\/>base = malloc(\_num\_elts\_alloc * \textcolor{keyword}{sizeof}(\_type));              \(\backslash\)}
+\DoxyCodeLine{        assert((\_dyn\_array)-\/>base);                                                \(\backslash\)}
+\DoxyCodeLine{        memset((\_dyn\_array)-\/>base, 0, \_num\_elts\_alloc * \textcolor{keyword}{sizeof}(\_type));            \(\backslash\)}
+\DoxyCodeLine{        \_type *\_da\_alloc\_a = (\_type *)(\_dyn\_array)-\/>base;                          \(\backslash\)}
+\DoxyCodeLine{        for (\_da\_alloc\_x = 0; \_da\_alloc\_x < (\_dyn\_array)-\/>num\_elts; \_da\_alloc\_x++) \(\backslash\)}
+\DoxyCodeLine{        \{                                                                          \(\backslash\)}
+\DoxyCodeLine{            \_fn(\_da\_alloc\_a[\_da\_alloc\_x]);                                         \(\backslash\)}
+\DoxyCodeLine{        \}                                                                          \(\backslash\)}
+\DoxyCodeLine{    \} \textcolor{keywordflow}{while} (0)}
+
+\end{DoxyCode}
+\mbox{\Hypertarget{dynamic__structs_8h_a6997ed8a5a346a674e08a4f58e5e96fb}\label{dynamic__structs_8h_a6997ed8a5a346a674e08a4f58e5e96fb}} 
+\index{dynamic\_structs.h@{dynamic\_structs.h}!DYN\_ARRAY\_FREE@{DYN\_ARRAY\_FREE}}
+\index{DYN\_ARRAY\_FREE@{DYN\_ARRAY\_FREE}!dynamic\_structs.h@{dynamic\_structs.h}}
+\doxysubsubsection{\texorpdfstring{DYN\_ARRAY\_FREE}{DYN\_ARRAY\_FREE}}
+{\footnotesize\ttfamily \#define DYN\+\_\+\+ARRAY\+\_\+\+FREE(\begin{DoxyParamCaption}\item[{}]{\+\_\+dyn\+\_\+array }\end{DoxyParamCaption})}
+
+{\bfseries Value\+:}
+\begin{DoxyCode}{0}
+\DoxyCodeLine{    \textcolor{keywordflow}{do}                                            \(\backslash\)}
+\DoxyCodeLine{    \{                                             \(\backslash\)}
+\DoxyCodeLine{        if ((\_dyn\_array)-\/>num\_elts > 0)           \(\backslash\)}
+\DoxyCodeLine{        \{                                         \(\backslash\)}
+\DoxyCodeLine{            if ((\_dyn\_array)-\/>base)               \(\backslash\)}
+\DoxyCodeLine{            \{                                     \(\backslash\)}
+\DoxyCodeLine{                free((\_dyn\_array)-\/>base);         \(\backslash\)}
+\DoxyCodeLine{                (\_dyn\_array)-\/>base = NULL;        \(\backslash\)}
+\DoxyCodeLine{            \}                                     \(\backslash\)}
+\DoxyCodeLine{            (\_dyn\_array)-\/>base = NULL;            \(\backslash\)}
+\DoxyCodeLine{            (\_dyn\_array)-\/>element\_init\_fn = NULL; \(\backslash\)}
+\DoxyCodeLine{            (\_dyn\_array)-\/>num\_elts = 0;           \(\backslash\)}
+\DoxyCodeLine{        \}                                         \(\backslash\)}
+\DoxyCodeLine{    \} \textcolor{keywordflow}{while} (0)}
+
+\end{DoxyCode}
+\mbox{\Hypertarget{dynamic__structs_8h_a0e5fa3cb758f3eefad714235c1fef266}\label{dynamic__structs_8h_a0e5fa3cb758f3eefad714235c1fef266}} 
+\index{dynamic\_structs.h@{dynamic\_structs.h}!DYN\_ARRAY\_GET\_ELT@{DYN\_ARRAY\_GET\_ELT}}
+\index{DYN\_ARRAY\_GET\_ELT@{DYN\_ARRAY\_GET\_ELT}!dynamic\_structs.h@{dynamic\_structs.h}}
+\doxysubsubsection{\texorpdfstring{DYN\_ARRAY\_GET\_ELT}{DYN\_ARRAY\_GET\_ELT}}
+{\footnotesize\ttfamily \#define DYN\+\_\+\+ARRAY\+\_\+\+GET\+\_\+\+ELT(\begin{DoxyParamCaption}\item[{}]{\+\_\+dyn\+\_\+array,  }\item[{}]{\+\_\+idx,  }\item[{}]{\+\_\+type }\end{DoxyParamCaption})}
+
+{\bfseries Value\+:}
+\begin{DoxyCode}{0}
+\DoxyCodeLine{    (\{ \(\backslash\)}
+\DoxyCodeLine{    assert(\_dyn\_array);                               \(\backslash\)}
+\DoxyCodeLine{    assert((\_dyn\_array)-\/>num\_elts);                   \(\backslash\)}
+\DoxyCodeLine{    \_type *\_elt = NULL;                               \(\backslash\)}
+\DoxyCodeLine{    if ((\_dyn\_array)-\/>num\_elts <= \_idx)               \(\backslash\)}
+\DoxyCodeLine{    \{                                                 \(\backslash\)}
+\DoxyCodeLine{        DYN\_ARRAY\_GROW(\_dyn\_array, \_type, \_idx);      \(\backslash\)}
+\DoxyCodeLine{    \}                                                 \(\backslash\)}
+\DoxyCodeLine{    \_type *\_\_ptr = (\_type *)((\_dyn\_array)-\/>base);     \(\backslash\)}
+\DoxyCodeLine{    \_elt = (\_type *)\&(\_\_ptr[\_idx]);                   \(\backslash\)}
+\DoxyCodeLine{    \_elt;                                             \(\backslash\)}
+\DoxyCodeLine{\})}
+
+\end{DoxyCode}
+\mbox{\Hypertarget{dynamic__structs_8h_ad9ab0dff8b6029315c1257b1ebf7c7aa}\label{dynamic__structs_8h_ad9ab0dff8b6029315c1257b1ebf7c7aa}} 
+\index{dynamic\_structs.h@{dynamic\_structs.h}!DYN\_ARRAY\_GROW@{DYN\_ARRAY\_GROW}}
+\index{DYN\_ARRAY\_GROW@{DYN\_ARRAY\_GROW}!dynamic\_structs.h@{dynamic\_structs.h}}
+\doxysubsubsection{\texorpdfstring{DYN\_ARRAY\_GROW}{DYN\_ARRAY\_GROW}}
+{\footnotesize\ttfamily \#define DYN\+\_\+\+ARRAY\+\_\+\+GROW(\begin{DoxyParamCaption}\item[{}]{\+\_\+dyn\+\_\+array,  }\item[{}]{\+\_\+type,  }\item[{}]{\+\_\+size }\end{DoxyParamCaption})}
+
+{\bfseries Value\+:}
+\begin{DoxyCode}{0}
+\DoxyCodeLine{    \textcolor{keywordflow}{do}                                                                                                  \(\backslash\)}
+\DoxyCodeLine{    \{                                                                                                   \(\backslash\)}
+\DoxyCodeLine{        size\_t \_initial\_num\_elts, \_new\_num\_elts;                                                        \(\backslash\)}
+\DoxyCodeLine{        \_initial\_num\_elts = \_new\_num\_elts = (\_dyn\_array)-\/>num\_elts;                                     \(\backslash\)}
+\DoxyCodeLine{        while (\_new\_num\_elts * \textcolor{keyword}{sizeof}(\_type) <= \_size * \textcolor{keyword}{sizeof}(\_type))                                  \(\backslash\)}
+\DoxyCodeLine{        \{                                                                                               \(\backslash\)}
+\DoxyCodeLine{            \_new\_num\_elts += (\_dyn\_array)-\/>num\_elts\_alloc;                                              \(\backslash\)}
+\DoxyCodeLine{        \}                                                                                               \(\backslash\)}
+\DoxyCodeLine{        (\_dyn\_array)-\/>base = realloc((\_dyn\_array)-\/>base, \_new\_num\_elts * \textcolor{keyword}{sizeof}(\_type));                \(\backslash\)}
+\DoxyCodeLine{        assert((\_dyn\_array)-\/>base);                                                                     \(\backslash\)}
+\DoxyCodeLine{        char *\_start = (\textcolor{keywordtype}{char} *)(((ptrdiff\_t)((\_dyn\_array)-\/>base)) + \_initial\_num\_elts * \textcolor{keyword}{sizeof}(\_type)); \(\backslash\)}
+\DoxyCodeLine{        memset(\_start, 0, (\_new\_num\_elts -\/ \_initial\_num\_elts) * \textcolor{keyword}{sizeof}(\_type));                         \(\backslash\)}
+\DoxyCodeLine{        if ((\_dyn\_array)-\/>element\_init\_fn != NULL)                                                      \(\backslash\)}
+\DoxyCodeLine{        \{                                                                                               \(\backslash\)}
+\DoxyCodeLine{            size\_t \_x;                                                                                  \(\backslash\)}
+\DoxyCodeLine{            \_type *\_a = (\_type *)\_start;                                                                \(\backslash\)}
+\DoxyCodeLine{            for (\_x = 0; \_x < \_new\_num\_elts -\/ \_initial\_num\_elts; \_x++)                                  \(\backslash\)}
+\DoxyCodeLine{            \{                                                                                           \(\backslash\)}
+\DoxyCodeLine{                (\_dyn\_array)-\/>element\_init\_fn(\&(\_a[\_initial\_num\_elts + \_x]));                           \(\backslash\)}
+\DoxyCodeLine{            \}                                                                                           \(\backslash\)}
+\DoxyCodeLine{        \}                                                                                               \(\backslash\)}
+\DoxyCodeLine{        (\_dyn\_array)-\/>num\_elts = \_new\_num\_elts;                                                         \(\backslash\)}
+\DoxyCodeLine{    \} \textcolor{keywordflow}{while} (0)}
+
+\end{DoxyCode}
+\mbox{\Hypertarget{dynamic__structs_8h_ae0a88d7e3b0143761453cd49591daeff}\label{dynamic__structs_8h_ae0a88d7e3b0143761453cd49591daeff}} 
+\index{dynamic\_structs.h@{dynamic\_structs.h}!DYN\_ARRAY\_SET\_ELT@{DYN\_ARRAY\_SET\_ELT}}
+\index{DYN\_ARRAY\_SET\_ELT@{DYN\_ARRAY\_SET\_ELT}!dynamic\_structs.h@{dynamic\_structs.h}}
+\doxysubsubsection{\texorpdfstring{DYN\_ARRAY\_SET\_ELT}{DYN\_ARRAY\_SET\_ELT}}
+{\footnotesize\ttfamily \#define DYN\+\_\+\+ARRAY\+\_\+\+SET\+\_\+\+ELT(\begin{DoxyParamCaption}\item[{}]{\+\_\+dyn\+\_\+array,  }\item[{}]{\+\_\+idx,  }\item[{}]{\+\_\+type,  }\item[{}]{\+\_\+elt }\end{DoxyParamCaption})}
+
+{\bfseries Value\+:}
+\begin{DoxyCode}{0}
+\DoxyCodeLine{    \textcolor{keywordflow}{do}                                                   \(\backslash\)}
+\DoxyCodeLine{    \{                                                    \(\backslash\)}
+\DoxyCodeLine{        assert(\_dyn\_array);                              \(\backslash\)}
+\DoxyCodeLine{        if ((\_dyn\_array)-\/>num\_elts >= \_idx)              \(\backslash\)}
+\DoxyCodeLine{        \{                                                \(\backslash\)}
+\DoxyCodeLine{            DYN\_ARRAY\_GROW(\_dyn\_array, \_type, \_idx);     \(\backslash\)}
+\DoxyCodeLine{        \}                                                \(\backslash\)}
+\DoxyCodeLine{        \_type *\_ptr = (\_type *)((\_dyn\_array)-\/>base);     \(\backslash\)}
+\DoxyCodeLine{        memcpy(\&(\_ptr[\_idx]), \_elt, \textcolor{keyword}{sizeof}(\_idx));       \(\backslash\)}
+\DoxyCodeLine{    \} \textcolor{keywordflow}{while} (0)}
+
+\end{DoxyCode}
+\mbox{\Hypertarget{dynamic__structs_8h_ac097651589ade85a7d03c25a6c925c2b}\label{dynamic__structs_8h_ac097651589ade85a7d03c25a6c925c2b}} 
+\index{dynamic\_structs.h@{dynamic\_structs.h}!DYN\_LIST\_ALLOC@{DYN\_LIST\_ALLOC}}
+\index{DYN\_LIST\_ALLOC@{DYN\_LIST\_ALLOC}!dynamic\_structs.h@{dynamic\_structs.h}}
+\doxysubsubsection{\texorpdfstring{DYN\_LIST\_ALLOC}{DYN\_LIST\_ALLOC}}
+{\footnotesize\ttfamily \#define DYN\+\_\+\+LIST\+\_\+\+ALLOC(\begin{DoxyParamCaption}\item[{}]{\+\_\+dyn\+\_\+list,  }\item[{}]{\+\_\+num\+\_\+elts\+\_\+alloc,  }\item[{}]{\+\_\+type,  }\item[{}]{\+\_\+elt }\end{DoxyParamCaption})}
+
+{\bfseries Value\+:}
+\begin{DoxyCode}{0}
+\DoxyCodeLine{    \textcolor{keywordflow}{do}                                                                                    \(\backslash\)}
+\DoxyCodeLine{    \{                                                                                     \(\backslash\)}
+\DoxyCodeLine{        (\_dyn\_list) = malloc(\textcolor{keyword}{sizeof}(\mbox{\hyperlink{structdyn__list}{dyn\_list\_t}}));                                         \(\backslash\)}
+\DoxyCodeLine{        if ((\_dyn\_list) != NULL)                                                          \(\backslash\)}
+\DoxyCodeLine{        \{                                                                                 \(\backslash\)}
+\DoxyCodeLine{            DYN\_ARRAY\_ALLOC(\&((\_dyn\_list)-\/>mem\_chunks), \mbox{\hyperlink{dynamic__structs_8h_a2f9d2a255e5ab8af8446b3e1990754ef}{DEFAULT\_MEM\_CHUNKS}}, \mbox{\hyperlink{structmem__chunk}{mem\_chunk\_t}}); \(\backslash\)}
+\DoxyCodeLine{            (\_dyn\_list)-\/>num\_mem\_chunks = 0;                                              \(\backslash\)}
+\DoxyCodeLine{            (\_dyn\_list)-\/>num\_elts = 0;                                                    \(\backslash\)}
+\DoxyCodeLine{            (\_dyn\_list)-\/>num\_elts\_alloc = \_num\_elts\_alloc;                                \(\backslash\)}
+\DoxyCodeLine{            (\_dyn\_list)-\/>element\_init\_cb = NULL;                                          \(\backslash\)}
+\DoxyCodeLine{            SIMPLE\_LIST\_INIT(\&((\_dyn\_list)-\/>list));                                       \(\backslash\)}
+\DoxyCodeLine{            GROW\_DYN\_LIST((\_dyn\_list), \_type, \_elt);                                      \(\backslash\)}
+\DoxyCodeLine{        \}                                                                                 \(\backslash\)}
+\DoxyCodeLine{        else                                                                              \(\backslash\)}
+\DoxyCodeLine{        \{                                                                                 \(\backslash\)}
+\DoxyCodeLine{            fprintf(stderr, \textcolor{stringliteral}{"{}[ERROR] unable to allocate dynamic list\(\backslash\)n"{}});                 \(\backslash\)}
+\DoxyCodeLine{            (\_dyn\_list) = NULL;                                                           \(\backslash\)}
+\DoxyCodeLine{        \}                                                                                 \(\backslash\)}
+\DoxyCodeLine{    \} \textcolor{keywordflow}{while} (0)}
+
+\end{DoxyCode}
+\mbox{\Hypertarget{dynamic__structs_8h_aec7ceee9b07f73cbf9211fe5ce0b3872}\label{dynamic__structs_8h_aec7ceee9b07f73cbf9211fe5ce0b3872}} 
+\index{dynamic\_structs.h@{dynamic\_structs.h}!DYN\_LIST\_ALLOC\_WITH\_INIT\_CALLBACK@{DYN\_LIST\_ALLOC\_WITH\_INIT\_CALLBACK}}
+\index{DYN\_LIST\_ALLOC\_WITH\_INIT\_CALLBACK@{DYN\_LIST\_ALLOC\_WITH\_INIT\_CALLBACK}!dynamic\_structs.h@{dynamic\_structs.h}}
+\doxysubsubsection{\texorpdfstring{DYN\_LIST\_ALLOC\_WITH\_INIT\_CALLBACK}{DYN\_LIST\_ALLOC\_WITH\_INIT\_CALLBACK}}
+{\footnotesize\ttfamily \#define DYN\+\_\+\+LIST\+\_\+\+ALLOC\+\_\+\+WITH\+\_\+\+INIT\+\_\+\+CALLBACK(\begin{DoxyParamCaption}\item[{}]{\+\_\+dyn\+\_\+list,  }\item[{}]{\+\_\+num\+\_\+elts\+\_\+alloc,  }\item[{}]{\+\_\+type,  }\item[{}]{\+\_\+elt,  }\item[{}]{\+\_\+cb }\end{DoxyParamCaption})}
+
+{\bfseries Value\+:}
+\begin{DoxyCode}{0}
+\DoxyCodeLine{    \textcolor{keywordflow}{do}                                                                                    \(\backslash\)}
+\DoxyCodeLine{    \{                                                                                     \(\backslash\)}
+\DoxyCodeLine{        (\_dyn\_list) = malloc(\textcolor{keyword}{sizeof}(\mbox{\hyperlink{structdyn__list}{dyn\_list\_t}}));                                         \(\backslash\)}
+\DoxyCodeLine{        if ((\_dyn\_list) != NULL)                                                          \(\backslash\)}
+\DoxyCodeLine{        \{                                                                                 \(\backslash\)}
+\DoxyCodeLine{            DYN\_ARRAY\_ALLOC(\&((\_dyn\_list)-\/>mem\_chunks), \mbox{\hyperlink{dynamic__structs_8h_a2f9d2a255e5ab8af8446b3e1990754ef}{DEFAULT\_MEM\_CHUNKS}}, \mbox{\hyperlink{structmem__chunk}{mem\_chunk\_t}}); \(\backslash\)}
+\DoxyCodeLine{            (\_dyn\_list)-\/>num\_mem\_chunks = 0;                                              \(\backslash\)}
+\DoxyCodeLine{            (\_dyn\_list)-\/>num\_elts = 0;                                                    \(\backslash\)}
+\DoxyCodeLine{            (\_dyn\_list)-\/>num\_elts\_alloc = \_num\_elts\_alloc;                                \(\backslash\)}
+\DoxyCodeLine{            (\_dyn\_list)-\/>element\_init\_cb = \_cb;                                           \(\backslash\)}
+\DoxyCodeLine{            SIMPLE\_LIST\_INIT(\&((\_dyn\_list)-\/>list));                                       \(\backslash\)}
+\DoxyCodeLine{            GROW\_DYN\_LIST((\_dyn\_list), \_type, \_elt);                                      \(\backslash\)}
+\DoxyCodeLine{        \}                                                                                 \(\backslash\)}
+\DoxyCodeLine{        else                                                                              \(\backslash\)}
+\DoxyCodeLine{        \{                                                                                 \(\backslash\)}
+\DoxyCodeLine{            fprintf(stderr, \textcolor{stringliteral}{"{}[ERROR] unable to allocate dynamic list\(\backslash\)n"{}});                 \(\backslash\)}
+\DoxyCodeLine{            (\_dyn\_list) = NULL;                                                           \(\backslash\)}
+\DoxyCodeLine{        \}                                                                                 \(\backslash\)}
+\DoxyCodeLine{    \} \textcolor{keywordflow}{while} (0)}
+
+\end{DoxyCode}
+\mbox{\Hypertarget{dynamic__structs_8h_ac466681d1d9f603a5fc05a987df6b62c}\label{dynamic__structs_8h_ac466681d1d9f603a5fc05a987df6b62c}} 
+\index{dynamic\_structs.h@{dynamic\_structs.h}!DYN\_LIST\_FREE@{DYN\_LIST\_FREE}}
+\index{DYN\_LIST\_FREE@{DYN\_LIST\_FREE}!dynamic\_structs.h@{dynamic\_structs.h}}
+\doxysubsubsection{\texorpdfstring{DYN\_LIST\_FREE}{DYN\_LIST\_FREE}}
+{\footnotesize\ttfamily \#define DYN\+\_\+\+LIST\+\_\+\+FREE(\begin{DoxyParamCaption}\item[{}]{\+\_\+dyn\+\_\+list,  }\item[{}]{\+\_\+type,  }\item[{}]{\+\_\+elt }\end{DoxyParamCaption})}
+
+{\bfseries Value\+:}
+\begin{DoxyCode}{0}
+\DoxyCodeLine{    \textcolor{keywordflow}{do}                                                                                  \(\backslash\)}
+\DoxyCodeLine{    \{                                                                                   \(\backslash\)}
+\DoxyCodeLine{        \textcolor{comment}{/* Release the list */}                                                          \(\backslash\)}
+\DoxyCodeLine{        while (!\mbox{\hyperlink{dynamic__structs_8h_a03d0ee90292df284535b85801d6ce4a9}{SIMPLE\_LIST\_IS\_EMPTY}}(\&((\_dyn\_list)-\/>list)))                             \(\backslash\)}
+\DoxyCodeLine{        \{                                                                               \(\backslash\)}
+\DoxyCodeLine{            \_type *\_item = \mbox{\hyperlink{dynamic__structs_8h_aa747dd8f46a6843008a3535e5871e2e8}{SIMPLE\_LIST\_EXTRACT\_HEAD}}(\&((\_dyn\_list)-\/>list), \_type, \_elt); \(\backslash\)}
+\DoxyCodeLine{            assert(\_item);                                                              \(\backslash\)}
+\DoxyCodeLine{        \}                                                                               \(\backslash\)}
+\DoxyCodeLine{        \textcolor{comment}{/* Free the underlying memory chunks */}                                         \(\backslash\)}
+\DoxyCodeLine{        size\_t \_i;                                                                      \(\backslash\)}
+\DoxyCodeLine{        for (\_i = 0; \_i < (\_dyn\_list)-\/>num\_mem\_chunks; \_i++)                            \(\backslash\)}
+\DoxyCodeLine{        \{                                                                               \(\backslash\)}
+\DoxyCodeLine{            mem\_chunk\_t *\_mem\_chunk\_ptr = \mbox{\hyperlink{dynamic__structs_8h_a0e5fa3cb758f3eefad714235c1fef266}{DYN\_ARRAY\_GET\_ELT}}(\&((\_dyn\_list)-\/>mem\_chunks), \(\backslash\)}
+\DoxyCodeLine{                                                            \_i,                         \(\backslash\)}
+\DoxyCodeLine{                                                            \mbox{\hyperlink{structmem__chunk}{mem\_chunk\_t}});               \(\backslash\)}
+\DoxyCodeLine{            assert(\_mem\_chunk\_ptr);                                                     \(\backslash\)}
+\DoxyCodeLine{            free(\_mem\_chunk\_ptr-\/>ptr);                                                  \(\backslash\)}
+\DoxyCodeLine{            \_mem\_chunk\_ptr-\/>ptr = NULL;                                                 \(\backslash\)}
+\DoxyCodeLine{        \}                                                                               \(\backslash\)}
+\DoxyCodeLine{        DYN\_ARRAY\_FREE(\&((\_dyn\_list)-\/>mem\_chunks));                                     \(\backslash\)}
+\DoxyCodeLine{        free(\_dyn\_list);                                                                \(\backslash\)}
+\DoxyCodeLine{        \_dyn\_list = NULL;                                                               \(\backslash\)}
+\DoxyCodeLine{    \} \textcolor{keywordflow}{while} (0)}
+
+\end{DoxyCode}
+\mbox{\Hypertarget{dynamic__structs_8h_a167541942aab89135e9da3893d2043db}\label{dynamic__structs_8h_a167541942aab89135e9da3893d2043db}} 
+\index{dynamic\_structs.h@{dynamic\_structs.h}!DYN\_LIST\_GET@{DYN\_LIST\_GET}}
+\index{DYN\_LIST\_GET@{DYN\_LIST\_GET}!dynamic\_structs.h@{dynamic\_structs.h}}
+\doxysubsubsection{\texorpdfstring{DYN\_LIST\_GET}{DYN\_LIST\_GET}}
+{\footnotesize\ttfamily \#define DYN\+\_\+\+LIST\+\_\+\+GET(\begin{DoxyParamCaption}\item[{}]{\+\_\+dyn\+\_\+list,  }\item[{}]{\+\_\+type,  }\item[{}]{\+\_\+elt,  }\item[{}]{\+\_\+item }\end{DoxyParamCaption})}
+
+{\bfseries Value\+:}
+\begin{DoxyCode}{0}
+\DoxyCodeLine{    \textcolor{keywordflow}{do}                                                                       \(\backslash\)}
+\DoxyCodeLine{    \{                                                                        \(\backslash\)}
+\DoxyCodeLine{        if (\mbox{\hyperlink{dynamic__structs_8h_a03d0ee90292df284535b85801d6ce4a9}{SIMPLE\_LIST\_IS\_EMPTY}}(\&((\_dyn\_list)-\/>list)))                      \(\backslash\)}
+\DoxyCodeLine{        \{                                                                    \(\backslash\)}
+\DoxyCodeLine{            GROW\_DYN\_LIST(\_dyn\_list, \_type, \_elt);                           \(\backslash\)}
+\DoxyCodeLine{        \}                                                                    \(\backslash\)}
+\DoxyCodeLine{        \_item = \mbox{\hyperlink{dynamic__structs_8h_aa747dd8f46a6843008a3535e5871e2e8}{SIMPLE\_LIST\_EXTRACT\_HEAD}}(\&((\_dyn\_list)-\/>list), \_type, \_elt); \(\backslash\)}
+\DoxyCodeLine{    \} \textcolor{keywordflow}{while} (0)}
+
+\end{DoxyCode}
+\mbox{\Hypertarget{dynamic__structs_8h_a90e5a235b55f9d19d453036f405f8c66}\label{dynamic__structs_8h_a90e5a235b55f9d19d453036f405f8c66}} 
+\index{dynamic\_structs.h@{dynamic\_structs.h}!DYN\_LIST\_RETURN@{DYN\_LIST\_RETURN}}
+\index{DYN\_LIST\_RETURN@{DYN\_LIST\_RETURN}!dynamic\_structs.h@{dynamic\_structs.h}}
+\doxysubsubsection{\texorpdfstring{DYN\_LIST\_RETURN}{DYN\_LIST\_RETURN}}
+{\footnotesize\ttfamily \#define DYN\+\_\+\+LIST\+\_\+\+RETURN(\begin{DoxyParamCaption}\item[{}]{\+\_\+dyn\+\_\+list,  }\item[{}]{\+\_\+item,  }\item[{}]{\+\_\+elt }\end{DoxyParamCaption})}
+
+{\bfseries Value\+:}
+\begin{DoxyCode}{0}
+\DoxyCodeLine{    \textcolor{keywordflow}{do}                                                             \(\backslash\)}
+\DoxyCodeLine{    \{                                                              \(\backslash\)}
+\DoxyCodeLine{        SIMPLE\_LIST\_PREPEND(\&((\_dyn\_list)-\/>list), \&(\_item-\/>\_elt)); \(\backslash\)}
+\DoxyCodeLine{    \} \textcolor{keywordflow}{while} (0)}
+
+\end{DoxyCode}
+\mbox{\Hypertarget{dynamic__structs_8h_ae8c9cbd658588dc6c4b0de828949b174}\label{dynamic__structs_8h_ae8c9cbd658588dc6c4b0de828949b174}} 
+\index{dynamic\_structs.h@{dynamic\_structs.h}!GROW\_DYN\_LIST@{GROW\_DYN\_LIST}}
+\index{GROW\_DYN\_LIST@{GROW\_DYN\_LIST}!dynamic\_structs.h@{dynamic\_structs.h}}
+\doxysubsubsection{\texorpdfstring{GROW\_DYN\_LIST}{GROW\_DYN\_LIST}}
+{\footnotesize\ttfamily \#define GROW\+\_\+\+DYN\+\_\+\+LIST(\begin{DoxyParamCaption}\item[{}]{\+\_\+\+\_\+dyn\+\_\+list,  }\item[{}]{\+\_\+\+\_\+type,  }\item[{}]{\+\_\+\+\_\+elt }\end{DoxyParamCaption})}
+
+\mbox{\Hypertarget{dynamic__structs_8h_aa9503171fab15f114566fb3774b65764}\label{dynamic__structs_8h_aa9503171fab15f114566fb3774b65764}} 
+\index{dynamic\_structs.h@{dynamic\_structs.h}!RESET\_SMART\_BUCKET@{RESET\_SMART\_BUCKET}}
+\index{RESET\_SMART\_BUCKET@{RESET\_SMART\_BUCKET}!dynamic\_structs.h@{dynamic\_structs.h}}
+\doxysubsubsection{\texorpdfstring{RESET\_SMART\_BUCKET}{RESET\_SMART\_BUCKET}}
+{\footnotesize\ttfamily \#define RESET\+\_\+\+SMART\+\_\+\+BUCKET(\begin{DoxyParamCaption}\item[{}]{\+\_\+\+\_\+sb }\end{DoxyParamCaption})}
+
+{\bfseries Value\+:}
+\begin{DoxyCode}{0}
+\DoxyCodeLine{    \textcolor{keywordflow}{do}                                     \(\backslash\)}
+\DoxyCodeLine{    \{                                      \(\backslash\)}
+\DoxyCodeLine{        (\_\_sb)-\/>sys = NULL;                \(\backslash\)}
+\DoxyCodeLine{        (\_\_sb)-\/>initial\_size = 0;          \(\backslash\)}
+\DoxyCodeLine{        (\_\_sb)-\/>min\_size = 0;              \(\backslash\)}
+\DoxyCodeLine{        (\_\_sb)-\/>max\_size = 0;              \(\backslash\)}
+\DoxyCodeLine{        SIMPLE\_LIST\_INIT(\&((\_\_sb)-\/>pool)); \(\backslash\)}
+\DoxyCodeLine{    \} \textcolor{keywordflow}{while} (0)}
+
+\end{DoxyCode}
+\mbox{\Hypertarget{dynamic__structs_8h_ae4ffb8055b489741e9a93b10cd6649c7}\label{dynamic__structs_8h_ae4ffb8055b489741e9a93b10cd6649c7}} 
+\index{dynamic\_structs.h@{dynamic\_structs.h}!RESET\_SMART\_CHUNK@{RESET\_SMART\_CHUNK}}
+\index{RESET\_SMART\_CHUNK@{RESET\_SMART\_CHUNK}!dynamic\_structs.h@{dynamic\_structs.h}}
+\doxysubsubsection{\texorpdfstring{RESET\_SMART\_CHUNK}{RESET\_SMART\_CHUNK}}
+{\footnotesize\ttfamily \#define RESET\+\_\+\+SMART\+\_\+\+CHUNK(\begin{DoxyParamCaption}\item[{}]{\+\_\+\+\_\+sc }\end{DoxyParamCaption})}
+
+{\bfseries Value\+:}
+\begin{DoxyCode}{0}
+\DoxyCodeLine{    \textcolor{keywordflow}{do}                               \(\backslash\)}
+\DoxyCodeLine{    \{                                \(\backslash\)}
+\DoxyCodeLine{        (\_\_sc)-\/>parent\_chunk = NULL; \(\backslash\)}
+\DoxyCodeLine{        (\_\_sc)-\/>prev = NULL;         \(\backslash\)}
+\DoxyCodeLine{        (\_\_sc)-\/>base = NULL;         \(\backslash\)}
+\DoxyCodeLine{        (\_\_sc)-\/>size = 0;            \(\backslash\)}
+\DoxyCodeLine{        (\_\_sc)-\/>in\_use = \textcolor{keyword}{false};      \(\backslash\)}
+\DoxyCodeLine{    \} \textcolor{keywordflow}{while} (0)}
+
+\end{DoxyCode}
+\mbox{\Hypertarget{dynamic__structs_8h_a5c47371700683a1585791e86be1fdb23}\label{dynamic__structs_8h_a5c47371700683a1585791e86be1fdb23}} 
+\index{dynamic\_structs.h@{dynamic\_structs.h}!SIMPLE\_LIST\_DEL@{SIMPLE\_LIST\_DEL}}
+\index{SIMPLE\_LIST\_DEL@{SIMPLE\_LIST\_DEL}!dynamic\_structs.h@{dynamic\_structs.h}}
+\doxysubsubsection{\texorpdfstring{SIMPLE\_LIST\_DEL}{SIMPLE\_LIST\_DEL}}
+{\footnotesize\ttfamily \#define SIMPLE\+\_\+\+LIST\+\_\+\+DEL(\begin{DoxyParamCaption}\item[{}]{\+\_\+\+\_\+sl\+\_\+del,  }\item[{}]{\+\_\+sl\+\_\+item }\end{DoxyParamCaption})}
+
+{\bfseries Value\+:}
+\begin{DoxyCode}{0}
+\DoxyCodeLine{    \textcolor{keywordflow}{do}                                      \(\backslash\)}
+\DoxyCodeLine{    \{                                       \(\backslash\)}
+\DoxyCodeLine{        ucs\_list\_del(\_sl\_item);             \(\backslash\)}
+\DoxyCodeLine{        (\_\_sl\_del)-\/>length-\/-\/;               \(\backslash\)}
+\DoxyCodeLine{    \} \textcolor{keywordflow}{while} (0)}
+
+\end{DoxyCode}
+\mbox{\Hypertarget{dynamic__structs_8h_aa747dd8f46a6843008a3535e5871e2e8}\label{dynamic__structs_8h_aa747dd8f46a6843008a3535e5871e2e8}} 
+\index{dynamic\_structs.h@{dynamic\_structs.h}!SIMPLE\_LIST\_EXTRACT\_HEAD@{SIMPLE\_LIST\_EXTRACT\_HEAD}}
+\index{SIMPLE\_LIST\_EXTRACT\_HEAD@{SIMPLE\_LIST\_EXTRACT\_HEAD}!dynamic\_structs.h@{dynamic\_structs.h}}
+\doxysubsubsection{\texorpdfstring{SIMPLE\_LIST\_EXTRACT\_HEAD}{SIMPLE\_LIST\_EXTRACT\_HEAD}}
+{\footnotesize\ttfamily \#define SIMPLE\+\_\+\+LIST\+\_\+\+EXTRACT\+\_\+\+HEAD(\begin{DoxyParamCaption}\item[{}]{\+\_\+sl\+\_\+eh,  }\item[{}]{\+\_\+sl\+\_\+type,  }\item[{}]{\+\_\+sl\+\_\+item }\end{DoxyParamCaption})}
+
+{\bfseries Value\+:}
+\begin{DoxyCode}{0}
+\DoxyCodeLine{    (\{                      \(\backslash\)}
+\DoxyCodeLine{    \_sl\_type *\_sl\_elt = NULL;                                                        \(\backslash\)}
+\DoxyCodeLine{    \_sl\_elt = ucs\_list\_extract\_head(\&((\_sl\_eh)-\/>internal\_list), \_sl\_type, \_sl\_item); \(\backslash\)}
+\DoxyCodeLine{    (\_sl\_eh)-\/>length-\/-\/;                                                              \(\backslash\)}
+\DoxyCodeLine{    \_sl\_elt;                                                                         \(\backslash\)}
+\DoxyCodeLine{\})}
+
+\end{DoxyCode}
+\mbox{\Hypertarget{dynamic__structs_8h_aacc38e14e7ac5ad65e3730768d9d1c28}\label{dynamic__structs_8h_aacc38e14e7ac5ad65e3730768d9d1c28}} 
+\index{dynamic\_structs.h@{dynamic\_structs.h}!SIMPLE\_LIST\_FOR\_EACH@{SIMPLE\_LIST\_FOR\_EACH}}
+\index{SIMPLE\_LIST\_FOR\_EACH@{SIMPLE\_LIST\_FOR\_EACH}!dynamic\_structs.h@{dynamic\_structs.h}}
+\doxysubsubsection{\texorpdfstring{SIMPLE\_LIST\_FOR\_EACH}{SIMPLE\_LIST\_FOR\_EACH}}
+{\footnotesize\ttfamily \#define SIMPLE\+\_\+\+LIST\+\_\+\+FOR\+\_\+\+EACH(\begin{DoxyParamCaption}\item[{}]{\+\_\+\+\_\+sl\+\_\+cur,  }\item[{}]{\+\_\+\+\_\+sl\+\_\+next,  }\item[{}]{\+\_\+\+\_\+sl,  }\item[{}]{\+\_\+\+\_\+elt }\end{DoxyParamCaption})~    ucs\+\_\+list\+\_\+for\+\_\+each\+\_\+safe(\+\_\+\+\_\+sl\+\_\+cur, \+\_\+\+\_\+sl\+\_\+next, \&((\+\_\+\+\_\+sl)-\/$>$internal\+\_\+list), \+\_\+\+\_\+elt)}
+
+\mbox{\Hypertarget{dynamic__structs_8h_a7ecb72750777ed28516b2b9843c233ab}\label{dynamic__structs_8h_a7ecb72750777ed28516b2b9843c233ab}} 
+\index{dynamic\_structs.h@{dynamic\_structs.h}!SIMPLE\_LIST\_INIT@{SIMPLE\_LIST\_INIT}}
+\index{SIMPLE\_LIST\_INIT@{SIMPLE\_LIST\_INIT}!dynamic\_structs.h@{dynamic\_structs.h}}
+\doxysubsubsection{\texorpdfstring{SIMPLE\_LIST\_INIT}{SIMPLE\_LIST\_INIT}}
+{\footnotesize\ttfamily \#define SIMPLE\+\_\+\+LIST\+\_\+\+INIT(\begin{DoxyParamCaption}\item[{}]{\+\_\+simple\+\_\+list\+\_\+to\+\_\+init }\end{DoxyParamCaption})}
+
+{\bfseries Value\+:}
+\begin{DoxyCode}{0}
+\DoxyCodeLine{    \textcolor{keywordflow}{do}                                                                \(\backslash\)}
+\DoxyCodeLine{    \{                                                                 \(\backslash\)}
+\DoxyCodeLine{        ucs\_list\_head\_init(\&((\_simple\_list\_to\_init)-\/>internal\_list)); \(\backslash\)}
+\DoxyCodeLine{        (\_simple\_list\_to\_init)-\/>length = 0;                           \(\backslash\)}
+\DoxyCodeLine{    \} \textcolor{keywordflow}{while} (0)}
+
+\end{DoxyCode}
+\mbox{\Hypertarget{dynamic__structs_8h_a03d0ee90292df284535b85801d6ce4a9}\label{dynamic__structs_8h_a03d0ee90292df284535b85801d6ce4a9}} 
+\index{dynamic\_structs.h@{dynamic\_structs.h}!SIMPLE\_LIST\_IS\_EMPTY@{SIMPLE\_LIST\_IS\_EMPTY}}
+\index{SIMPLE\_LIST\_IS\_EMPTY@{SIMPLE\_LIST\_IS\_EMPTY}!dynamic\_structs.h@{dynamic\_structs.h}}
+\doxysubsubsection{\texorpdfstring{SIMPLE\_LIST\_IS\_EMPTY}{SIMPLE\_LIST\_IS\_EMPTY}}
+{\footnotesize\ttfamily \#define SIMPLE\+\_\+\+LIST\+\_\+\+IS\+\_\+\+EMPTY(\begin{DoxyParamCaption}\item[{}]{\+\_\+\+\_\+sl }\end{DoxyParamCaption})}
+
+{\bfseries Value\+:}
+\begin{DoxyCode}{0}
+\DoxyCodeLine{    (\{ \(\backslash\)}
+\DoxyCodeLine{    bool \_sl\_empty = \textcolor{keyword}{false};           \(\backslash\)}
+\DoxyCodeLine{    if ((\_\_sl)-\/>length == 0)          \(\backslash\)}
+\DoxyCodeLine{        \_sl\_empty = \textcolor{keyword}{true};             \(\backslash\)}
+\DoxyCodeLine{    \_sl\_empty;                        \(\backslash\)}
+\DoxyCodeLine{\})}
+
+\end{DoxyCode}
+\mbox{\Hypertarget{dynamic__structs_8h_ac30a8bb1a0d9788a21015f4390c4dfb9}\label{dynamic__structs_8h_ac30a8bb1a0d9788a21015f4390c4dfb9}} 
+\index{dynamic\_structs.h@{dynamic\_structs.h}!SIMPLE\_LIST\_LENGTH@{SIMPLE\_LIST\_LENGTH}}
+\index{SIMPLE\_LIST\_LENGTH@{SIMPLE\_LIST\_LENGTH}!dynamic\_structs.h@{dynamic\_structs.h}}
+\doxysubsubsection{\texorpdfstring{SIMPLE\_LIST\_LENGTH}{SIMPLE\_LIST\_LENGTH}}
+{\footnotesize\ttfamily \#define SIMPLE\+\_\+\+LIST\+\_\+\+LENGTH(\begin{DoxyParamCaption}\item[{}]{\+\_\+\+\_\+sl\+\_\+len }\end{DoxyParamCaption})}
+
+{\bfseries Value\+:}
+\begin{DoxyCode}{0}
+\DoxyCodeLine{    (\{     \(\backslash\)}
+\DoxyCodeLine{    size\_t \_\_list\_len = (\_\_sl\_len)-\/>length; \(\backslash\)}
+\DoxyCodeLine{    \_\_list\_len;                             \(\backslash\)}
+\DoxyCodeLine{\})}
+
+\end{DoxyCode}
+\mbox{\Hypertarget{dynamic__structs_8h_a759d16e2a636b33a22f0786bd7cd178f}\label{dynamic__structs_8h_a759d16e2a636b33a22f0786bd7cd178f}} 
+\index{dynamic\_structs.h@{dynamic\_structs.h}!SIMPLE\_LIST\_PREPEND@{SIMPLE\_LIST\_PREPEND}}
+\index{SIMPLE\_LIST\_PREPEND@{SIMPLE\_LIST\_PREPEND}!dynamic\_structs.h@{dynamic\_structs.h}}
+\doxysubsubsection{\texorpdfstring{SIMPLE\_LIST\_PREPEND}{SIMPLE\_LIST\_PREPEND}}
+{\footnotesize\ttfamily \#define SIMPLE\+\_\+\+LIST\+\_\+\+PREPEND(\begin{DoxyParamCaption}\item[{}]{\+\_\+sl\+\_\+append,  }\item[{}]{\+\_\+sl\+\_\+elt }\end{DoxyParamCaption})}
+
+{\bfseries Value\+:}
+\begin{DoxyCode}{0}
+\DoxyCodeLine{    \textcolor{keywordflow}{do}                                                              \(\backslash\)}
+\DoxyCodeLine{    \{                                                               \(\backslash\)}
+\DoxyCodeLine{        ucs\_list\_add\_head(\&((\_sl\_append)-\/>internal\_list), \_sl\_elt); \(\backslash\)}
+\DoxyCodeLine{        (\_sl\_append)-\/>length++;                                     \(\backslash\)}
+\DoxyCodeLine{    \} \textcolor{keywordflow}{while} (0)}
+
+\end{DoxyCode}
+\mbox{\Hypertarget{dynamic__structs_8h_aea5d5d6b0d130798843b9523ac8a766e}\label{dynamic__structs_8h_aea5d5d6b0d130798843b9523ac8a766e}} 
+\index{dynamic\_structs.h@{dynamic\_structs.h}!SMART\_ARRAY\_ALLOC@{SMART\_ARRAY\_ALLOC}}
+\index{SMART\_ARRAY\_ALLOC@{SMART\_ARRAY\_ALLOC}!dynamic\_structs.h@{dynamic\_structs.h}}
+\doxysubsubsection{\texorpdfstring{SMART\_ARRAY\_ALLOC}{SMART\_ARRAY\_ALLOC}}
+{\footnotesize\ttfamily \#define SMART\+\_\+\+ARRAY\+\_\+\+ALLOC(\begin{DoxyParamCaption}\item[{}]{\+\_\+smart\+\_\+buffer\+\_\+sys,  }\item[{}]{\+\_\+smart\+\_\+array\+\_\+alloc,  }\item[{}]{\+\_\+sa\+\_\+alloc\+\_\+num\+\_\+elts\+\_\+alloc,  }\item[{}]{\+\_\+sa\+\_\+alloc\+\_\+elt\+\_\+sz }\end{DoxyParamCaption})}
+
+{\bfseries Value\+:}
+\begin{DoxyCode}{0}
+\DoxyCodeLine{    \textcolor{keywordflow}{do}                                                                                                                             \(\backslash\)}
+\DoxyCodeLine{    \{                                                                                                                              \(\backslash\)}
+\DoxyCodeLine{        assert(\_sa\_alloc\_num\_elts\_alloc);                                                                                          \(\backslash\)}
+\DoxyCodeLine{        (\_smart\_array\_alloc)-\/>num\_elts\_alloc = \_sa\_alloc\_num\_elts\_alloc;                                                           \(\backslash\)}
+\DoxyCodeLine{        (\_smart\_array\_alloc)-\/>num\_elts = \_sa\_alloc\_num\_elts\_alloc;                                                                 \(\backslash\)}
+\DoxyCodeLine{        (\_smart\_array\_alloc)-\/>elt\_size = \_sa\_alloc\_elt\_sz;                                                                         \(\backslash\)}
+\DoxyCodeLine{        (\_smart\_array\_alloc)-\/>smart\_chunk = \mbox{\hyperlink{dynamic__structs_8h_a8a526726c95a64429a60b426d08bd75c}{SMART\_BUFF\_GET}}(\_smart\_buffer\_sys,                                                      \(\backslash\)}
+\DoxyCodeLine{                                                           (\_smart\_array\_alloc)-\/>num\_elts\_alloc * (\_smart\_array\_alloc)-\/>elt\_size); \(\backslash\)}
+\DoxyCodeLine{        (\_smart\_array\_alloc)-\/>base = (\_smart\_array\_alloc)-\/>smart\_chunk-\/>base;                                                      \(\backslash\)}
+\DoxyCodeLine{        assert((\_smart\_array\_alloc)-\/>base);                                                                                        \(\backslash\)}
+\DoxyCodeLine{        memset((\_smart\_array\_alloc)-\/>base, 0, (\_smart\_array\_alloc)-\/>num\_elts\_alloc *(\_smart\_array\_alloc)-\/>elt\_size);               \(\backslash\)}
+\DoxyCodeLine{    \} \textcolor{keywordflow}{while} (0)}
+
+\end{DoxyCode}
+\mbox{\Hypertarget{dynamic__structs_8h_a27ce3ddde22aa56b24f4c19fc08082aa}\label{dynamic__structs_8h_a27ce3ddde22aa56b24f4c19fc08082aa}} 
+\index{dynamic\_structs.h@{dynamic\_structs.h}!SMART\_ARRAY\_FREE@{SMART\_ARRAY\_FREE}}
+\index{SMART\_ARRAY\_FREE@{SMART\_ARRAY\_FREE}!dynamic\_structs.h@{dynamic\_structs.h}}
+\doxysubsubsection{\texorpdfstring{SMART\_ARRAY\_FREE}{SMART\_ARRAY\_FREE}}
+{\footnotesize\ttfamily \#define SMART\+\_\+\+ARRAY\+\_\+\+FREE(\begin{DoxyParamCaption}\item[{}]{\+\_\+smart\+\_\+buffer\+\_\+sys,  }\item[{}]{\+\_\+smart\+\_\+array }\end{DoxyParamCaption})}
+
+{\bfseries Value\+:}
+\begin{DoxyCode}{0}
+\DoxyCodeLine{    \textcolor{keywordflow}{do}                                                                              \(\backslash\)}
+\DoxyCodeLine{    \{                                                                               \(\backslash\)}
+\DoxyCodeLine{        assert((\_smart\_array)-\/>base);                                               \(\backslash\)}
+\DoxyCodeLine{        assert((\_smart\_array)-\/>smart\_chunk);                                        \(\backslash\)}
+\DoxyCodeLine{        SMART\_BUFF\_RETURN(\_smart\_buffer\_sys,                                        \(\backslash\)}
+\DoxyCodeLine{                          (\_smart\_array)-\/>num\_elts\_alloc *(\_smart\_array)-\/>elt\_size, \(\backslash\)}
+\DoxyCodeLine{                          (\_smart\_array)-\/>smart\_chunk);                             \(\backslash\)}
+\DoxyCodeLine{        assert((\_smart\_array)-\/>smart\_chunk == NULL);                                \(\backslash\)}
+\DoxyCodeLine{        (\_smart\_array)-\/>base = NULL;                                                \(\backslash\)}
+\DoxyCodeLine{        (\_smart\_array)-\/>element\_init\_fn = NULL;                                     \(\backslash\)}
+\DoxyCodeLine{        (\_smart\_array)-\/>elt\_size = 0;                                               \(\backslash\)}
+\DoxyCodeLine{    \} \textcolor{keywordflow}{while} (0)}
+
+\end{DoxyCode}
+\mbox{\Hypertarget{dynamic__structs_8h_af35f2b29737faaab05a079bd901695d4}\label{dynamic__structs_8h_af35f2b29737faaab05a079bd901695d4}} 
+\index{dynamic\_structs.h@{dynamic\_structs.h}!SMART\_ARRAY\_GET\_ELT@{SMART\_ARRAY\_GET\_ELT}}
+\index{SMART\_ARRAY\_GET\_ELT@{SMART\_ARRAY\_GET\_ELT}!dynamic\_structs.h@{dynamic\_structs.h}}
+\doxysubsubsection{\texorpdfstring{SMART\_ARRAY\_GET\_ELT}{SMART\_ARRAY\_GET\_ELT}}
+{\footnotesize\ttfamily \#define SMART\+\_\+\+ARRAY\+\_\+\+GET\+\_\+\+ELT(\begin{DoxyParamCaption}\item[{}]{\+\_\+smart\+\_\+buffer\+\_\+sys,  }\item[{}]{\+\_\+sa\+\_\+get,  }\item[{}]{\+\_\+sa\+\_\+get\+\_\+idx }\end{DoxyParamCaption})}
+
+{\bfseries Value\+:}
+\begin{DoxyCode}{0}
+\DoxyCodeLine{    (\{                \(\backslash\)}
+\DoxyCodeLine{    assert(\_sa\_get);                                                                   \(\backslash\)}
+\DoxyCodeLine{    assert((\_sa\_get)-\/>num\_elts);                                                       \(\backslash\)}
+\DoxyCodeLine{    void *\_ptr = NULL;                                                                 \(\backslash\)}
+\DoxyCodeLine{    if ((\_sa\_get)-\/>num\_elts <= (\_sa\_get\_idx))                                          \(\backslash\)}
+\DoxyCodeLine{    \{                                                                                  \(\backslash\)}
+\DoxyCodeLine{        SMART\_ARRAY\_GROW((\_smart\_buffer\_sys), (\_sa\_get), (\_sa\_get\_idx));               \(\backslash\)}
+\DoxyCodeLine{    \}                                                                                  \(\backslash\)}
+\DoxyCodeLine{    \_ptr = (\textcolor{keywordtype}{void} *)((ptrdiff\_t)(\_sa\_get)-\/>base + (\_sa\_get\_idx) * (\_sa\_get)-\/>elt\_size); \(\backslash\)}
+\DoxyCodeLine{    \_ptr;                                                                              \(\backslash\)}
+\DoxyCodeLine{\})}
+
+\end{DoxyCode}
+\mbox{\Hypertarget{dynamic__structs_8h_a8da0b186a277c03aee58278097f45755}\label{dynamic__structs_8h_a8da0b186a277c03aee58278097f45755}} 
+\index{dynamic\_structs.h@{dynamic\_structs.h}!SMART\_ARRAY\_GROW@{SMART\_ARRAY\_GROW}}
+\index{SMART\_ARRAY\_GROW@{SMART\_ARRAY\_GROW}!dynamic\_structs.h@{dynamic\_structs.h}}
+\doxysubsubsection{\texorpdfstring{SMART\_ARRAY\_GROW}{SMART\_ARRAY\_GROW}}
+{\footnotesize\ttfamily \#define SMART\+\_\+\+ARRAY\+\_\+\+GROW(\begin{DoxyParamCaption}\item[{}]{\+\_\+smart\+\_\+buffer\+\_\+sys,  }\item[{}]{\+\_\+smart\+\_\+array,  }\item[{}]{\+\_\+requested\+\_\+new\+\_\+elts }\end{DoxyParamCaption})}
+
+{\bfseries Value\+:}
+\begin{DoxyCode}{0}
+\DoxyCodeLine{    \textcolor{keywordflow}{do}                                                                                                            \(\backslash\)}
+\DoxyCodeLine{    \{                                                                                                             \(\backslash\)}
+\DoxyCodeLine{        size\_t \_initial\_num\_elts, \_new\_num\_elts;                                                                  \(\backslash\)}
+\DoxyCodeLine{        \_initial\_num\_elts = \_new\_num\_elts = (\_dyn\_array)-\/>num\_elts;                                               \(\backslash\)}
+\DoxyCodeLine{        while (\_new\_num\_elts * (\_smart\_array)-\/>elt\_size <= \_requested\_new\_elts * (\_smart\_array)-\/>elt\_size)        \(\backslash\)}
+\DoxyCodeLine{        \{                                                                                                         \(\backslash\)}
+\DoxyCodeLine{            \_new\_num\_elts += (\_smart\_array)-\/>num\_elts\_alloc;                                                      \(\backslash\)}
+\DoxyCodeLine{        \}                                                                                                         \(\backslash\)}
+\DoxyCodeLine{        \textcolor{comment}{/* Because of the nature of the smart buffers, the only option is to request a new bigger chunk of */}     \(\backslash\)}
+\DoxyCodeLine{        \textcolor{comment}{/* memory and copy the data */}                                                                            \(\backslash\)}
+\DoxyCodeLine{        smart\_chunk\_t *\_new\_smart\_chunk;                                                                          \(\backslash\)}
+\DoxyCodeLine{        \_new\_smart\_chunk = \mbox{\hyperlink{dynamic__structs_8h_a8a526726c95a64429a60b426d08bd75c}{SMART\_BUFF\_GET}}((\_smart\_buffer\_sys), \_new\_num\_elts * (\_smart\_array)-\/>elt\_size);         \(\backslash\)}
+\DoxyCodeLine{        assert(\_new\_smart\_chunk);                                                                                 \(\backslash\)}
+\DoxyCodeLine{        memcpy(\_new\_smart\_chunk-\/>base, (\_smart\_array)-\/>smart\_chunk-\/>base, (\_smart\_array)-\/>smart\_chunk-\/>max\_size); \(\backslash\)}
+\DoxyCodeLine{        SMART\_BUFF\_RETURN((\_smart\_buffer\_sys),                                                                    \(\backslash\)}
+\DoxyCodeLine{                          (\_smart\_array)-\/>num\_elts\_alloc *(\_smart\_array)-\/>elt\_size,                               \(\backslash\)}
+\DoxyCodeLine{                          (\_smart\_array)-\/>smart\_chunk);                                                           \(\backslash\)}
+\DoxyCodeLine{        (\_smart\_array)-\/>smart\_chunk = \_new\_smart\_chunk;                                                           \(\backslash\)}
+\DoxyCodeLine{        (\_smart\_array)-\/>base = (\_smart\_array)-\/>smart\_chunk-\/>base;                                                 \(\backslash\)}
+\DoxyCodeLine{        (\_smart\_array)-\/>num\_elts = \_new\_num\_elts;                                                                 \(\backslash\)}
+\DoxyCodeLine{    \} \textcolor{keywordflow}{while} (0)}
+
+\end{DoxyCode}
+\mbox{\Hypertarget{dynamic__structs_8h_a8a526726c95a64429a60b426d08bd75c}\label{dynamic__structs_8h_a8a526726c95a64429a60b426d08bd75c}} 
+\index{dynamic\_structs.h@{dynamic\_structs.h}!SMART\_BUFF\_GET@{SMART\_BUFF\_GET}}
+\index{SMART\_BUFF\_GET@{SMART\_BUFF\_GET}!dynamic\_structs.h@{dynamic\_structs.h}}
+\doxysubsubsection{\texorpdfstring{SMART\_BUFF\_GET}{SMART\_BUFF\_GET}}
+{\footnotesize\ttfamily \#define SMART\+\_\+\+BUFF\+\_\+\+GET(\begin{DoxyParamCaption}\item[{}]{\+\_\+\+\_\+sys,  }\item[{}]{\+\_\+\+\_\+sz }\end{DoxyParamCaption})}
+
+\mbox{\Hypertarget{dynamic__structs_8h_a5e42ddfa156f9f633685ec950ea4f841}\label{dynamic__structs_8h_a5e42ddfa156f9f633685ec950ea4f841}} 
+\index{dynamic\_structs.h@{dynamic\_structs.h}!SMART\_BUFF\_RETURN@{SMART\_BUFF\_RETURN}}
+\index{SMART\_BUFF\_RETURN@{SMART\_BUFF\_RETURN}!dynamic\_structs.h@{dynamic\_structs.h}}
+\doxysubsubsection{\texorpdfstring{SMART\_BUFF\_RETURN}{SMART\_BUFF\_RETURN}}
+{\footnotesize\ttfamily \#define SMART\+\_\+\+BUFF\+\_\+\+RETURN(\begin{DoxyParamCaption}\item[{}]{\+\_\+\+\_\+sys,  }\item[{}]{\+\_\+\+\_\+sz,  }\item[{}]{\+\_\+\+\_\+sc }\end{DoxyParamCaption})}
+
+{\bfseries Value\+:}
+\begin{DoxyCode}{0}
+\DoxyCodeLine{    (\{                                                     \(\backslash\)}
+\DoxyCodeLine{    size\_t \_sb\_return\_i;                                                                            \(\backslash\)}
+\DoxyCodeLine{    smart\_bucket\_t *\_target\_bucket = NULL;                                                          \(\backslash\)}
+\DoxyCodeLine{    assert(\_\_sc-\/>in\_use == \textcolor{keyword}{true});                                                                   \(\backslash\)}
+\DoxyCodeLine{    \textcolor{comment}{/* Find the associated bucket */}                                                                \(\backslash\)}
+\DoxyCodeLine{    for (\_sb\_return\_i = 0; \_sb\_return\_i < (\_\_sys)-\/>num\_buckets; \_sb\_return\_i++)                     \(\backslash\)}
+\DoxyCodeLine{    \{                                                                                               \(\backslash\)}
+\DoxyCodeLine{        smart\_bucket\_t *\_\_b = \mbox{\hyperlink{dynamic__structs_8h_a0e5fa3cb758f3eefad714235c1fef266}{DYN\_ARRAY\_GET\_ELT}}(\&((\_\_sys)-\/>buckets), \_sb\_return\_i, \mbox{\hyperlink{structsmart__bucket}{smart\_bucket\_t}}); \(\backslash\)}
+\DoxyCodeLine{        assert(\_\_b);                                                                                \(\backslash\)}
+\DoxyCodeLine{        if ((\_\_b)-\/>min\_size <= \_\_sz \&\& \_\_sz <= (\_\_b)-\/>max\_size)                                     \(\backslash\)}
+\DoxyCodeLine{        \{                                                                                           \(\backslash\)}
+\DoxyCodeLine{            \_target\_bucket = \_\_b;                                                                   \(\backslash\)}
+\DoxyCodeLine{            break;                                                                                  \(\backslash\)}
+\DoxyCodeLine{        \}                                                                                           \(\backslash\)}
+\DoxyCodeLine{    \}                                                                                               \(\backslash\)}
+\DoxyCodeLine{    assert(\_target\_bucket);                                                                         \(\backslash\)}
+\DoxyCodeLine{    \_\_sc-\/>in\_use = \textcolor{keyword}{false};                                                                           \(\backslash\)}
+\DoxyCodeLine{    SIMPLE\_LIST\_PREPEND(\&(\_target\_bucket-\/>pool), \&(\_\_sc-\/>super));                                   \(\backslash\)}
+\DoxyCodeLine{    \textcolor{comment}{/* Check if it makes sense to try to recycle smart buffers */}                                   \(\backslash\)}
+\DoxyCodeLine{    size\_t \_recycle\_threshold = \_target\_bucket-\/>initial\_size + \_target\_bucket-\/>initial\_size / 2;    \(\backslash\)}
+\DoxyCodeLine{    if (\mbox{\hyperlink{dynamic__structs_8h_ac30a8bb1a0d9788a21015f4390c4dfb9}{SIMPLE\_LIST\_LENGTH}}(\&(\_target\_bucket-\/>pool)) > \_recycle\_threshold)                           \(\backslash\)}
+\DoxyCodeLine{        SMART\_BUFFS\_RECYCLE\_SMART\_CHUNK(\_\_sc);                                                      \(\backslash\)}
+\DoxyCodeLine{    \textcolor{comment}{/* Make sure the pointer cannot be used anymore */}                                              \(\backslash\)}
+\DoxyCodeLine{    \_\_sc = NULL;                                                                                    \(\backslash\)}
+\DoxyCodeLine{\})}
+
+\end{DoxyCode}
+\mbox{\Hypertarget{dynamic__structs_8h_aaa8d34ee3216d85b11165169d6aa2107}\label{dynamic__structs_8h_aaa8d34ee3216d85b11165169d6aa2107}} 
+\index{dynamic\_structs.h@{dynamic\_structs.h}!SMART\_BUFFERS\_ALLOC\_SMART\_CHUNKS@{SMART\_BUFFERS\_ALLOC\_SMART\_CHUNKS}}
+\index{SMART\_BUFFERS\_ALLOC\_SMART\_CHUNKS@{SMART\_BUFFERS\_ALLOC\_SMART\_CHUNKS}!dynamic\_structs.h@{dynamic\_structs.h}}
+\doxysubsubsection{\texorpdfstring{SMART\_BUFFERS\_ALLOC\_SMART\_CHUNKS}{SMART\_BUFFERS\_ALLOC\_SMART\_CHUNKS}}
+{\footnotesize\ttfamily \#define SMART\+\_\+\+BUFFERS\+\_\+\+ALLOC\+\_\+\+SMART\+\_\+\+CHUNKS(\begin{DoxyParamCaption}\item[{}]{\+\_\+\+\_\+sb\+\_\+sys,  }\item[{}]{\+\_\+smart\+\_\+bucket\+\_\+to\+\_\+populate,  }\item[{}]{\+\_\+\+\_\+bucket\+\_\+allocated\+\_\+mem\+\_\+size,  }\item[{}]{\+\_\+\+\_\+sc\+\_\+ptr\+\_\+base,  }\item[{}]{\+\_\+\+\_\+num\+\_\+chunks }\end{DoxyParamCaption})}
+
+{\bfseries Value\+:}
+\begin{DoxyCode}{0}
+\DoxyCodeLine{    \textcolor{keywordflow}{do}                                                                                                                                  \(\backslash\)}
+\DoxyCodeLine{    \{                                                                                                                                   \(\backslash\)}
+\DoxyCodeLine{        size\_t \_\_sb\_sc\_idx;                                                                                                             \(\backslash\)}
+\DoxyCodeLine{        for (\_\_sb\_sc\_idx = 0; \_\_sb\_sc\_idx < (\_\_bucket\_allocated\_mem\_size / \_smart\_bucket\_to\_populate-\/>max\_size); \_\_sb\_sc\_idx++)         \(\backslash\)}
+\DoxyCodeLine{        \{                                                                                                                               \(\backslash\)}
+\DoxyCodeLine{            void *\_\_sb\_sc\_mem\_ptr = (\textcolor{keywordtype}{void} *)((ptrdiff\_t)\_\_sc\_ptr\_base + \_\_sb\_sc\_idx * \_smart\_bucket\_to\_populate-\/>max\_size);             \(\backslash\)}
+\DoxyCodeLine{            smart\_chunk\_t *\_smart\_chunk;                                                                                                \(\backslash\)}
+\DoxyCodeLine{            DYN\_LIST\_GET((\_\_sb\_sys)-\/>smart\_chunk\_desc\_pool, \mbox{\hyperlink{structsmart__chunk__t}{smart\_chunk\_t}}, super, \_smart\_chunk);                                        \(\backslash\)}
+\DoxyCodeLine{            assert(\_smart\_chunk);                                                                                                       \(\backslash\)}
+\DoxyCodeLine{            RESET\_SMART\_CHUNK(\_smart\_chunk);                                                                                            \(\backslash\)}
+\DoxyCodeLine{            \_smart\_chunk-\/>base = \_\_sb\_sc\_mem\_ptr;                                                                                       \(\backslash\)}
+\DoxyCodeLine{            \_smart\_chunk-\/>size = \_smart\_bucket\_to\_populate-\/>max\_size;                                                                   \(\backslash\)}
+\DoxyCodeLine{            \_smart\_chunk-\/>bucket = (\textcolor{keyword}{struct }\mbox{\hyperlink{structsmart__bucket}{smart\_bucket}} *)\_smart\_bucket\_to\_populate;                                                    \(\backslash\)}
+\DoxyCodeLine{            SIMPLE\_LIST\_PREPEND(\&((\_smart\_bucket\_to\_populate)-\/>\mbox{\hyperlink{structsmart__bucket_a56aeb248c1ce3f2ec633bf1955ab661f}{pool}}), \&(\_smart\_chunk-\/>super));                                          \(\backslash\)}
+\DoxyCodeLine{            \_\_num\_chunks++;                                                                                                             \(\backslash\)}
+\DoxyCodeLine{        \}                                                                                                                               \(\backslash\)}
+\DoxyCodeLine{    \} \textcolor{keywordflow}{while} (0)}
+
+\end{DoxyCode}
+\mbox{\Hypertarget{dynamic__structs_8h_ae5cdf800ab5556c864c14194718efad7}\label{dynamic__structs_8h_ae5cdf800ab5556c864c14194718efad7}} 
+\index{dynamic\_structs.h@{dynamic\_structs.h}!SMART\_BUFFERS\_DEFAULT\_MEM\_ALLOC\_SIZE@{SMART\_BUFFERS\_DEFAULT\_MEM\_ALLOC\_SIZE}}
+\index{SMART\_BUFFERS\_DEFAULT\_MEM\_ALLOC\_SIZE@{SMART\_BUFFERS\_DEFAULT\_MEM\_ALLOC\_SIZE}!dynamic\_structs.h@{dynamic\_structs.h}}
+\doxysubsubsection{\texorpdfstring{SMART\_BUFFERS\_DEFAULT\_MEM\_ALLOC\_SIZE}{SMART\_BUFFERS\_DEFAULT\_MEM\_ALLOC\_SIZE}}
+{\footnotesize\ttfamily \#define SMART\+\_\+\+BUFFERS\+\_\+\+DEFAULT\+\_\+\+MEM\+\_\+\+ALLOC\+\_\+\+SIZE~((20 $\ast$ 1024 $\ast$ 1024))}
+
+\mbox{\Hypertarget{dynamic__structs_8h_a3f90a338c3c1461723f4518a2806d0f3}\label{dynamic__structs_8h_a3f90a338c3c1461723f4518a2806d0f3}} 
+\index{dynamic\_structs.h@{dynamic\_structs.h}!SMART\_BUFFS\_FINI@{SMART\_BUFFS\_FINI}}
+\index{SMART\_BUFFS\_FINI@{SMART\_BUFFS\_FINI}!dynamic\_structs.h@{dynamic\_structs.h}}
+\doxysubsubsection{\texorpdfstring{SMART\_BUFFS\_FINI}{SMART\_BUFFS\_FINI}}
+{\footnotesize\ttfamily \#define SMART\+\_\+\+BUFFS\+\_\+\+FINI(\begin{DoxyParamCaption}\item[{}]{\+\_\+\+\_\+sys }\end{DoxyParamCaption})}
+
+\mbox{\Hypertarget{dynamic__structs_8h_abbd6f037bbb660af650d1e755cefa317}\label{dynamic__structs_8h_abbd6f037bbb660af650d1e755cefa317}} 
+\index{dynamic\_structs.h@{dynamic\_structs.h}!SMART\_BUFFS\_GROW\_BUCKET@{SMART\_BUFFS\_GROW\_BUCKET}}
+\index{SMART\_BUFFS\_GROW\_BUCKET@{SMART\_BUFFS\_GROW\_BUCKET}!dynamic\_structs.h@{dynamic\_structs.h}}
+\doxysubsubsection{\texorpdfstring{SMART\_BUFFS\_GROW\_BUCKET}{SMART\_BUFFS\_GROW\_BUCKET}}
+{\footnotesize\ttfamily \#define SMART\+\_\+\+BUFFS\+\_\+\+GROW\+\_\+\+BUCKET(\begin{DoxyParamCaption}\item[{}]{\+\_\+\+\_\+ptr }\end{DoxyParamCaption})}
+
+\mbox{\Hypertarget{dynamic__structs_8h_a5b77a013d1d343ba9f14174a517a99f5}\label{dynamic__structs_8h_a5b77a013d1d343ba9f14174a517a99f5}} 
+\index{dynamic\_structs.h@{dynamic\_structs.h}!SMART\_BUFFS\_HANDLE\_INFO@{SMART\_BUFFS\_HANDLE\_INFO}}
+\index{SMART\_BUFFS\_HANDLE\_INFO@{SMART\_BUFFS\_HANDLE\_INFO}!dynamic\_structs.h@{dynamic\_structs.h}}
+\doxysubsubsection{\texorpdfstring{SMART\_BUFFS\_HANDLE\_INFO}{SMART\_BUFFS\_HANDLE\_INFO}}
+{\footnotesize\ttfamily \#define SMART\+\_\+\+BUFFS\+\_\+\+HANDLE\+\_\+\+INFO(\begin{DoxyParamCaption}\item[{}]{\+\_\+\+\_\+smart\+\_\+bufs\+\_\+sys,  }\item[{}]{\+\_\+info\+\_\+in }\end{DoxyParamCaption})}
+
+{\bfseries Value\+:}
+\begin{DoxyCode}{0}
+\DoxyCodeLine{    \textcolor{keywordflow}{do}                                                                                                                          \(\backslash\)}
+\DoxyCodeLine{    \{                                                                                                                           \(\backslash\)}
+\DoxyCodeLine{        if (\_info\_in == NULL)                                                                                                   \(\backslash\)}
+\DoxyCodeLine{        \{                                                                                                                       \(\backslash\)}
+\DoxyCodeLine{            \textcolor{comment}{/* Default buckets, sizes in bytes */}                                                                               \(\backslash\)}
+\DoxyCodeLine{            size\_t \_smart\_bufs\_default\_buckets[10] = \{8, 16, 64, 128, 512, 1024, 4096, 8192, 65536, 1048576\};                   \(\backslash\)}
+\DoxyCodeLine{            size\_t \_info\_n\_bucket;                                                                                              \(\backslash\)}
+\DoxyCodeLine{            \textcolor{comment}{/* Copy meta-\/data from info object */}                                                                               \(\backslash\)}
+\DoxyCodeLine{            (\_\_smart\_bufs\_sys)-\/>num\_buckets = 10;                                                                               \(\backslash\)}
+\DoxyCodeLine{            DYN\_ARRAY\_ALLOC(\&((\_\_smart\_bufs\_sys)-\/>bucket\_sizes), (\_\_smart\_bufs\_sys)-\/>num\_buckets, \textcolor{keywordtype}{size\_t});                      \(\backslash\)}
+\DoxyCodeLine{            for (\_info\_n\_bucket = 0; \_info\_n\_bucket < 10; \_info\_n\_bucket++)                                                     \(\backslash\)}
+\DoxyCodeLine{            \{                                                                                                                   \(\backslash\)}
+\DoxyCodeLine{                size\_t *\_bucket\_max\_size = \mbox{\hyperlink{dynamic__structs_8h_a0e5fa3cb758f3eefad714235c1fef266}{DYN\_ARRAY\_GET\_ELT}}(\&((\_\_smart\_bufs\_sys)-\/>bucket\_sizes), \_info\_n\_bucket, \textcolor{keywordtype}{size\_t});      \(\backslash\)}
+\DoxyCodeLine{                *\_bucket\_max\_size = \_smart\_bufs\_default\_buckets[\_info\_n\_bucket];                                                \(\backslash\)}
+\DoxyCodeLine{            \}                                                                                                                   \(\backslash\)}
+\DoxyCodeLine{        \}                                                                                                                       \(\backslash\)}
+\DoxyCodeLine{        else                                                                                                                    \(\backslash\)}
+\DoxyCodeLine{        \{                                                                                                                       \(\backslash\)}
+\DoxyCodeLine{            size\_t \_info\_copy\_n\_bucket;                                                                                         \(\backslash\)}
+\DoxyCodeLine{            \textcolor{comment}{/* Copy meta-\/data from info object */}                                                                               \(\backslash\)}
+\DoxyCodeLine{            smart\_buffers\_info\_t *\_\_info\_in = (\mbox{\hyperlink{structsmart__buffers__info__t}{smart\_buffers\_info\_t}} *)(\_info\_in);                                               \(\backslash\)}
+\DoxyCodeLine{            (\_\_smart\_bufs\_sys)-\/>num\_buckets = (\_\_info\_in)-\/>num\_buckets;                                                         \(\backslash\)}
+\DoxyCodeLine{            DYN\_ARRAY\_ALLOC(\&((\_\_smart\_bufs\_sys)-\/>bucket\_sizes), (\_\_smart\_bufs\_sys)-\/>num\_buckets, \textcolor{keywordtype}{size\_t});                      \(\backslash\)}
+\DoxyCodeLine{            for (\_info\_copy\_n\_bucket = 0; \_info\_copy\_n\_bucket < (\_\_smart\_bufs\_sys)-\/>num\_buckets; \_info\_copy\_n\_bucket++)         \(\backslash\)}
+\DoxyCodeLine{            \{                                                                                                                   \(\backslash\)}
+\DoxyCodeLine{                size\_t *\_bucket\_max\_size = \mbox{\hyperlink{dynamic__structs_8h_a0e5fa3cb758f3eefad714235c1fef266}{DYN\_ARRAY\_GET\_ELT}}(\&((\_\_smart\_bufs\_sys)-\/>bucket\_sizes), \_info\_copy\_n\_bucket, \textcolor{keywordtype}{size\_t}); \(\backslash\)}
+\DoxyCodeLine{                *\_bucket\_max\_size = (\_\_info\_in)-\/>buckets[\_info\_copy\_n\_bucket];                                                  \(\backslash\)}
+\DoxyCodeLine{            \}                                                                                                                   \(\backslash\)}
+\DoxyCodeLine{        \}                                                                                                                       \(\backslash\)}
+\DoxyCodeLine{    \} \textcolor{keywordflow}{while} (0)}
+
+\end{DoxyCode}
+\mbox{\Hypertarget{dynamic__structs_8h_aa7ba0c7206b9026c8e1aa4add8a1734c}\label{dynamic__structs_8h_aa7ba0c7206b9026c8e1aa4add8a1734c}} 
+\index{dynamic\_structs.h@{dynamic\_structs.h}!SMART\_BUFFS\_INIT@{SMART\_BUFFS\_INIT}}
+\index{SMART\_BUFFS\_INIT@{SMART\_BUFFS\_INIT}!dynamic\_structs.h@{dynamic\_structs.h}}
+\doxysubsubsection{\texorpdfstring{SMART\_BUFFS\_INIT}{SMART\_BUFFS\_INIT}}
+{\footnotesize\ttfamily \#define SMART\+\_\+\+BUFFS\+\_\+\+INIT(\begin{DoxyParamCaption}\item[{}]{\+\_\+\+\_\+smart\+\_\+bufs\+\_\+sys,  }\item[{}]{\+\_\+info\+\_\+in }\end{DoxyParamCaption})}
+
+\mbox{\Hypertarget{dynamic__structs_8h_a4c1a4a656eded855e7093e4e3b6216ce}\label{dynamic__structs_8h_a4c1a4a656eded855e7093e4e3b6216ce}} 
+\index{dynamic\_structs.h@{dynamic\_structs.h}!SMART\_BUFFS\_RECYCLE\_SMART\_CHUNK@{SMART\_BUFFS\_RECYCLE\_SMART\_CHUNK}}
+\index{SMART\_BUFFS\_RECYCLE\_SMART\_CHUNK@{SMART\_BUFFS\_RECYCLE\_SMART\_CHUNK}!dynamic\_structs.h@{dynamic\_structs.h}}
+\doxysubsubsection{\texorpdfstring{SMART\_BUFFS\_RECYCLE\_SMART\_CHUNK}{SMART\_BUFFS\_RECYCLE\_SMART\_CHUNK}}
+{\footnotesize\ttfamily \#define SMART\+\_\+\+BUFFS\+\_\+\+RECYCLE\+\_\+\+SMART\+\_\+\+CHUNK(\begin{DoxyParamCaption}\item[{}]{\+\_\+\+\_\+smart\+\_\+chunk }\end{DoxyParamCaption})}
+
+\mbox{\Hypertarget{dynamic__structs_8h_a811d4c6325a4306bbcf6b0e058ac5c7f}\label{dynamic__structs_8h_a811d4c6325a4306bbcf6b0e058ac5c7f}} 
+\index{dynamic\_structs.h@{dynamic\_structs.h}!SMART\_BUFFS\_SPLIT\_BUCKET@{SMART\_BUFFS\_SPLIT\_BUCKET}}
+\index{SMART\_BUFFS\_SPLIT\_BUCKET@{SMART\_BUFFS\_SPLIT\_BUCKET}!dynamic\_structs.h@{dynamic\_structs.h}}
+\doxysubsubsection{\texorpdfstring{SMART\_BUFFS\_SPLIT\_BUCKET}{SMART\_BUFFS\_SPLIT\_BUCKET}}
+{\footnotesize\ttfamily \#define SMART\+\_\+\+BUFFS\+\_\+\+SPLIT\+\_\+\+BUCKET(\begin{DoxyParamCaption}\item[{}]{\+\_\+\+\_\+bsrc,  }\item[{}]{\+\_\+\+\_\+bdest }\end{DoxyParamCaption})}
+
+{\bfseries Value\+:}
+\begin{DoxyCode}{0}
+\DoxyCodeLine{    \textcolor{keywordflow}{do}                                                                                                 \(\backslash\)}
+\DoxyCodeLine{    \{                                                                                                  \(\backslash\)}
+\DoxyCodeLine{        size\_t \_i;                                                                                     \(\backslash\)}
+\DoxyCodeLine{                                                                                                       \(\backslash\)}
+\DoxyCodeLine{        \_num\_new\_smart\_chunks = \_\_bsrc-\/>max\_size / \_\_bdest-\/>max\_size;                                  \(\backslash\)}
+\DoxyCodeLine{        \textcolor{comment}{/* Get the chunk from the source so we can divide it up */}                                     \(\backslash\)}
+\DoxyCodeLine{        smart\_chunk\_t *\_big\_chunk\_to\_split;                                                            \(\backslash\)}
+\DoxyCodeLine{        SIMPLE\_LIST\_EXTRACT\_HEAD(\&((\_bsrc)-\/>pool),                                                     \(\backslash\)}
+\DoxyCodeLine{                                 \mbox{\hyperlink{structsmart__chunk__t}{smart\_chunk\_t}},                                                        \(\backslash\)}
+\DoxyCodeLine{                                 super,                                                                \(\backslash\)}
+\DoxyCodeLine{                                 \_big\_chunk\_to\_split);                                                 \(\backslash\)}
+\DoxyCodeLine{        assert(\_big\_chunk\_to\_split);                                                                   \(\backslash\)}
+\DoxyCodeLine{        \_big\_chunk\_to\_split-\/>in\_use = \textcolor{keyword}{true};                                                            \(\backslash\)}
+\DoxyCodeLine{        void *\_sc\_base\_ptr = \_big\_chunk\_to\_split-\/>base;                                                \(\backslash\)}
+\DoxyCodeLine{        for (\_i = 0; \_i < \_num\_new\_smart\_chunks; \_i++)                                                 \(\backslash\)}
+\DoxyCodeLine{        \{                                                                                              \(\backslash\)}
+\DoxyCodeLine{            smart\_chunk\_t *\_new\_smart\_chunk;                                                           \(\backslash\)}
+\DoxyCodeLine{            DYN\_LIST\_GET(\&((\_\_bdest)-\/>smart\_chunk\_desc\_pool), \mbox{\hyperlink{structsmart__chunk__t}{smart\_chunk\_t}}, super, \_new\_smart\_chunk); \(\backslash\)}
+\DoxyCodeLine{            assert(\_new\_smart\_chunk);                                                                  \(\backslash\)}
+\DoxyCodeLine{            RESET\_SMART\_CHUNK(\_new\_smart\_chunk);                                                       \(\backslash\)}
+\DoxyCodeLine{            \_new\_smart\_chunk-\/>parent\_chunk = \_big\_chunk\_to\_split;                                      \(\backslash\)}
+\DoxyCodeLine{            \_new\_smart\_chunk-\/>base = \_sc\_base\_ptr;                                                     \(\backslash\)}
+\DoxyCodeLine{            \_new\_smart\_chunk-\/>size = \_\_bdest-\/>max\_size;                                                \(\backslash\)}
+\DoxyCodeLine{            SIMPLE\_LIST\_EXTRACT\_HEAD(\&((\_\_bdest)-\/>pool), \&(\_new\_smart\_chunk-\/>super));                  \(\backslash\)}
+\DoxyCodeLine{            \_sc\_base\_ptr = (\textcolor{keywordtype}{void} *)((ptrdiff\_t)\_sc\_base\_ptr + \_bdest-\/>max\_size);                       \(\backslash\)}
+\DoxyCodeLine{        \}                                                                                              \(\backslash\)}
+\DoxyCodeLine{    \} \textcolor{keywordflow}{while} (0)}
+
+\end{DoxyCode}
+\mbox{\Hypertarget{dynamic__structs_8h_a4f3998ca38408e84c940537936595351}\label{dynamic__structs_8h_a4f3998ca38408e84c940537936595351}} 
+\index{dynamic\_structs.h@{dynamic\_structs.h}!SMART\_LIST\_ALLOC@{SMART\_LIST\_ALLOC}}
+\index{SMART\_LIST\_ALLOC@{SMART\_LIST\_ALLOC}!dynamic\_structs.h@{dynamic\_structs.h}}
+\doxysubsubsection{\texorpdfstring{SMART\_LIST\_ALLOC}{SMART\_LIST\_ALLOC}}
+{\footnotesize\ttfamily \#define SMART\+\_\+\+LIST\+\_\+\+ALLOC(\begin{DoxyParamCaption}\item[{}]{\+\_\+smart\+\_\+buf\+\_\+sys,  }\item[{}]{\+\_\+smart\+\_\+list,  }\item[{}]{\+\_\+num\+\_\+elts\+\_\+alloc,  }\item[{}]{\+\_\+type,  }\item[{}]{\+\_\+elt }\end{DoxyParamCaption})}
+
+{\bfseries Value\+:}
+\begin{DoxyCode}{0}
+\DoxyCodeLine{    \textcolor{keywordflow}{do}                                                                                            \(\backslash\)}
+\DoxyCodeLine{    \{                                                                                             \(\backslash\)}
+\DoxyCodeLine{        \textcolor{comment}{/* Get a small buffer to store the smart\_list\_t object */}                                 \(\backslash\)}
+\DoxyCodeLine{        smart\_chunk\_t *\_list\_smart\_chunk = \mbox{\hyperlink{dynamic__structs_8h_a8a526726c95a64429a60b426d08bd75c}{SMART\_BUFF\_GET}}(\_smart\_buf\_sys, \textcolor{keyword}{sizeof}(\mbox{\hyperlink{structsmart__list}{smart\_list\_t}}));  \(\backslash\)}
+\DoxyCodeLine{        (\_smart\_list) = (\mbox{\hyperlink{structsmart__list}{smart\_list\_t}} *)(\_list\_smart\_chunk-\/>base);                                \(\backslash\)}
+\DoxyCodeLine{        \textcolor{comment}{/* Cycle of pointers so we can track that initial smart chunk to be able to return it */}  \(\backslash\)}
+\DoxyCodeLine{        \textcolor{comment}{/* when the smart list is freed. */}                                                       \(\backslash\)}
+\DoxyCodeLine{        (\_smart\_list)-\/>base\_smart\_chunk = \_list\_smart\_chunk;                                      \(\backslash\)}
+\DoxyCodeLine{        if ((\_smart\_list) != NULL)                                                                \(\backslash\)}
+\DoxyCodeLine{        \{                                                                                         \(\backslash\)}
+\DoxyCodeLine{            \textcolor{comment}{/* Create a smart array of pointer of pointer to smart\_chunk\_t so we can track the */} \(\backslash\)}
+\DoxyCodeLine{            \textcolor{comment}{/* smart chunks used to create the list. */}                                           \(\backslash\)}
+\DoxyCodeLine{            SMART\_ARRAY\_ALLOC((\_smart\_buf\_sys),                                                   \(\backslash\)}
+\DoxyCodeLine{                              \&((\_smart\_list)-\/>smart\_chunks),                                     \(\backslash\)}
+\DoxyCodeLine{                              \mbox{\hyperlink{dynamic__structs_8h_a2f9d2a255e5ab8af8446b3e1990754ef}{DEFAULT\_MEM\_CHUNKS}},                                                 \(\backslash\)}
+\DoxyCodeLine{                              \mbox{\hyperlink{structsmart__chunk__t}{smart\_chunk\_t}} *);                                                   \(\backslash\)}
+\DoxyCodeLine{            (\_dyn\_list)-\/>num\_smart\_chunks = 0;                                                    \(\backslash\)}
+\DoxyCodeLine{            (\_dyn\_list)-\/>num\_elts = 0;                                                            \(\backslash\)}
+\DoxyCodeLine{            (\_dyn\_list)-\/>num\_elts\_alloc = \_num\_elts\_alloc;                                        \(\backslash\)}
+\DoxyCodeLine{            (\_dyn\_list)-\/>element\_init\_cb = NULL;                                                  \(\backslash\)}
+\DoxyCodeLine{            SIMPLE\_LIST\_INIT(\&((\_dyn\_list)-\/>list));                                               \(\backslash\)}
+\DoxyCodeLine{            GROW\_DYN\_LIST((\_dyn\_list), \_type, \_elt);                                              \(\backslash\)}
+\DoxyCodeLine{        \}                                                                                         \(\backslash\)}
+\DoxyCodeLine{        else                                                                                      \(\backslash\)}
+\DoxyCodeLine{        \{                                                                                         \(\backslash\)}
+\DoxyCodeLine{            fprintf(stderr, \textcolor{stringliteral}{"{}[ERROR] unable to allocate dynamic list\(\backslash\)n"{}});                         \(\backslash\)}
+\DoxyCodeLine{            (\_dyn\_list) = NULL;                                                                   \(\backslash\)}
+\DoxyCodeLine{        \}                                                                                         \(\backslash\)}
+\DoxyCodeLine{    \} \textcolor{keywordflow}{while} (0)}
+
+\end{DoxyCode}
+\mbox{\Hypertarget{dynamic__structs_8h_af683926bb2344ada269626febdb4c226}\label{dynamic__structs_8h_af683926bb2344ada269626febdb4c226}} 
+\index{dynamic\_structs.h@{dynamic\_structs.h}!SMART\_LIST\_FREE@{SMART\_LIST\_FREE}}
+\index{SMART\_LIST\_FREE@{SMART\_LIST\_FREE}!dynamic\_structs.h@{dynamic\_structs.h}}
+\doxysubsubsection{\texorpdfstring{SMART\_LIST\_FREE}{SMART\_LIST\_FREE}}
+{\footnotesize\ttfamily \#define SMART\+\_\+\+LIST\+\_\+\+FREE(\begin{DoxyParamCaption}\item[{}]{\+\_\+smart\+\_\+buf\+\_\+sys,  }\item[{}]{\+\_\+smart\+\_\+list,  }\item[{}]{\+\_\+type,  }\item[{}]{\+\_\+elt }\end{DoxyParamCaption})}
+
+{\bfseries Value\+:}
+\begin{DoxyCode}{0}
+\DoxyCodeLine{    \textcolor{keywordflow}{do}                                                                                           \(\backslash\)}
+\DoxyCodeLine{    \{                                                                                            \(\backslash\)}
+\DoxyCodeLine{        \textcolor{comment}{/* Release the list, not the underlying buffers */}                                       \(\backslash\)}
+\DoxyCodeLine{        while (!\mbox{\hyperlink{dynamic__structs_8h_a03d0ee90292df284535b85801d6ce4a9}{SIMPLE\_LIST\_IS\_EMPTY}}(\&((\_smart\_list)-\/>list)))                                    \(\backslash\)}
+\DoxyCodeLine{        \{                                                                                        \(\backslash\)}
+\DoxyCodeLine{            \_type *\_item = \mbox{\hyperlink{dynamic__structs_8h_aa747dd8f46a6843008a3535e5871e2e8}{SIMPLE\_LIST\_EXTRACT\_HEAD}}(\&((\_smart\_list)-\/>list), \_type, \_elt);        \(\backslash\)}
+\DoxyCodeLine{            assert(\_item);                                                                       \(\backslash\)}
+\DoxyCodeLine{            SIMPLE\_LIST\_DEL(\&((\_smart\_list)-\/>list), \&(\_item-\/>\_elt));                             \(\backslash\)}
+\DoxyCodeLine{        \}                                                                                        \(\backslash\)}
+\DoxyCodeLine{        \textcolor{comment}{/* Free the underlying memory chunks */}                                                  \(\backslash\)}
+\DoxyCodeLine{        size\_t \_i;                                                                               \(\backslash\)}
+\DoxyCodeLine{        for (\_i = 0; \_i < (\_smart\_list)-\/>num\_mem\_chunks; \_i++)                                   \(\backslash\)}
+\DoxyCodeLine{        \{                                                                                        \(\backslash\)}
+\DoxyCodeLine{            smart\_chunk\_t **\_smart\_chunk\_ptr = \mbox{\hyperlink{dynamic__structs_8h_a0e5fa3cb758f3eefad714235c1fef266}{DYN\_ARRAY\_GET\_ELT}}(\&((\_smart\_list)-\/>smart\_chunks), \(\backslash\)}
+\DoxyCodeLine{                                                                 \_i,                             \(\backslash\)}
+\DoxyCodeLine{                                                                 \mbox{\hyperlink{structsmart__chunk__t}{smart\_chunk\_t}} *);               \(\backslash\)}
+\DoxyCodeLine{            assert(\_smart\_chunk\_ptr);                                                            \(\backslash\)}
+\DoxyCodeLine{            SMART\_BUFF\_RETURN((\_smart\_buf\_sys), \textcolor{keyword}{sizeof}(\mbox{\hyperlink{structsmart__chunk__t}{smart\_chunk\_t}} *), (*\_smart\_chunk\_ptr));   \(\backslash\)}
+\DoxyCodeLine{            *\_smart\_chunk\_ptr = NULL;                                                            \(\backslash\)}
+\DoxyCodeLine{        \}                                                                                        \(\backslash\)}
+\DoxyCodeLine{        DYN\_ARRAY\_FREE(\&((\_smart\_list)-\/>smart\_chunks));                                          \(\backslash\)}
+\DoxyCodeLine{        SMART\_BUFF\_RETURN((\_smart\_buf\_sys), (\_smart\_list)-\/>base\_smart\_chunk);                    \(\backslash\)}
+\DoxyCodeLine{        \_smart\_list = NULL;                                                                      \(\backslash\)}
+\DoxyCodeLine{    \} \textcolor{keywordflow}{while} (0)}
+
+\end{DoxyCode}
+\mbox{\Hypertarget{dynamic__structs_8h_aa6b87063f6fd651e83e1ae045458179b}\label{dynamic__structs_8h_aa6b87063f6fd651e83e1ae045458179b}} 
+\index{dynamic\_structs.h@{dynamic\_structs.h}!SMART\_LIST\_GET@{SMART\_LIST\_GET}}
+\index{SMART\_LIST\_GET@{SMART\_LIST\_GET}!dynamic\_structs.h@{dynamic\_structs.h}}
+\doxysubsubsection{\texorpdfstring{SMART\_LIST\_GET}{SMART\_LIST\_GET}}
+{\footnotesize\ttfamily \#define SMART\+\_\+\+LIST\+\_\+\+GET(\begin{DoxyParamCaption}\item[{}]{\+\_\+smart\+\_\+buf\+\_\+sys,  }\item[{}]{\+\_\+smart\+\_\+list,  }\item[{}]{\+\_\+type,  }\item[{}]{\+\_\+elt,  }\item[{}]{\+\_\+item }\end{DoxyParamCaption})}
+
+{\bfseries Value\+:}
+\begin{DoxyCode}{0}
+\DoxyCodeLine{    \textcolor{keywordflow}{do}                                                                         \(\backslash\)}
+\DoxyCodeLine{    \{                                                                          \(\backslash\)}
+\DoxyCodeLine{        if (\mbox{\hyperlink{dynamic__structs_8h_a03d0ee90292df284535b85801d6ce4a9}{SIMPLE\_LIST\_IS\_EMPTY}}(\&((\_smart\_list)-\/>list)))                      \(\backslash\)}
+\DoxyCodeLine{        \{                                                                      \(\backslash\)}
+\DoxyCodeLine{            SMART\_LIST\_GROW((\_smart\_buf\_sys), (\_smart\_list), (\_type), (\_elt)); \(\backslash\)}
+\DoxyCodeLine{        \}                                                                      \(\backslash\)}
+\DoxyCodeLine{        \_item = \mbox{\hyperlink{dynamic__structs_8h_aa747dd8f46a6843008a3535e5871e2e8}{SIMPLE\_LIST\_EXTRACT\_HEAD}}(\&((\_dyn\_list)-\/>list), \_type, \_elt);   \(\backslash\)}
+\DoxyCodeLine{    \} \textcolor{keywordflow}{while} (0)}
+
+\end{DoxyCode}
+\mbox{\Hypertarget{dynamic__structs_8h_a17e26dd13a62054baea67d6e0e48a2ec}\label{dynamic__structs_8h_a17e26dd13a62054baea67d6e0e48a2ec}} 
+\index{dynamic\_structs.h@{dynamic\_structs.h}!SMART\_LIST\_GROW@{SMART\_LIST\_GROW}}
+\index{SMART\_LIST\_GROW@{SMART\_LIST\_GROW}!dynamic\_structs.h@{dynamic\_structs.h}}
+\doxysubsubsection{\texorpdfstring{SMART\_LIST\_GROW}{SMART\_LIST\_GROW}}
+{\footnotesize\ttfamily \#define SMART\+\_\+\+LIST\+\_\+\+GROW(\begin{DoxyParamCaption}\item[{}]{\+\_\+\+\_\+smart\+\_\+buf\+\_\+sys,  }\item[{}]{\+\_\+\+\_\+smart\+\_\+list,  }\item[{}]{\+\_\+\+\_\+type,  }\item[{}]{\+\_\+\+\_\+elt }\end{DoxyParamCaption})}
+
+\mbox{\Hypertarget{dynamic__structs_8h_ab1f99ba1805871a079d521e8c17f6fe4}\label{dynamic__structs_8h_ab1f99ba1805871a079d521e8c17f6fe4}} 
+\index{dynamic\_structs.h@{dynamic\_structs.h}!SMART\_LIST\_RETURN@{SMART\_LIST\_RETURN}}
+\index{SMART\_LIST\_RETURN@{SMART\_LIST\_RETURN}!dynamic\_structs.h@{dynamic\_structs.h}}
+\doxysubsubsection{\texorpdfstring{SMART\_LIST\_RETURN}{SMART\_LIST\_RETURN}}
+{\footnotesize\ttfamily \#define SMART\+\_\+\+LIST\+\_\+\+RETURN(\begin{DoxyParamCaption}\item[{}]{\+\_\+smart\+\_\+list,  }\item[{}]{\+\_\+item,  }\item[{}]{\+\_\+elt }\end{DoxyParamCaption})}
+
+{\bfseries Value\+:}
+\begin{DoxyCode}{0}
+\DoxyCodeLine{    \textcolor{keywordflow}{do}                                                               \(\backslash\)}
+\DoxyCodeLine{    \{                                                                \(\backslash\)}
+\DoxyCodeLine{        SIMPLE\_LIST\_PREPEND(\&((\_smart\_list)-\/>list), \&(\_item-\/>\_elt)); \(\backslash\)}
+\DoxyCodeLine{    \} \textcolor{keywordflow}{while} (0)}
+
+\end{DoxyCode}
+
+
+\doxysubsection{Typedef Documentation}
+\mbox{\Hypertarget{dynamic__structs_8h_aad9a80cfa65af5b2bc3eeb3abef9a1ed}\label{dynamic__structs_8h_aad9a80cfa65af5b2bc3eeb3abef9a1ed}} 
+\index{dynamic\_structs.h@{dynamic\_structs.h}!dyn\_array\_t@{dyn\_array\_t}}
+\index{dyn\_array\_t@{dyn\_array\_t}!dynamic\_structs.h@{dynamic\_structs.h}}
+\doxysubsubsection{\texorpdfstring{dyn\_array\_t}{dyn\_array\_t}}
+{\footnotesize\ttfamily typedef struct \mbox{\hyperlink{structdyn__array}{dyn\+\_\+array}} \mbox{\hyperlink{dynamic__structs_8h_aad9a80cfa65af5b2bc3eeb3abef9a1ed}{dyn\+\_\+array\+\_\+t}}}
+
+\mbox{\Hypertarget{dynamic__structs_8h_adb4673b92e39dc5bd73d30c30163a0d5}\label{dynamic__structs_8h_adb4673b92e39dc5bd73d30c30163a0d5}} 
+\index{dynamic\_structs.h@{dynamic\_structs.h}!dyn\_list\_t@{dyn\_list\_t}}
+\index{dyn\_list\_t@{dyn\_list\_t}!dynamic\_structs.h@{dynamic\_structs.h}}
+\doxysubsubsection{\texorpdfstring{dyn\_list\_t}{dyn\_list\_t}}
+{\footnotesize\ttfamily typedef struct \mbox{\hyperlink{structdyn__list}{dyn\+\_\+list}} \mbox{\hyperlink{dynamic__structs_8h_adb4673b92e39dc5bd73d30c30163a0d5}{dyn\+\_\+list\+\_\+t}}}
+
+\mbox{\Hypertarget{dynamic__structs_8h_aeea4cc86ba8a4d5f81e8549053a4b642}\label{dynamic__structs_8h_aeea4cc86ba8a4d5f81e8549053a4b642}} 
+\index{dynamic\_structs.h@{dynamic\_structs.h}!dyn\_struct\_elt\_init\_fn@{dyn\_struct\_elt\_init\_fn}}
+\index{dyn\_struct\_elt\_init\_fn@{dyn\_struct\_elt\_init\_fn}!dynamic\_structs.h@{dynamic\_structs.h}}
+\doxysubsubsection{\texorpdfstring{dyn\_struct\_elt\_init\_fn}{dyn\_struct\_elt\_init\_fn}}
+{\footnotesize\ttfamily typedef void($\ast$ dyn\+\_\+struct\+\_\+elt\+\_\+init\+\_\+fn) (void $\ast$)}
+
+\mbox{\Hypertarget{dynamic__structs_8h_adccb9c116f47faedb3af11d17cffb42e}\label{dynamic__structs_8h_adccb9c116f47faedb3af11d17cffb42e}} 
+\index{dynamic\_structs.h@{dynamic\_structs.h}!mem\_chunk\_t@{mem\_chunk\_t}}
+\index{mem\_chunk\_t@{mem\_chunk\_t}!dynamic\_structs.h@{dynamic\_structs.h}}
+\doxysubsubsection{\texorpdfstring{mem\_chunk\_t}{mem\_chunk\_t}}
+{\footnotesize\ttfamily typedef struct \mbox{\hyperlink{structmem__chunk}{mem\+\_\+chunk}} \mbox{\hyperlink{dynamic__structs_8h_adccb9c116f47faedb3af11d17cffb42e}{mem\+\_\+chunk\+\_\+t}}}
+
+\mbox{\Hypertarget{dynamic__structs_8h_a2dbc507ba858bb998999c26be4458daa}\label{dynamic__structs_8h_a2dbc507ba858bb998999c26be4458daa}} 
+\index{dynamic\_structs.h@{dynamic\_structs.h}!simple\_list\_t@{simple\_list\_t}}
+\index{simple\_list\_t@{simple\_list\_t}!dynamic\_structs.h@{dynamic\_structs.h}}
+\doxysubsubsection{\texorpdfstring{simple\_list\_t}{simple\_list\_t}}
+{\footnotesize\ttfamily typedef struct \mbox{\hyperlink{structsimple__list}{simple\+\_\+list}} \mbox{\hyperlink{dynamic__structs_8h_a2dbc507ba858bb998999c26be4458daa}{simple\+\_\+list\+\_\+t}}}
+
+
+
+simple\+\_\+list\+\_\+t aims at offering an alternative to ucs\+\_\+list\+\_\+link\+\_\+t without the huge performance impact associated to them. 
+
+\mbox{\Hypertarget{dynamic__structs_8h_a70bf7a47116d2e3387117c1393ed0445}\label{dynamic__structs_8h_a70bf7a47116d2e3387117c1393ed0445}} 
+\index{dynamic\_structs.h@{dynamic\_structs.h}!smart\_array\_t@{smart\_array\_t}}
+\index{smart\_array\_t@{smart\_array\_t}!dynamic\_structs.h@{dynamic\_structs.h}}
+\doxysubsubsection{\texorpdfstring{smart\_array\_t}{smart\_array\_t}}
+{\footnotesize\ttfamily typedef struct \mbox{\hyperlink{structsmart__array}{smart\+\_\+array}} \mbox{\hyperlink{dynamic__structs_8h_a70bf7a47116d2e3387117c1393ed0445}{smart\+\_\+array\+\_\+t}}}
+
+\mbox{\Hypertarget{dynamic__structs_8h_a72a13236b827e03ebd62708384ef94a2}\label{dynamic__structs_8h_a72a13236b827e03ebd62708384ef94a2}} 
+\index{dynamic\_structs.h@{dynamic\_structs.h}!smart\_bucket\_t@{smart\_bucket\_t}}
+\index{smart\_bucket\_t@{smart\_bucket\_t}!dynamic\_structs.h@{dynamic\_structs.h}}
+\doxysubsubsection{\texorpdfstring{smart\_bucket\_t}{smart\_bucket\_t}}
+{\footnotesize\ttfamily typedef struct \mbox{\hyperlink{structsmart__bucket}{smart\+\_\+bucket}} \mbox{\hyperlink{dynamic__structs_8h_a72a13236b827e03ebd62708384ef94a2}{smart\+\_\+bucket\+\_\+t}}}
+
+\mbox{\Hypertarget{dynamic__structs_8h_ac0f88b8fbe096f78b3518e8aa979c402}\label{dynamic__structs_8h_ac0f88b8fbe096f78b3518e8aa979c402}} 
+\index{dynamic\_structs.h@{dynamic\_structs.h}!smart\_buffers\_t@{smart\_buffers\_t}}
+\index{smart\_buffers\_t@{smart\_buffers\_t}!dynamic\_structs.h@{dynamic\_structs.h}}
+\doxysubsubsection{\texorpdfstring{smart\_buffers\_t}{smart\_buffers\_t}}
+{\footnotesize\ttfamily typedef struct \mbox{\hyperlink{structsmart__buffers}{smart\+\_\+buffers}} \mbox{\hyperlink{dynamic__structs_8h_ac0f88b8fbe096f78b3518e8aa979c402}{smart\+\_\+buffers\+\_\+t}}}
+
+\mbox{\Hypertarget{dynamic__structs_8h_aec7c1959dcbb91eae2dca57466ab5525}\label{dynamic__structs_8h_aec7c1959dcbb91eae2dca57466ab5525}} 
+\index{dynamic\_structs.h@{dynamic\_structs.h}!smart\_list\_t@{smart\_list\_t}}
+\index{smart\_list\_t@{smart\_list\_t}!dynamic\_structs.h@{dynamic\_structs.h}}
+\doxysubsubsection{\texorpdfstring{smart\_list\_t}{smart\_list\_t}}
+{\footnotesize\ttfamily typedef struct \mbox{\hyperlink{structsmart__list}{smart\+\_\+list}} \mbox{\hyperlink{dynamic__structs_8h_aec7c1959dcbb91eae2dca57466ab5525}{smart\+\_\+list\+\_\+t}}}
+
+
+
+\doxysubsection{Function Documentation}
+\mbox{\Hypertarget{dynamic__structs_8h_ac8d10e09570d883b975ae8da3cbb65a7}\label{dynamic__structs_8h_ac8d10e09570d883b975ae8da3cbb65a7}} 
+\index{dynamic\_structs.h@{dynamic\_structs.h}!dynamic\_list\_return@{dynamic\_list\_return}}
+\index{dynamic\_list\_return@{dynamic\_list\_return}!dynamic\_structs.h@{dynamic\_structs.h}}
+\doxysubsubsection{\texorpdfstring{dynamic\_list\_return()}{dynamic\_list\_return()}}
+{\footnotesize\ttfamily int dynamic\+\_\+list\+\_\+return (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})}
+

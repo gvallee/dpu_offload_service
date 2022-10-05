@@ -1,0 +1,511 @@
+\hypertarget{dpu__offload__utils_8c}{}\doxysection{/home/gvallee/\+Projects/\+DPU\+\_\+offloading/dpu\+\_\+offload\+\_\+service/src/dpu\+\_\+offload\+\_\+utils.c File Reference}
+\label{dpu__offload__utils_8c}\index{/home/gvallee/Projects/DPU\_offloading/dpu\_offload\_service/src/dpu\_offload\_utils.c@{/home/gvallee/Projects/DPU\_offloading/dpu\_offload\_service/src/dpu\_offload\_utils.c}}
+{\ttfamily \#include $<$string.\+h$>$}\newline
+{\ttfamily \#include $<$stdio.\+h$>$}\newline
+{\ttfamily \#include $<$assert.\+h$>$}\newline
+{\ttfamily \#include $<$unistd.\+h$>$}\newline
+{\ttfamily \#include \char`\"{}dpu\+\_\+offload\+\_\+types.\+h\char`\"{}}\newline
+{\ttfamily \#include \char`\"{}dpu\+\_\+offload\+\_\+mem\+\_\+mgt.\+h\char`\"{}}\newline
+{\ttfamily \#include \char`\"{}dpu\+\_\+offload\+\_\+debug.\+h\char`\"{}}\newline
+{\ttfamily \#include \char`\"{}dpu\+\_\+offload\+\_\+event\+\_\+channels.\+h\char`\"{}}\newline
+{\ttfamily \#include \char`\"{}dpu\+\_\+offload\+\_\+envvars.\+h\char`\"{}}\newline
+Include dependency graph for dpu\+\_\+offload\+\_\+utils.\+c\+:
+\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{dpu__offload__utils_8c__incl}
+\end{center}
+\end{figure}
+\doxysubsection*{Macros}
+\begin{DoxyCompactItemize}
+\item 
+\#define \mbox{\hyperlink{dpu__offload__utils_8c_a3024ccd4a9af5109d24e6c57565d74a1}{\+\_\+\+POSIX\+\_\+\+C\+\_\+\+SOURCE}}~200809L
+\item 
+\#define \mbox{\hyperlink{dpu__offload__utils_8c_a858bc9ac3f2b37bd88da9bdb4644cd01}{GROUP\+\_\+\+SIZE\+\_\+\+UNKNOWN}}~(-\/1)
+\end{DoxyCompactItemize}
+\doxysubsection*{Functions}
+\begin{DoxyCompactItemize}
+\item 
+\mbox{\hyperlink{dpu__offload__types_8h_ac95b2624b57c0005e3ca8a740316e5ab}{execution\+\_\+context\+\_\+t}} $\ast$ \mbox{\hyperlink{dpu__offload__utils_8c_a3bb135ba4f55dee6e23279cb695d6410}{get\+\_\+server\+\_\+servicing\+\_\+host}} (\mbox{\hyperlink{dpu__offload__types_8h_abdda2bc51909d3f2e98a5c9dde42b0a8}{offloading\+\_\+engine\+\_\+t}} $\ast$engine)
+\item 
+bool \mbox{\hyperlink{dpu__offload__utils_8c_ababa1a6787751964f2e3bf4fb2cbc63e}{is\+\_\+in\+\_\+cache}} (\mbox{\hyperlink{dpu__offload__types_8h_abce0d54f5f8f4c5440cd524a574ad8eb}{cache\+\_\+t}} $\ast$\mbox{\hyperlink{structcache}{cache}}, \mbox{\hyperlink{dpu__offload__types_8h_a01af586ce7b042c7131b9dff27ace5ca}{group\+\_\+id\+\_\+t}} gp\+\_\+id, int64\+\_\+t rank\+\_\+id, int64\+\_\+t group\+\_\+size)
+\item 
+\mbox{\hyperlink{dpu__offload__common_8h_a2f49d8c1f5f6182b5128dfd3c815c3ef}{dpu\+\_\+offload\+\_\+status\+\_\+t}} \mbox{\hyperlink{dpu__offload__utils_8c_a94614a541607dd075c2f9806f4938685}{send\+\_\+add\+\_\+group\+\_\+rank\+\_\+request}} (\mbox{\hyperlink{dpu__offload__types_8h_ac95b2624b57c0005e3ca8a740316e5ab}{execution\+\_\+context\+\_\+t}} $\ast$econtext, ucp\+\_\+ep\+\_\+h ep, uint64\+\_\+t dest\+\_\+id, \mbox{\hyperlink{dpu__offload__types_8h_a5872fe6516c1dd159957efdfabc9ad2a}{dpu\+\_\+offload\+\_\+event\+\_\+t}} $\ast$ev)
+\item 
+bool \mbox{\hyperlink{dpu__offload__utils_8c_af06f8a0c90607ebea8c425de3b0fb06e}{group\+\_\+cache\+\_\+populated}} (\mbox{\hyperlink{dpu__offload__types_8h_abdda2bc51909d3f2e98a5c9dde42b0a8}{offloading\+\_\+engine\+\_\+t}} $\ast$engine, \mbox{\hyperlink{dpu__offload__types_8h_a01af586ce7b042c7131b9dff27ace5ca}{group\+\_\+id\+\_\+t}} gp\+\_\+id)
+\item 
+uint64\+\_\+t \mbox{\hyperlink{dpu__offload__utils_8c_aede8b21a0dc08753ab3ce82e868659f3}{LOCAL\+\_\+\+ID\+\_\+\+TO\+\_\+\+GLOBAL}} (\mbox{\hyperlink{dpu__offload__types_8h_ac95b2624b57c0005e3ca8a740316e5ab}{execution\+\_\+context\+\_\+t}} $\ast$econtext, uint64\+\_\+t local\+\_\+id)
+\item 
+\mbox{\hyperlink{dpu__offload__common_8h_a2f49d8c1f5f6182b5128dfd3c815c3ef}{dpu\+\_\+offload\+\_\+status\+\_\+t}} \mbox{\hyperlink{dpu__offload__utils_8c_ade0d7885409a05348d1f550a11260eff}{do\+\_\+send\+\_\+cache\+\_\+entry\+\_\+request}} (\mbox{\hyperlink{dpu__offload__types_8h_ac95b2624b57c0005e3ca8a740316e5ab}{execution\+\_\+context\+\_\+t}} $\ast$econtext, ucp\+\_\+ep\+\_\+h ep, uint64\+\_\+t dest\+\_\+id, \mbox{\hyperlink{dpu__offload__types_8h_a6846f687a61323898ab2f6903ca8766e}{rank\+\_\+info\+\_\+t}} $\ast$requested\+\_\+peer, \mbox{\hyperlink{dpu__offload__types_8h_a5872fe6516c1dd159957efdfabc9ad2a}{dpu\+\_\+offload\+\_\+event\+\_\+t}} $\ast$ev)
+\item 
+\mbox{\hyperlink{dpu__offload__common_8h_a2f49d8c1f5f6182b5128dfd3c815c3ef}{dpu\+\_\+offload\+\_\+status\+\_\+t}} \mbox{\hyperlink{dpu__offload__utils_8c_a1cd58164db28b3c7859b4a1cb6ce1ad4}{send\+\_\+cache\+\_\+entry\+\_\+request}} (\mbox{\hyperlink{dpu__offload__types_8h_ac95b2624b57c0005e3ca8a740316e5ab}{execution\+\_\+context\+\_\+t}} $\ast$econtext, ucp\+\_\+ep\+\_\+h ep, uint64\+\_\+t dest\+\_\+id, \mbox{\hyperlink{dpu__offload__types_8h_a6846f687a61323898ab2f6903ca8766e}{rank\+\_\+info\+\_\+t}} $\ast$requested\+\_\+peer, \mbox{\hyperlink{dpu__offload__types_8h_a5872fe6516c1dd159957efdfabc9ad2a}{dpu\+\_\+offload\+\_\+event\+\_\+t}} $\ast$$\ast$ev)
+\item 
+\mbox{\hyperlink{dpu__offload__common_8h_a2f49d8c1f5f6182b5128dfd3c815c3ef}{dpu\+\_\+offload\+\_\+status\+\_\+t}} \mbox{\hyperlink{dpu__offload__utils_8c_a8707ee7aa99ed44e18b88d0896364ac9}{do\+\_\+send\+\_\+cache\+\_\+entry}} (\mbox{\hyperlink{dpu__offload__types_8h_ac95b2624b57c0005e3ca8a740316e5ab}{execution\+\_\+context\+\_\+t}} $\ast$econtext, ucp\+\_\+ep\+\_\+h ep, uint64\+\_\+t dest\+\_\+id, \mbox{\hyperlink{dpu__offload__types_8h_ab004803006d678d9cc6c5dee2ad53351}{peer\+\_\+cache\+\_\+entry\+\_\+t}} $\ast$cache\+\_\+entry, \mbox{\hyperlink{dpu__offload__types_8h_a5872fe6516c1dd159957efdfabc9ad2a}{dpu\+\_\+offload\+\_\+event\+\_\+t}} $\ast$ev)
+\item 
+\mbox{\hyperlink{dpu__offload__common_8h_a2f49d8c1f5f6182b5128dfd3c815c3ef}{dpu\+\_\+offload\+\_\+status\+\_\+t}} \mbox{\hyperlink{dpu__offload__utils_8c_a559755f5eef761fd285b08ccec2b3500}{send\+\_\+cache\+\_\+entry}} (\mbox{\hyperlink{dpu__offload__types_8h_ac95b2624b57c0005e3ca8a740316e5ab}{execution\+\_\+context\+\_\+t}} $\ast$econtext, ucp\+\_\+ep\+\_\+h ep, uint64\+\_\+t dest\+\_\+id, \mbox{\hyperlink{dpu__offload__types_8h_ab004803006d678d9cc6c5dee2ad53351}{peer\+\_\+cache\+\_\+entry\+\_\+t}} $\ast$cache\+\_\+entry, \mbox{\hyperlink{dpu__offload__types_8h_a5872fe6516c1dd159957efdfabc9ad2a}{dpu\+\_\+offload\+\_\+event\+\_\+t}} $\ast$$\ast$ev)
+\item 
+\mbox{\hyperlink{dpu__offload__common_8h_a2f49d8c1f5f6182b5128dfd3c815c3ef}{dpu\+\_\+offload\+\_\+status\+\_\+t}} \mbox{\hyperlink{dpu__offload__utils_8c_ab999e9cc405feea09cb1a40844c7cbd8}{send\+\_\+group\+\_\+cache}} (\mbox{\hyperlink{dpu__offload__types_8h_ac95b2624b57c0005e3ca8a740316e5ab}{execution\+\_\+context\+\_\+t}} $\ast$econtext, ucp\+\_\+ep\+\_\+h dest\+\_\+ep, uint64\+\_\+t dest\+\_\+id, \mbox{\hyperlink{dpu__offload__types_8h_a01af586ce7b042c7131b9dff27ace5ca}{group\+\_\+id\+\_\+t}} gp\+\_\+id, \mbox{\hyperlink{dpu__offload__types_8h_a5872fe6516c1dd159957efdfabc9ad2a}{dpu\+\_\+offload\+\_\+event\+\_\+t}} $\ast$metaev)
+\begin{DoxyCompactList}\small\item\em Send group cache to a specific destination, mainly used to send the cache back to the local ranks. \end{DoxyCompactList}\item 
+bool \mbox{\hyperlink{dpu__offload__utils_8c_a40fb13bb405f1b9cac1d19bfcb8570aa}{find\+\_\+range\+\_\+local\+\_\+ranks}} (\mbox{\hyperlink{dpu__offload__types_8h_ac95b2624b57c0005e3ca8a740316e5ab}{execution\+\_\+context\+\_\+t}} $\ast$econtext, \mbox{\hyperlink{dpu__offload__types_8h_a01af586ce7b042c7131b9dff27ace5ca}{group\+\_\+id\+\_\+t}} gp\+\_\+id, int64\+\_\+t gp\+\_\+size, size\+\_\+t start\+\_\+idx, size\+\_\+t total\+\_\+count, size\+\_\+t cur\+\_\+count, size\+\_\+t $\ast$range\+\_\+start, size\+\_\+t $\ast$num, size\+\_\+t $\ast$cur\+\_\+idx)
+\item 
+\mbox{\hyperlink{dpu__offload__common_8h_a2f49d8c1f5f6182b5128dfd3c815c3ef}{dpu\+\_\+offload\+\_\+status\+\_\+t}} \mbox{\hyperlink{dpu__offload__utils_8c_a824348f42ed4f6123676442a035e5e1c}{send\+\_\+local\+\_\+rank\+\_\+group\+\_\+cache}} (\mbox{\hyperlink{dpu__offload__types_8h_ac95b2624b57c0005e3ca8a740316e5ab}{execution\+\_\+context\+\_\+t}} $\ast$econtext, ucp\+\_\+ep\+\_\+h dest\+\_\+ep, uint64\+\_\+t dest\+\_\+id, \mbox{\hyperlink{dpu__offload__types_8h_a01af586ce7b042c7131b9dff27ace5ca}{group\+\_\+id\+\_\+t}} gp\+\_\+id, \mbox{\hyperlink{dpu__offload__types_8h_a5872fe6516c1dd159957efdfabc9ad2a}{dpu\+\_\+offload\+\_\+event\+\_\+t}} $\ast$metaev)
+\item 
+\mbox{\hyperlink{dpu__offload__common_8h_a2f49d8c1f5f6182b5128dfd3c815c3ef}{dpu\+\_\+offload\+\_\+status\+\_\+t}} \mbox{\hyperlink{dpu__offload__utils_8c_a40d1309dab51e9eb9223f3b5c26ede6e}{send\+\_\+gp\+\_\+cache\+\_\+to\+\_\+host}} (\mbox{\hyperlink{dpu__offload__types_8h_ac95b2624b57c0005e3ca8a740316e5ab}{execution\+\_\+context\+\_\+t}} $\ast$econtext, \mbox{\hyperlink{dpu__offload__types_8h_a01af586ce7b042c7131b9dff27ace5ca}{group\+\_\+id\+\_\+t}} \mbox{\hyperlink{structgroup__id}{group\+\_\+id}})
+\item 
+\mbox{\hyperlink{dpu__offload__common_8h_a2f49d8c1f5f6182b5128dfd3c815c3ef}{dpu\+\_\+offload\+\_\+status\+\_\+t}} \mbox{\hyperlink{dpu__offload__utils_8c_a6b0a8a6c0a571b3f628b9def6a947a41}{send\+\_\+cache}} (\mbox{\hyperlink{dpu__offload__types_8h_ac95b2624b57c0005e3ca8a740316e5ab}{execution\+\_\+context\+\_\+t}} $\ast$econtext, \mbox{\hyperlink{dpu__offload__types_8h_abce0d54f5f8f4c5440cd524a574ad8eb}{cache\+\_\+t}} $\ast$\mbox{\hyperlink{structcache}{cache}}, ucp\+\_\+ep\+\_\+h dest\+\_\+ep, uint64\+\_\+t dest\+\_\+id, \mbox{\hyperlink{dpu__offload__types_8h_a5872fe6516c1dd159957efdfabc9ad2a}{dpu\+\_\+offload\+\_\+event\+\_\+t}} $\ast$metaevt)
+\item 
+bool \mbox{\hyperlink{dpu__offload__utils_8c_ae7f8472010129e59c70487e739f61509}{all\+\_\+service\+\_\+procs\+\_\+connected}} (\mbox{\hyperlink{dpu__offload__types_8h_abdda2bc51909d3f2e98a5c9dde42b0a8}{offloading\+\_\+engine\+\_\+t}} $\ast$engine)
+\item 
+\mbox{\hyperlink{dpu__offload__common_8h_a2f49d8c1f5f6182b5128dfd3c815c3ef}{dpu\+\_\+offload\+\_\+status\+\_\+t}} \mbox{\hyperlink{dpu__offload__utils_8c_a1c848b5937cc663260126f96c91f0213}{broadcast\+\_\+group\+\_\+cache}} (\mbox{\hyperlink{dpu__offload__types_8h_abdda2bc51909d3f2e98a5c9dde42b0a8}{offloading\+\_\+engine\+\_\+t}} $\ast$engine, \mbox{\hyperlink{dpu__offload__types_8h_a01af586ce7b042c7131b9dff27ace5ca}{group\+\_\+id\+\_\+t}} \mbox{\hyperlink{structgroup__id}{group\+\_\+id}})
+\begin{DoxyCompactList}\small\item\em The function sends the cache entries for the local ranks of a group to all other DPUs but only if all DPUs are connected, otherwise the broadcast would be incomplete. Remember that all DPU daemons and ranks are initiating connections independently and in parallel, there is not way to predict whether the local ranks will be fully connected before all the DPUs, or the opposite. In other words, when calling the function, it is possible that it would not be possible to perform the broadcast right away. The function checks whether the broadcast can be performed before trying to send the cache. In other words, the broadcast is not initiated if all the DPUs are not locally connected. \end{DoxyCompactList}\item 
+\mbox{\hyperlink{dpu__offload__common_8h_a2f49d8c1f5f6182b5128dfd3c815c3ef}{dpu\+\_\+offload\+\_\+status\+\_\+t}} \mbox{\hyperlink{dpu__offload__utils_8c_a9b16233c24e29ad253bd52b7deefb0b0}{get\+\_\+cache\+\_\+entry\+\_\+by\+\_\+group\+\_\+rank}} (\mbox{\hyperlink{dpu__offload__types_8h_abdda2bc51909d3f2e98a5c9dde42b0a8}{offloading\+\_\+engine\+\_\+t}} $\ast$engine, \mbox{\hyperlink{dpu__offload__types_8h_a01af586ce7b042c7131b9dff27ace5ca}{group\+\_\+id\+\_\+t}} gp\+\_\+id, int64\+\_\+t rank, int64\+\_\+t sp\+\_\+idx, \mbox{\hyperlink{dpu__offload__types_8h_a576c274d9379aaaedee8b57db966cf7e}{request\+\_\+compl\+\_\+cb\+\_\+t}} cb)
+\begin{DoxyCompactList}\small\item\em Get the dpu ID by host rank object. That ID can then be used to look up the corresponding endpoint. \end{DoxyCompactList}\item 
+\mbox{\hyperlink{dpu__offload__common_8h_a2f49d8c1f5f6182b5128dfd3c815c3ef}{dpu\+\_\+offload\+\_\+status\+\_\+t}} \mbox{\hyperlink{dpu__offload__utils_8c_aa3dc37e5abbff121b300126cd9ccd010}{get\+\_\+sp\+\_\+id\+\_\+by\+\_\+group\+\_\+rank}} (\mbox{\hyperlink{dpu__offload__types_8h_abdda2bc51909d3f2e98a5c9dde42b0a8}{offloading\+\_\+engine\+\_\+t}} $\ast$engine, \mbox{\hyperlink{dpu__offload__types_8h_a01af586ce7b042c7131b9dff27ace5ca}{group\+\_\+id\+\_\+t}} gp\+\_\+id, int64\+\_\+t rank, int64\+\_\+t sp\+\_\+idx, int64\+\_\+t $\ast$sp\+\_\+id, \mbox{\hyperlink{dpu__offload__types_8h_a5872fe6516c1dd159957efdfabc9ad2a}{dpu\+\_\+offload\+\_\+event\+\_\+t}} $\ast$$\ast$ev)
+\begin{DoxyCompactList}\small\item\em Get the service process ID by host rank object. That ID can then be used to look up the corresponding endpoint. \end{DoxyCompactList}\item 
+\mbox{\hyperlink{dpu__offload__common_8h_a2f49d8c1f5f6182b5128dfd3c815c3ef}{dpu\+\_\+offload\+\_\+status\+\_\+t}} \mbox{\hyperlink{dpu__offload__utils_8c_ae4aff8e3c464f8b089d7975242f75bc0}{get\+\_\+sp\+\_\+ep\+\_\+by\+\_\+id}} (\mbox{\hyperlink{dpu__offload__types_8h_abdda2bc51909d3f2e98a5c9dde42b0a8}{offloading\+\_\+engine\+\_\+t}} $\ast$engine, uint64\+\_\+t sp\+\_\+id, ucp\+\_\+ep\+\_\+h $\ast$sp\+\_\+ep, \mbox{\hyperlink{dpu__offload__types_8h_ac95b2624b57c0005e3ca8a740316e5ab}{execution\+\_\+context\+\_\+t}} $\ast$$\ast$econtext\+\_\+comm, uint64\+\_\+t $\ast$comm\+\_\+id)
+\begin{DoxyCompactList}\small\item\em Get the service process endpoint by ID object, i.\+e., the identifier returned by get\+\_\+sp\+\_\+id\+\_\+by\+\_\+host\+\_\+rank. \end{DoxyCompactList}\item 
+\mbox{\hyperlink{dpu__offload__common_8h_a2f49d8c1f5f6182b5128dfd3c815c3ef}{dpu\+\_\+offload\+\_\+status\+\_\+t}} \mbox{\hyperlink{dpu__offload__utils_8c_a5862e08ae03c78e543425017f520314d}{check\+\_\+config\+\_\+file\+\_\+version}} (char $\ast$line, int $\ast$version)
+\item 
+bool \mbox{\hyperlink{dpu__offload__utils_8c_a77618f3400e56e211ca624764793c6f4}{line\+\_\+is\+\_\+comment}} (char $\ast$line)
+\item 
+bool \mbox{\hyperlink{dpu__offload__utils_8c_a6ca7d4efcb1ff8512bd5ab8e75b7a19b}{parse\+\_\+line\+\_\+dpu\+\_\+version\+\_\+1}} (\mbox{\hyperlink{dpu__offload__types_8h_a7d930a5e992bf8d542cb50a0f11a6276}{offloading\+\_\+config\+\_\+t}} $\ast$data, char $\ast$line)
+\begin{DoxyCompactList}\small\item\em Main function to parse the content of the configuration file in the context of service processes. The function relies on the placeholders created while parsing the list of DPUs to be used. Format\+: $<$host name$>$,$<$dpu1\+\_\+hostname\+:dpu\+\_\+conn\+\_\+addr\+:interdpu-\/port1\&interdpu-\/port2,...\+:rank-\/conn-\/port1\&rank-\/conn-\/port2,...$>$,... \end{DoxyCompactList}\item 
+bool \mbox{\hyperlink{dpu__offload__utils_8c_a2b09367a4a6ba8a3a774e836a0b6a677}{parse\+\_\+line\+\_\+version\+\_\+1}} (char $\ast$target\+\_\+hostname, \mbox{\hyperlink{dpu__offload__types_8h_a7d930a5e992bf8d542cb50a0f11a6276}{offloading\+\_\+config\+\_\+t}} $\ast$data, char $\ast$line)
+\begin{DoxyCompactList}\small\item\em Main function to parse the configuration file in the context of the host. Format\+: $<$host name$>$,$<$dpu1\+\_\+hostname\+:dpu\+\_\+conn\+\_\+addr\+:interdpu-\/port\+:rank-\/conn-\/port$>$,... \end{DoxyCompactList}\item 
+bool \mbox{\hyperlink{dpu__offload__utils_8c_a1b0e7416a6383d247f40156e8c4ce1b1}{parse\+\_\+line}} (char $\ast$target\+\_\+hostname, char $\ast$line, \mbox{\hyperlink{dpu__offload__types_8h_a7d930a5e992bf8d542cb50a0f11a6276}{offloading\+\_\+config\+\_\+t}} $\ast$data)
+\begin{DoxyCompactList}\small\item\em parse\+\_\+line parses a line of the configuration file looking for a specific host name. It shall not be used to seek the configuration of a DPU. \end{DoxyCompactList}\item 
+bool \mbox{\hyperlink{dpu__offload__utils_8c_aca8619232d7dfe8e9c8e789db1c337ab}{parse\+\_\+line\+\_\+for\+\_\+dpu\+\_\+cfg}} (\mbox{\hyperlink{dpu__offload__types_8h_a7d930a5e992bf8d542cb50a0f11a6276}{offloading\+\_\+config\+\_\+t}} $\ast$data, char $\ast$line)
+\begin{DoxyCompactList}\small\item\em parse\+\_\+line\+\_\+for\+\_\+dpu\+\_\+cfg parses a line of the configuration file looking for a specific DPU. It shall not be used to seek the configuration of a host. \end{DoxyCompactList}\item 
+\mbox{\hyperlink{dpu__offload__common_8h_a2f49d8c1f5f6182b5128dfd3c815c3ef}{dpu\+\_\+offload\+\_\+status\+\_\+t}} \mbox{\hyperlink{dpu__offload__utils_8c_ae5dce2d9ec5c293b81308802c2e99817}{find\+\_\+dpu\+\_\+config\+\_\+from\+\_\+platform\+\_\+configfile}} (char $\ast$filepath, \mbox{\hyperlink{dpu__offload__types_8h_a7d930a5e992bf8d542cb50a0f11a6276}{offloading\+\_\+config\+\_\+t}} $\ast$config\+\_\+data)
+\begin{DoxyCompactList}\small\item\em find\+\_\+dpu\+\_\+config\+\_\+from\+\_\+platform\+\_\+configfile extracts a DPU\textquotesingle{}s configuration from a platform configuration file. It shall not be used to extract the configuration of a host. \end{DoxyCompactList}\item 
+\mbox{\hyperlink{dpu__offload__common_8h_a2f49d8c1f5f6182b5128dfd3c815c3ef}{dpu\+\_\+offload\+\_\+status\+\_\+t}} \mbox{\hyperlink{dpu__offload__utils_8c_ad9a455f33e80b6104d5d3f2d2624d482}{find\+\_\+config\+\_\+from\+\_\+platform\+\_\+configfile}} (char $\ast$filepath, char $\ast$hostname, \mbox{\hyperlink{dpu__offload__types_8h_a7d930a5e992bf8d542cb50a0f11a6276}{offloading\+\_\+config\+\_\+t}} $\ast$data)
+\begin{DoxyCompactList}\small\item\em find\+\_\+config\+\_\+from\+\_\+platform\+\_\+configfile extracts a host\textquotesingle{}s configuration from a platform configuration file. It shall not be used to extract the configuration of a DPU. \end{DoxyCompactList}\item 
+\mbox{\hyperlink{dpu__offload__common_8h_a2f49d8c1f5f6182b5128dfd3c815c3ef}{dpu\+\_\+offload\+\_\+status\+\_\+t}} \mbox{\hyperlink{dpu__offload__utils_8c_ad79a85541d799e524f41c1e863d85c84}{get\+\_\+env\+\_\+config}} (\mbox{\hyperlink{dpu__offload__types_8h_a3873b77cd04f5ee9378a390abe9ddab0}{conn\+\_\+params\+\_\+t}} $\ast$params)
+\item 
+\mbox{\hyperlink{dpu__offload__common_8h_a2f49d8c1f5f6182b5128dfd3c815c3ef}{dpu\+\_\+offload\+\_\+status\+\_\+t}} \mbox{\hyperlink{dpu__offload__utils_8c_a9687973eb24fa43ebca414d3ae26d729}{get\+\_\+host\+\_\+config}} (\mbox{\hyperlink{dpu__offload__types_8h_a7d930a5e992bf8d542cb50a0f11a6276}{offloading\+\_\+config\+\_\+t}} $\ast$config\+\_\+data)
+\item 
+\mbox{\hyperlink{dpu__offload__common_8h_a2f49d8c1f5f6182b5128dfd3c815c3ef}{dpu\+\_\+offload\+\_\+status\+\_\+t}} \mbox{\hyperlink{dpu__offload__utils_8c_a10d70272c1c34ed070381dc824f179d7}{get\+\_\+num\+\_\+connecting\+\_\+ranks}} (uint64\+\_\+t num\+\_\+service\+\_\+procs\+\_\+per\+\_\+dpu, int64\+\_\+t n\+\_\+local\+\_\+ranks, uint64\+\_\+t sp\+\_\+lid, uint64\+\_\+t $\ast$n\+\_\+ranks)
+\item 
+\mbox{\hyperlink{dpu__offload__common_8h_a2f49d8c1f5f6182b5128dfd3c815c3ef}{dpu\+\_\+offload\+\_\+status\+\_\+t}} \mbox{\hyperlink{dpu__offload__utils_8c_a7840a760be9d412387952227501dd14b}{get\+\_\+local\+\_\+service\+\_\+proc\+\_\+connect\+\_\+info}} (\mbox{\hyperlink{dpu__offload__types_8h_a7d930a5e992bf8d542cb50a0f11a6276}{offloading\+\_\+config\+\_\+t}} $\ast$cfg, \mbox{\hyperlink{dpu__offload__types_8h_a6846f687a61323898ab2f6903ca8766e}{rank\+\_\+info\+\_\+t}} $\ast$\mbox{\hyperlink{structrank__info}{rank\+\_\+info}}, \mbox{\hyperlink{dpu__offload__types_8h_a42c35bf5c92dc98cf22a4818b0331608}{init\+\_\+params\+\_\+t}} $\ast$\mbox{\hyperlink{structinit__params}{init\+\_\+params}})
+\item 
+void \mbox{\hyperlink{dpu__offload__utils_8c_a581d1765c57e7cf80d25d267a4bbcf82}{offload\+\_\+config\+\_\+free}} (\mbox{\hyperlink{dpu__offload__types_8h_a7d930a5e992bf8d542cb50a0f11a6276}{offloading\+\_\+config\+\_\+t}} $\ast$cfg)
+\item 
+\mbox{\hyperlink{dpu__offload__utils_8c_a521aaa29708382a7af39b3f0e60e4a1f}{\+\_\+\+\_\+attribute\+\_\+\+\_\+}} ((destructor))
+\end{DoxyCompactItemize}
+\doxysubsection*{Variables}
+\begin{DoxyCompactItemize}
+\item 
+\mbox{\hyperlink{dpu__offload__debug_8h_acacca5e836212792f278e28e8c5cbdee}{debug\+\_\+config\+\_\+t}} \mbox{\hyperlink{dpu__offload__utils_8c_a8c1ff660127011d941f7138087377492}{dbg\+\_\+cfg}}
+\item 
+const char $\ast$ \mbox{\hyperlink{dpu__offload__utils_8c_a157cedd1ccb06433b6671306b29f9163}{config\+\_\+file\+\_\+version\+\_\+token}} = \char`\"{}Format version\+:\char`\"{}
+\end{DoxyCompactItemize}
+
+
+\doxysubsection{Macro Definition Documentation}
+\mbox{\Hypertarget{dpu__offload__utils_8c_a3024ccd4a9af5109d24e6c57565d74a1}\label{dpu__offload__utils_8c_a3024ccd4a9af5109d24e6c57565d74a1}} 
+\index{dpu\_offload\_utils.c@{dpu\_offload\_utils.c}!\_POSIX\_C\_SOURCE@{\_POSIX\_C\_SOURCE}}
+\index{\_POSIX\_C\_SOURCE@{\_POSIX\_C\_SOURCE}!dpu\_offload\_utils.c@{dpu\_offload\_utils.c}}
+\doxysubsubsection{\texorpdfstring{\_POSIX\_C\_SOURCE}{\_POSIX\_C\_SOURCE}}
+{\footnotesize\ttfamily \#define \+\_\+\+POSIX\+\_\+\+C\+\_\+\+SOURCE~200809L}
+
+\mbox{\Hypertarget{dpu__offload__utils_8c_a858bc9ac3f2b37bd88da9bdb4644cd01}\label{dpu__offload__utils_8c_a858bc9ac3f2b37bd88da9bdb4644cd01}} 
+\index{dpu\_offload\_utils.c@{dpu\_offload\_utils.c}!GROUP\_SIZE\_UNKNOWN@{GROUP\_SIZE\_UNKNOWN}}
+\index{GROUP\_SIZE\_UNKNOWN@{GROUP\_SIZE\_UNKNOWN}!dpu\_offload\_utils.c@{dpu\_offload\_utils.c}}
+\doxysubsubsection{\texorpdfstring{GROUP\_SIZE\_UNKNOWN}{GROUP\_SIZE\_UNKNOWN}}
+{\footnotesize\ttfamily \#define GROUP\+\_\+\+SIZE\+\_\+\+UNKNOWN~(-\/1)}
+
+
+
+\doxysubsection{Function Documentation}
+\mbox{\Hypertarget{dpu__offload__utils_8c_a521aaa29708382a7af39b3f0e60e4a1f}\label{dpu__offload__utils_8c_a521aaa29708382a7af39b3f0e60e4a1f}} 
+\index{dpu\_offload\_utils.c@{dpu\_offload\_utils.c}!\_\_attribute\_\_@{\_\_attribute\_\_}}
+\index{\_\_attribute\_\_@{\_\_attribute\_\_}!dpu\_offload\_utils.c@{dpu\_offload\_utils.c}}
+\doxysubsubsection{\texorpdfstring{\_\_attribute\_\_()}{\_\_attribute\_\_()}}
+{\footnotesize\ttfamily \+\_\+\+\_\+attribute\+\_\+\+\_\+ (\begin{DoxyParamCaption}\item[{(destructor)}]{ }\end{DoxyParamCaption})}
+
+\mbox{\Hypertarget{dpu__offload__utils_8c_ae7f8472010129e59c70487e739f61509}\label{dpu__offload__utils_8c_ae7f8472010129e59c70487e739f61509}} 
+\index{dpu\_offload\_utils.c@{dpu\_offload\_utils.c}!all\_service\_procs\_connected@{all\_service\_procs\_connected}}
+\index{all\_service\_procs\_connected@{all\_service\_procs\_connected}!dpu\_offload\_utils.c@{dpu\_offload\_utils.c}}
+\doxysubsubsection{\texorpdfstring{all\_service\_procs\_connected()}{all\_service\_procs\_connected()}}
+{\footnotesize\ttfamily bool all\+\_\+service\+\_\+procs\+\_\+connected (\begin{DoxyParamCaption}\item[{\mbox{\hyperlink{dpu__offload__types_8h_abdda2bc51909d3f2e98a5c9dde42b0a8}{offloading\+\_\+engine\+\_\+t}} $\ast$}]{engine }\end{DoxyParamCaption})}
+
+\mbox{\Hypertarget{dpu__offload__utils_8c_a1c848b5937cc663260126f96c91f0213}\label{dpu__offload__utils_8c_a1c848b5937cc663260126f96c91f0213}} 
+\index{dpu\_offload\_utils.c@{dpu\_offload\_utils.c}!broadcast\_group\_cache@{broadcast\_group\_cache}}
+\index{broadcast\_group\_cache@{broadcast\_group\_cache}!dpu\_offload\_utils.c@{dpu\_offload\_utils.c}}
+\doxysubsubsection{\texorpdfstring{broadcast\_group\_cache()}{broadcast\_group\_cache()}}
+{\footnotesize\ttfamily \mbox{\hyperlink{dpu__offload__common_8h_a2f49d8c1f5f6182b5128dfd3c815c3ef}{dpu\+\_\+offload\+\_\+status\+\_\+t}} broadcast\+\_\+group\+\_\+cache (\begin{DoxyParamCaption}\item[{\mbox{\hyperlink{dpu__offload__types_8h_abdda2bc51909d3f2e98a5c9dde42b0a8}{offloading\+\_\+engine\+\_\+t}} $\ast$}]{engine,  }\item[{\mbox{\hyperlink{dpu__offload__types_8h_a01af586ce7b042c7131b9dff27ace5ca}{group\+\_\+id\+\_\+t}}}]{group\+\_\+id }\end{DoxyParamCaption})}
+
+
+
+The function sends the cache entries for the local ranks of a group to all other DPUs but only if all DPUs are connected, otherwise the broadcast would be incomplete. Remember that all DPU daemons and ranks are initiating connections independently and in parallel, there is not way to predict whether the local ranks will be fully connected before all the DPUs, or the opposite. In other words, when calling the function, it is possible that it would not be possible to perform the broadcast right away. The function checks whether the broadcast can be performed before trying to send the cache. In other words, the broadcast is not initiated if all the DPUs are not locally connected. 
+
+
+\begin{DoxyParams}{Parameters}
+{\em engine} & Current offloading engine \\
+\hline
+{\em \mbox{\hyperlink{structgroup__id}{group\+\_\+id}}} & ID of the group to broadcast. \\
+\hline
+\end{DoxyParams}
+\begin{DoxyReturn}{Returns}
+dpu\+\_\+offload\+\_\+status\+\_\+t 
+\end{DoxyReturn}
+\mbox{\Hypertarget{dpu__offload__utils_8c_a5862e08ae03c78e543425017f520314d}\label{dpu__offload__utils_8c_a5862e08ae03c78e543425017f520314d}} 
+\index{dpu\_offload\_utils.c@{dpu\_offload\_utils.c}!check\_config\_file\_version@{check\_config\_file\_version}}
+\index{check\_config\_file\_version@{check\_config\_file\_version}!dpu\_offload\_utils.c@{dpu\_offload\_utils.c}}
+\doxysubsubsection{\texorpdfstring{check\_config\_file\_version()}{check\_config\_file\_version()}}
+{\footnotesize\ttfamily \mbox{\hyperlink{dpu__offload__common_8h_a2f49d8c1f5f6182b5128dfd3c815c3ef}{dpu\+\_\+offload\+\_\+status\+\_\+t}} check\+\_\+config\+\_\+file\+\_\+version (\begin{DoxyParamCaption}\item[{char $\ast$}]{line,  }\item[{int $\ast$}]{version }\end{DoxyParamCaption})}
+
+\mbox{\Hypertarget{dpu__offload__utils_8c_a8707ee7aa99ed44e18b88d0896364ac9}\label{dpu__offload__utils_8c_a8707ee7aa99ed44e18b88d0896364ac9}} 
+\index{dpu\_offload\_utils.c@{dpu\_offload\_utils.c}!do\_send\_cache\_entry@{do\_send\_cache\_entry}}
+\index{do\_send\_cache\_entry@{do\_send\_cache\_entry}!dpu\_offload\_utils.c@{dpu\_offload\_utils.c}}
+\doxysubsubsection{\texorpdfstring{do\_send\_cache\_entry()}{do\_send\_cache\_entry()}}
+{\footnotesize\ttfamily \mbox{\hyperlink{dpu__offload__common_8h_a2f49d8c1f5f6182b5128dfd3c815c3ef}{dpu\+\_\+offload\+\_\+status\+\_\+t}} do\+\_\+send\+\_\+cache\+\_\+entry (\begin{DoxyParamCaption}\item[{\mbox{\hyperlink{dpu__offload__types_8h_ac95b2624b57c0005e3ca8a740316e5ab}{execution\+\_\+context\+\_\+t}} $\ast$}]{econtext,  }\item[{ucp\+\_\+ep\+\_\+h}]{ep,  }\item[{uint64\+\_\+t}]{dest\+\_\+id,  }\item[{\mbox{\hyperlink{dpu__offload__types_8h_ab004803006d678d9cc6c5dee2ad53351}{peer\+\_\+cache\+\_\+entry\+\_\+t}} $\ast$}]{cache\+\_\+entry,  }\item[{\mbox{\hyperlink{dpu__offload__types_8h_a5872fe6516c1dd159957efdfabc9ad2a}{dpu\+\_\+offload\+\_\+event\+\_\+t}} $\ast$}]{ev }\end{DoxyParamCaption})}
+
+\mbox{\Hypertarget{dpu__offload__utils_8c_ade0d7885409a05348d1f550a11260eff}\label{dpu__offload__utils_8c_ade0d7885409a05348d1f550a11260eff}} 
+\index{dpu\_offload\_utils.c@{dpu\_offload\_utils.c}!do\_send\_cache\_entry\_request@{do\_send\_cache\_entry\_request}}
+\index{do\_send\_cache\_entry\_request@{do\_send\_cache\_entry\_request}!dpu\_offload\_utils.c@{dpu\_offload\_utils.c}}
+\doxysubsubsection{\texorpdfstring{do\_send\_cache\_entry\_request()}{do\_send\_cache\_entry\_request()}}
+{\footnotesize\ttfamily \mbox{\hyperlink{dpu__offload__common_8h_a2f49d8c1f5f6182b5128dfd3c815c3ef}{dpu\+\_\+offload\+\_\+status\+\_\+t}} do\+\_\+send\+\_\+cache\+\_\+entry\+\_\+request (\begin{DoxyParamCaption}\item[{\mbox{\hyperlink{dpu__offload__types_8h_ac95b2624b57c0005e3ca8a740316e5ab}{execution\+\_\+context\+\_\+t}} $\ast$}]{econtext,  }\item[{ucp\+\_\+ep\+\_\+h}]{ep,  }\item[{uint64\+\_\+t}]{dest\+\_\+id,  }\item[{\mbox{\hyperlink{dpu__offload__types_8h_a6846f687a61323898ab2f6903ca8766e}{rank\+\_\+info\+\_\+t}} $\ast$}]{requested\+\_\+peer,  }\item[{\mbox{\hyperlink{dpu__offload__types_8h_a5872fe6516c1dd159957efdfabc9ad2a}{dpu\+\_\+offload\+\_\+event\+\_\+t}} $\ast$}]{ev }\end{DoxyParamCaption})}
+
+\mbox{\Hypertarget{dpu__offload__utils_8c_ad9a455f33e80b6104d5d3f2d2624d482}\label{dpu__offload__utils_8c_ad9a455f33e80b6104d5d3f2d2624d482}} 
+\index{dpu\_offload\_utils.c@{dpu\_offload\_utils.c}!find\_config\_from\_platform\_configfile@{find\_config\_from\_platform\_configfile}}
+\index{find\_config\_from\_platform\_configfile@{find\_config\_from\_platform\_configfile}!dpu\_offload\_utils.c@{dpu\_offload\_utils.c}}
+\doxysubsubsection{\texorpdfstring{find\_config\_from\_platform\_configfile()}{find\_config\_from\_platform\_configfile()}}
+{\footnotesize\ttfamily \mbox{\hyperlink{dpu__offload__common_8h_a2f49d8c1f5f6182b5128dfd3c815c3ef}{dpu\+\_\+offload\+\_\+status\+\_\+t}} find\+\_\+config\+\_\+from\+\_\+platform\+\_\+configfile (\begin{DoxyParamCaption}\item[{char $\ast$}]{filepath,  }\item[{char $\ast$}]{hostname,  }\item[{\mbox{\hyperlink{dpu__offload__types_8h_a7d930a5e992bf8d542cb50a0f11a6276}{offloading\+\_\+config\+\_\+t}} $\ast$}]{data }\end{DoxyParamCaption})}
+
+
+
+find\+\_\+config\+\_\+from\+\_\+platform\+\_\+configfile extracts a host\textquotesingle{}s configuration from a platform configuration file. It shall not be used to extract the configuration of a DPU. 
+
+
+\begin{DoxyParams}{Parameters}
+{\em filepath} & Path to the configuration file \\
+\hline
+{\em hostname} & Name of the host to look up \\
+\hline
+{\em data} & Configuration data of the host\textquotesingle{}s local DPUs \\
+\hline
+\end{DoxyParams}
+\begin{DoxyReturn}{Returns}
+dpu\+\_\+offload\+\_\+status\+\_\+t 
+\end{DoxyReturn}
+\mbox{\Hypertarget{dpu__offload__utils_8c_ae5dce2d9ec5c293b81308802c2e99817}\label{dpu__offload__utils_8c_ae5dce2d9ec5c293b81308802c2e99817}} 
+\index{dpu\_offload\_utils.c@{dpu\_offload\_utils.c}!find\_dpu\_config\_from\_platform\_configfile@{find\_dpu\_config\_from\_platform\_configfile}}
+\index{find\_dpu\_config\_from\_platform\_configfile@{find\_dpu\_config\_from\_platform\_configfile}!dpu\_offload\_utils.c@{dpu\_offload\_utils.c}}
+\doxysubsubsection{\texorpdfstring{find\_dpu\_config\_from\_platform\_configfile()}{find\_dpu\_config\_from\_platform\_configfile()}}
+{\footnotesize\ttfamily \mbox{\hyperlink{dpu__offload__common_8h_a2f49d8c1f5f6182b5128dfd3c815c3ef}{dpu\+\_\+offload\+\_\+status\+\_\+t}} find\+\_\+dpu\+\_\+config\+\_\+from\+\_\+platform\+\_\+configfile (\begin{DoxyParamCaption}\item[{char $\ast$}]{filepath,  }\item[{\mbox{\hyperlink{dpu__offload__types_8h_a7d930a5e992bf8d542cb50a0f11a6276}{offloading\+\_\+config\+\_\+t}} $\ast$}]{config\+\_\+data }\end{DoxyParamCaption})}
+
+
+
+find\+\_\+dpu\+\_\+config\+\_\+from\+\_\+platform\+\_\+configfile extracts a DPU\textquotesingle{}s configuration from a platform configuration file. It shall not be used to extract the configuration of a host. 
+
+
+\begin{DoxyParams}{Parameters}
+{\em filepath} & Path the configuration file \\
+\hline
+{\em config\+\_\+data} & Object where all the configuration details are stored \\
+\hline
+\end{DoxyParams}
+\begin{DoxyReturn}{Returns}
+dpu\+\_\+offload\+\_\+status\+\_\+t 
+\end{DoxyReturn}
+\mbox{\Hypertarget{dpu__offload__utils_8c_a40fb13bb405f1b9cac1d19bfcb8570aa}\label{dpu__offload__utils_8c_a40fb13bb405f1b9cac1d19bfcb8570aa}} 
+\index{dpu\_offload\_utils.c@{dpu\_offload\_utils.c}!find\_range\_local\_ranks@{find\_range\_local\_ranks}}
+\index{find\_range\_local\_ranks@{find\_range\_local\_ranks}!dpu\_offload\_utils.c@{dpu\_offload\_utils.c}}
+\doxysubsubsection{\texorpdfstring{find\_range\_local\_ranks()}{find\_range\_local\_ranks()}}
+{\footnotesize\ttfamily bool find\+\_\+range\+\_\+local\+\_\+ranks (\begin{DoxyParamCaption}\item[{\mbox{\hyperlink{dpu__offload__types_8h_ac95b2624b57c0005e3ca8a740316e5ab}{execution\+\_\+context\+\_\+t}} $\ast$}]{econtext,  }\item[{\mbox{\hyperlink{dpu__offload__types_8h_a01af586ce7b042c7131b9dff27ace5ca}{group\+\_\+id\+\_\+t}}}]{gp\+\_\+id,  }\item[{int64\+\_\+t}]{gp\+\_\+size,  }\item[{size\+\_\+t}]{start\+\_\+idx,  }\item[{size\+\_\+t}]{total\+\_\+count,  }\item[{size\+\_\+t}]{cur\+\_\+count,  }\item[{size\+\_\+t $\ast$}]{range\+\_\+start,  }\item[{size\+\_\+t $\ast$}]{num,  }\item[{size\+\_\+t $\ast$}]{cur\+\_\+idx }\end{DoxyParamCaption})}
+
+\mbox{\Hypertarget{dpu__offload__utils_8c_a9b16233c24e29ad253bd52b7deefb0b0}\label{dpu__offload__utils_8c_a9b16233c24e29ad253bd52b7deefb0b0}} 
+\index{dpu\_offload\_utils.c@{dpu\_offload\_utils.c}!get\_cache\_entry\_by\_group\_rank@{get\_cache\_entry\_by\_group\_rank}}
+\index{get\_cache\_entry\_by\_group\_rank@{get\_cache\_entry\_by\_group\_rank}!dpu\_offload\_utils.c@{dpu\_offload\_utils.c}}
+\doxysubsubsection{\texorpdfstring{get\_cache\_entry\_by\_group\_rank()}{get\_cache\_entry\_by\_group\_rank()}}
+{\footnotesize\ttfamily \mbox{\hyperlink{dpu__offload__common_8h_a2f49d8c1f5f6182b5128dfd3c815c3ef}{dpu\+\_\+offload\+\_\+status\+\_\+t}} get\+\_\+cache\+\_\+entry\+\_\+by\+\_\+group\+\_\+rank (\begin{DoxyParamCaption}\item[{\mbox{\hyperlink{dpu__offload__types_8h_abdda2bc51909d3f2e98a5c9dde42b0a8}{offloading\+\_\+engine\+\_\+t}} $\ast$}]{engine,  }\item[{\mbox{\hyperlink{dpu__offload__types_8h_a01af586ce7b042c7131b9dff27ace5ca}{group\+\_\+id\+\_\+t}}}]{gp\+\_\+id,  }\item[{int64\+\_\+t}]{rank,  }\item[{int64\+\_\+t}]{sp\+\_\+idx,  }\item[{\mbox{\hyperlink{dpu__offload__types_8h_a576c274d9379aaaedee8b57db966cf7e}{request\+\_\+compl\+\_\+cb\+\_\+t}}}]{cb }\end{DoxyParamCaption})}
+
+
+
+Get the dpu ID by host rank object. That ID can then be used to look up the corresponding endpoint. 
+
+
+\begin{DoxyParams}[1]{Parameters}
+\mbox{\texttt{ in}}  & {\em engine} & Offloading engine for the query \\
+\hline
+\mbox{\texttt{ in}}  & {\em gp\+\_\+id} & Target group identifier \\
+\hline
+\mbox{\texttt{ in}}  & {\em rank} & Target rank in the group \\
+\hline
+\mbox{\texttt{ in}}  & {\em sp\+\_\+idx} & In case of multiple service processes per host, index of the target shadow service process for the group/rank \\
+\hline
+\mbox{\texttt{ out}}  & {\em cb} & Associated callback. If the event completes right away, the callback is still being invoked. The user is in charge of returning the object related to the request. \\
+\hline
+\end{DoxyParams}
+\begin{DoxyReturn}{Returns}
+dpu\+\_\+offload\+\_\+status\+\_\+t
+\end{DoxyReturn}
+Example\+:
+\begin{DoxyItemize}
+\item To issue the request for the first service process attached to the group/rank {\ttfamily gp\+\_\+id} and {\ttfamily rank\+\_\+id} get\+\_\+cache\+\_\+entry\+\_\+by\+\_\+group\+\_\+rank(offload\+\_\+engine, gp\+\_\+id, rank\+\_\+id, 0, my\+\_\+completion\+\_\+cb);
+\item Completion callback example\+: void my\+\_\+completion\+\_\+cb(void $<$em$>$data) \{ assert(data); cache\+\_\+entry\+\_\+request\+\_\+t $\ast$cache\+\_\+entry\+\_\+req = (cache\+\_\+entry\+\_\+request\+\_\+t)data; assert(cache\+\_\+entry\+\_\+req-\/$>$offload\+\_\+engine); offloading\+\_\+engine\+\_\+t {\itshape engine = (offloading\+\_\+engine\+\_\+t})cache\+\_\+entry\+\_\+req-\/$>$offload\+\_\+engine; ucp\+\_\+ep\+\_\+h target\+\_\+sp\+\_\+ep = NULL; execution\+\_\+context\+\_\+t $\ast$target\+\_\+sp\+\_\+econtext = NULL; uint64\+\_\+t notif\+\_\+dest\+\_\+id; get\+\_\+sp\+\_\+ep\+\_\+by\+\_\+id(engine, cache\+\_\+entry\+\_\+req-\/$>$target\+\_\+sp\+\_\+idx, \&target\+\_\+sp\+\_\+econtext, \&target\+\_\+sp\+\_\+econtext, \&notif\+\_\+dest\+\_\+id); assert(target\+\_\+sp\+\_\+ep == NULL); DYN\+\_\+\+LIST\+\_\+\+RETURN(engine-\/$>$free\+\_\+cache\+\_\+entry\+\_\+requests, cache\+\_\+entry\+\_\+req, item); \} 
+\end{DoxyItemize}\mbox{\Hypertarget{dpu__offload__utils_8c_ad79a85541d799e524f41c1e863d85c84}\label{dpu__offload__utils_8c_ad79a85541d799e524f41c1e863d85c84}} 
+\index{dpu\_offload\_utils.c@{dpu\_offload\_utils.c}!get\_env\_config@{get\_env\_config}}
+\index{get\_env\_config@{get\_env\_config}!dpu\_offload\_utils.c@{dpu\_offload\_utils.c}}
+\doxysubsubsection{\texorpdfstring{get\_env\_config()}{get\_env\_config()}}
+{\footnotesize\ttfamily \mbox{\hyperlink{dpu__offload__common_8h_a2f49d8c1f5f6182b5128dfd3c815c3ef}{dpu\+\_\+offload\+\_\+status\+\_\+t}} get\+\_\+env\+\_\+config (\begin{DoxyParamCaption}\item[{\mbox{\hyperlink{dpu__offload__types_8h_a3873b77cd04f5ee9378a390abe9ddab0}{conn\+\_\+params\+\_\+t}} $\ast$}]{params }\end{DoxyParamCaption})}
+
+\mbox{\Hypertarget{dpu__offload__utils_8c_a9687973eb24fa43ebca414d3ae26d729}\label{dpu__offload__utils_8c_a9687973eb24fa43ebca414d3ae26d729}} 
+\index{dpu\_offload\_utils.c@{dpu\_offload\_utils.c}!get\_host\_config@{get\_host\_config}}
+\index{get\_host\_config@{get\_host\_config}!dpu\_offload\_utils.c@{dpu\_offload\_utils.c}}
+\doxysubsubsection{\texorpdfstring{get\_host\_config()}{get\_host\_config()}}
+{\footnotesize\ttfamily \mbox{\hyperlink{dpu__offload__common_8h_a2f49d8c1f5f6182b5128dfd3c815c3ef}{dpu\+\_\+offload\+\_\+status\+\_\+t}} get\+\_\+host\+\_\+config (\begin{DoxyParamCaption}\item[{\mbox{\hyperlink{dpu__offload__types_8h_a7d930a5e992bf8d542cb50a0f11a6276}{offloading\+\_\+config\+\_\+t}} $\ast$}]{config\+\_\+data }\end{DoxyParamCaption})}
+
+\mbox{\Hypertarget{dpu__offload__utils_8c_a7840a760be9d412387952227501dd14b}\label{dpu__offload__utils_8c_a7840a760be9d412387952227501dd14b}} 
+\index{dpu\_offload\_utils.c@{dpu\_offload\_utils.c}!get\_local\_service\_proc\_connect\_info@{get\_local\_service\_proc\_connect\_info}}
+\index{get\_local\_service\_proc\_connect\_info@{get\_local\_service\_proc\_connect\_info}!dpu\_offload\_utils.c@{dpu\_offload\_utils.c}}
+\doxysubsubsection{\texorpdfstring{get\_local\_service\_proc\_connect\_info()}{get\_local\_service\_proc\_connect\_info()}}
+{\footnotesize\ttfamily \mbox{\hyperlink{dpu__offload__common_8h_a2f49d8c1f5f6182b5128dfd3c815c3ef}{dpu\+\_\+offload\+\_\+status\+\_\+t}} get\+\_\+local\+\_\+service\+\_\+proc\+\_\+connect\+\_\+info (\begin{DoxyParamCaption}\item[{\mbox{\hyperlink{dpu__offload__types_8h_a7d930a5e992bf8d542cb50a0f11a6276}{offloading\+\_\+config\+\_\+t}} $\ast$}]{cfg,  }\item[{\mbox{\hyperlink{dpu__offload__types_8h_a6846f687a61323898ab2f6903ca8766e}{rank\+\_\+info\+\_\+t}} $\ast$}]{rank\+\_\+info,  }\item[{\mbox{\hyperlink{dpu__offload__types_8h_a42c35bf5c92dc98cf22a4818b0331608}{init\+\_\+params\+\_\+t}} $\ast$}]{init\+\_\+params }\end{DoxyParamCaption})}
+
+\mbox{\Hypertarget{dpu__offload__utils_8c_a10d70272c1c34ed070381dc824f179d7}\label{dpu__offload__utils_8c_a10d70272c1c34ed070381dc824f179d7}} 
+\index{dpu\_offload\_utils.c@{dpu\_offload\_utils.c}!get\_num\_connecting\_ranks@{get\_num\_connecting\_ranks}}
+\index{get\_num\_connecting\_ranks@{get\_num\_connecting\_ranks}!dpu\_offload\_utils.c@{dpu\_offload\_utils.c}}
+\doxysubsubsection{\texorpdfstring{get\_num\_connecting\_ranks()}{get\_num\_connecting\_ranks()}}
+{\footnotesize\ttfamily \mbox{\hyperlink{dpu__offload__common_8h_a2f49d8c1f5f6182b5128dfd3c815c3ef}{dpu\+\_\+offload\+\_\+status\+\_\+t}} get\+\_\+num\+\_\+connecting\+\_\+ranks (\begin{DoxyParamCaption}\item[{uint64\+\_\+t}]{num\+\_\+service\+\_\+procs\+\_\+per\+\_\+dpu,  }\item[{int64\+\_\+t}]{n\+\_\+local\+\_\+ranks,  }\item[{uint64\+\_\+t}]{sp\+\_\+lid,  }\item[{uint64\+\_\+t $\ast$}]{n\+\_\+ranks }\end{DoxyParamCaption})}
+
+\mbox{\Hypertarget{dpu__offload__utils_8c_a3bb135ba4f55dee6e23279cb695d6410}\label{dpu__offload__utils_8c_a3bb135ba4f55dee6e23279cb695d6410}} 
+\index{dpu\_offload\_utils.c@{dpu\_offload\_utils.c}!get\_server\_servicing\_host@{get\_server\_servicing\_host}}
+\index{get\_server\_servicing\_host@{get\_server\_servicing\_host}!dpu\_offload\_utils.c@{dpu\_offload\_utils.c}}
+\doxysubsubsection{\texorpdfstring{get\_server\_servicing\_host()}{get\_server\_servicing\_host()}}
+{\footnotesize\ttfamily \mbox{\hyperlink{dpu__offload__types_8h_ac95b2624b57c0005e3ca8a740316e5ab}{execution\+\_\+context\+\_\+t}}$\ast$ get\+\_\+server\+\_\+servicing\+\_\+host (\begin{DoxyParamCaption}\item[{\mbox{\hyperlink{dpu__offload__types_8h_abdda2bc51909d3f2e98a5c9dde42b0a8}{offloading\+\_\+engine\+\_\+t}} $\ast$}]{engine }\end{DoxyParamCaption})}
+
+\mbox{\Hypertarget{dpu__offload__utils_8c_ae4aff8e3c464f8b089d7975242f75bc0}\label{dpu__offload__utils_8c_ae4aff8e3c464f8b089d7975242f75bc0}} 
+\index{dpu\_offload\_utils.c@{dpu\_offload\_utils.c}!get\_sp\_ep\_by\_id@{get\_sp\_ep\_by\_id}}
+\index{get\_sp\_ep\_by\_id@{get\_sp\_ep\_by\_id}!dpu\_offload\_utils.c@{dpu\_offload\_utils.c}}
+\doxysubsubsection{\texorpdfstring{get\_sp\_ep\_by\_id()}{get\_sp\_ep\_by\_id()}}
+{\footnotesize\ttfamily \mbox{\hyperlink{dpu__offload__common_8h_a2f49d8c1f5f6182b5128dfd3c815c3ef}{dpu\+\_\+offload\+\_\+status\+\_\+t}} get\+\_\+sp\+\_\+ep\+\_\+by\+\_\+id (\begin{DoxyParamCaption}\item[{\mbox{\hyperlink{dpu__offload__types_8h_abdda2bc51909d3f2e98a5c9dde42b0a8}{offloading\+\_\+engine\+\_\+t}} $\ast$}]{engine,  }\item[{uint64\+\_\+t}]{sp\+\_\+id,  }\item[{ucp\+\_\+ep\+\_\+h $\ast$}]{sp\+\_\+ep,  }\item[{\mbox{\hyperlink{dpu__offload__types_8h_ac95b2624b57c0005e3ca8a740316e5ab}{execution\+\_\+context\+\_\+t}} $\ast$$\ast$}]{econtext\+\_\+comm,  }\item[{uint64\+\_\+t $\ast$}]{comm\+\_\+id }\end{DoxyParamCaption})}
+
+
+
+Get the service process endpoint by ID object, i.\+e., the identifier returned by get\+\_\+sp\+\_\+id\+\_\+by\+\_\+host\+\_\+rank. 
+
+
+\begin{DoxyParams}[1]{Parameters}
+\mbox{\texttt{ in}}  & {\em engine} & engine Offloading engine for the query \\
+\hline
+\mbox{\texttt{ in}}  & {\em id} & Global service process identifier \\
+\hline
+\mbox{\texttt{ out}}  & {\em ucp\+\_\+ep\+\_\+h} & DPU\textquotesingle{}s endpoint to use to communicate with the target DPU \\
+\hline
+\mbox{\texttt{ out}}  & {\em econtext\+\_\+comm} & The execution context to use for notification, must be used to get an event \\
+\hline
+\mbox{\texttt{ out}}  & {\em notif\+\_\+dest\+\_\+id} & The local identifier to send notification to the remote DPU \\
+\hline
+\end{DoxyParams}
+\begin{DoxyReturn}{Returns}
+dpu\+\_\+offload\+\_\+status\+\_\+t 
+\end{DoxyReturn}
+\mbox{\Hypertarget{dpu__offload__utils_8c_aa3dc37e5abbff121b300126cd9ccd010}\label{dpu__offload__utils_8c_aa3dc37e5abbff121b300126cd9ccd010}} 
+\index{dpu\_offload\_utils.c@{dpu\_offload\_utils.c}!get\_sp\_id\_by\_group\_rank@{get\_sp\_id\_by\_group\_rank}}
+\index{get\_sp\_id\_by\_group\_rank@{get\_sp\_id\_by\_group\_rank}!dpu\_offload\_utils.c@{dpu\_offload\_utils.c}}
+\doxysubsubsection{\texorpdfstring{get\_sp\_id\_by\_group\_rank()}{get\_sp\_id\_by\_group\_rank()}}
+{\footnotesize\ttfamily \mbox{\hyperlink{dpu__offload__common_8h_a2f49d8c1f5f6182b5128dfd3c815c3ef}{dpu\+\_\+offload\+\_\+status\+\_\+t}} get\+\_\+sp\+\_\+id\+\_\+by\+\_\+group\+\_\+rank (\begin{DoxyParamCaption}\item[{\mbox{\hyperlink{dpu__offload__types_8h_abdda2bc51909d3f2e98a5c9dde42b0a8}{offloading\+\_\+engine\+\_\+t}} $\ast$}]{engine,  }\item[{\mbox{\hyperlink{dpu__offload__types_8h_a01af586ce7b042c7131b9dff27ace5ca}{group\+\_\+id\+\_\+t}}}]{gp\+\_\+id,  }\item[{int64\+\_\+t}]{rank,  }\item[{int64\+\_\+t}]{sp\+\_\+idx,  }\item[{int64\+\_\+t $\ast$}]{sp\+\_\+id,  }\item[{\mbox{\hyperlink{dpu__offload__types_8h_a5872fe6516c1dd159957efdfabc9ad2a}{dpu\+\_\+offload\+\_\+event\+\_\+t}} $\ast$$\ast$}]{ev }\end{DoxyParamCaption})}
+
+
+
+Get the service process ID by host rank object. That ID can then be used to look up the corresponding endpoint. 
+
+
+\begin{DoxyParams}[1]{Parameters}
+\mbox{\texttt{ in}}  & {\em engine} & Offloading engine for the query \\
+\hline
+\mbox{\texttt{ in}}  & {\em gp\+\_\+id} & Target group identifier \\
+\hline
+\mbox{\texttt{ in}}  & {\em rank} & Target rank in the group \\
+\hline
+\mbox{\texttt{ in}}  & {\em dpu\+\_\+idx} & In case of multiple service processes per host, index of the target shadow service process for the group/rank \\
+\hline
+\mbox{\texttt{ out}}  & {\em dpu\+\_\+id} & Resulting service process identifier \\
+\hline
+\mbox{\texttt{ out}}  & {\em ev} & Associated event. If NULL, the DPU identifier is available right away. If not, it is required to call the function again once the event has completed. The caller is in charge of returning the event after completion. The event cannot be added to any list since it is already put on a list. \\
+\hline
+\end{DoxyParams}
+\begin{DoxyReturn}{Returns}
+dpu\+\_\+offload\+\_\+status\+\_\+t 
+\end{DoxyReturn}
+\mbox{\Hypertarget{dpu__offload__utils_8c_af06f8a0c90607ebea8c425de3b0fb06e}\label{dpu__offload__utils_8c_af06f8a0c90607ebea8c425de3b0fb06e}} 
+\index{dpu\_offload\_utils.c@{dpu\_offload\_utils.c}!group\_cache\_populated@{group\_cache\_populated}}
+\index{group\_cache\_populated@{group\_cache\_populated}!dpu\_offload\_utils.c@{dpu\_offload\_utils.c}}
+\doxysubsubsection{\texorpdfstring{group\_cache\_populated()}{group\_cache\_populated()}}
+{\footnotesize\ttfamily bool group\+\_\+cache\+\_\+populated (\begin{DoxyParamCaption}\item[{\mbox{\hyperlink{dpu__offload__types_8h_abdda2bc51909d3f2e98a5c9dde42b0a8}{offloading\+\_\+engine\+\_\+t}} $\ast$}]{engine,  }\item[{\mbox{\hyperlink{dpu__offload__types_8h_a01af586ce7b042c7131b9dff27ace5ca}{group\+\_\+id\+\_\+t}}}]{gp\+\_\+id }\end{DoxyParamCaption})}
+
+\mbox{\Hypertarget{dpu__offload__utils_8c_ababa1a6787751964f2e3bf4fb2cbc63e}\label{dpu__offload__utils_8c_ababa1a6787751964f2e3bf4fb2cbc63e}} 
+\index{dpu\_offload\_utils.c@{dpu\_offload\_utils.c}!is\_in\_cache@{is\_in\_cache}}
+\index{is\_in\_cache@{is\_in\_cache}!dpu\_offload\_utils.c@{dpu\_offload\_utils.c}}
+\doxysubsubsection{\texorpdfstring{is\_in\_cache()}{is\_in\_cache()}}
+{\footnotesize\ttfamily bool is\+\_\+in\+\_\+cache (\begin{DoxyParamCaption}\item[{\mbox{\hyperlink{dpu__offload__types_8h_abce0d54f5f8f4c5440cd524a574ad8eb}{cache\+\_\+t}} $\ast$}]{cache,  }\item[{\mbox{\hyperlink{dpu__offload__types_8h_a01af586ce7b042c7131b9dff27ace5ca}{group\+\_\+id\+\_\+t}}}]{gp\+\_\+id,  }\item[{int64\+\_\+t}]{rank\+\_\+id,  }\item[{int64\+\_\+t}]{group\+\_\+size }\end{DoxyParamCaption})}
+
+\mbox{\Hypertarget{dpu__offload__utils_8c_a77618f3400e56e211ca624764793c6f4}\label{dpu__offload__utils_8c_a77618f3400e56e211ca624764793c6f4}} 
+\index{dpu\_offload\_utils.c@{dpu\_offload\_utils.c}!line\_is\_comment@{line\_is\_comment}}
+\index{line\_is\_comment@{line\_is\_comment}!dpu\_offload\_utils.c@{dpu\_offload\_utils.c}}
+\doxysubsubsection{\texorpdfstring{line\_is\_comment()}{line\_is\_comment()}}
+{\footnotesize\ttfamily bool line\+\_\+is\+\_\+comment (\begin{DoxyParamCaption}\item[{char $\ast$}]{line }\end{DoxyParamCaption})}
+
+\mbox{\Hypertarget{dpu__offload__utils_8c_aede8b21a0dc08753ab3ce82e868659f3}\label{dpu__offload__utils_8c_aede8b21a0dc08753ab3ce82e868659f3}} 
+\index{dpu\_offload\_utils.c@{dpu\_offload\_utils.c}!LOCAL\_ID\_TO\_GLOBAL@{LOCAL\_ID\_TO\_GLOBAL}}
+\index{LOCAL\_ID\_TO\_GLOBAL@{LOCAL\_ID\_TO\_GLOBAL}!dpu\_offload\_utils.c@{dpu\_offload\_utils.c}}
+\doxysubsubsection{\texorpdfstring{LOCAL\_ID\_TO\_GLOBAL()}{LOCAL\_ID\_TO\_GLOBAL()}}
+{\footnotesize\ttfamily uint64\+\_\+t LOCAL\+\_\+\+ID\+\_\+\+TO\+\_\+\+GLOBAL (\begin{DoxyParamCaption}\item[{\mbox{\hyperlink{dpu__offload__types_8h_ac95b2624b57c0005e3ca8a740316e5ab}{execution\+\_\+context\+\_\+t}} $\ast$}]{econtext,  }\item[{uint64\+\_\+t}]{local\+\_\+id }\end{DoxyParamCaption})}
+
+\mbox{\Hypertarget{dpu__offload__utils_8c_a581d1765c57e7cf80d25d267a4bbcf82}\label{dpu__offload__utils_8c_a581d1765c57e7cf80d25d267a4bbcf82}} 
+\index{dpu\_offload\_utils.c@{dpu\_offload\_utils.c}!offload\_config\_free@{offload\_config\_free}}
+\index{offload\_config\_free@{offload\_config\_free}!dpu\_offload\_utils.c@{dpu\_offload\_utils.c}}
+\doxysubsubsection{\texorpdfstring{offload\_config\_free()}{offload\_config\_free()}}
+{\footnotesize\ttfamily void offload\+\_\+config\+\_\+free (\begin{DoxyParamCaption}\item[{\mbox{\hyperlink{dpu__offload__types_8h_a7d930a5e992bf8d542cb50a0f11a6276}{offloading\+\_\+config\+\_\+t}} $\ast$}]{cfg }\end{DoxyParamCaption})}
+
+\mbox{\Hypertarget{dpu__offload__utils_8c_a1b0e7416a6383d247f40156e8c4ce1b1}\label{dpu__offload__utils_8c_a1b0e7416a6383d247f40156e8c4ce1b1}} 
+\index{dpu\_offload\_utils.c@{dpu\_offload\_utils.c}!parse\_line@{parse\_line}}
+\index{parse\_line@{parse\_line}!dpu\_offload\_utils.c@{dpu\_offload\_utils.c}}
+\doxysubsubsection{\texorpdfstring{parse\_line()}{parse\_line()}}
+{\footnotesize\ttfamily bool parse\+\_\+line (\begin{DoxyParamCaption}\item[{char $\ast$}]{target\+\_\+hostname,  }\item[{char $\ast$}]{line,  }\item[{\mbox{\hyperlink{dpu__offload__types_8h_a7d930a5e992bf8d542cb50a0f11a6276}{offloading\+\_\+config\+\_\+t}} $\ast$}]{data }\end{DoxyParamCaption})}
+
+
+
+parse\+\_\+line parses a line of the configuration file looking for a specific host name. It shall not be used to seek the configuration of a DPU. 
+
+
+\begin{DoxyParams}{Parameters}
+{\em target\+\_\+hostname} & Host\textquotesingle{}s name \\
+\hline
+{\em line} & Line from the configuration file that is being parsed \\
+\hline
+{\em data} & Configuration data \\
+\hline
+\end{DoxyParams}
+\begin{DoxyReturn}{Returns}
+true when the line includes the host\textquotesingle{}s configuration 
+
+false when the lines does not include the host\textquotesingle{}s configuration 
+\end{DoxyReturn}
+\mbox{\Hypertarget{dpu__offload__utils_8c_a6ca7d4efcb1ff8512bd5ab8e75b7a19b}\label{dpu__offload__utils_8c_a6ca7d4efcb1ff8512bd5ab8e75b7a19b}} 
+\index{dpu\_offload\_utils.c@{dpu\_offload\_utils.c}!parse\_line\_dpu\_version\_1@{parse\_line\_dpu\_version\_1}}
+\index{parse\_line\_dpu\_version\_1@{parse\_line\_dpu\_version\_1}!dpu\_offload\_utils.c@{dpu\_offload\_utils.c}}
+\doxysubsubsection{\texorpdfstring{parse\_line\_dpu\_version\_1()}{parse\_line\_dpu\_version\_1()}}
+{\footnotesize\ttfamily bool parse\+\_\+line\+\_\+dpu\+\_\+version\+\_\+1 (\begin{DoxyParamCaption}\item[{\mbox{\hyperlink{dpu__offload__types_8h_a7d930a5e992bf8d542cb50a0f11a6276}{offloading\+\_\+config\+\_\+t}} $\ast$}]{data,  }\item[{char $\ast$}]{line }\end{DoxyParamCaption})}
+
+
+
+Main function to parse the content of the configuration file in the context of service processes. The function relies on the placeholders created while parsing the list of DPUs to be used. Format\+: $<$host name$>$,$<$dpu1\+\_\+hostname\+:dpu\+\_\+conn\+\_\+addr\+:interdpu-\/port1\&interdpu-\/port2,...\+:rank-\/conn-\/port1\&rank-\/conn-\/port2,...$>$,... 
+
+\mbox{\Hypertarget{dpu__offload__utils_8c_aca8619232d7dfe8e9c8e789db1c337ab}\label{dpu__offload__utils_8c_aca8619232d7dfe8e9c8e789db1c337ab}} 
+\index{dpu\_offload\_utils.c@{dpu\_offload\_utils.c}!parse\_line\_for\_dpu\_cfg@{parse\_line\_for\_dpu\_cfg}}
+\index{parse\_line\_for\_dpu\_cfg@{parse\_line\_for\_dpu\_cfg}!dpu\_offload\_utils.c@{dpu\_offload\_utils.c}}
+\doxysubsubsection{\texorpdfstring{parse\_line\_for\_dpu\_cfg()}{parse\_line\_for\_dpu\_cfg()}}
+{\footnotesize\ttfamily bool parse\+\_\+line\+\_\+for\+\_\+dpu\+\_\+cfg (\begin{DoxyParamCaption}\item[{\mbox{\hyperlink{dpu__offload__types_8h_a7d930a5e992bf8d542cb50a0f11a6276}{offloading\+\_\+config\+\_\+t}} $\ast$}]{data,  }\item[{char $\ast$}]{line }\end{DoxyParamCaption})}
+
+
+
+parse\+\_\+line\+\_\+for\+\_\+dpu\+\_\+cfg parses a line of the configuration file looking for a specific DPU. It shall not be used to seek the configuration of a host. 
+
+
+\begin{DoxyParams}{Parameters}
+{\em data} & Data gathered while parsing the configuration file \\
+\hline
+{\em line} & Line from the configuration file that is being parsed \\
+\hline
+\end{DoxyParams}
+\begin{DoxyReturn}{Returns}
+true when the line includes the host\textquotesingle{}s configuration 
+
+false when the lines does not include the host\textquotesingle{}s configuration 
+\end{DoxyReturn}
+\mbox{\Hypertarget{dpu__offload__utils_8c_a2b09367a4a6ba8a3a774e836a0b6a677}\label{dpu__offload__utils_8c_a2b09367a4a6ba8a3a774e836a0b6a677}} 
+\index{dpu\_offload\_utils.c@{dpu\_offload\_utils.c}!parse\_line\_version\_1@{parse\_line\_version\_1}}
+\index{parse\_line\_version\_1@{parse\_line\_version\_1}!dpu\_offload\_utils.c@{dpu\_offload\_utils.c}}
+\doxysubsubsection{\texorpdfstring{parse\_line\_version\_1()}{parse\_line\_version\_1()}}
+{\footnotesize\ttfamily bool parse\+\_\+line\+\_\+version\+\_\+1 (\begin{DoxyParamCaption}\item[{char $\ast$}]{target\+\_\+hostname,  }\item[{\mbox{\hyperlink{dpu__offload__types_8h_a7d930a5e992bf8d542cb50a0f11a6276}{offloading\+\_\+config\+\_\+t}} $\ast$}]{data,  }\item[{char $\ast$}]{line }\end{DoxyParamCaption})}
+
+
+
+Main function to parse the configuration file in the context of the host. Format\+: $<$host name$>$,$<$dpu1\+\_\+hostname\+:dpu\+\_\+conn\+\_\+addr\+:interdpu-\/port\+:rank-\/conn-\/port$>$,... 
+
+\mbox{\Hypertarget{dpu__offload__utils_8c_a94614a541607dd075c2f9806f4938685}\label{dpu__offload__utils_8c_a94614a541607dd075c2f9806f4938685}} 
+\index{dpu\_offload\_utils.c@{dpu\_offload\_utils.c}!send\_add\_group\_rank\_request@{send\_add\_group\_rank\_request}}
+\index{send\_add\_group\_rank\_request@{send\_add\_group\_rank\_request}!dpu\_offload\_utils.c@{dpu\_offload\_utils.c}}
+\doxysubsubsection{\texorpdfstring{send\_add\_group\_rank\_request()}{send\_add\_group\_rank\_request()}}
+{\footnotesize\ttfamily \mbox{\hyperlink{dpu__offload__common_8h_a2f49d8c1f5f6182b5128dfd3c815c3ef}{dpu\+\_\+offload\+\_\+status\+\_\+t}} send\+\_\+add\+\_\+group\+\_\+rank\+\_\+request (\begin{DoxyParamCaption}\item[{\mbox{\hyperlink{dpu__offload__types_8h_ac95b2624b57c0005e3ca8a740316e5ab}{execution\+\_\+context\+\_\+t}} $\ast$}]{econtext,  }\item[{ucp\+\_\+ep\+\_\+h}]{ep,  }\item[{uint64\+\_\+t}]{dest\+\_\+id,  }\item[{\mbox{\hyperlink{dpu__offload__types_8h_a5872fe6516c1dd159957efdfabc9ad2a}{dpu\+\_\+offload\+\_\+event\+\_\+t}} $\ast$}]{ev }\end{DoxyParamCaption})}
+
+\mbox{\Hypertarget{dpu__offload__utils_8c_a6b0a8a6c0a571b3f628b9def6a947a41}\label{dpu__offload__utils_8c_a6b0a8a6c0a571b3f628b9def6a947a41}} 
+\index{dpu\_offload\_utils.c@{dpu\_offload\_utils.c}!send\_cache@{send\_cache}}
+\index{send\_cache@{send\_cache}!dpu\_offload\_utils.c@{dpu\_offload\_utils.c}}
+\doxysubsubsection{\texorpdfstring{send\_cache()}{send\_cache()}}
+{\footnotesize\ttfamily \mbox{\hyperlink{dpu__offload__common_8h_a2f49d8c1f5f6182b5128dfd3c815c3ef}{dpu\+\_\+offload\+\_\+status\+\_\+t}} send\+\_\+cache (\begin{DoxyParamCaption}\item[{\mbox{\hyperlink{dpu__offload__types_8h_ac95b2624b57c0005e3ca8a740316e5ab}{execution\+\_\+context\+\_\+t}} $\ast$}]{econtext,  }\item[{\mbox{\hyperlink{dpu__offload__types_8h_abce0d54f5f8f4c5440cd524a574ad8eb}{cache\+\_\+t}} $\ast$}]{cache,  }\item[{ucp\+\_\+ep\+\_\+h}]{dest\+\_\+ep,  }\item[{uint64\+\_\+t}]{dest\+\_\+id,  }\item[{\mbox{\hyperlink{dpu__offload__types_8h_a5872fe6516c1dd159957efdfabc9ad2a}{dpu\+\_\+offload\+\_\+event\+\_\+t}} $\ast$}]{metaevt }\end{DoxyParamCaption})}
+
+\mbox{\Hypertarget{dpu__offload__utils_8c_a559755f5eef761fd285b08ccec2b3500}\label{dpu__offload__utils_8c_a559755f5eef761fd285b08ccec2b3500}} 
+\index{dpu\_offload\_utils.c@{dpu\_offload\_utils.c}!send\_cache\_entry@{send\_cache\_entry}}
+\index{send\_cache\_entry@{send\_cache\_entry}!dpu\_offload\_utils.c@{dpu\_offload\_utils.c}}
+\doxysubsubsection{\texorpdfstring{send\_cache\_entry()}{send\_cache\_entry()}}
+{\footnotesize\ttfamily \mbox{\hyperlink{dpu__offload__common_8h_a2f49d8c1f5f6182b5128dfd3c815c3ef}{dpu\+\_\+offload\+\_\+status\+\_\+t}} send\+\_\+cache\+\_\+entry (\begin{DoxyParamCaption}\item[{\mbox{\hyperlink{dpu__offload__types_8h_ac95b2624b57c0005e3ca8a740316e5ab}{execution\+\_\+context\+\_\+t}} $\ast$}]{econtext,  }\item[{ucp\+\_\+ep\+\_\+h}]{ep,  }\item[{uint64\+\_\+t}]{dest\+\_\+id,  }\item[{\mbox{\hyperlink{dpu__offload__types_8h_ab004803006d678d9cc6c5dee2ad53351}{peer\+\_\+cache\+\_\+entry\+\_\+t}} $\ast$}]{cache\+\_\+entry,  }\item[{\mbox{\hyperlink{dpu__offload__types_8h_a5872fe6516c1dd159957efdfabc9ad2a}{dpu\+\_\+offload\+\_\+event\+\_\+t}} $\ast$$\ast$}]{ev }\end{DoxyParamCaption})}
+
+\mbox{\Hypertarget{dpu__offload__utils_8c_a1cd58164db28b3c7859b4a1cb6ce1ad4}\label{dpu__offload__utils_8c_a1cd58164db28b3c7859b4a1cb6ce1ad4}} 
+\index{dpu\_offload\_utils.c@{dpu\_offload\_utils.c}!send\_cache\_entry\_request@{send\_cache\_entry\_request}}
+\index{send\_cache\_entry\_request@{send\_cache\_entry\_request}!dpu\_offload\_utils.c@{dpu\_offload\_utils.c}}
+\doxysubsubsection{\texorpdfstring{send\_cache\_entry\_request()}{send\_cache\_entry\_request()}}
+{\footnotesize\ttfamily \mbox{\hyperlink{dpu__offload__common_8h_a2f49d8c1f5f6182b5128dfd3c815c3ef}{dpu\+\_\+offload\+\_\+status\+\_\+t}} send\+\_\+cache\+\_\+entry\+\_\+request (\begin{DoxyParamCaption}\item[{\mbox{\hyperlink{dpu__offload__types_8h_ac95b2624b57c0005e3ca8a740316e5ab}{execution\+\_\+context\+\_\+t}} $\ast$}]{econtext,  }\item[{ucp\+\_\+ep\+\_\+h}]{ep,  }\item[{uint64\+\_\+t}]{dest\+\_\+id,  }\item[{\mbox{\hyperlink{dpu__offload__types_8h_a6846f687a61323898ab2f6903ca8766e}{rank\+\_\+info\+\_\+t}} $\ast$}]{requested\+\_\+peer,  }\item[{\mbox{\hyperlink{dpu__offload__types_8h_a5872fe6516c1dd159957efdfabc9ad2a}{dpu\+\_\+offload\+\_\+event\+\_\+t}} $\ast$$\ast$}]{ev }\end{DoxyParamCaption})}
+
+\mbox{\Hypertarget{dpu__offload__utils_8c_a40d1309dab51e9eb9223f3b5c26ede6e}\label{dpu__offload__utils_8c_a40d1309dab51e9eb9223f3b5c26ede6e}} 
+\index{dpu\_offload\_utils.c@{dpu\_offload\_utils.c}!send\_gp\_cache\_to\_host@{send\_gp\_cache\_to\_host}}
+\index{send\_gp\_cache\_to\_host@{send\_gp\_cache\_to\_host}!dpu\_offload\_utils.c@{dpu\_offload\_utils.c}}
+\doxysubsubsection{\texorpdfstring{send\_gp\_cache\_to\_host()}{send\_gp\_cache\_to\_host()}}
+{\footnotesize\ttfamily \mbox{\hyperlink{dpu__offload__common_8h_a2f49d8c1f5f6182b5128dfd3c815c3ef}{dpu\+\_\+offload\+\_\+status\+\_\+t}} send\+\_\+gp\+\_\+cache\+\_\+to\+\_\+host (\begin{DoxyParamCaption}\item[{\mbox{\hyperlink{dpu__offload__types_8h_ac95b2624b57c0005e3ca8a740316e5ab}{execution\+\_\+context\+\_\+t}} $\ast$}]{econtext,  }\item[{\mbox{\hyperlink{dpu__offload__types_8h_a01af586ce7b042c7131b9dff27ace5ca}{group\+\_\+id\+\_\+t}}}]{group\+\_\+id }\end{DoxyParamCaption})}
+
+\mbox{\Hypertarget{dpu__offload__utils_8c_ab999e9cc405feea09cb1a40844c7cbd8}\label{dpu__offload__utils_8c_ab999e9cc405feea09cb1a40844c7cbd8}} 
+\index{dpu\_offload\_utils.c@{dpu\_offload\_utils.c}!send\_group\_cache@{send\_group\_cache}}
+\index{send\_group\_cache@{send\_group\_cache}!dpu\_offload\_utils.c@{dpu\_offload\_utils.c}}
+\doxysubsubsection{\texorpdfstring{send\_group\_cache()}{send\_group\_cache()}}
+{\footnotesize\ttfamily \mbox{\hyperlink{dpu__offload__common_8h_a2f49d8c1f5f6182b5128dfd3c815c3ef}{dpu\+\_\+offload\+\_\+status\+\_\+t}} send\+\_\+group\+\_\+cache (\begin{DoxyParamCaption}\item[{\mbox{\hyperlink{dpu__offload__types_8h_ac95b2624b57c0005e3ca8a740316e5ab}{execution\+\_\+context\+\_\+t}} $\ast$}]{econtext,  }\item[{ucp\+\_\+ep\+\_\+h}]{dest,  }\item[{uint64\+\_\+t}]{dest\+\_\+id,  }\item[{\mbox{\hyperlink{dpu__offload__types_8h_a01af586ce7b042c7131b9dff27ace5ca}{group\+\_\+id\+\_\+t}}}]{gp\+\_\+id,  }\item[{\mbox{\hyperlink{dpu__offload__types_8h_a5872fe6516c1dd159957efdfabc9ad2a}{dpu\+\_\+offload\+\_\+event\+\_\+t}} $\ast$}]{metaev }\end{DoxyParamCaption})}
+
+
+
+Send group cache to a specific destination, mainly used to send the cache back to the local ranks. 
+
+
+\begin{DoxyParams}{Parameters}
+{\em econtext} & \\
+\hline
+{\em dest} & \\
+\hline
+{\em gp\+\_\+id} & \\
+\hline
+{\em metaev} & \\
+\hline
+\end{DoxyParams}
+\begin{DoxyReturn}{Returns}
+dpu\+\_\+offload\+\_\+status\+\_\+t 
+\end{DoxyReturn}
+\mbox{\Hypertarget{dpu__offload__utils_8c_a824348f42ed4f6123676442a035e5e1c}\label{dpu__offload__utils_8c_a824348f42ed4f6123676442a035e5e1c}} 
+\index{dpu\_offload\_utils.c@{dpu\_offload\_utils.c}!send\_local\_rank\_group\_cache@{send\_local\_rank\_group\_cache}}
+\index{send\_local\_rank\_group\_cache@{send\_local\_rank\_group\_cache}!dpu\_offload\_utils.c@{dpu\_offload\_utils.c}}
+\doxysubsubsection{\texorpdfstring{send\_local\_rank\_group\_cache()}{send\_local\_rank\_group\_cache()}}
+{\footnotesize\ttfamily \mbox{\hyperlink{dpu__offload__common_8h_a2f49d8c1f5f6182b5128dfd3c815c3ef}{dpu\+\_\+offload\+\_\+status\+\_\+t}} send\+\_\+local\+\_\+rank\+\_\+group\+\_\+cache (\begin{DoxyParamCaption}\item[{\mbox{\hyperlink{dpu__offload__types_8h_ac95b2624b57c0005e3ca8a740316e5ab}{execution\+\_\+context\+\_\+t}} $\ast$}]{econtext,  }\item[{ucp\+\_\+ep\+\_\+h}]{dest\+\_\+ep,  }\item[{uint64\+\_\+t}]{dest\+\_\+id,  }\item[{\mbox{\hyperlink{dpu__offload__types_8h_a01af586ce7b042c7131b9dff27ace5ca}{group\+\_\+id\+\_\+t}}}]{gp\+\_\+id,  }\item[{\mbox{\hyperlink{dpu__offload__types_8h_a5872fe6516c1dd159957efdfabc9ad2a}{dpu\+\_\+offload\+\_\+event\+\_\+t}} $\ast$}]{metaev }\end{DoxyParamCaption})}
+
+
+
+\doxysubsection{Variable Documentation}
+\mbox{\Hypertarget{dpu__offload__utils_8c_a157cedd1ccb06433b6671306b29f9163}\label{dpu__offload__utils_8c_a157cedd1ccb06433b6671306b29f9163}} 
+\index{dpu\_offload\_utils.c@{dpu\_offload\_utils.c}!config\_file\_version\_token@{config\_file\_version\_token}}
+\index{config\_file\_version\_token@{config\_file\_version\_token}!dpu\_offload\_utils.c@{dpu\_offload\_utils.c}}
+\doxysubsubsection{\texorpdfstring{config\_file\_version\_token}{config\_file\_version\_token}}
+{\footnotesize\ttfamily const char$\ast$ config\+\_\+file\+\_\+version\+\_\+token = \char`\"{}Format version\+:\char`\"{}}
+
+\mbox{\Hypertarget{dpu__offload__utils_8c_a8c1ff660127011d941f7138087377492}\label{dpu__offload__utils_8c_a8c1ff660127011d941f7138087377492}} 
+\index{dpu\_offload\_utils.c@{dpu\_offload\_utils.c}!dbg\_cfg@{dbg\_cfg}}
+\index{dbg\_cfg@{dbg\_cfg}!dpu\_offload\_utils.c@{dpu\_offload\_utils.c}}
+\doxysubsubsection{\texorpdfstring{dbg\_cfg}{dbg\_cfg}}
+{\footnotesize\ttfamily \mbox{\hyperlink{dpu__offload__debug_8h_acacca5e836212792f278e28e8c5cbdee}{debug\+\_\+config\+\_\+t}} dbg\+\_\+cfg}
+
+{\bfseries Initial value\+:}
+\begin{DoxyCode}{0}
+\DoxyCodeLine{= \{}
+\DoxyCodeLine{    .my\_hostname = NULL,}
+\DoxyCodeLine{    .verbose = 1,}
+\DoxyCodeLine{\}}
+
+\end{DoxyCode}
