@@ -69,23 +69,26 @@ dpu_offload_status_t get_associated_econtext(offloading_engine_t *engine, am_hea
         // Message exchanged between service processes
         switch (hdr->sender_type)
         {
-            case CONTEXT_CLIENT:
-                // The sender was a client
-                econtext = engine->servers[hdr->server_id];
-                break;
             case CONTEXT_SERVER:
             {
                 // The sender was a server
+                // FIXME: avoid O(n) lookup
                 size_t i;
                 for (i = 0; i < engine->num_inter_service_proc_clients; i++)
                 {
                     if (engine->inter_service_proc_clients[i].remote_service_proc_info->service_proc.global_id == hdr->server_id &&
-                        engine->inter_service_proc_clients[i].remote_service_proc_info->client_id == hdr->client_id)
+                        engine->inter_service_proc_clients[i].client_econtext->client->id == hdr->client_id)
                     {
                         econtext = engine->inter_service_proc_clients[i].client_econtext;
                         break;
                     }
                 }
+                break;
+            }
+            case CONTEXT_CLIENT:
+            {
+                // The sender was a client
+                econtext = engine->servers[hdr->server_id];
                 break;
             }
             default:
