@@ -108,6 +108,7 @@ dpu_offload_status_t send_add_group_rank_request(execution_context_t *econtext, 
     pending_send->dest_id = dest_id;
     pending_send->econtext = econtext;
     pending_send->ev = ev;
+    ucs_list_add_tail(&(econtext->engine->pending_send_group_add_msgs), &(pending_send->item));
     return DO_SUCCESS;
 }
 
