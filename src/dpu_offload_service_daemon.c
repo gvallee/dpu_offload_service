@@ -1489,7 +1489,7 @@ static void progress_server_econtext(execution_context_t *ctx)
                         client_info->rank_data.group_size,
                         client_info->rank_data.n_local_ranks);
 
-                    // add_cache_entry_for_new_client chechks if the data actually needs to be put in the cache
+                    // add_cache_entry_for_new_client checks if the data actually needs to be put in the cache
                     rc = add_cache_entry_for_new_client(client_info, ctx);
                     if (rc == DO_ERROR)
                     {
