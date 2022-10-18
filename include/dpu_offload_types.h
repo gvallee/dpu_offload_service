@@ -1557,6 +1557,7 @@ typedef struct group_cache
         (__g)->n_local_ranks = 0;           \
         (__g)->n_local_ranks_populated = 0; \
         (__g)->sp_ranks = 0;                \
+        (__g)->revoked = 0;                 \
     } while (0)
 
 /**
