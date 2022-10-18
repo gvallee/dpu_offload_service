@@ -43,11 +43,11 @@ bool is_in_cache(cache_t *cache, group_id_t gp_id, int64_t rank_id, int64_t grou
     return (entry->set);
 }
 
-dpu_offload_status_t send_add_group_rank_request(execution_context_t *econtext, ucp_ep_h ep, uint64_t dest_id, dpu_offload_event_t *ev)
+dpu_offload_status_t do_send_add_group_rank_request(execution_context_t *econtext, ucp_ep_h ep, uint64_t dest_id, dpu_offload_event_t *ev)
 {
     dpu_offload_status_t rc;
     // The rank info is always at the beginning of the payload that the caller prepared
-    rank_info_t *rank_info = (rank_info_t*)ev->payload;
+    rank_info_t *rank_info = (rank_info_t *)ev->payload;
     // We add ourselves to the local EP cache as shadow service process
     if (rank_info->group_id.id != INVALID_GROUP &&
         rank_info->group_id.lead != INVALID_GROUP_LEAD &&
@@ -73,13 +73,165 @@ dpu_offload_status_t send_add_group_rank_request(execution_context_t *econtext, 
         gp_cache->num_local_entries++;
     }
 
-    DBG("Sending request to add group/rank");
+    DBG("Sending request to add the group/rank");
     rc = event_channel_emit(&ev,
                             AM_ADD_GP_RANK_MSG_ID,
                             ep,
                             dest_id,
                             NULL);
     CHECK_ERR_RETURN((rc != EVENT_DONE && rc != EVENT_INPROGRESS), DO_ERROR, "event_channel_emit() failed");
+    return DO_SUCCESS;
+}
+
+dpu_offload_status_t send_add_group_rank_request(execution_context_t *econtext, ucp_ep_h ep, uint64_t dest_id, dpu_offload_event_t *ev)
+{
+    group_cache_t *gp_cache = NULL;
+    pending_send_group_add_t *pending_send = NULL;
+
+    // The rank info is always at the beginning of the payload that the caller prepared
+    // All the ranks' data is supposed for the same group
+    rank_info_t *rank_info = (rank_info_t *)ev->payload;
+    gp_cache = GET_GROUP_CACHE(&(econtext->engine->procs_cache), &(rank_info->group_id));
+    assert(gp_cache);
+    if (gp_cache->revoked == 0)
+    {
+        return do_send_add_group_rank_request(econtext, ep, dest_id, ev);
+    }
+
+    // The group is in the process of being deleted, we cannot add this right away, otherwise the local cache would be in a inconsistent state
+    DYN_LIST_GET(econtext->engine->pool_pending_send_group_add,
+                 pending_send_group_add_t,
+                 item,
+                 pending_send);
+    assert(pending_send);
+    pending_send->dest_ep = ep;
+    pending_send->dest_id = dest_id;
+    pending_send->econtext = econtext;
+    pending_send->ev = ev;
+    return DO_SUCCESS;
+}
+
+/**
+ * @brief revoke_msg_return returns a revoke message to a pool. The function can be used for messages both on the host or DPUs.
+ *
+ * @param pool
+ * @param buf
+ */
+static void revoke_msg_return(void *pool, void *buf)
+{
+    dyn_list_t *dlist = NULL;
+    group_revoke_msg_obj_t *desc = NULL;
+    assert(pool);
+    dlist = (dyn_list_t *)pool;
+    desc = (group_revoke_msg_obj_t *)((ptrdiff_t)buf - sizeof(ucs_list_link_t));
+    DYN_LIST_RETURN(dlist, desc, item);
+}
+
+static void *revoke_msg_get(void *pool, void *args)
+{
+    group_revoke_msg_obj_t *elt = NULL;
+    dyn_list_t *dlist = NULL;
+    assert(pool);
+    dlist = (dyn_list_t *)pool;
+    DYN_LIST_GET(dlist, group_revoke_msg_obj_t, item, elt);
+    assert(elt);
+    return &(elt->msg);
+}
+
+dpu_offload_status_t send_revoke_group_rank_request_through_rank_info(execution_context_t *econtext,
+                                                                      ucp_ep_h ep,
+                                                                      uint64_t dest_id,
+                                                                      rank_info_t *rank_info,
+                                                                      dpu_offload_event_t *meta_ev)
+{
+    dpu_offload_status_t rc;
+    dpu_offload_event_t *ev = NULL;
+    group_revoke_msg_t *desc = NULL;
+    dpu_offload_event_info_t ev_info;
+
+    RESET_EVENT_INFO(&ev_info);
+    ev_info.pool.element_size = sizeof(group_revoke_msg_obj_t);
+    ev_info.pool.get_buf = revoke_msg_get;
+    ev_info.pool.return_buf = revoke_msg_return;
+    ev_info.pool.mem_pool = econtext->engine->pool_group_revoke_msgs;
+
+    rc = event_get(econtext->event_channels, &ev_info, &ev);
+    CHECK_ERR_RETURN((rc == DO_SUCCESS), DO_ERROR, "event_get() failed");
+    assert(ev);
+    desc = (group_revoke_msg_t *)ev->payload;
+
+    // Check the validity of the group
+    if (rank_info->group_id.id == INVALID_GROUP ||
+        rank_info->group_id.lead == INVALID_GROUP_LEAD ||
+        rank_info->group_rank == INVALID_RANK)
+    {
+        ERR_MSG("Invalid group, unable to remove");
+        return DO_ERROR;
+    }
+
+    COPY_RANK_INFO(rank_info, &(desc->info));
+
+    DBG("Sending request to revoke the group/rank");
+    rc = event_channel_emit(&ev,
+                            AM_REVOKE_GP_RANK_MSG_ID,
+                            ep,
+                            dest_id,
+                            NULL);
+    CHECK_ERR_RETURN((rc != EVENT_DONE && rc != EVENT_INPROGRESS), DO_ERROR, "event_channel_emit() failed");
+
+    if (meta_ev != NULL)
+    {
+        QUEUE_SUBEVENT(meta_ev, ev);
+    }
+    return DO_SUCCESS;
+}
+
+dpu_offload_status_t send_revoke_group_rank_request_through_num_ranks(execution_context_t *econtext,
+                                                                      ucp_ep_h ep,
+                                                                      uint64_t dest_id,
+                                                                      group_id_t gp_id,
+                                                                      uint64_t num_ranks,
+                                                                      dpu_offload_event_t *meta_ev)
+{
+    dpu_offload_status_t rc;
+    dpu_offload_event_t *ev = NULL;
+    group_revoke_msg_t *desc = NULL;
+    dpu_offload_event_info_t ev_info;
+
+    RESET_EVENT_INFO(&ev_info);
+    ev_info.pool.element_size = sizeof(group_revoke_msg_obj_t);
+    ev_info.pool.get_buf = revoke_msg_get;
+    ev_info.pool.return_buf = revoke_msg_return;
+    ev_info.pool.mem_pool = econtext->engine->pool_group_revoke_msgs;
+
+    rc = event_get(econtext->event_channels, &ev_info, &ev);
+    CHECK_ERR_RETURN((rc == DO_SUCCESS), DO_ERROR, "event_get() failed");
+    assert(ev);
+    desc = (group_revoke_msg_t *)ev->payload;
+    desc->type = GROUP_REVOKE_THROUGH_NUM_RANKS;
+    desc->num_ranks.gp_id = gp_id;
+    desc->num_ranks.num = num_ranks;
+
+    // Check the validity of the group
+    if (gp_id.id == INVALID_GROUP ||
+        gp_id.lead == INVALID_GROUP_LEAD)
+    {
+        ERR_MSG("Invalid group, unable to remove");
+        return DO_ERROR;
+    }
+
+    DBG("Sending request to revoke the group/rank");
+    rc = event_channel_emit(&ev,
+                            AM_REVOKE_GP_RANK_MSG_ID,
+                            ep,
+                            dest_id,
+                            NULL);
+    CHECK_ERR_RETURN((rc != EVENT_DONE && rc != EVENT_INPROGRESS), DO_ERROR, "event_channel_emit() failed");
+
+    if (meta_ev != NULL)
+    {
+        QUEUE_SUBEVENT(meta_ev, ev);
+    }
     return DO_SUCCESS;
 }
 
@@ -309,7 +461,66 @@ bool find_range_local_ranks(execution_context_t *econtext, group_id_t gp_id, int
     return true;
 }
 
-dpu_offload_status_t send_local_rank_group_cache(execution_context_t *econtext, ucp_ep_h dest_ep, uint64_t dest_id, group_id_t gp_id, dpu_offload_event_t *metaev)
+static dpu_offload_status_t send_local_revoke_rank_group_cache(execution_context_t *econtext,
+                                                               ucp_ep_h dest_ep,
+                                                               uint64_t dest_id,
+                                                               group_id_t gp_id,
+                                                               uint64_t n_ranks,
+                                                               dpu_offload_event_t *metaev)
+{
+    int rc;
+    group_cache_t *gp_cache = NULL;
+    dpu_offload_event_t *e = NULL;
+    group_revoke_msg_t *payload = NULL;
+    dpu_offload_event_info_t ev_info;
+
+    assert(econtext);
+    assert(econtext->engine);
+    assert(metaev);
+    assert(EVENT_HDR_TYPE(metaev) == META_EVENT_TYPE);
+    gp_cache = GET_GROUP_CACHE(&(econtext->engine->procs_cache), &gp_id);
+    assert(gp_cache);
+    if (!gp_cache->initialized)
+        return DO_SUCCESS;
+
+    assert(gp_cache->group_size > 0);
+
+    // Get a revoke buffer for the message
+    RESET_EVENT_INFO(&ev_info);
+    ev_info.pool.element_size = sizeof(group_revoke_msg_obj_t);
+    ev_info.pool.get_buf = revoke_msg_get;
+    ev_info.pool.return_buf = revoke_msg_return;
+    ev_info.pool.mem_pool = econtext->engine->pool_group_revoke_msgs;
+
+    // Send the notification and queue the sub-event
+    rc = event_get(econtext->event_channels, &ev_info, &e);
+    CHECK_ERR_RETURN((rc), DO_ERROR, "event_get() failed");
+    payload = (group_revoke_msg_t *)e->data;
+    payload->type = GROUP_REVOKE_THROUGH_NUM_RANKS;
+    payload->num_ranks.num = n_ranks;
+    COPY_GROUP_ID(&gp_id, &(payload->num_ranks.gp_id));
+
+    e->is_subevent = true;
+
+    rc = event_channel_emit(&e, AM_SP_GP_REVOKE_MSG_ID, dest_ep, dest_id, NULL);
+    if (rc != EVENT_DONE && rc != EVENT_INPROGRESS)
+    {
+        ERR_MSG("event_channel_emit_with_payload() failed");
+        return DO_ERROR;
+    }
+    if (e != NULL)
+    {
+        QUEUE_SUBEVENT(metaev, e);
+    }
+    else
+    {
+        WARN_MSG("Sending cache completed right away");
+    }
+
+    return DO_SUCCESS;
+}
+
+static dpu_offload_status_t send_local_rank_group_cache(execution_context_t *econtext, ucp_ep_h dest_ep, uint64_t dest_id, group_id_t gp_id, dpu_offload_event_t *metaev)
 {
     size_t count, idx;
     int rc;
@@ -427,7 +638,7 @@ dpu_offload_status_t send_cache(execution_context_t *econtext, cache_t *cache, u
         }
     })
 
-    return DO_SUCCESS;
+        return DO_SUCCESS;
 }
 
 bool all_service_procs_connected(offloading_engine_t *engine)
@@ -436,6 +647,63 @@ bool all_service_procs_connected(offloading_engine_t *engine)
         return false;
 
     return (engine->num_service_procs == (engine->num_connected_service_procs + 1)); // Plus one because we do not connect to ourselves
+}
+
+dpu_offload_status_t broadcast_group_cache_revoke(offloading_engine_t *engine, group_id_t group_id, uint64_t n_ranks)
+{
+    size_t i;
+    group_cache_t *cache;
+    assert(engine);
+    assert(group_id.id != INVALID_GROUP);
+    assert(group_id.lead != INVALID_GROUP_LEAD);
+    assert(all_service_procs_connected(engine));
+    assert(engine->on_dpu);
+
+    if (engine->num_service_procs == 1)
+    {
+        // The configuration has a single service process, the current DPU, nothing to do
+        return DO_SUCCESS;
+    }
+
+    cache = GET_GROUP_CACHE(&(engine->procs_cache), &group_id);
+    assert(cache);
+    for (i = 0; i < engine->num_service_procs; i++)
+    {
+        dpu_offload_status_t rc;
+        // Meta-event to be used to track all that need to happen
+        dpu_offload_event_t *ev;
+        ucp_ep_h dest_ep;
+        uint64_t dest_id = i;
+        remote_service_proc_info_t *sp;
+        sp = DYN_ARRAY_GET_ELT(&(engine->service_procs), i, remote_service_proc_info_t);
+        assert(sp);
+
+        // Do not send to self
+        offloading_config_t *cfg = (offloading_config_t *)engine->config;
+        if (i == cfg->local_service_proc.info.global_id)
+            continue;
+
+        if (sp->econtext == NULL)
+        {
+            ERR_MSG("number of connected service process(es): %ld", engine->num_connected_service_procs);
+            ERR_MSG("econtext for service process %ld is NULL", i);
+        }
+        assert(sp->econtext);
+        event_get(sp->econtext->event_channels, NULL, &ev);
+        assert(ev);
+        EVENT_HDR_TYPE(ev) = META_EVENT_TYPE;
+        dest_ep = GET_REMOTE_SERVICE_PROC_EP(engine, i);
+        // If the econtext is a client to connect to a server, the dest_id is the index;
+        // otherwise we need to find the client ID based on the index
+        if (sp->econtext->type == CONTEXT_SERVER)
+            dest_id = sp->client_id;
+        DBG("Sending group cache revoke to service process #%ld (econtext: %p, scope_id: %d, dest_id: %ld, ep: %p)",
+            LOCAL_ID_TO_GLOBAL(sp->econtext, i), sp->econtext, sp->econtext->scope_id, dest_id, dest_ep);
+        rc = send_local_revoke_rank_group_cache(sp->econtext, dest_ep, dest_id, group_id, n_ranks, ev);
+        CHECK_ERR_RETURN((rc), DO_ERROR, "send_local_revoke_rank_group_cache() failed");
+        QUEUE_EVENT(ev);
+    }
+    return DO_SUCCESS;
 }
 
 dpu_offload_status_t broadcast_group_cache(offloading_engine_t *engine, group_id_t group_id)
@@ -821,7 +1089,7 @@ static inline bool parse_dpu_cfg(char *str, dpu_config_data_t *config_entry)
     if (config_entry->version_1.hostname == NULL)
     {
         // freed when calling offload_config_free()
-        config_entry->version_1.hostname = strdup(token); 
+        config_entry->version_1.hostname = strdup(token);
     }
     token = strtok_r(rest, ":", &rest);
     assert(token);

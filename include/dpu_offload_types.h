@@ -301,6 +301,9 @@ typedef struct group_id
 
 typedef struct rank_info
 {
+    // So it can used with list
+    ucs_list_link_t item;
+
     // ID of the group associated to the rank
     group_id_t group_id;
 
@@ -1516,7 +1519,11 @@ typedef struct group_cache
 {
     ucs_list_link_t item;
 
+    // Track whether or not a group cache has been fully initialized
     bool initialized;
+
+    // Track how many times a group cache has been revoked. When equal to the number of local ranks, the group is assumed to be fully revoked.
+    uint64_t revoked;
 
     // Used to track if group cache has been sent to the host once all the local ranks
     // showed up. Only used on DPUs.
@@ -1735,6 +1742,57 @@ typedef struct remote_dpu_connect_tracker
 // Forward declaration
 struct offloading_config;
 
+typedef enum
+{
+    GROUP_REVOKE_CONTEXT_UNKNOWN = 0,
+    GROUP_REVOKE_THROUGH_RANK_INFO,
+    GROUP_REVOKE_THROUGH_NUM_RANKS,
+} group_revoke_context_t;
+
+typedef struct group_revoke_msg
+{
+    group_revoke_context_t type;
+    union
+    {
+        struct
+        {
+            uint64_t num;
+            group_id_t gp_id;
+        } num_ranks;
+        rank_info_t info;
+    };
+} group_revoke_msg_t;
+
+typedef struct group_revoke_msg_obj
+{
+    ucs_list_link_t item;
+    group_revoke_msg_t msg;
+} group_revoke_msg_obj_t;
+
+/**
+ * @brief pending_group_add_t is the data structure used to track group add messages that cannot be handled upon reception
+ */
+typedef struct pending_group_add
+{
+    ucs_list_link_t item;
+    execution_context_t *econtext;
+    uint64_t client_id;
+    void *data;
+    size_t data_len;
+} pending_group_add_t;
+
+/**
+ * @brief pending_send_group_add_t is the data structure used to track group add messages that cannot be sent right away
+ */
+typedef struct pending_send_group_add
+{
+    ucs_list_link_t item;
+    execution_context_t *econtext;
+    dpu_offload_event_t *ev;
+    uint64_t dest_id;
+    ucp_ep_h dest_ep;
+} pending_send_group_add_t;
+
 typedef struct offloading_engine
 {
 #if OFFLOADING_MT_ENABLE
@@ -1801,6 +1859,24 @@ typedef struct offloading_engine
 
     /* Pool of remote_dpu_info_t structures, used when getting the configuration */
     dyn_list_t *pool_remote_dpu_info;
+
+    // Pool of group_revoke_msg_obj_t objects that are available to send notifications to revoke messages
+    dyn_list_t *pool_group_revoke_msgs;
+
+    // Pool of pending_group_add_t objects that are available to track group add messages that have been received but cannot be handled right away
+    dyn_list_t *pool_pending_recv_group_add;
+
+    // Pool of pending_send_group_add_t objects that are available to track group add messages that cannot be sent right away because the group is being revoked
+    dyn_list_t *pool_pending_send_group_add;
+
+    // List of pending group revoke notifications (type: group_revoke_msg_t)
+    ucs_list_link_t pending_group_revoke_msgs;
+
+    // List of pending recvs group add notifications (type: pending_group_add_t)
+    ucs_list_link_t pending_group_add_msgs;
+
+    // List of pending send group add notification (type: pending_send_group_add_t)
+    ucs_list_link_t pending_send_group_add_msgs;
 
     // Flag to specify if we are on the DPU or not
     bool on_dpu;
@@ -1916,6 +1992,30 @@ typedef struct offloading_engine
             _core_ret = -1;                                                                                                  \
             break;                                                                                                           \
         }                                                                                                                    \
+        DYN_LIST_ALLOC((_core_engine)->pool_group_revoke_msgs, 32, group_revoke_msg_obj_t, item);                            \
+        if ((_core_engine)->pool_group_revoke_msgs == NULL)                                                                  \
+        {                                                                                                                    \
+            fprintf(stderr, "unable to allocate pool of objects for group revoke messages\n");                               \
+            _core_ret = -1;                                                                                                  \
+            break;                                                                                                           \
+        }                                                                                                                    \
+        DYN_LIST_ALLOC((_core_engine)->pool_pending_recv_group_add, 32, pending_group_add_t, item);                          \
+        if ((_core_engine)->pool_pending_recv_group_add == NULL)                                                             \
+        {                                                                                                                    \
+            fprintf(stderr, "unable to allocate pool of objects for group revoke messages\n");                               \
+            _core_ret = -1;                                                                                                  \
+            break;                                                                                                           \
+        }                                                                                                                    \
+        DYN_LIST_ALLOC((_core_engine)->pool_pending_send_group_add, 32, pending_send_group_add_t, item);                     \
+        if ((_core_engine)->pool_pending_send_group_add == NULL)                                                             \
+        {                                                                                                                    \
+            fprintf(stderr, "unable to allocate pool of objects for group revoke messages\n");                               \
+            _core_ret = -1;                                                                                                  \
+            break;                                                                                                           \
+        }                                                                                                                    \
+        ucs_list_head_init(&((_core_engine)->pending_group_revoke_msgs));                                                    \
+        ucs_list_head_init(&((_core_engine)->pending_group_add_msgs));                                                       \
+        ucs_list_head_init(&((_core_engine)->pending_send_group_add_msgs));                                                  \
         (_core_engine)->on_dpu = false;                                                                                      \
         /* Note that engine->dpus is a vector of remote_dpu_info_t pointers. */                                              \
         /* The actual object are from pool_remote_dpu_info */                                                                \
@@ -1997,6 +2097,30 @@ typedef struct offloading_engine
             _core_ret = -1;                                                                                                  \
             break;                                                                                                           \
         }                                                                                                                    \
+        DYN_LIST_ALLOC((_core_engine)->pool_group_revoke_msgs, 32, group_revoke_msg_obj_t, item);                            \
+        if ((_core_engine)->pool_group_revoke_msgs == NULL)                                                                  \
+        {                                                                                                                    \
+            fprintf(stderr, "unable to allocate pool of objects for group revoke messages\n");                               \
+            _core_ret = -1;                                                                                                  \
+            break;                                                                                                           \
+        }                                                                                                                    \
+        DYN_LIST_ALLOC((_core_engine)->pool_pending_recv_group_add, 32, pending_group_add_t, item);                          \
+        if ((_core_engine)->pool_pending_recv_group_add == NULL)                                                             \
+        {                                                                                                                    \
+            fprintf(stderr, "unable to allocate pool of objects for group revoke messages\n");                               \
+            _core_ret = -1;                                                                                                  \
+            break;                                                                                                           \
+        }                                                                                                                    \
+        DYN_LIST_ALLOC((_core_engine)->pool_pending_send_group_add, 32, pending_send_group_add_t, item);                     \
+        if ((_core_engine)->pool_pending_send_group_add == NULL)                                                             \
+        {                                                                                                                    \
+            fprintf(stderr, "unable to allocate pool of objects for group revoke messages\n");                               \
+            _core_ret = -1;                                                                                                  \
+            break;                                                                                                           \
+        }                                                                                                                    \
+        ucs_list_head_init(&((_core_engine)->pending_group_revoke_msgs));                                                    \
+        ucs_list_head_init(&((_core_engine)->pending_group_add_msgs));                                                       \
+        ucs_list_head_init(&((_core_engine)->pending_send_group_add_msgs));                                                  \
         (_core_engine)->on_dpu = false;                                                                                      \
         /* Note that engine->dpus is a vector of remote_dpu_info_t pointers. */                                              \
         /* The actual object are from pool_remote_dpu_info */                                                                \
@@ -2569,6 +2693,8 @@ typedef enum
     AM_PEER_CACHE_ENTRIES_MSG_ID,
     AM_PEER_CACHE_ENTRIES_REQUEST_MSG_ID,
     AM_ADD_GP_RANK_MSG_ID,
+    AM_REVOKE_GP_RANK_MSG_ID, // 45
+    AM_SP_GP_REVOKE_MSG_ID,
     AM_TEST_MSG_ID,
     LAST_RESERVED_NOTIF_ID
 } am_id_t;

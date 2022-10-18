@@ -96,9 +96,93 @@ void client_fini(execution_context_t **ctx);
 
 void offload_config_free(offloading_config_t *cfg);
 
-dpu_offload_status_t inter_dpus_connect_mgr(offloading_engine_t *, offloading_config_t *);
+/**
+ * @brief inter_dpus_connect_mgr initiates the connections between all the service processes after the configuration
+ * has been setup.
+ * The function is non-blocking.
+ *
+ * @param[in] engine Offloading engine in the context of which connections need to happen
+ * @param[in] config Configuration of the service.
+ * @return dpu_offload_status_t
+ */
+dpu_offload_status_t inter_dpus_connect_mgr(offloading_engine_t *engine, offloading_config_t *config);
 
+/**
+ * @brief send_add_group_rank_request initiates the creation of a new group from the host to a service process, after the creation of the first group during bootstrapping.
+ * The function is non-blocking. The event payload must contain a rank_info_t structure that describe the group to be added.
+ * The function also adds the group information to the local group cache.
+ * This function checks the status of the group cache to ensure it won't be corrupted
+ *
+ * @param[in] econtext Execution context to use to send the message to the service process
+ * @param[in] ep Endpoint of the target service process
+ * @param[in] dest_id Identifier of the target service process (i.e., the server identifier)
+ * @param[in] e Event to use to track completion.
+ * @return dpu_offload_status_t
+ */
 dpu_offload_status_t send_add_group_rank_request(execution_context_t *econtext, ucp_ep_h ep, uint64_t dest_id, dpu_offload_event_t *e);
+
+/**
+ * @brief do_send_add_group_rank_request sends a add group message, WITHOUT ensuring the cache won't be corrupted.
+ * Mainly for internal use.
+ *
+ * @param econtext Execution context to use to send the message to the service process
+ * @param ep Endpoint of the target service process
+ * @param dest_id Identifier of the target service process (i.e., the server identifier)
+ * @param ev Event to use to track completion.
+ * @return dpu_offload_status_t
+ */
+dpu_offload_status_t do_send_add_group_rank_request(execution_context_t *econtext, ucp_ep_h ep, uint64_t dest_id, dpu_offload_event_t *ev);
+
+/**
+ * @brief send_revoke_group_rank_request_through_rank_info initiates the destruction/revokation of an existing group,
+ * using a rank_info structure. This is for instance used by the ranks on the host to notify the associated service process
+ * that a group is now being revoked.
+ * The rank info object must contain data about a single rank that is revoking the group.
+ * The function is non-blocking.
+ * The function implicitly manages an event to send the notification to ensure the caller does not need to handle
+ * completion and ensure that once the function exists, it does not rely on the data from the caller.
+ *
+ * @param[in] econtext Execution context to use to send the message to the service process
+ * @param[in] ep Endpoint of the target service process
+ * @param[in] dest_id Identifier of the target service process (i.e., the server identifier)
+ * @param[in] rank_info Information about the rank/group to revoke
+ * @param[in] meta_ev Optional meta-event to use to track completion of multiple sends (can be NULL)
+ * @return dpu_offload_status_t
+ */
+dpu_offload_status_t send_revoke_group_rank_request_through_rank_info(execution_context_t *econtext,
+                                                                      ucp_ep_h ep,
+                                                                      uint64_t dest_id,
+                                                                      rank_info_t *rank_info,
+                                                                      dpu_offload_event_t *meta_ev);
+
+/**
+ * @brief send_revoke_group_rank_request_through_num_ranks initiates the destruction/revokation of an existing group,
+ * using a group id structure and the number of ranks that have revoked the group.
+ * This is for instance used between service processes to notify that a group is now being revoked and how many rank revoked it.
+ * The function is non-blocking.
+ * The function implicitly manages an event to send the notification to ensure the caller does not need to handle
+ * completion and ensure that once the function exists, it does not rely on the data from the caller.
+ * 
+ * @param econtext Execution context to use to send the message to the service process
+ * @param ep Endpoint of the target service process
+ * @param dest_id Identifier of the target service process (i.e., the server identifier)
+ * @param gp_id Group information about the group to revoke
+ * @param num_ranks Number of ranks that have revoked the group
+ * @param meta_ev Optional meta-event to use to track completion of multiple sends (can be NULL)
+ * @return dpu_offload_status_t 
+ */
+dpu_offload_status_t send_revoke_group_rank_request_through_num_ranks(execution_context_t *econtext,
+                                                                      ucp_ep_h ep,
+                                                                      uint64_t dest_id,
+                                                                      group_id_t gp_id,
+                                                                      uint64_t num_ranks,
+                                                                      dpu_offload_event_t *meta_ev);
+
+dpu_offload_status_t send_revoke_group_to_sp(execution_context_t *econtext,
+                                             ucp_ep_h ep,
+                                             uint64_t dest_id,
+                                             rank_info_t *rank_info,
+                                             dpu_offload_event_t *meta_ev);
 
 void local_rank_connect_default_callback(void *data);
 
@@ -145,6 +229,16 @@ dpu_offload_status_t send_cache(execution_context_t *econtext, cache_t *cache, u
  * @return dpu_offload_status_t
  */
 dpu_offload_status_t broadcast_group_cache(offloading_engine_t *engine, group_id_t group_id);
+
+/**
+ * @brief broadcast_group_cache_revoke broadcasts the notification that a group has been locally revoked, meaning that
+ * all the ranks attached to the SP revoked the said group.
+ *
+ * @param engine Current offloading engine
+ * @param group_id ID of the group that has been revoked
+ * @return dpu_offload_status_t
+ */
+dpu_offload_status_t broadcast_group_cache_revoke(offloading_engine_t *engine, group_id_t group_id, uint64_t n_ranks);
 
 /**
  * @brief Get the service process ID by host rank object. That ID can then be used to look up the corresponding endpoint.
