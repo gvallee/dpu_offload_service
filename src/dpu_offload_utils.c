@@ -149,17 +149,6 @@ dpu_offload_status_t send_revoke_group_rank_request_through_rank_info(execution_
     group_revoke_msg_t *desc = NULL;
     dpu_offload_event_info_t ev_info;
 
-    RESET_EVENT_INFO(&ev_info);
-    ev_info.pool.element_size = sizeof(group_revoke_msg_obj_t);
-    ev_info.pool.get_buf = revoke_msg_get;
-    ev_info.pool.return_buf = revoke_msg_return;
-    ev_info.pool.mem_pool = econtext->engine->pool_group_revoke_msgs;
-
-    rc = event_get(econtext->event_channels, &ev_info, &ev);
-    CHECK_ERR_RETURN((rc == DO_SUCCESS), DO_ERROR, "event_get() failed");
-    assert(ev);
-    desc = (group_revoke_msg_t *)ev->payload;
-
     // Check the validity of the group
     if (rank_info->group_id.id == INVALID_GROUP ||
         rank_info->group_id.lead == INVALID_GROUP_LEAD ||
@@ -169,6 +158,17 @@ dpu_offload_status_t send_revoke_group_rank_request_through_rank_info(execution_
         return DO_ERROR;
     }
 
+    RESET_EVENT_INFO(&ev_info);
+    ev_info.pool.element_size = sizeof(group_revoke_msg_t); // Size of the payload, not the type used to get element
+    ev_info.pool.get_buf = revoke_msg_get;
+    ev_info.pool.return_buf = revoke_msg_return;
+    ev_info.pool.mem_pool = econtext->engine->pool_group_revoke_msgs;
+
+    rc = event_get(econtext->event_channels, &ev_info, &ev);
+    CHECK_ERR_RETURN((rc != DO_SUCCESS), DO_ERROR, "event_get() failed");
+    assert(ev);
+    desc = (group_revoke_msg_t *)ev->payload;
+    desc->type = GROUP_REVOKE_THROUGH_RANK_INFO;
     COPY_RANK_INFO(rank_info, &(desc->info));
 
     DBG("Sending request to revoke the group/rank");
@@ -199,13 +199,13 @@ dpu_offload_status_t send_revoke_group_rank_request_through_num_ranks(execution_
     dpu_offload_event_info_t ev_info;
 
     RESET_EVENT_INFO(&ev_info);
-    ev_info.pool.element_size = sizeof(group_revoke_msg_obj_t);
+    ev_info.pool.element_size = sizeof(group_revoke_msg_t);
     ev_info.pool.get_buf = revoke_msg_get;
     ev_info.pool.return_buf = revoke_msg_return;
     ev_info.pool.mem_pool = econtext->engine->pool_group_revoke_msgs;
 
     rc = event_get(econtext->event_channels, &ev_info, &ev);
-    CHECK_ERR_RETURN((rc == DO_SUCCESS), DO_ERROR, "event_get() failed");
+    CHECK_ERR_RETURN((rc != DO_SUCCESS), DO_ERROR, "event_get() failed");
     assert(ev);
     desc = (group_revoke_msg_t *)ev->payload;
     desc->type = GROUP_REVOKE_THROUGH_NUM_RANKS;
@@ -487,7 +487,7 @@ static dpu_offload_status_t send_local_revoke_rank_group_cache(execution_context
 
     // Get a revoke buffer for the message
     RESET_EVENT_INFO(&ev_info);
-    ev_info.pool.element_size = sizeof(group_revoke_msg_obj_t);
+    ev_info.pool.element_size = sizeof(group_revoke_msg_t);
     ev_info.pool.get_buf = revoke_msg_get;
     ev_info.pool.return_buf = revoke_msg_return;
     ev_info.pool.mem_pool = econtext->engine->pool_group_revoke_msgs;
