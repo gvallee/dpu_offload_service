@@ -1673,17 +1673,20 @@ static dpu_offload_status_t do_add_group_rank_recv_cb(execution_context_t *econt
     return DO_SUCCESS;
 }
 
-static dpu_offload_status_t handle_pending_group_cache_add_msgs(offloading_engine_t *engine, group_id_t *gp_id)
+static dpu_offload_status_t handle_pending_group_cache_add_msgs(offloading_engine_t *engine, group_id_t gp_id)
 {
     dpu_offload_status_t rc;
     pending_group_add_t *pending_group_add, *next_pending;
     ucs_list_for_each_safe(pending_group_add, next_pending, &(engine->pending_group_add_msgs), item)
     {
         rank_info_t *rank_info = pending_group_add->data;
-        if (gp_id->id == rank_info->group_id.id && gp_id->lead == rank_info->group_id.lead)
+        if (gp_id.id == rank_info->group_id.id && gp_id.lead == rank_info->group_id.lead)
         {
             ucs_list_del(&(pending_group_add)->item);
-            rc = do_add_group_rank_recv_cb(pending_group_add->econtext, pending_group_add->client_id, pending_group_add->data, pending_group_add->data_len);
+            rc = do_add_group_rank_recv_cb(pending_group_add->econtext,
+                                           pending_group_add->client_id,
+                                           pending_group_add->data,
+                                           pending_group_add->data_len);
             CHECK_ERR_RETURN((rc != DO_SUCCESS), DO_ERROR, "do_add_group_rank_recv_cb() failed");
             free(pending_group_add->data);
             pending_group_add->data = NULL;
@@ -1735,7 +1738,7 @@ static dpu_offload_status_t handle_revoke_group_rank_through_num_ranks(execution
                 rc = send_revoke_group_to_ranks(econtext->engine, gpid, gp_cache->group_size);
                 CHECK_ERR_RETURN((rc != DO_SUCCESS), DO_ERROR, "send_revoke_group_to_ranks() failed");
                 // We make sure that we handle the pending group add for the group that was just revoked
-                rc = handle_pending_group_cache_add_msgs(econtext->engine, &gpid);
+                rc = handle_pending_group_cache_add_msgs(econtext->engine, gpid);
                 CHECK_ERR_RETURN((rc != DO_SUCCESS), DO_ERROR, "handle_pending_group_cache_add_msgs() failed");
             }
         }
@@ -1794,11 +1797,10 @@ static dpu_offload_status_t handle_revoke_group_rank_through_rank_info(execution
     gp_cache->revoked++;
     assert(gp_cache->revoked <= gp_cache->n_local_ranks_populated);
 
-    if (!group_cache_populated(econtext->engine, revoke_msg->info.group_id))
+    if (gp_cache->group_size != gp_cache->num_local_entries)
     {
         // Group cache is not fully populated yet, queuing the revoke request
         group_revoke_msg_obj_t *desc = NULL;
-
         DYN_LIST_GET(econtext->engine->pool_group_revoke_msgs, group_revoke_msg_obj_t, item, desc);
         assert(desc);
         desc->msg.type = GROUP_REVOKE_THROUGH_RANK_INFO;
@@ -1812,6 +1814,15 @@ static dpu_offload_status_t handle_revoke_group_rank_through_rank_info(execution
             // has been deleted here.
             rc = broadcast_group_cache_revoke(econtext->engine, revoke_msg->info.group_id, gp_cache->sp_ranks);
             CHECK_ERR_RETURN((rc != DO_SUCCESS), DO_ERROR, "broadcast_group_cache_revoke() failed");
+        }
+        if (gp_cache->revoked == gp_cache->group_size)
+        {
+            rc = send_revoke_group_to_ranks(econtext->engine, revoke_msg->info.group_id, gp_cache->group_size);
+            CHECK_ERR_RETURN((rc != DO_SUCCESS), DO_ERROR, "send_revoke_group_to_ranks() failed");
+            RESET_GROUP_CACHE(gp_cache);
+            // We make sure that we handle the pending group add for the group that was just revoked
+            rc = handle_pending_group_cache_add_msgs(econtext->engine, revoke_msg->info.group_id);
+            CHECK_ERR_RETURN((rc != DO_SUCCESS), DO_ERROR, "handle_pending_group_cache_add_msgs() failed");
         }
     }
 

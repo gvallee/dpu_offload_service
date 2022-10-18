@@ -171,6 +171,9 @@ dpu_offload_status_t send_revoke_group_rank_request_through_rank_info(execution_
     desc->type = GROUP_REVOKE_THROUGH_RANK_INFO;
     COPY_RANK_INFO(rank_info, &(desc->info));
 
+    if (meta_ev != NULL)
+        ev->is_subevent = true;
+
     DBG("Sending request to revoke the group/rank");
     rc = event_channel_emit(&ev,
                             AM_REVOKE_GP_RANK_MSG_ID,
@@ -207,6 +210,14 @@ dpu_offload_status_t send_revoke_group_rank_request_through_num_ranks(execution_
     group_revoke_msg_t *desc = NULL;
     dpu_offload_event_info_t ev_info;
 
+    // Check the validity of the group
+    if (gp_id.id == INVALID_GROUP ||
+        gp_id.lead == INVALID_GROUP_LEAD)
+    {
+        ERR_MSG("Invalid group, unable to remove");
+        return DO_ERROR;
+    }
+
     RESET_EVENT_INFO(&ev_info);
     ev_info.pool.element_size = sizeof(group_revoke_msg_t);
     ev_info.pool.get_buf = revoke_msg_get;
@@ -221,13 +232,8 @@ dpu_offload_status_t send_revoke_group_rank_request_through_num_ranks(execution_
     desc->num_ranks.gp_id = gp_id;
     desc->num_ranks.num = num_ranks;
 
-    // Check the validity of the group
-    if (gp_id.id == INVALID_GROUP ||
-        gp_id.lead == INVALID_GROUP_LEAD)
-    {
-        ERR_MSG("Invalid group, unable to remove");
-        return DO_ERROR;
-    }
+    if (meta_ev != NULL)
+        ev->is_subevent = true;
 
     DBG("Sending request to revoke the group/rank");
     rc = event_channel_emit(&ev,
