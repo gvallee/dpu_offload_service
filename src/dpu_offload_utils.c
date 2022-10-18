@@ -495,7 +495,7 @@ static dpu_offload_status_t send_local_revoke_rank_group_cache(execution_context
     // Send the notification and queue the sub-event
     rc = event_get(econtext->event_channels, &ev_info, &e);
     CHECK_ERR_RETURN((rc), DO_ERROR, "event_get() failed");
-    payload = (group_revoke_msg_t *)e->data;
+    payload = (group_revoke_msg_t *)e->payload;
     payload->type = GROUP_REVOKE_THROUGH_NUM_RANKS;
     payload->num_ranks.num = n_ranks;
     COPY_GROUP_ID(&gp_id, &(payload->num_ranks.gp_id));
