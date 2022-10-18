@@ -104,6 +104,7 @@ configure~
 
 # VScode files
 .vscode/settings.json
+.vscode
 
 # Vi/vim stuff
 *.swp

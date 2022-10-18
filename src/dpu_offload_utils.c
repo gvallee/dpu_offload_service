@@ -183,6 +183,15 @@ dpu_offload_status_t send_revoke_group_rank_request_through_rank_info(execution_
     {
         QUEUE_SUBEVENT(meta_ev, ev);
     }
+
+    // If on the host, we locally mark the group as being revoked
+    if (!econtext->engine->on_dpu)
+    {
+        group_cache_t *gp_cache = NULL;
+        gp_cache = GET_GROUP_CACHE(&(econtext->engine->procs_cache), &(rank_info->group_id));
+        gp_cache->revoked++;
+    }
+
     return DO_SUCCESS;
 }
 
@@ -243,7 +252,7 @@ bool group_cache_populated(offloading_engine_t *engine, group_id_t gp_id)
 {
     assert(gp_id.lead != INVALID_GROUP_LEAD);
     group_cache_t *gp_cache = GET_GROUP_CACHE(&(engine->procs_cache), &gp_id);
-    if (gp_cache->group_size == gp_cache->num_local_entries)
+    if (gp_cache->revoked == 0 && gp_cache->group_size == gp_cache->num_local_entries)
     {
         DBG("Group cache for %d-%d fully populated. num_local_entries = %" PRIu64 " group_size = %" PRIu64,
             gp_id.lead, gp_id.id, gp_cache->num_local_entries, gp_cache->group_size);
