@@ -1602,6 +1602,7 @@ static dpu_offload_status_t do_add_group_rank_recv_cb(execution_context_t *econt
                 return DO_ERROR;
             }
         }
+        return DO_SUCCESS;
     }
 
     if (!is_in_cache(&(econtext->engine->procs_cache), rank_info->group_id, rank_info->group_rank, rank_info->group_size))
