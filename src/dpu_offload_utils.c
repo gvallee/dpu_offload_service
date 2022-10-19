@@ -515,10 +515,9 @@ static dpu_offload_status_t send_local_revoke_rank_group_cache(execution_context
     payload->type = GROUP_REVOKE_THROUGH_NUM_RANKS;
     payload->num_ranks.num = n_ranks;
     COPY_GROUP_ID(&gp_id, &(payload->num_ranks.gp_id));
-
     e->is_subevent = true;
 
-    rc = event_channel_emit(&e, AM_SP_GP_REVOKE_MSG_ID, dest_ep, dest_id, NULL);
+    rc = event_channel_emit(&e, AM_REVOKE_GP_RANK_MSG_ID, dest_ep, dest_id, NULL);
     if (rc != EVENT_DONE && rc != EVENT_INPROGRESS)
     {
         ERR_MSG("event_channel_emit_with_payload() failed");
@@ -699,11 +698,6 @@ dpu_offload_status_t broadcast_group_cache_revoke(offloading_engine_t *engine, g
         if (i == cfg->local_service_proc.info.global_id)
             continue;
 
-        if (sp->econtext == NULL)
-        {
-            ERR_MSG("number of connected service process(es): %ld", engine->num_connected_service_procs);
-            ERR_MSG("econtext for service process %ld is NULL", i);
-        }
         assert(sp->econtext);
         event_get(sp->econtext->event_channels, NULL, &ev);
         assert(ev);
