@@ -61,6 +61,7 @@
                      item,                                                          \
                      _pending_group_add);                                           \
         assert(_pending_group_add);                                                 \
+        RESET_PENDING_RECV_GROUP_ADD(_pending_group_add);                           \
         _pending_group_add->client_id = _client_id;                                 \
         _pending_group_add->data_len = data_len;                                    \
         _pending_group_add->data = malloc(data_len);                                \
@@ -1609,31 +1610,9 @@ static dpu_offload_status_t do_add_group_rank_recv_cb(execution_context_t *econt
     group_cache_t *gp_cache = GET_GROUP_CACHE(&(econtext->engine->procs_cache), &(rank_info->group_id));
     assert(gp_cache);
 
-    /*
-     * If the group is revoked:
-     * - all the ranks in the group were already connected, the rank is therefore most certainly early in creating a new group with the same group ID; so queue the request until the group is fully deleted.
-     * - all the local ranks are not in the group yet:
-     *      - the rank is in the group, so the rank did a quick add/del of the group; it is okay but we cannot add it yet until the group is fully reset
-     *      - the rank is not in the group, so the rank added itself twice with the same group ID; this is an error
-     */
     if (gp_cache->revoked > 0)
     {
-        if (gp_cache->n_local_ranks_populated == gp_cache->n_local_ranks)
-        {
-            QUEUE_PENDING_GROUP_ADD_MSG(econtext, client_id, data, data_len);
-        }
-        else
-        {
-            if (is_in_cache(&(econtext->engine->procs_cache), rank_info->group_id, rank_info->group_rank, rank_info->group_size))
-            {
-                QUEUE_PENDING_GROUP_ADD_MSG(econtext, client_id, data, data_len);
-            }
-            else
-            {
-                ERR_MSG("rank/group added twice, which is prohibited");
-                return DO_ERROR;
-            }
-        }
+        QUEUE_PENDING_GROUP_ADD_MSG(econtext, client_id, data, data_len);
         return DO_SUCCESS;
     }
 
@@ -1724,6 +1703,7 @@ static dpu_offload_status_t handle_pending_group_cache_add_msgs(offloading_engin
             free(pending_group_add->data);
             pending_group_add->data = NULL;
             pending_group_add->data_len = 0;
+            DYN_LIST_RETURN(engine->pool_pending_recv_group_add, pending_group_add, item);
         }
     }
 
@@ -1748,6 +1728,7 @@ static dpu_offload_status_t handle_revoke_group_rank_through_num_ranks(execution
         {
             group_revoke_msg_obj_t *pending_msg = NULL;
 
+            assert(0); // fixme: we never deal with the pending list
             // Make the message persistent
             DYN_LIST_GET(econtext->engine->pool_group_revoke_msgs,
                          group_revoke_msg_obj_t,
@@ -1794,11 +1775,13 @@ static dpu_offload_status_t handle_revoke_group_rank_through_num_ranks(execution
             if (revoke_msg->num_ranks.gp_id.id == rank_info->group_id.id &&
                 revoke_msg->num_ranks.gp_id.lead == rank_info->group_id.lead)
             {
+                ucs_list_del(&(pending_send->item));
                 rc = do_send_add_group_rank_request(pending_send->econtext,
                                                     pending_send->dest_ep,
                                                     pending_send->dest_id,
                                                     pending_send->ev);
                 CHECK_ERR_RETURN((rc != DO_SUCCESS), DO_ERROR, "do_send_add_group_rank_request() failed");
+                DYN_LIST_RETURN(econtext->engine->pool_pending_send_group_add, pending_send, item);
             }
         }
     }

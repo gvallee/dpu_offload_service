@@ -1801,6 +1801,15 @@ typedef struct pending_group_add
     size_t data_len;
 } pending_group_add_t;
 
+#define RESET_PENDING_RECV_GROUP_ADD(_p) \
+    do                                   \
+    {                                    \
+        (_p)->econtext = NULL;           \
+        (_p)->client_id = UINT64_MAX;    \
+        (_p)->data = NULL;               \
+        (_p)->data_len = 0;              \
+    } while(0)
+
 /**
  * @brief pending_send_group_add_t is the data structure used to track group add messages that cannot be sent right away
  */
@@ -1821,6 +1830,15 @@ typedef struct pending_send_group_add
     // Destination endpoint
     ucp_ep_h dest_ep;
 } pending_send_group_add_t;
+
+#define RESET_PENDING_SEND_GROUP_ADD(_p) \
+    do                                    \
+    {                                     \
+        (_p)->econtext = NULL;            \
+        (_p)->ev = NULL;                  \
+        (_p)->dest_id = UINT64_MAX;       \
+        (_p)->dest_ep = NULL;             \
+    } while (0)
 
 typedef struct offloading_engine
 {

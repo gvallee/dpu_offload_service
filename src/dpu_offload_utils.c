@@ -104,6 +104,7 @@ dpu_offload_status_t send_add_group_rank_request(execution_context_t *econtext, 
                  item,
                  pending_send);
     assert(pending_send);
+    RESET_PENDING_SEND_GROUP_ADD(pending_send);
     pending_send->dest_ep = ep;
     pending_send->dest_id = dest_id;
     pending_send->econtext = econtext;
