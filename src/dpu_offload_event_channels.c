@@ -1829,7 +1829,7 @@ static dpu_offload_status_t handle_revoke_group_rank_through_rank_info(execution
     assert(gp_cache->n_local_ranks > 0);
     assert(gp_cache->n_local_ranks_populated > 0);
     gp_cache->revoked++;
-    assert(gp_cache->revoked <= gp_cache->n_local_ranks_populated);
+    assert(gp_cache->revoked <= gp_cache->group_size);
 
     if (gp_cache->group_size != gp_cache->num_local_entries)
     {
