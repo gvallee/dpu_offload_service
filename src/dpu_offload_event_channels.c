@@ -1799,6 +1799,7 @@ static dpu_offload_status_t handle_revoke_group_rank_through_num_ranks(execution
                                                     pending_send->dest_id,
                                                     pending_send->ev);
                 CHECK_ERR_RETURN((rc != DO_SUCCESS), DO_ERROR, "do_send_add_group_rank_request() failed");
+                ucs_list_del(&(pending_send->item));
             }
         }
     }
