@@ -43,6 +43,13 @@
         }                                                     \
     } while (0)
 
+/*
+ * Queue a message to add a group, typically because the group is being revoked.
+ * Adding a group always requires for a revoke to complete so until it happens,
+ * because everything is asynchronous, we queue and differ the group addition.
+ * The library handles the queued group addition upon final deletion of the group
+ * and therefore guarantee group consistency.
+ */
 #define QUEUE_PENDING_GROUP_ADD_MSG(_econtext, _client_id, _data, _data_len)        \
     do                                                                              \
     {                                                                               \
@@ -66,6 +73,12 @@
                           &(_pending_group_add->item));                             \
     } while (0)
 
+/*
+ * Actual revoke a group: all the element in the rank array are reset and the cache itself is also
+ * reset. Note that both are required:
+ * - when receiving cache entry, the state of the entry (from the rank array) only is checked,
+ * - when initiating operation at the cache level, the cache state is checked.
+ */
 #define REVOKE_GROUP_CACHE(_c)                                              \
     do                                                                      \
     {                                                                       \

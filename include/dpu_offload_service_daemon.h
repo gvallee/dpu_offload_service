@@ -178,12 +178,6 @@ dpu_offload_status_t send_revoke_group_rank_request_through_num_ranks(execution_
                                                                       uint64_t num_ranks,
                                                                       dpu_offload_event_t *meta_ev);
 
-dpu_offload_status_t send_revoke_group_to_sp(execution_context_t *econtext,
-                                             ucp_ep_h ep,
-                                             uint64_t dest_id,
-                                             rank_info_t *rank_info,
-                                             dpu_offload_event_t *meta_ev);
-
 void local_rank_connect_default_callback(void *data);
 
 uint64_t LOCAL_ID_TO_GLOBAL(execution_context_t *econtext, uint64_t local_id);

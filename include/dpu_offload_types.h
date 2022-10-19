@@ -1750,20 +1750,30 @@ typedef enum
     GROUP_REVOKE_THROUGH_NUM_RANKS,
 } group_revoke_context_t;
 
+/**
+ * @brief group_revoke_msg_t is the structure used to define the payload of a revoke notification
+ */
 typedef struct group_revoke_msg
 {
+    // Type of the message, i.e., which part of the union is used.
     group_revoke_context_t type;
     union
     {
         struct
         {
+            // Number of ranks that revoked the group
             uint64_t num;
+
+            // Group that has been revoked
             group_id_t gp_id;
-        } num_ranks;
-        rank_info_t info;
+        } num_ranks; // The message specifies how many ranks revoked the group, used for instance between SPs and for the final step from SP to host
+        rank_info_t info; // The message specifies which rank revoked the group (only one rank), used for instance from host to DPU when a group is being destroyed
     };
 } group_revoke_msg_t;
 
+/**
+ * @brief group_revoke_msg_obj_t is the structure used to hold revoke messages in a pool
+ */
 typedef struct group_revoke_msg_obj
 {
     ucs_list_link_t item;
@@ -1775,10 +1785,19 @@ typedef struct group_revoke_msg_obj
  */
 typedef struct pending_group_add
 {
+    // So it can put on a list
     ucs_list_link_t item;
+
+    // Associated execution context
     execution_context_t *econtext;
+
+    // Associated client identifier
     uint64_t client_id;
+
+    // Message payload (can be for more than one group)
     void *data;
+
+    // Payload's length
     size_t data_len;
 } pending_group_add_t;
 
@@ -1787,10 +1806,19 @@ typedef struct pending_group_add
  */
 typedef struct pending_send_group_add
 {
+    // So it can be put on a list
     ucs_list_link_t item;
+
+    // Associated execution context
     execution_context_t *econtext;
+
+    // Event that is being differed
     dpu_offload_event_t *ev;
+
+    // Destination ID, usually the server identifier
     uint64_t dest_id;
+
+    // Destination endpoint
     ucp_ep_h dest_ep;
 } pending_send_group_add_t;
 
