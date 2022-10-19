@@ -1790,6 +1790,7 @@ static dpu_offload_status_t handle_revoke_group_rank_through_num_ranks(execution
         ucs_list_for_each_safe(pending_send, next_pending, &(econtext->engine->pending_send_group_add_msgs), item)
         {
             rank_info_t *rank_info = (rank_info_t *)pending_send->ev->payload;
+            assert(rank_info);
             if (revoke_msg->num_ranks.gp_id.id == rank_info->group_id.id &&
                 revoke_msg->num_ranks.gp_id.lead == rank_info->group_id.lead)
             {
