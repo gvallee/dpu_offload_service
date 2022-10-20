@@ -776,7 +776,7 @@ dpu_offload_status_t broadcast_group_cache(offloading_engine_t *engine, group_id
         assert(ev);
         EVENT_HDR_TYPE(ev) = META_EVENT_TYPE;
         dest_ep = GET_REMOTE_SERVICE_PROC_EP(engine, sp_gid);
-        // If the econtext is a client to connect to a server, the dest_id is the index;
+        // If the econtext is a client to connect to a server, the dest_id is the index, i.e., the global SP ID;
         // otherwise we need to find the client ID based on the index
         if (sp->econtext->type == CONTEXT_SERVER)
             dest_id = sp->client_id;
