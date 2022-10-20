@@ -719,7 +719,7 @@ dpu_offload_status_t broadcast_group_cache_revoke(offloading_engine_t *engine, g
 
 dpu_offload_status_t broadcast_group_cache(offloading_engine_t *engine, group_id_t group_id)
 {
-    size_t i;
+    size_t sp_gid;
     group_cache_t *cache;
     assert(engine);
     assert(group_id.id != INVALID_GROUP);
@@ -750,38 +750,38 @@ dpu_offload_status_t broadcast_group_cache(offloading_engine_t *engine, group_id
 
     cache = GET_GROUP_CACHE(&(engine->procs_cache), &group_id);
     assert(cache);
-    for (i = 0; i < engine->num_service_procs; i++)
+    for (sp_gid = 0; sp_gid < engine->num_service_procs; sp_gid++)
     {
         dpu_offload_status_t rc;
         // Meta-event to be used to track all that need to happen
         dpu_offload_event_t *ev;
         ucp_ep_h dest_ep;
-        uint64_t dest_id = i;
+        uint64_t dest_id = sp_gid;
         remote_service_proc_info_t *sp;
-        sp = DYN_ARRAY_GET_ELT(&(engine->service_procs), i, remote_service_proc_info_t);
+        sp = DYN_ARRAY_GET_ELT(&(engine->service_procs), sp_gid, remote_service_proc_info_t);
         assert(sp);
 
         // Do not send to self
         offloading_config_t *cfg = (offloading_config_t *)engine->config;
-        if (i == cfg->local_service_proc.info.global_id)
+        if (sp_gid == cfg->local_service_proc.info.global_id)
             continue;
 
         if (sp->econtext == NULL)
         {
             ERR_MSG("number of connected service process(es): %ld", engine->num_connected_service_procs);
-            ERR_MSG("econtext for service process %ld is NULL", i);
+            ERR_MSG("econtext for service process %ld is NULL", sp_gid);
         }
         assert(sp->econtext);
         event_get(sp->econtext->event_channels, NULL, &ev);
         assert(ev);
         EVENT_HDR_TYPE(ev) = META_EVENT_TYPE;
-        dest_ep = GET_REMOTE_SERVICE_PROC_EP(engine, i);
+        dest_ep = GET_REMOTE_SERVICE_PROC_EP(engine, sp_gid);
         // If the econtext is a client to connect to a server, the dest_id is the index;
         // otherwise we need to find the client ID based on the index
         if (sp->econtext->type == CONTEXT_SERVER)
             dest_id = sp->client_id;
         DBG("Sending group cache to service process #%ld (econtext: %p, scope_id: %d, dest_id: %ld, ep: %p)",
-            LOCAL_ID_TO_GLOBAL(sp->econtext, i), sp->econtext, sp->econtext->scope_id, dest_id, dest_ep);
+            sp_gid, sp->econtext, sp->econtext->scope_id, sp_gid, dest_ep);
         rc = send_local_rank_group_cache(sp->econtext, dest_ep, dest_id, group_id, ev);
         CHECK_ERR_RETURN((rc), DO_ERROR, "send_local_rank_group_cache() failed");
         QUEUE_EVENT(ev);
