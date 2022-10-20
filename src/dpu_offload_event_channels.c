@@ -1715,15 +1715,34 @@ static dpu_offload_status_t handle_revoke_group_rank_through_num_ranks(execution
 {
     dpu_offload_status_t rc;
     group_cache_t *gp_cache = NULL;
+    gp_cache = GET_GROUP_CACHE(&(econtext->engine->procs_cache), &(revoke_msg->num_ranks.gp_id));
+    assert(gp_cache);
     if (econtext->engine->on_dpu)
     {
+        INFO_MSG("Revoking group, local data: n_local_ranks=%ld n_local_ranks_populated=%ld fully populated=%d",
+            gp_cache->n_local_ranks, gp_cache->n_local_ranks_populated,
+            group_cache_populated(econtext->engine, revoke_msg->num_ranks.gp_id));
+        if (gp_cache->n_local_ranks == 0)
+        {
+            /*
+             * The group is not locally fully created or does not have local ranks but we are
+             * getting a revoke message for it.
+             * This means the same group ID was used on other nodes with other ranks, it is being
+             * revoked and the ID is being reused. So the revoke message is actually not for this
+             * group and it is safe to drop the message.
+             */
+            DBG("Revoke message for a group ID being reused, not applicable locally, dropping...");
+            // Q:
+            // - should we still mark the group as revoked?
+            return DO_SUCCESS;
+        }
+
         /*
          * Set of rules when receiving a revoke message from another SP since creation/revokation of groups is fully asynchronous
          * 1. If the group is not in the cache yet, i.e., not fully initialized, queue the request for later handling, i.e., when the group is added.
          * 2. If the group is fully initialized, increase the revoke number by the number of local ranks from the SP that sent the request
          * 3. When the total number of revokations is equal to the total number of ranks in the group, delete remove the group from the cache.
          */
-        gp_cache = GET_GROUP_CACHE(&(econtext->engine->procs_cache), &(revoke_msg->num_ranks.gp_id));
         if (!gp_cache->initialized)
         {
             group_revoke_msg_obj_t *pending_msg = NULL;
@@ -1763,8 +1782,6 @@ static dpu_offload_status_t handle_revoke_group_rank_through_num_ranks(execution
         pending_send_group_add_t *pending_send, *next_pending;
 
         // We got a revoke message from our service process so the group is fully revoked, we can reset it
-        gp_cache = GET_GROUP_CACHE(&(econtext->engine->procs_cache), &(revoke_msg->num_ranks.gp_id));
-        assert(gp_cache);
         REVOKE_GROUP_CACHE(gp_cache);
 
         // If some group add message are pending and corresponding to the group that was just revoked, we send them now
