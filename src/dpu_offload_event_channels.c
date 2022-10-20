@@ -139,7 +139,16 @@ dpu_offload_status_t get_associated_econtext(offloading_engine_t *engine, am_hea
         case CONTEXT_CLIENT:
         {
             // The sender was a client
-            econtext = engine->servers[hdr->server_id];
+            assert(hdr->server_id == engine->config->local_service_proc.info.global_id);
+            if (hdr->scope_id == SCOPE_INTER_SERVICE_PROCS)
+            {
+                assert(engine->servers[0] != NULL);
+                econtext = engine->servers[0];
+            }
+            else
+            {
+                econtext = get_server_servicing_host(engine);
+            }
             break;
         }
         default:

@@ -400,6 +400,14 @@ void client_service_proc_connected(void *data)
     sp->peer_addr = connected_peer->peer_addr;
     sp->econtext = connected_peer->econtext;
     sp->client_id = connected_peer->peer_id;
+#if !NDEBUG
+    {
+        uint64_t my_sp_gid;
+        my_sp_gid = econtext->engine->config->local_service_proc.info.global_id;
+        // We can only be a server for SPs with a lower GID
+        assert(service_proc_global_id < my_sp_gid);
+    }
+#endif
 
     // Increase the number of connected service proc
     connected_peer->econtext->engine->num_connected_service_procs++;
@@ -473,6 +481,8 @@ dpu_offload_status_t inter_dpus_connect_mgr(offloading_engine_t *engine, offload
     assert(sp);
     sp->ep = engine->self_ep;
 
+    assert(cfg->offloading_engine->num_servers == 0);
+
     if (cfg->num_connecting_service_procs > 0)
     {
         // Some service processes will be connecting to us so we start a new server.
@@ -487,8 +497,7 @@ dpu_offload_status_t inter_dpus_connect_mgr(offloading_engine_t *engine, offload
                          DO_ERROR,
                          "max number of server (%ld) has been reached",
                          cfg->offloading_engine->num_max_servers);
-        cfg->offloading_engine->servers[cfg->offloading_engine->num_servers] = server;
-        cfg->offloading_engine->num_servers++;
+        // server_init() already adds the server to the list of servers and handle the associated counter
         DBG("Server successfully started (econtext: %p)", server);
         // Nothing else to do in this context.
     }
