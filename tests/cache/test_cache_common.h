@@ -9,27 +9,6 @@
 
 #define NUM_CACHE_ENTRIES (10) //(DEFAULT_NUM_PEERS * 2)
 
-void display_group_cache(cache_t *cache, group_cache_t *gp_cache)
-{
-    size_t i = 0;
-    size_t idx = 0;
-    group_id_t group_id;
-    group_id.id = 42;
-    group_id.lead = 41;
-    fprintf(stdout, "Content of cache for group %d-%d (%ld entries)\n", group_id.lead, group_id.id, gp_cache->group_size);
-    while (i < gp_cache->group_size)
-    {
-        peer_cache_entry_t *entry = GET_GROUPRANK_CACHE_ENTRY(cache, group_id, idx);
-        if (entry->set)
-        {
-            fprintf(stdout, "Rank %" PRId64 "\n", entry->peer.proc_info.group_rank);
-            assert(idx == entry->peer.proc_info.group_rank);
-            i++;
-        }
-        idx++;
-    }
-}
-
 #define POPULATE_CACHE(_engine)                                                            \
     do                                                                                     \
     {                                                                                      \

@@ -1392,12 +1392,6 @@ static dpu_offload_status_t peer_cache_entries_request_recv_cb(struct dpu_offloa
     DBG("Cache entry requested received for gp/rank %d-%d/%" PRIu64,
         rank_info->group_id.lead, rank_info->group_id.id, rank_info->group_rank);
 
-#if !NDEBUG
-    group_cache_t *gp_cache = GET_GROUP_CACHE(&(econtext->engine->procs_cache), &(rank_info->group_id));
-    assert(gp_cache);
-    assert(gp_cache->revoked == 0);
-#endif // NDEBUG
-
     if (is_in_cache(&(econtext->engine->procs_cache), rank_info->group_id, rank_info->group_rank, rank_info->group_size))
     {
         // We send the cache back to the sender
@@ -1605,6 +1599,9 @@ static dpu_offload_status_t do_add_group_rank_recv_cb(execution_context_t *econt
     size_t cur_size = 0;
     rank_info_t *rank_info = (rank_info_t *)data;
 
+    execution_context_t *service_server = get_server_servicing_host(econtext->engine);
+    assert(service_server);
+
     // we check on the first element, all the data is supposed to be ranks from the same group
     if (rank_info->group_id.id == INVALID_GROUP ||
         rank_info->group_id.lead == INVALID_GROUP_LEAD ||
@@ -1619,7 +1616,7 @@ static dpu_offload_status_t do_add_group_rank_recv_cb(execution_context_t *econt
     group_cache_t *gp_cache = GET_GROUP_CACHE(&(econtext->engine->procs_cache), &(rank_info->group_id));
     assert(gp_cache);
 
-    if (gp_cache->revoked > 0)
+    if (gp_cache->global_revoked > 0)
     {
         QUEUE_PENDING_GROUP_ADD_MSG(econtext, client_id, data, data_len);
         return DO_SUCCESS;
@@ -1728,9 +1725,11 @@ static dpu_offload_status_t handle_revoke_group_rank_through_num_ranks(execution
     assert(gp_cache);
     if (econtext->engine->on_dpu)
     {
-        INFO_MSG("Revoking group, local data: n_local_ranks=%ld n_local_ranks_populated=%ld fully populated=%d",
+        DBG("Revoking group, local data: n_local_ranks=%ld n_local_ranks_populated=%ld fully populated=%d group_size=%ld",
             gp_cache->n_local_ranks, gp_cache->n_local_ranks_populated,
-            group_cache_populated(econtext->engine, revoke_msg->num_ranks.gp_id));
+            group_cache_populated(econtext->engine, revoke_msg->num_ranks.gp_id),
+            gp_cache->group_size);
+#if 0
         if (gp_cache->n_local_ranks == 0)
         {
             /*
@@ -1745,6 +1744,7 @@ static dpu_offload_status_t handle_revoke_group_rank_through_num_ranks(execution
             // - should we still mark the group as revoked?
             return DO_SUCCESS;
         }
+#endif
 
         /*
          * Set of rules when receiving a revoke message from another SP since creation/revokation of groups is fully asynchronous
@@ -1752,12 +1752,14 @@ static dpu_offload_status_t handle_revoke_group_rank_through_num_ranks(execution
          * 2. If the group is fully initialized, increase the revoke number by the number of local ranks from the SP that sent the request
          * 3. When the total number of revokations is equal to the total number of ranks in the group, delete remove the group from the cache.
          */
-        if (!gp_cache->initialized)
+        if (!gp_cache->initialized ||
+            gp_cache->n_local_ranks == 0 ||
+            gp_cache->n_local_ranks != gp_cache->local_revoked)
         {
             group_revoke_msg_obj_t *pending_msg = NULL;
 
-            assert(0); // fixme: we never deal with the pending list
             // Make the message persistent
+            DBG("Queuing revoke msg from another SP");
             DYN_LIST_GET(econtext->engine->pool_group_revoke_msgs,
                          group_revoke_msg_obj_t,
                          item,
@@ -1770,8 +1772,9 @@ static dpu_offload_status_t handle_revoke_group_rank_through_num_ranks(execution
         }
         else
         {
-            gp_cache->revoked += revoke_msg->num_ranks.num;
-            if (gp_cache->revoked == gp_cache->group_size)
+            DBG("Able to handle the revoke message from another SP");
+            gp_cache->global_revoked += revoke_msg->num_ranks.num;
+            if (gp_cache->global_revoked == gp_cache->group_size)
             {
                 group_id_t gpid;
                 // Copy the group id before we reset the group cache
@@ -1834,11 +1837,16 @@ static dpu_offload_status_t handle_revoke_group_rank_through_rank_info(execution
     assert(is_in_cache(&(econtext->engine->procs_cache), revoke_msg->info.group_id, revoke_msg->info.group_rank, revoke_msg->info.group_size));
     gp_cache = GET_GROUP_CACHE(&(econtext->engine->procs_cache), &(revoke_msg->info.group_id));
     assert(gp_cache);
+#if !NDEBUG
+    display_group_cache(&(econtext->engine->procs_cache), revoke_msg->info.group_id);
+#endif
     assert(gp_cache->initialized);
     assert(gp_cache->n_local_ranks > 0);
     assert(gp_cache->n_local_ranks_populated > 0);
-    gp_cache->revoked++;
-    assert(gp_cache->revoked <= gp_cache->group_size);
+    gp_cache->local_revoked++;
+    gp_cache->global_revoked++;
+    assert(gp_cache->global_revoked <= gp_cache->group_size);
+    assert(gp_cache->local_revoked <= gp_cache->n_local_ranks);
 
     if (gp_cache->group_size != gp_cache->num_local_entries)
     {
@@ -1851,14 +1859,28 @@ static dpu_offload_status_t handle_revoke_group_rank_through_rank_info(execution
     }
     else
     {
-        if (gp_cache->revoked == gp_cache->sp_ranks)
+        if (gp_cache->local_revoked == gp_cache->sp_ranks)
         {
+            group_revoke_msg_obj_t *pending_revoke_msg, *next_pending;
+
             // All the local ranks attached to this SP revoked this group, we now notify other SPs that the group
             // has been deleted here.
             rc = broadcast_group_cache_revoke(econtext->engine, revoke_msg->info.group_id, gp_cache->sp_ranks);
             CHECK_ERR_RETURN((rc != DO_SUCCESS), DO_ERROR, "broadcast_group_cache_revoke() failed");
+
+            // Handle the pending revoke messages we received from other SPs
+            ucs_list_for_each_safe(pending_revoke_msg, next_pending, &(econtext->engine->pending_group_revoke_msgs), item)
+            {
+                if (pending_revoke_msg->msg.num_ranks.gp_id.id == revoke_msg->info.group_id.id &&
+                    pending_revoke_msg->msg.num_ranks.gp_id.lead == revoke_msg->info.group_id.lead)
+                {
+                    ucs_list_del(&(pending_revoke_msg->item));
+                    // Make sure it is an applicable message, if not, drop
+                    DYN_LIST_RETURN(econtext->engine->pool_group_revoke_msgs, pending_revoke_msg, item);
+                }
+            }
         }
-        if (gp_cache->revoked == gp_cache->group_size)
+        if (gp_cache->local_revoked == gp_cache->group_size)
         {
             rc = send_revoke_group_to_ranks(econtext->engine, revoke_msg->info.group_id, gp_cache->group_size);
             CHECK_ERR_RETURN((rc != DO_SUCCESS), DO_ERROR, "send_revoke_group_to_ranks() failed");

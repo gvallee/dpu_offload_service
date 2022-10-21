@@ -93,7 +93,7 @@ dpu_offload_status_t send_add_group_rank_request(execution_context_t *econtext, 
     rank_info_t *rank_info = (rank_info_t *)ev->payload;
     gp_cache = GET_GROUP_CACHE(&(econtext->engine->procs_cache), &(rank_info->group_id));
     assert(gp_cache);
-    if (gp_cache->revoked == 0)
+    if (gp_cache->global_revoked == 0)
     {
         return do_send_add_group_rank_request(econtext, ep, dest_id, ev);
     }
@@ -194,7 +194,8 @@ dpu_offload_status_t send_revoke_group_rank_request_through_rank_info(execution_
     {
         group_cache_t *gp_cache = NULL;
         gp_cache = GET_GROUP_CACHE(&(econtext->engine->procs_cache), &(rank_info->group_id));
-        gp_cache->revoked++;
+        gp_cache->local_revoked++;
+        gp_cache->global_revoked++;
     }
 
     return DO_SUCCESS;
@@ -260,7 +261,7 @@ bool group_cache_populated(offloading_engine_t *engine, group_id_t gp_id)
 {
     assert(gp_id.lead != INVALID_GROUP_LEAD);
     group_cache_t *gp_cache = GET_GROUP_CACHE(&(engine->procs_cache), &gp_id);
-    if (gp_cache->revoked == 0 && gp_cache->group_size == gp_cache->num_local_entries)
+    if (gp_cache->global_revoked == 0 && gp_cache->group_size == gp_cache->num_local_entries)
     {
         DBG("Group cache for %d-%d fully populated. num_local_entries = %" PRIu64 " group_size = %" PRIu64,
             gp_id.lead, gp_id.id, gp_cache->num_local_entries, gp_cache->group_size);
@@ -799,8 +800,7 @@ dpu_offload_status_t broadcast_group_cache(offloading_engine_t *engine, group_id
     return DO_SUCCESS;
 }
 
-#if !NDEBUG
-static void display_group_cache(cache_t *cache, group_id_t gp_id)
+void display_group_cache(cache_t *cache, group_id_t gp_id)
 {
     size_t i = 0;
     size_t idx = 0;
@@ -825,7 +825,6 @@ static void display_group_cache(cache_t *cache, group_id_t gp_id)
         idx++;
     }
 }
-#endif
 
 static dpu_offload_status_t do_get_cache_entry_by_group_rank(offloading_engine_t *engine, group_id_t gp_id, int64_t rank, int64_t sp_idx, request_compl_cb_t cb, int64_t *sp_global_id, dpu_offload_event_t **ev)
 {

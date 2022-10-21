@@ -1522,8 +1522,11 @@ typedef struct group_cache
     // Track whether or not a group cache has been fully initialized
     bool initialized;
 
-    // Track how many times a group cache has been revoked. When equal to the number of local ranks, the group is assumed to be fully revoked.
-    uint64_t revoked;
+    // Track how many times a group cache has been globally revoked. When equal to the number of local ranks, the group is assumed to be fully revoked.
+    uint64_t global_revoked;
+
+    // Track how many local rank revoked a specific group.
+    uint64_t local_revoked;
 
     // Used to track if group cache has been sent to the host once all the local ranks
     // showed up. Only used on DPUs.
@@ -1557,7 +1560,8 @@ typedef struct group_cache
         (__g)->n_local_ranks = 0;           \
         (__g)->n_local_ranks_populated = 0; \
         (__g)->sp_ranks = 0;                \
-        (__g)->revoked = 0;                 \
+        (__g)->global_revoked = 0;          \
+        (__g)->local_revoked = 0;           \
     } while (0)
 
 /**

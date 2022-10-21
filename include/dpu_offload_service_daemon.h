@@ -309,4 +309,6 @@ dpu_offload_status_t forward_cache_entry_to_local_sps(offloading_engine_t *engin
         (_init_params)->connected_cb = local_rank_connect_default_callback; \
     } while (0)
 
+void display_group_cache(cache_t *cache, group_id_t gp_id);
+
 #endif // DPU_OFFLOAD_SERVICE_DAEMON_H_
