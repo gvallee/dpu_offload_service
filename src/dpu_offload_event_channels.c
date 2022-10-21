@@ -1580,12 +1580,13 @@ static dpu_offload_status_t send_revoke_group_to_ranks(offloading_engine_t *engi
             idx++;
             continue;
         }
+        assert(c->rank_data.group_signature != INT_MAX);
 
         rc = event_get(host_server->event_channels, NULL, &metaev);
         CHECK_ERR_RETURN((rc), DO_ERROR, "event_get() failed");
         assert(metaev);
         EVENT_HDR_TYPE(metaev) = META_EVENT_TYPE;
-        rc = send_revoke_group_rank_request_through_num_ranks(host_server, c->ep, c->id, gp_id, num_ranks, metaev);
+        rc = send_revoke_group_rank_request_through_num_ranks(host_server, c->ep, c->id, gp_id, c->rank_data.group_signature, num_ranks, metaev);
         CHECK_ERR_RETURN((rc), DO_ERROR, "send_revoke_group_rank_request_through_num_ranks() failed");
         QUEUE_EVENT(metaev);
         n++;
@@ -1875,7 +1876,18 @@ static dpu_offload_status_t handle_revoke_group_rank_through_rank_info(execution
                     pending_revoke_msg->msg.num_ranks.gp_id.lead == revoke_msg->info.group_id.lead)
                 {
                     ucs_list_del(&(pending_revoke_msg->item));
-                    // Make sure it is an applicable message, if not, drop
+                    // Make sure it is an applicable message, if not, drop.
+                    // Note: with the group ID, the group lead/root and the signature, we have a unique
+                    // way to identify group, regardless of asynchronous events and resuse of group ID
+                    // (for example reuse of MPI communicator IDs).
+                    assert(pending_revoke_msg->msg.num_ranks.gp_signature != INT_MAX);
+                    if (pending_revoke_msg->msg.num_ranks.gp_signature == gp_cache->group_signature)
+                    {
+                        gp_cache->group_signature += pending_revoke_msg->msg.num_ranks.gp_signature;
+                    }
+                    else
+                        DBG("Group signature differs (recv'd: 0x%x, local: 0x%x), dropping revoke message...",
+                            pending_revoke_msg->msg.num_ranks.gp_signature, gp_cache->group_signature);
                     DYN_LIST_RETURN(econtext->engine->pool_group_revoke_msgs, pending_revoke_msg, item);
                 }
             }

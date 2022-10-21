@@ -318,6 +318,13 @@ typedef struct rank_info
 
     // Rank on the host, can be used to figure out which service process on the local DPU to connect to.
     int64_t local_rank;
+
+    // Signature of the group, i.e., hash of the mapping of the group. The mapping of the group
+    // is orginally an array of int where the index is the rank in the new group and the value
+    // the rank on COMM_WORLD. So with the ID, the root/lead of the communicator and the signature
+    // we have a unique way to identify communicators even when IDs are being reused (e.g., when
+    // communicators are being created and destroyed).
+    int group_signature;
 } rank_info_t;
 
 #define RESET_RANK_INFO(_r)                \
@@ -328,6 +335,7 @@ typedef struct rank_info
         (_r)->group_size = 0;              \
         (_r)->n_local_ranks = 0;           \
         (_r)->local_rank = INVALID_RANK;   \
+        (_r)->group_signature = INT_MAX;   \
     } while (0)
 
 #define COPY_RANK_INFO(__s, __d)                               \
@@ -338,6 +346,7 @@ typedef struct rank_info
         (__d)->group_size = (__s)->group_size;                 \
         (__d)->n_local_ranks = (__s)->n_local_ranks;           \
         (__d)->local_rank = (__s)->local_rank;                 \
+        (__d)->group_signature = (__s)->group_signature;       \
     } while (0)
 
 // fixme: long term, we do not want to have a limit on the length of the address
@@ -1532,7 +1541,11 @@ typedef struct group_cache
     // showed up. Only used on DPUs.
     bool sent_to_host;
 
+    // Number of ranks/processes in the group
     size_t group_size;
+
+    // Group signature
+    int group_signature;
 
     // How many entries are already locally populated
     size_t num_local_entries;
@@ -1786,6 +1799,9 @@ typedef struct group_revoke_msg
 
             // Group that has been revoked
             group_id_t gp_id;
+
+            // Signature of the group, i.e, hash of its layout
+            int gp_signature;
         } num_ranks;      // The message specifies how many ranks revoked the group, used for instance between SPs and for the final step from SP to host
         rank_info_t info; // The message specifies which rank revoked the group (only one rank), used for instance from host to DPU when a group is being destroyed
     };

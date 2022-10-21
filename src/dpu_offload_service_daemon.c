@@ -103,20 +103,6 @@ struct oob_msg
 
 extern dpu_offload_status_t get_env_config(conn_params_t *params);
 
-#if 0
-static void ep_create_err_cb(void *arg, ucp_ep_h ep, ucs_status_t status)
-{
-    execution_context_t *econtext = (execution_context_t *)arg;
-    if (econtext == NULL)
-        WARN_MSG("execution context is undefined");
-    ERR_MSG("error callback was invoked with status %d (%s) on ep %p\n",
-            status, ucs_status_string(status), ep);
-    ERR_MSG("econtext info - type: %d, scope_id: %d",
-            econtext->type, econtext->scope_id);
-    abort();
-}
-#endif
-
 static void oob_recv_addr_handler_2(void *request, ucs_status_t status, const ucp_tag_recv_info_t *tag_info, void *user_data)
 {
     DBG("Bootstrapping message received\n");
@@ -1875,6 +1861,7 @@ execution_context_t *client_init(offloading_engine_t *offload_engine, init_param
                 {
                     gp_cache->group_size = init_params->proc_info->group_size;
                     gp_cache->n_local_ranks = init_params->proc_info->n_local_ranks;
+                    gp_cache->group_signature = init_params->proc_info->group_signature;
                 }
             }
         }

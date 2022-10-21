@@ -167,6 +167,7 @@ dpu_offload_status_t send_revoke_group_rank_request_through_rank_info(execution_
  * @param ep Endpoint of the target service process
  * @param dest_id Identifier of the target service process (i.e., the server identifier)
  * @param gp_id Group information about the group to revoke
+ * @param gp_signature Signature of the group, i.e., hash of the group's layout
  * @param num_ranks Number of ranks that have revoked the group
  * @param meta_ev Optional meta-event to use to track completion of multiple sends (can be NULL)
  * @return dpu_offload_status_t 
@@ -175,6 +176,7 @@ dpu_offload_status_t send_revoke_group_rank_request_through_num_ranks(execution_
                                                                       ucp_ep_h ep,
                                                                       uint64_t dest_id,
                                                                       group_id_t gp_id,
+                                                                      int gp_signature,
                                                                       uint64_t num_ranks,
                                                                       dpu_offload_event_t *meta_ev);
 

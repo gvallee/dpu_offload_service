@@ -159,6 +159,7 @@ dpu_offload_status_t send_revoke_group_rank_request_through_rank_info(execution_
         ERR_MSG("Invalid group, unable to remove");
         return DO_ERROR;
     }
+    assert(rank_info->group_signature != INT_MAX);
 
     RESET_EVENT_INFO(&ev_info);
     ev_info.pool.element_size = sizeof(group_revoke_msg_t); // Size of the payload, not the type used to get element
@@ -205,6 +206,7 @@ dpu_offload_status_t send_revoke_group_rank_request_through_num_ranks(execution_
                                                                       ucp_ep_h ep,
                                                                       uint64_t dest_id,
                                                                       group_id_t gp_id,
+                                                                      int group_signature,
                                                                       uint64_t num_ranks,
                                                                       dpu_offload_event_t *meta_ev)
 {
@@ -221,6 +223,7 @@ dpu_offload_status_t send_revoke_group_rank_request_through_num_ranks(execution_
         return DO_ERROR;
     }
 
+    assert(group_signature != INT_MAX);
     RESET_EVENT_INFO(&ev_info);
     ev_info.pool.element_size = sizeof(group_revoke_msg_t);
     ev_info.pool.get_buf = revoke_msg_get;
@@ -234,6 +237,7 @@ dpu_offload_status_t send_revoke_group_rank_request_through_num_ranks(execution_
     desc->type = GROUP_REVOKE_THROUGH_NUM_RANKS;
     desc->num_ranks.gp_id = gp_id;
     desc->num_ranks.num = num_ranks;
+    desc->num_ranks.gp_signature = group_signature;
 
     if (meta_ev != NULL)
         ev->is_subevent = true;
