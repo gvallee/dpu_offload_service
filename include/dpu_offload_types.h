@@ -1668,7 +1668,7 @@ typedef struct cache
     // Identifier of the first group, a.k.a., MPI_COMM_WORLD or equivalent
     group_id_t world_group;
 
-    // data is a dynamic array for all the group caches
+    // data is a hash table for all the group caches
     khash_t(group_hash_t) * data;
 
     // Pool of keys available to add elements to the cache (type: int64_t)
@@ -1690,6 +1690,22 @@ typedef struct cache
         (__c)->keys_is_use = 0;              \
         RESET_GROUP_ID(&(__c)->world_group); \
     } while (0)
+
+#define HASH_GROUP_FROM_STRING(_s, _len) ({              \
+    assert(_s);                                          \
+    unsigned int __hash = 5381;                          \
+    size_t __idx = 0;                                    \
+    for (__idx = 0; __idx < _len; __idx++)               \
+    {                                                    \
+        __hash = ((__hash << 5) + __hash) + (_s)[__idx]; \
+    }                                                    \
+    __hash;                                              \
+})
+
+#define HASH_GROUP(_gp, _len) ({                               \
+    assert(_gp);                                               \
+    HASH_GROUP_FROM_STRING((char *)(_gp), _len * sizeof(int)); \
+})
 
 /**
  * @brief GET_GROUP_RANK_CACHE_ENTRY is a macro that looks up the cache entry for
@@ -1766,7 +1782,7 @@ typedef struct group_revoke_msg
 
             // Group that has been revoked
             group_id_t gp_id;
-        } num_ranks; // The message specifies how many ranks revoked the group, used for instance between SPs and for the final step from SP to host
+        } num_ranks;      // The message specifies how many ranks revoked the group, used for instance between SPs and for the final step from SP to host
         rank_info_t info; // The message specifies which rank revoked the group (only one rank), used for instance from host to DPU when a group is being destroyed
     };
 } group_revoke_msg_t;
@@ -1808,7 +1824,7 @@ typedef struct pending_group_add
         (_p)->client_id = UINT64_MAX;    \
         (_p)->data = NULL;               \
         (_p)->data_len = 0;              \
-    } while(0)
+    } while (0)
 
 /**
  * @brief pending_send_group_add_t is the data structure used to track group add messages that cannot be sent right away
@@ -1832,12 +1848,12 @@ typedef struct pending_send_group_add
 } pending_send_group_add_t;
 
 #define RESET_PENDING_SEND_GROUP_ADD(_p) \
-    do                                    \
-    {                                     \
-        (_p)->econtext = NULL;            \
-        (_p)->ev = NULL;                  \
-        (_p)->dest_id = UINT64_MAX;       \
-        (_p)->dest_ep = NULL;             \
+    do                                   \
+    {                                    \
+        (_p)->econtext = NULL;           \
+        (_p)->ev = NULL;                 \
+        (_p)->dest_id = UINT64_MAX;      \
+        (_p)->dest_ep = NULL;            \
     } while (0)
 
 typedef struct offloading_engine
