@@ -1567,27 +1567,9 @@ static dpu_offload_status_t peer_cache_entries_recv_cb(struct dpu_offload_ev_sys
     entries = (peer_cache_entry_t *)data;
     group_uid = entries[0].peer.proc_info.group_uid;
     group_size = entries[0].peer.proc_info.group_size;
+    INFO_MSG("Receive cache entry for group 0x%x", group_uid);
     gp_cache = GET_GROUP_CACHE(&(econtext->engine->procs_cache), group_uid);
-    if (gp_cache->group_uid == 0 || gp_cache->group_uid == INT_MAX)
-    {
-        // No local rank has been involved in this group (it may never or all local ranks are late)
-        // so we queue the request. We cannot handle it right away because if communicators are
-        // being created/destroyed, communicator IDs can be reused and we then need to know
-        // where we stand so we can properly handle revoke messages.
-
-        pending_peer_cache_entry_t *pending_cache_entry_recv;
-        DYN_LIST_GET(engine->pool_pending_cache_entry_recv, pending_peer_cache_entry_t, item, pending_cache_entry_recv);
-        assert(pending_cache_entry_recv);
-        pending_cache_entry_recv->data = malloc(data_len);
-        assert(pending_cache_entry_recv);
-        memcpy(pending_cache_entry_recv->data, data, data_len);
-        pending_cache_entry_recv->data_len = data_len;
-        pending_cache_entry_recv->econtext = econtext;
-        pending_cache_entry_recv->dpu_global_id = dpu_global_id;
-        pending_cache_entry_recv->gp_uid = group_uid;
-        ucs_list_add_head(&(engine->pending_cache_entry_recv), &(pending_cache_entry_recv->item));
-        return DO_SUCCESS;
-    }
+    assert(gp_cache->group_uid != INT_MAX);
 
     rc = handle_peer_cache_entries_recv(econtext, dpu_global_id, data, data_len);
     CHECK_ERR_RETURN((rc != DO_SUCCESS), DO_ERROR, "handle_peer_cache_entries_recv() failed");

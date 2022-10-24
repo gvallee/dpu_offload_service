@@ -779,27 +779,14 @@ dpu_offload_status_t broadcast_group_cache(offloading_engine_t *engine, group_ui
     // all the remote data first
     if (cache->group_size == cache->num_local_entries)
     {
-        pending_peer_cache_entry_t *pending_cache_entry_recv, *next_pending;
         execution_context_t *server = NULL;
         dpu_offload_status_t rc;
-        bool found = false; // Did we find pending cache entries recv for the group or not?
 
         server = get_server_servicing_host(engine);
         assert(server);
         assert(server->scope_id == SCOPE_HOST_DPU);
         rc = send_gp_cache_to_host(server, group_uid);
         CHECK_ERR_RETURN((rc), DO_ERROR, "send_gp_cache_to_host() failed");
-
-        // Now that we sent the cache entries to the other SPs, we check on the
-        // pending receives of cache entries from other SPs.
-        ucs_list_for_each_safe(pending_cache_entry_recv, next_pending, &(engine->pending_cache_entry_recv), item)
-        {
-            // Find the potential last cache entry, which at the top of the list (added to the head)
-            if (pending_cache_entry_recv->gp_uid == group_uid)
-            {
-                found = true;
-            }
-        }
     }
 
     return DO_SUCCESS;

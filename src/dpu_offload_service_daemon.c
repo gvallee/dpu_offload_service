@@ -1465,7 +1465,7 @@ static void progress_server_econtext(execution_context_t *ctx)
                     // and fully complete the local initialization for the client.
                     ECONTEXT_LOCK(ctx);
                     client_info->bootstrapping.phase = UCX_CONNECT_DONE;
-                    DBG("group/rank received: (0x%x/%" PRId64 "); group_size: %ld, local ranks: %ld",
+                    INFO_MSG("group/rank received: (0x%x/%" PRId64 "); group_size: %ld, local ranks: %ld",
                         client_info->rank_data.group_uid,
                         client_info->rank_data.group_rank,
                         client_info->rank_data.group_size,
@@ -1949,7 +1949,6 @@ void offload_engine_fini(offloading_engine_t **offload_engine)
     DYN_LIST_FREE((*offload_engine)->pool_group_revoke_msgs, group_revoke_msg_obj_t, item);
     DYN_LIST_FREE((*offload_engine)->pool_pending_recv_group_add, pending_group_add_t, item);
     DYN_LIST_FREE((*offload_engine)->pool_pending_send_group_add, pending_send_group_add_t, item);
-    DYN_LIST_FREE((*offload_engine)->pool_pending_cache_entry_recv, pending_peer_cache_entry_t, item);
     DYN_ARRAY_FREE(&((*offload_engine)->dpus));
     DYN_ARRAY_FREE(&((*offload_engine)->service_procs));
 #if USE_AM_IMPLEM

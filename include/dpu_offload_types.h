@@ -1959,9 +1959,6 @@ typedef struct offloading_engine
     // Pool of pending_send_group_add_t objects that are available to track group add messages that cannot be sent right away because the group is being revoked
     dyn_list_t *pool_pending_send_group_add;
 
-    // Pool of pending_peer_cache_entry_t objects that are available to track messages from SPs for cache entries
-    dyn_list_t *pool_pending_cache_entry_recv;
-
     // List of pending group revoke notifications (type: group_revoke_msg_t)
     ucs_list_link_t pending_group_revoke_msgs;
 
@@ -1970,9 +1967,6 @@ typedef struct offloading_engine
 
     // List of pending send group add notification (type: pending_send_group_add_t)
     ucs_list_link_t pending_send_group_add_msgs;
-
-    // List of pending receives of cache entry (type: pending_peer_cache_entry_t)
-    ucs_list_link_t pending_cache_entry_recv;
 
     // Flag to specify if we are on the DPU or not
     bool on_dpu;
@@ -2109,17 +2103,9 @@ typedef struct offloading_engine
             _core_ret = -1;                                                                                                  \
             break;                                                                                                           \
         }                                                                                                                    \
-        DYN_LIST_ALLOC((_core_engine)->pool_pending_cache_entry_recv, 32, pending_peer_cache_entry_t, item);                 \
-        if ((_core_engine)->pool_pending_cache_entry_recv == NULL)                                                           \
-        {                                                                                                                    \
-            fprintf(stderr, "unable to allocate pool of objects for pending cache entries recv\n");                          \
-            _core_ret = -1;                                                                                                  \
-            break;                                                                                                           \
-        }                                                                                                                    \
         ucs_list_head_init(&((_core_engine)->pending_group_revoke_msgs));                                                    \
         ucs_list_head_init(&((_core_engine)->pending_group_add_msgs));                                                       \
         ucs_list_head_init(&((_core_engine)->pending_send_group_add_msgs));                                                  \
-        ucs_list_head_init(&((_core_engine)->pending_cache_entry_recv));                                                     \
         (_core_engine)->on_dpu = false;                                                                                      \
         /* Note that engine->dpus is a vector of remote_dpu_info_t pointers. */                                              \
         /* The actual object are from pool_remote_dpu_info */                                                                \
@@ -2222,17 +2208,9 @@ typedef struct offloading_engine
             _core_ret = -1;                                                                                                  \
             break;                                                                                                           \
         }                                                                                                                    \
-        DYN_LIST_ALLOC((_core_engine)->pool_pending_cache_entry_recv, 32, pending_peer_cache_entry_t, item);                 \
-        if ((_core_engine)->pool_pending_cache_entry_recv == NULL)                                                           \
-        {                                                                                                                    \
-            fprintf(stderr, "unable to allocate pool of objects for pending cache entries recv\n");                          \
-            _core_ret = -1;                                                                                                  \
-            break;                                                                                                           \
-        }                                                                                                                    \
         ucs_list_head_init(&((_core_engine)->pending_group_revoke_msgs));                                                    \
         ucs_list_head_init(&((_core_engine)->pending_group_add_msgs));                                                       \
         ucs_list_head_init(&((_core_engine)->pending_send_group_add_msgs));                                                  \
-        ucs_list_head_init(&((_core_engine)->pending_cache_entry_recv));                                                     \
         (_core_engine)->on_dpu = false;                                                                                      \
         /* Note that engine->dpus is a vector of remote_dpu_info_t pointers. */                                              \
         /* The actual object are from pool_remote_dpu_info */                                                                \
