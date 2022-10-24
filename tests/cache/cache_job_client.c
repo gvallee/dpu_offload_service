@@ -66,11 +66,9 @@ int main(int argc, char **argv)
     int *connect_port = DYN_ARRAY_GET_ELT(&(dpu_config[0].version_1.host_ports), 0, int);
     fprintf(stderr, "INFO: connecting to DPU %s:%d\n", dpu_config[0].version_1.addr, *connect_port);
 
+    group_uid_t guid = 42;
     rank_info_t my_rank_info = {
-        .group_id = {
-            .id = 0,
-            .lead = 0,
-        },
+        .group_uid = guid,
         .group_rank = my_rank,
     };
     init_params_t init_params;
@@ -89,10 +87,7 @@ int main(int argc, char **argv)
 
     dpu_offload_event_t *ev;
     int64_t shadow_dpu_id;
-    group_id_t group;
-    group.id = 0;
-    group.lead = 0;
-    rc = get_sp_id_by_group_rank(offload_engine, group, target, 0, &shadow_dpu_id, &ev);
+    rc = get_sp_id_by_group_rank(offload_engine, guid, target, 0, &shadow_dpu_id, &ev);
     if (rc != DO_SUCCESS)
     {
         fprintf(stderr, "get_dpu_id_by_host_rank() failed\n");
@@ -111,7 +106,7 @@ int main(int argc, char **argv)
             goto error_out;
         }
 
-        rc = get_sp_id_by_group_rank(offload_engine, group, target, 0, &shadow_dpu_id, &ev);
+        rc = get_sp_id_by_group_rank(offload_engine, guid, target, 0, &shadow_dpu_id, &ev);
         if (rc != DO_SUCCESS)
         {
             fprintf(stderr, "get_dpu_id_by_host_rank() failed\n");

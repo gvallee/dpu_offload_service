@@ -23,10 +23,7 @@
  * instance used during the inter-dpu connections.
  */
 rank_info_t invalid_group_rank = {
-    .group_id = {
-        .id = INVALID_GROUP,
-        .lead = INVALID_GROUP_LEAD,
-    },
+    .group_uid = INT_MAX,
     .group_rank = INVALID_RANK,
 };
 

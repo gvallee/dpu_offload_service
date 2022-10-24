@@ -261,8 +261,7 @@ typedef struct active_ops
 
 #define IS_A_VALID_PEER_DATA(_peer_data) ({                            \
     bool _valid = false;                                               \
-    if ((_peer_data)->proc_info.group_id.id != INVALID_GROUP &&        \
-        (_peer_data)->proc_info.group_id.lead != INVALID_GROUP_LEAD && \
+    if ((_peer_data)->proc_info.group_uid != INT_MAX &&                \
         (_peer_data)->proc_info.group_rank != INVALID_RANK)            \
         _valid = true;                                                 \
     _valid;                                                            \
@@ -299,13 +298,18 @@ typedef struct group_id
         (__dest_gp_id)->lead = (__src_gp_id)->lead; \
     } while (0)
 
+// group_uid_t is the type used to handle the uniquely identifiable value for any group
+// Technically, it is a hash of the group identifier, the group lead and the group
+// signature
+typedef int group_uid_t;
+
 typedef struct rank_info
 {
     // So it can used with list
     ucs_list_link_t item;
 
     // ID of the group associated to the rank
-    group_id_t group_id;
+    group_uid_t group_uid;
 
     // Rank in the group
     int64_t group_rank;
@@ -318,35 +322,26 @@ typedef struct rank_info
 
     // Rank on the host, can be used to figure out which service process on the local DPU to connect to.
     int64_t local_rank;
-
-    // Signature of the group, i.e., hash of the mapping of the group. The mapping of the group
-    // is orginally an array of int where the index is the rank in the new group and the value
-    // the rank on COMM_WORLD. So with the ID, the root/lead of the communicator and the signature
-    // we have a unique way to identify communicators even when IDs are being reused (e.g., when
-    // communicators are being created and destroyed).
-    int group_signature;
 } rank_info_t;
 
 #define RESET_RANK_INFO(_r)                \
     do                                     \
     {                                      \
-        RESET_GROUP_ID(&((_r)->group_id)); \
+        (_r)->group_uid = INT_MAX;         \
         (_r)->group_rank = INVALID_RANK;   \
         (_r)->group_size = 0;              \
         (_r)->n_local_ranks = 0;           \
         (_r)->local_rank = INVALID_RANK;   \
-        (_r)->group_signature = INT_MAX;   \
     } while (0)
 
 #define COPY_RANK_INFO(__s, __d)                               \
     do                                                         \
     {                                                          \
-        COPY_GROUP_ID(&((__s)->group_id), &((__d)->group_id)); \
+        (__d)->group_uid = (__s)->group_uid;                   \
         (__d)->group_rank = (__s)->group_rank;                 \
         (__d)->group_size = (__s)->group_size;                 \
         (__d)->n_local_ranks = (__s)->n_local_ranks;           \
         (__d)->local_rank = (__s)->local_rank;                 \
-        (__d)->group_signature = (__s)->group_signature;       \
     } while (0)
 
 // fixme: long term, we do not want to have a limit on the length of the address
@@ -443,7 +438,10 @@ typedef struct cache_entry_request
     // ID of the target service process ID in case multiple service processes are attached to the target group/rank
     uint64_t target_sp_idx;
 
-    group_id_t gp_id;
+    // UID of the group
+    group_uid_t gp_uid;
+
+    // Rank in the group
     int64_t rank;
 } cache_entry_request_t;
 
@@ -1315,6 +1313,26 @@ typedef struct execution_context
     __bphase;                                                \
 })
 
+typedef struct pending_peer_cache_entry
+{
+    // So it can be put on a list
+    ucs_list_link_t item;
+
+    group_uid_t gp_uid;
+
+    // Payload of the pending message
+    void *data;
+
+    // Length/size of the payload
+    size_t data_len;
+
+    // Execution context associated with the pending receive
+    execution_context_t *econtext;
+
+    // Unique global ID
+    uint64_t dpu_global_id;
+} pending_peer_cache_entry_t;
+
 /**
  * @brief dpu_offload_event_t represents an event, i.e., the implementation of a notification
  */
@@ -1544,8 +1562,10 @@ typedef struct group_cache
     // Number of ranks/processes in the group
     size_t group_size;
 
-    // Group signature
-    int group_signature;
+    group_id_t group_id;
+
+    // Group UID
+    group_uid_t group_uid;
 
     // How many entries are already locally populated
     size_t num_local_entries;
@@ -1583,20 +1603,15 @@ typedef struct group_cache
  * to be used. It does not mean the group cache for the group is fully initialized. The
  * second part of the initialization is performed when a rank is added to the cache.
  */
-#define GET_GROUP_CACHE(_cache, _gp_id) ({                                               \
+#define GET_GROUP_CACHE(_cache, _gp_uid) ({                                              \
     group_cache_t *_gp_cache = NULL;                                                     \
-    int64_t _gp_key = GET_GROUP_KEY((_gp_id));                                           \
-    khiter_t k = kh_get(group_hash_t, (_cache)->data, _gp_key);                          \
+    khiter_t k = kh_get(group_hash_t, (_cache)->data, _gp_uid);                          \
     if (k == kh_end((_cache)->data))                                                     \
     {                                                                                    \
         /* Group not in the cache, adding it */                                          \
         int _ret;                                                                        \
-        int64_t *_new_key;                                                               \
         group_cache_t *_new_group_cache;                                                 \
-        _new_key = DYN_ARRAY_GET_ELT(&((_cache)->keys), (_cache)->keys_in_use, int64_t); \
-        (_cache)->keys_in_use++;                                                         \
-        *_new_key = GET_GROUP_KEY((_gp_id));                                             \
-        khiter_t _newKey = kh_put(group_hash_t, (_cache)->data, *_new_key, &_ret);       \
+        khiter_t _newKey = kh_put(group_hash_t, (_cache)->data, (_gp_uid), &_ret);       \
         DYN_LIST_GET((_cache)->group_cache_pool, group_cache_t, item, _new_group_cache); \
         RESET_GROUP_CACHE(_new_group_cache);                                             \
         DYN_ARRAY_ALLOC(&(_new_group_cache->ranks), 1024, peer_cache_entry_t);           \
@@ -1624,10 +1639,10 @@ typedef struct group_cache
     __gp_id;                                      \
 })
 
-#define GET_GROUPRANK_CACHE_ENTRY(_cache, _gp_id, _rank)                        \
+#define GET_GROUPRANK_CACHE_ENTRY(_cache, _gp_uid, _rank)                       \
     ({                                                                          \
         peer_cache_entry_t *_entry = NULL;                                      \
-        group_cache_t *_gp_cache = GET_GROUP_CACHE((_cache), &(_gp_id));        \
+        group_cache_t *_gp_cache = GET_GROUP_CACHE((_cache), (_gp_uid));        \
         dyn_array_t *_rank_cache = &(_gp_cache->ranks);                         \
         if (_gp_cache->initialized == true)                                     \
         {                                                                       \
@@ -1636,7 +1651,7 @@ typedef struct group_cache
         _entry;                                                                 \
     })
 
-#define GET_CLIENT_BY_RANK(_exec_ctx, _gp_id, _rank) ({                        \
+#define GET_CLIENT_BY_RANK(_exec_ctx, _gp_uid, _rank) ({                       \
     dest_client_t _c;                                                          \
     _c.ep = NULL;                                                              \
     _c.id = UINT64_MAX;                                                        \
@@ -1646,7 +1661,7 @@ typedef struct group_cache
     {                                                                          \
         peer_cache_entry_t *__entry;                                           \
         cache_t *__cache = &((_exec_ctx)->engine->procs_cache);                \
-        __entry = GET_GROUPRANK_CACHE_ENTRY((__cache), (_gp_id), _rank);       \
+        __entry = GET_GROUPRANK_CACHE_ENTRY((__cache), (_gp_uid), _rank);      \
         if (__entry)                                                           \
         {                                                                      \
             if (__entry->ep != NULL)                                           \
@@ -1675,7 +1690,7 @@ typedef struct group_cache
     _c;                                                                        \
 })
 
-KHASH_MAP_INIT_INT64(group_hash_t, group_cache_t *);
+KHASH_MAP_INIT_INT(group_hash_t, group_cache_t *);
 
 typedef struct cache
 {
@@ -1683,16 +1698,10 @@ typedef struct cache
     size_t size;
 
     // Identifier of the first group, a.k.a., MPI_COMM_WORLD or equivalent
-    group_id_t world_group;
+    group_uid_t world_group;
 
     // data is a hash table for all the group caches
     khash_t(group_hash_t) * data;
-
-    // Pool of keys available to add elements to the cache (type: int64_t)
-    dyn_array_t keys;
-
-    // Number of keys that are being used
-    size_t keys_in_use;
 
     // Pool of cache group caches (type: group_cache_t)
     dyn_list_t *group_cache_pool;
@@ -1704,8 +1713,7 @@ typedef struct cache
         (__c)->size = 0;                     \
         (__c)->data = NULL;                  \
         (__c)->group_cache_pool = NULL;      \
-        (__c)->keys_is_use = 0;              \
-        RESET_GROUP_ID(&(__c)->world_group); \
+        (__c)->world_group = INT_MAX;        \
     } while (0)
 
 #define HASH_GROUP_FROM_STRING(_s, _len) ({              \
@@ -1732,13 +1740,12 @@ typedef struct cache
  * exist. Of course, I means that the data passed in is assumed accurate, i.e.,
  * the group identifier, rank and group size are the actual value and won't change.
  */
-#define GET_GROUP_RANK_CACHE_ENTRY(_cache, _gp_id, _rank, _gp_size)                    \
+#define GET_GROUP_RANK_CACHE_ENTRY(_cache, _gp_uid, _rank, _gp_size)                   \
     ({                                                                                 \
         peer_cache_entry_t *_entry = NULL;                                             \
         group_cache_t *_gp_cache = NULL;                                               \
         dyn_array_t *_rank_cache = NULL;                                               \
-        assert((_gp_id)->id != INVALID_GROUP && (_gp_id)->lead != INVALID_GROUP_LEAD); \
-        _gp_cache = GET_GROUP_CACHE((_cache), _gp_id);                                 \
+        _gp_cache = GET_GROUP_CACHE((_cache), _gp_uid);                                \
         assert(_gp_cache);                                                             \
         _rank_cache = &(_gp_cache->ranks);                                             \
         if (_gp_cache->initialized == false)                                           \
@@ -1752,7 +1759,7 @@ typedef struct cache
             /* a cache. GET_GROUP_CACHE only made sure we could use the structure */   \
             /* The first group is MPI_COMM_WORLD or equivalent. */                     \
             if ((_cache)->size == 1)                                                   \
-                COPY_GROUP_ID(_gp_id, &(_cache)->world_group);                         \
+                (_cache)->world_group = (_gp_uid);                                     \
         }                                                                              \
         if (_gp_cache->initialized &&                                                  \
             _gp_cache->group_size <= 0 &&                                              \
@@ -1798,7 +1805,7 @@ typedef struct group_revoke_msg
             uint64_t num;
 
             // Group that has been revoked
-            group_id_t gp_id;
+            group_uid_t gp_uid;
 
             // Signature of the group, i.e, hash of its layout
             int gp_signature;
@@ -1952,6 +1959,9 @@ typedef struct offloading_engine
     // Pool of pending_send_group_add_t objects that are available to track group add messages that cannot be sent right away because the group is being revoked
     dyn_list_t *pool_pending_send_group_add;
 
+    // Pool of pending_peer_cache_entry_t objects that are available to track messages from SPs for cache entries
+    dyn_list_t *pool_pending_cache_entry_recv;
+
     // List of pending group revoke notifications (type: group_revoke_msg_t)
     ucs_list_link_t pending_group_revoke_msgs;
 
@@ -1960,6 +1970,9 @@ typedef struct offloading_engine
 
     // List of pending send group add notification (type: pending_send_group_add_t)
     ucs_list_link_t pending_send_group_add_msgs;
+
+    // List of pending receives of cache entry (type: pending_peer_cache_entry_t)
+    ucs_list_link_t pending_cache_entry_recv;
 
     // Flag to specify if we are on the DPU or not
     bool on_dpu;
@@ -2078,27 +2091,35 @@ typedef struct offloading_engine
         DYN_LIST_ALLOC((_core_engine)->pool_group_revoke_msgs, 32, group_revoke_msg_obj_t, item);                            \
         if ((_core_engine)->pool_group_revoke_msgs == NULL)                                                                  \
         {                                                                                                                    \
-            fprintf(stderr, "unable to allocate pool of objects for group revoke messages\n");                               \
+            fprintf(stderr, "unable to allocate pool of objects for send group revoke messages\n");                          \
             _core_ret = -1;                                                                                                  \
             break;                                                                                                           \
         }                                                                                                                    \
         DYN_LIST_ALLOC((_core_engine)->pool_pending_recv_group_add, 32, pending_group_add_t, item);                          \
         if ((_core_engine)->pool_pending_recv_group_add == NULL)                                                             \
         {                                                                                                                    \
-            fprintf(stderr, "unable to allocate pool of objects for group revoke messages\n");                               \
+            fprintf(stderr, "unable to allocate pool of objects for recv group revoke messages\n");                          \
             _core_ret = -1;                                                                                                  \
             break;                                                                                                           \
         }                                                                                                                    \
         DYN_LIST_ALLOC((_core_engine)->pool_pending_send_group_add, 32, pending_send_group_add_t, item);                     \
         if ((_core_engine)->pool_pending_send_group_add == NULL)                                                             \
         {                                                                                                                    \
-            fprintf(stderr, "unable to allocate pool of objects for group revoke messages\n");                               \
+            fprintf(stderr, "unable to allocate pool of objects for group add messages\n");                                  \
+            _core_ret = -1;                                                                                                  \
+            break;                                                                                                           \
+        }                                                                                                                    \
+        DYN_LIST_ALLOC((_core_engine)->pool_pending_cache_entry_recv, 32, pending_peer_cache_entry_t, item);                 \
+        if ((_core_engine)->pool_pending_cache_entry_recv == NULL)                                                           \
+        {                                                                                                                    \
+            fprintf(stderr, "unable to allocate pool of objects for pending cache entries recv\n");                          \
             _core_ret = -1;                                                                                                  \
             break;                                                                                                           \
         }                                                                                                                    \
         ucs_list_head_init(&((_core_engine)->pending_group_revoke_msgs));                                                    \
         ucs_list_head_init(&((_core_engine)->pending_group_add_msgs));                                                       \
         ucs_list_head_init(&((_core_engine)->pending_send_group_add_msgs));                                                  \
+        ucs_list_head_init(&((_core_engine)->pending_cache_entry_recv));                                                     \
         (_core_engine)->on_dpu = false;                                                                                      \
         /* Note that engine->dpus is a vector of remote_dpu_info_t pointers. */                                              \
         /* The actual object are from pool_remote_dpu_info */                                                                \
@@ -2190,20 +2211,28 @@ typedef struct offloading_engine
         DYN_LIST_ALLOC((_core_engine)->pool_pending_recv_group_add, 32, pending_group_add_t, item);                          \
         if ((_core_engine)->pool_pending_recv_group_add == NULL)                                                             \
         {                                                                                                                    \
-            fprintf(stderr, "unable to allocate pool of objects for group revoke messages\n");                               \
+            fprintf(stderr, "unable to allocate pool of objects for recv group revoke messages\n");                          \
             _core_ret = -1;                                                                                                  \
             break;                                                                                                           \
         }                                                                                                                    \
         DYN_LIST_ALLOC((_core_engine)->pool_pending_send_group_add, 32, pending_send_group_add_t, item);                     \
         if ((_core_engine)->pool_pending_send_group_add == NULL)                                                             \
         {                                                                                                                    \
-            fprintf(stderr, "unable to allocate pool of objects for group revoke messages\n");                               \
+            fprintf(stderr, "unable to allocate pool of objects for send group add messages\n");                             \
+            _core_ret = -1;                                                                                                  \
+            break;                                                                                                           \
+        }                                                                                                                    \
+        DYN_LIST_ALLOC((_core_engine)->pool_pending_cache_entry_recv, 32, pending_peer_cache_entry_t, item);                 \
+        if ((_core_engine)->pool_pending_cache_entry_recv == NULL)                                                           \
+        {                                                                                                                    \
+            fprintf(stderr, "unable to allocate pool of objects for pending cache entries recv\n");                          \
             _core_ret = -1;                                                                                                  \
             break;                                                                                                           \
         }                                                                                                                    \
         ucs_list_head_init(&((_core_engine)->pending_group_revoke_msgs));                                                    \
         ucs_list_head_init(&((_core_engine)->pending_group_add_msgs));                                                       \
         ucs_list_head_init(&((_core_engine)->pending_send_group_add_msgs));                                                  \
+        ucs_list_head_init(&((_core_engine)->pending_cache_entry_recv));                                                     \
         (_core_engine)->on_dpu = false;                                                                                      \
         /* Note that engine->dpus is a vector of remote_dpu_info_t pointers. */                                              \
         /* The actual object are from pool_remote_dpu_info */                                                                \
