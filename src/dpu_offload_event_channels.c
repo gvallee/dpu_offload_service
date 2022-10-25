@@ -1563,7 +1563,7 @@ static dpu_offload_status_t peer_cache_entries_recv_cb(struct dpu_offload_ev_sys
     entries = (peer_cache_entry_t *)data;
     group_uid = entries[0].peer.proc_info.group_uid;
     group_size = entries[0].peer.proc_info.group_size;
-    INFO_MSG("Receive cache entry for group 0x%x", group_uid);
+    DBG("Receive cache entry for group 0x%x", group_uid);
     gp_cache = GET_GROUP_CACHE(&(econtext->engine->procs_cache), group_uid);
     assert(gp_cache->group_uid != INT_MAX);
 
@@ -1671,13 +1671,16 @@ static dpu_offload_status_t do_add_group_rank_recv_cb(execution_context_t *econt
         cache_entry->client_id = client_id;
         cache_entry->set = true;
 
+        if (gp_cache->group_uid == 0)
+            gp_cache->group_uid = rank_info->group_uid;
         if (gp_cache->n_local_ranks <= 0 && rank_info->n_local_ranks >= 0)
         {
             gp_cache->n_local_ranks = rank_info->n_local_ranks;
         }
         gp_cache->n_local_ranks_populated++;
         gp_cache->num_local_entries++;
-        DBG("group now has %ld entries, %ld local ranks, %ld being populated",
+        DBG("group 0x%x now has %ld entries, %ld local ranks, %ld being populated",
+            gp_cache->group_uid,
             gp_cache->num_local_entries,
             gp_cache->n_local_ranks,
             gp_cache->n_local_ranks_populated);
