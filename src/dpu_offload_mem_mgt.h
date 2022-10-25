@@ -39,6 +39,7 @@
 #define GROUPS_CACHE_INIT(_cache)                                                            \
     do                                                                                       \
     {                                                                                        \
+        RESET_CACHE(_cache);                                                                 \
         (_cache)->data = kh_init(group_hash_t);                                              \
         DYN_LIST_ALLOC((_cache)->group_cache_pool, DEFAULT_NUM_GROUPS, group_cache_t, item); \
     } while (0)
