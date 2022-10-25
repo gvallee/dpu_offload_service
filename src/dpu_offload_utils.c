@@ -731,46 +731,43 @@ dpu_offload_status_t broadcast_group_cache(offloading_engine_t *engine, group_ui
         return DO_ERROR;
     }
 
-    if (engine->num_service_procs == 1)
-    {
-        // The configuration has a single service process, the current DPU, nothing to do
-        return DO_SUCCESS;
-    }
-
     cache = GET_GROUP_CACHE(&(engine->procs_cache), group_uid);
     assert(cache);
-    for (sp_gid = 0; sp_gid < engine->num_service_procs; sp_gid++)
+    if (engine->num_service_procs > 1)
     {
-        dpu_offload_status_t rc;
-        // Meta-event to be used to track all that need to happen
-        dpu_offload_event_t *ev;
-        ucp_ep_h dest_ep;
-        uint64_t dest_id = sp_gid;
-        remote_service_proc_info_t *sp;
-        sp = DYN_ARRAY_GET_ELT(&(engine->service_procs), sp_gid, remote_service_proc_info_t);
-        assert(sp);
-
-        // Do not send to self
-        offloading_config_t *cfg = (offloading_config_t *)engine->config;
-        if (sp_gid == cfg->local_service_proc.info.global_id)
-            continue;
-
-        assert(sp->econtext);
-        event_get(sp->econtext->event_channels, NULL, &ev);
-        assert(ev);
-        EVENT_HDR_TYPE(ev) = META_EVENT_TYPE;
-        dest_ep = GET_REMOTE_SERVICE_PROC_EP(engine, sp_gid);
-        // If the econtext is a client to connect to a server, the dest_id is the index, i.e., the global SP ID;
-        // otherwise we need to find the client ID based on the index
-        if (sp->econtext->type == CONTEXT_SERVER)
+        for (sp_gid = 0; sp_gid < engine->num_service_procs; sp_gid++)
         {
-            dest_id = sp->client_id;
+            dpu_offload_status_t rc;
+            // Meta-event to be used to track all that need to happen
+            dpu_offload_event_t *ev;
+            ucp_ep_h dest_ep;
+            uint64_t dest_id = sp_gid;
+            remote_service_proc_info_t *sp;
+            sp = DYN_ARRAY_GET_ELT(&(engine->service_procs), sp_gid, remote_service_proc_info_t);
+            assert(sp);
+
+            // Do not send to self
+            offloading_config_t *cfg = (offloading_config_t *)engine->config;
+            if (sp_gid == cfg->local_service_proc.info.global_id)
+                continue;
+
+            assert(sp->econtext);
+            event_get(sp->econtext->event_channels, NULL, &ev);
+            assert(ev);
+            EVENT_HDR_TYPE(ev) = META_EVENT_TYPE;
+            dest_ep = GET_REMOTE_SERVICE_PROC_EP(engine, sp_gid);
+            // If the econtext is a client to connect to a server, the dest_id is the index, i.e., the global SP ID;
+            // otherwise we need to find the client ID based on the index
+            if (sp->econtext->type == CONTEXT_SERVER)
+            {
+                dest_id = sp->client_id;
+            }
+            DBG("Sending group cache to service process #%ld (econtext: %p, scope_id: %d, dest_id: %ld, ep: %p)",
+                sp_gid, sp->econtext, sp->econtext->scope_id, dest_id, dest_ep);
+            rc = send_local_rank_group_cache(sp->econtext, dest_ep, dest_id, group_uid, ev);
+            CHECK_ERR_RETURN((rc), DO_ERROR, "send_local_rank_group_cache() failed");
+            QUEUE_EVENT(ev);
         }
-        DBG("Sending group cache to service process #%ld (econtext: %p, scope_id: %d, dest_id: %ld, ep: %p)",
-            sp_gid, sp->econtext, sp->econtext->scope_id, dest_id, dest_ep);
-        rc = send_local_rank_group_cache(sp->econtext, dest_ep, dest_id, group_uid, ev);
-        CHECK_ERR_RETURN((rc), DO_ERROR, "send_local_rank_group_cache() failed");
-        QUEUE_EVENT(ev);
     }
 
     // Timing for sending/receiving cache entries is obviously not always the same
@@ -782,6 +779,7 @@ dpu_offload_status_t broadcast_group_cache(offloading_engine_t *engine, group_ui
         execution_context_t *server = NULL;
         dpu_offload_status_t rc;
 
+        DBG("Sending cache for group 0x%x to local ranks", group_uid);
         server = get_server_servicing_host(engine);
         assert(server);
         assert(server->scope_id == SCOPE_HOST_DPU);
