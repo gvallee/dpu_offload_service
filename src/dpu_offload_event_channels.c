@@ -1503,10 +1503,6 @@ static dpu_offload_status_t handle_peer_cache_entries_recv(execution_context_t *
                 DBG("Group cache is now complete");
 #endif
         }
-        else
-        {
-            ERR_MSG("Already in cache (recv'd group UID: 0x%x, in cache: 0x%x)", group_uid, gp_cache->group_uid);
-        }
         cur_size += sizeof(peer_cache_entry_t);
         idx++;
     }
