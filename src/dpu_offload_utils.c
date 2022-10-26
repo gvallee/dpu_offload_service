@@ -241,7 +241,7 @@ dpu_offload_status_t send_revoke_group_rank_request_through_num_ranks(execution_
                             NULL);
     CHECK_ERR_RETURN((rc != EVENT_DONE && rc != EVENT_INPROGRESS), DO_ERROR, "event_channel_emit() failed");
 
-    if (meta_ev != NULL)
+    if (meta_ev != NULL && ev != NULL)
     {
         QUEUE_SUBEVENT(meta_ev, ev);
     }
