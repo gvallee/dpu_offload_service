@@ -1565,7 +1565,7 @@ static dpu_offload_status_t peer_cache_entries_recv_cb(struct dpu_offload_ev_sys
     group_size = entries[0].peer.proc_info.group_size;
     DBG("Receive cache entry for group 0x%x", group_uid);
     gp_cache = GET_GROUP_CACHE(&(econtext->engine->procs_cache), group_uid);
-    assert(gp_cache->group_uid != INT_MAX);
+    assert(gp_cache);
 
     rc = handle_peer_cache_entries_recv(econtext, dpu_global_id, data, data_len);
     CHECK_ERR_RETURN((rc != DO_SUCCESS), DO_ERROR, "handle_peer_cache_entries_recv() failed");
