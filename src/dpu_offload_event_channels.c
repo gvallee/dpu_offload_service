@@ -1405,7 +1405,10 @@ static dpu_offload_status_t peer_cache_entries_request_recv_cb(struct dpu_offloa
         DBG("Sending group cache to DPU #%" PRIu64 ": event=%p", hdr->id, send_cache_ev);
         rc = send_group_cache(econtext, peer_info->ep, peer_info->id, rank_info->group_uid, send_cache_ev);
         CHECK_ERR_RETURN((rc), DO_ERROR, "send_group_cache() failed");
-        QUEUE_EVENT(send_cache_ev);
+        if (!event_completed(send_cache_ev))
+            QUEUE_EVENT(send_cache_ev);
+        else
+            event_return(&send_cache_ev);
         return DO_SUCCESS;
     }
 
@@ -1613,7 +1616,10 @@ static dpu_offload_status_t send_revoke_group_to_ranks(offloading_engine_t *engi
         EVENT_HDR_TYPE(metaev) = META_EVENT_TYPE;
         rc = send_revoke_group_rank_request_through_num_ranks(host_server, c->ep, c->id, gp_uid, num_ranks, metaev);
         CHECK_ERR_RETURN((rc), DO_ERROR, "send_revoke_group_rank_request_through_num_ranks() failed");
-        QUEUE_EVENT(metaev);
+        if (!event_completed(metaev))
+            QUEUE_EVENT(metaev);
+        else
+            event_return(&metaev);
         n++;
         idx++;
     }

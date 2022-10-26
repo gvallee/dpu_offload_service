@@ -245,6 +245,12 @@ dpu_offload_status_t send_revoke_group_rank_request_through_num_ranks(execution_
     {
         QUEUE_SUBEVENT(meta_ev, ev);
     }
+
+    if (meta_ev != NULL && !meta_ev->sub_events_initialized)
+    {
+        // No sub-event, we complete the meta event right away
+        COMPLETE_EVENT(meta_ev);
+    }
     return DO_SUCCESS;
 }
 
@@ -614,7 +620,10 @@ dpu_offload_status_t send_gp_cache_to_host(execution_context_t *econtext, group_
             EVENT_HDR_TYPE(metaev) = META_EVENT_TYPE;
             rc = send_group_cache(econtext, c->ep, c->id, group_uid, metaev);
             CHECK_ERR_RETURN((rc), DO_ERROR, "send_group_cache() failed");
-            QUEUE_EVENT(metaev);
+            if (!event_completed(metaev))
+                QUEUE_EVENT(metaev);
+            else
+                event_return(&metaev);
             n++;
             idx++;
         }
@@ -702,7 +711,10 @@ dpu_offload_status_t broadcast_group_cache_revoke(offloading_engine_t *engine, g
             sp_gid, sp->econtext, sp->econtext->scope_id, dest_id, dest_ep);
         rc = send_local_revoke_rank_group_cache(sp->econtext, dest_ep, dest_id, group_uid, n_ranks, ev);
         CHECK_ERR_RETURN((rc), DO_ERROR, "send_local_revoke_rank_group_cache() failed");
-        QUEUE_EVENT(ev);
+        if (!event_completed(ev))
+            QUEUE_EVENT(ev);
+        else
+            event_return(&ev);
     }
     return DO_SUCCESS;
 }
@@ -766,7 +778,10 @@ dpu_offload_status_t broadcast_group_cache(offloading_engine_t *engine, group_ui
                 sp_gid, sp->econtext, sp->econtext->scope_id, dest_id, dest_ep);
             rc = send_local_rank_group_cache(sp->econtext, dest_ep, dest_id, group_uid, ev);
             CHECK_ERR_RETURN((rc), DO_ERROR, "send_local_rank_group_cache() failed");
-            QUEUE_EVENT(ev);
+            if (!event_completed(ev))
+                QUEUE_EVENT(ev);
+            else
+                event_return(&ev);
         }
     }
 
@@ -948,6 +963,8 @@ static dpu_offload_status_t do_get_cache_entry_by_group_rank(offloading_engine_t
             assert(meta_econtext);
             if (!event_completed(metaev))
                 QUEUE_EVENT(metaev);
+            else
+                event_return(&metaev);
         }
     }
     else
