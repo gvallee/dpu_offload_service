@@ -1264,25 +1264,28 @@ bool event_completed(dpu_offload_event_t *ev)
     // Update the list of sub-event by removing the completed ones
     if (EVENT_HDR_TYPE(ev) == META_EVENT_TYPE)
     {
-        dpu_offload_event_t *subevt, *next;
-        ucs_list_for_each_safe(subevt, next, &(ev->sub_events), item)
+        if (ev->sub_events_initialized)
         {
-            assert(subevt->is_subevent);
-#if USE_AM_IMPLEM
-            if (subevt->ctx.complete)
-#else
-            if (subevt->ctx.hdr_completed && subevt->ctx.payload_completed)
-#endif
+            dpu_offload_event_t *subevt, *next;
+            ucs_list_for_each_safe(subevt, next, &(ev->sub_events), item)
             {
-                ucs_list_del(&(subevt->item));
-                subevt->is_subevent = false;
-                DBG("returning sub event %" PRIu64 " %p of main event %p", subevt->seq_num, subevt, ev);
-                dpu_offload_status_t rc = do_event_return(subevt);
-                CHECK_ERR_RETURN((rc), DO_ERROR, "event_return() failed");
+                assert(subevt->is_subevent);
+#if USE_AM_IMPLEM
+                if (subevt->ctx.complete)
+#else
+                if (subevt->ctx.hdr_completed && subevt->ctx.payload_completed)
+#endif
+                {
+                    ucs_list_del(&(subevt->item));
+                    subevt->is_subevent = false;
+                    DBG("returning sub event %" PRIu64 " %p of main event %p", subevt->seq_num, subevt, ev);
+                    dpu_offload_status_t rc = do_event_return(subevt);
+                    CHECK_ERR_RETURN((rc), DO_ERROR, "event_return() failed");
+                }
             }
         }
 
-        if (ucs_list_is_empty(&(ev->sub_events)))
+        if (!ev->sub_events_initialized || ucs_list_is_empty(&(ev->sub_events)))
         {
             DBG("All sub-events completed, metaev %p %ld completes", ev, ev->seq_num);
             goto event_completed;
