@@ -1587,14 +1587,15 @@ typedef struct group_cache
     do                                      \
     {                                       \
         (__g)->initialized = false;         \
+        (__g)->global_revoked = 0;          \
+        (__g)->local_revoked = 0;           \
         (__g)->sent_to_host = false;        \
         (__g)->group_size = 0;              \
+        (__g)->group_uid = INT_MAX;         \
         (__g)->num_local_entries = 0;       \
         (__g)->n_local_ranks = 0;           \
         (__g)->n_local_ranks_populated = 0; \
         (__g)->sp_ranks = 0;                \
-        (__g)->global_revoked = 0;          \
-        (__g)->local_revoked = 0;           \
     } while (0)
 
 /**
