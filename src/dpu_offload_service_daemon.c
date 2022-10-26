@@ -2115,6 +2115,12 @@ void client_fini(execution_context_t **exec_ctx)
         context->progress(context);
     }
 
+    if (context->client->conn_data.oob.peer_addr)
+    {
+        free(context->client->conn_data.oob.peer_addr);
+        context->client->conn_data.oob.peer_addr = NULL;
+    }
+
     // The event system is finalized when we finalize the execution context object.
     // The worker is freed when the engine is finalized.
 
