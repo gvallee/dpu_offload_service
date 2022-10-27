@@ -531,10 +531,6 @@ static dpu_offload_status_t send_local_revoke_rank_group_cache(execution_context
     {
         QUEUE_SUBEVENT(metaev, e);
     }
-    else
-    {
-        WARN_MSG("Sending cache completed right away");
-    }
 
     return DO_SUCCESS;
 }
@@ -711,9 +707,8 @@ dpu_offload_status_t broadcast_group_cache_revoke(offloading_engine_t *engine, g
         // otherwise we need to find the client ID based on the index
         if (sp->econtext->type == CONTEXT_SERVER)
             dest_id = sp->client_id;
-        DBG("Sending group cache revoke to service process #%ld (econtext: %p, scope_id: %d, dest_id: %ld, ep: %p)",
-            sp_gid, sp->econtext, sp->econtext->scope_id, dest_id, dest_ep);
-        assert(n_ranks);
+        DBG("Sending group 0x%x cache revoke to service process #%ld (econtext: %p, scope_id: %d, dest_id: %ld, ep: %p, num rank: %ld)",
+            group_uid, sp_gid, sp->econtext, sp->econtext->scope_id, dest_id, dest_ep, n_ranks);
         rc = send_local_revoke_rank_group_cache(sp->econtext, dest_ep, dest_id, group_uid, n_ranks, ev);
         CHECK_ERR_RETURN((rc), DO_ERROR, "send_local_revoke_rank_group_cache() failed");
         if (!event_completed(ev))
