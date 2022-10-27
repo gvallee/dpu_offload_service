@@ -429,6 +429,34 @@ typedef struct peer_cache_entry
     simple_list_t events;
 } peer_cache_entry_t;
 
+#define RESET_PEER_CACHE_ENTRY(_e)                                    \
+    do                                                                \
+    {                                                                 \
+        size_t _idx;                                                  \
+        dpu_offload_event_t *__ev = NULL;                             \
+        (_e)->set = false;                                            \
+        RESET_PEER_DATA(&((_e)->peer));                               \
+        (_e)->client_id = UINT64_MAX;                                 \
+        (_e)->ep = NULL;                                              \
+        for (_idx = 0; _idx < (_e)->num_shadow_service_procs; _idx++) \
+        {                                                             \
+            (_e)->shadow_service_procs[_idx] = UINT64_MAX;            \
+        }                                                             \
+        (_e)->num_shadow_service_procs = 0;                           \
+        if ((_e)->events_initialized)                                 \
+        {                                                             \
+            while (!SIMPLE_LIST_IS_EMPTY(&((_e)->events)))            \
+            {                                                         \
+                __ev = SIMPLE_LIST_EXTRACT_HEAD(&((_e)->events),      \
+                                                dpu_offload_event_t,  \
+                                                item);                \
+                assert(__ev);                                         \
+                event_return(&__ev);                                  \
+            }                                                         \
+        }                                                             \
+        (_e)->events_initialized = false;                             \
+    } while (0)
+
 typedef struct cache_entry_request
 {
     ucs_list_link_t item;

@@ -89,7 +89,7 @@
             peer_cache_entry_t *_e = DYN_ARRAY_GET_ELT(&((_c)->ranks),      \
                                                        _i,                  \
                                                        peer_cache_entry_t); \
-            _e->set = false;                                                \
+            RESET_PEER_CACHE_ENTRY(_e);                                     \
         }                                                                   \
         RESET_GROUP_CACHE(_c);                                              \
     } while (0)
@@ -1499,6 +1499,7 @@ static dpu_offload_status_t handle_peer_cache_entries_recv(execution_context_t *
                 {
                     dpu_offload_event_t *e = SIMPLE_LIST_EXTRACT_HEAD(&(cache_entry->events), dpu_offload_event_t, item);
                     COMPLETE_EVENT(e);
+                    event_return(&e);
                 }
             }
 
