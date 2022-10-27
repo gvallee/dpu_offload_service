@@ -95,6 +95,8 @@ dpu_offload_status_t send_add_group_rank_request(execution_context_t *econtext, 
         return do_send_add_group_rank_request(econtext, ep, dest_id, ev);
     }
 
+    DBG("group being revoked global_revoked = %ld group_size = %ld", gp_cache->global_revoked, gp_cache->group_size);
+
     // The group is in the process of being deleted, we cannot add this right away, otherwise the local cache would be in a inconsistent state
     DYN_LIST_GET(econtext->engine->pool_pending_send_group_add,
                  pending_send_group_add_t,
@@ -228,6 +230,7 @@ dpu_offload_status_t send_revoke_group_rank_request_through_num_ranks(execution_
     desc = (group_revoke_msg_t *)ev->payload;
     desc->type = GROUP_REVOKE_THROUGH_NUM_RANKS;
     desc->num_ranks.gp_uid = gp_uid;
+    assert(num_ranks);
     desc->num_ranks.num = num_ranks;
     
     if (meta_ev != NULL)
@@ -513,6 +516,7 @@ static dpu_offload_status_t send_local_revoke_rank_group_cache(execution_context
     CHECK_ERR_RETURN((rc), DO_ERROR, "event_get() failed");
     payload = (group_revoke_msg_t *)e->payload;
     payload->type = GROUP_REVOKE_THROUGH_NUM_RANKS;
+    assert(n_ranks);
     payload->num_ranks.num = n_ranks;
     payload->num_ranks.gp_uid = gp_uid;
     e->is_subevent = true;
@@ -709,6 +713,7 @@ dpu_offload_status_t broadcast_group_cache_revoke(offloading_engine_t *engine, g
             dest_id = sp->client_id;
         DBG("Sending group cache revoke to service process #%ld (econtext: %p, scope_id: %d, dest_id: %ld, ep: %p)",
             sp_gid, sp->econtext, sp->econtext->scope_id, dest_id, dest_ep);
+        assert(n_ranks);
         rc = send_local_revoke_rank_group_cache(sp->econtext, dest_ep, dest_id, group_uid, n_ranks, ev);
         CHECK_ERR_RETURN((rc), DO_ERROR, "send_local_revoke_rank_group_cache() failed");
         if (!event_completed(ev))
@@ -863,6 +868,12 @@ static dpu_offload_status_t do_get_cache_entry_by_group_rank(offloading_engine_t
     assert(0);
 #endif
 
+    // If the element is not in the cache, we send a request to the service process to get the data.
+    // At the moment we assume by design that the cache is fully populated early on so we should never
+    // face this situation. We keep the code in case we relax the assumptions later so we won't have
+    // to start from scratch.
+    abort();
+
     // The cache does not have the data. We sent a request to get the data.
     // The caller is in charge of calling the function after completion to actually get the data
     rank_info_t rank_data;
@@ -881,6 +892,8 @@ static dpu_offload_status_t do_get_cache_entry_by_group_rank(offloading_engine_t
         cache_entry->events_initialized = true;
     }
     EVENT_HDR_TYPE(cache_entry_updated_ev) = META_EVENT_TYPE;
+    // We just queue a local event on the list for the cache entry to track what is being done in the 
+    // context of that entry
     SIMPLE_LIST_PREPEND(&(cache_entry->events), &(cache_entry_updated_ev->item));
     DBG("Cache entry %p for gp/rank 0x%x/%" PRIu64 " now has %ld update events",
         cache_entry, gp_uid, rank, SIMPLE_LIST_LENGTH(&(cache_entry->events)));
