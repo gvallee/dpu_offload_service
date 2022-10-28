@@ -2061,9 +2061,21 @@ void offload_engine_fini(offloading_engine_t **offload_engine)
         (*offload_engine)->ucp_context = NULL;
     }
 
-#if BUDDY_BUFFER_SYS_ENABLE
-    SMART_BUFFS_FINI(&((*offload_engine)->smart_buffer_sys));
-#endif
+    if ((*offload_engine)->settings.buddy_buffer_system_enabled)
+    {
+        SMART_BUFFS_FINI(&((*offload_engine)->smart_buffer_sys));
+    }
+
+    if ((*offload_engine)->settings.ucx_am_backend_enabled)
+    {
+        uint64_t key;
+        execution_context_t *value;
+        kh_foreach((*offload_engine)->client_lookup_table, 
+                   key,
+                   value,
+                   { /* nothing special to do*/ })
+            kh_destroy(client_lookup_hash_t, (*offload_engine)->client_lookup_table);  
+    }
 
     if ((*offload_engine)->servers)
     {

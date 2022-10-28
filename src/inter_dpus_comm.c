@@ -316,6 +316,12 @@ dpu_offload_status_t connect_to_remote_service_proc(remote_service_proc_info_t *
     offload_engine->inter_service_proc_clients[offload_engine->num_inter_service_proc_clients].client_econtext = client;
     offload_engine->inter_service_proc_clients[offload_engine->num_inter_service_proc_clients].remote_service_proc_info = remote_service_proc_info;
     offload_engine->num_inter_service_proc_clients++;
+    assert(client->client->id != UINT64_MAX);
+    assert(client->client->server_global_id != UINT64_MAX);
+    CLIENT_SERVER_ADD(offload_engine,
+                      client->client->id,
+                      client->client->server_global_id,
+                      client);
     ENGINE_UNLOCK(offload_engine);
     return DO_SUCCESS;
 }

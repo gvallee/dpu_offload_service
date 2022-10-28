@@ -1756,6 +1756,21 @@ typedef struct cache
     __hash;                                              \
 })
 
+/**
+ * @brief HASH_GROUP hashes a vector of integer representing a group
+ * to generate a unique ID for the group. The vector of integers is
+ * organized as follow:
+ *  -----------------------------------------------
+ *  | comm lead | comm id | rank 0 | ... | rank n |
+ *  -----------------------------------------------
+ * Where:
+ *  - comm lead is the COMM_WORLD (or equivalent) rank of rank 0 of the communicator
+ *  - comm id is the unique communicator ID from MPI/UCC
+ *  - rank i is the COMM_WORLD (or equivalent) rank of the ith rank of the communicator
+ *
+ * @param[in] _gp Pointer to the vector of integers to hash
+ * @param[in] _len Number of integers in the vector
+ */
 #define HASH_GROUP(_gp, _len) ({                               \
     assert(_gp);                                               \
     HASH_GROUP_FROM_STRING((char *)(_gp), _len * sizeof(int)); \
@@ -1799,6 +1814,69 @@ typedef struct cache
         }                                                                              \
         _entry = DYN_ARRAY_GET_ELT(_rank_cache, _rank, peer_cache_entry_t);            \
         _entry;                                                                        \
+    })
+
+KHASH_MAP_INIT_INT64(client_lookup_hash_t, execution_context_t *);
+
+/**
+ * @brief HASH_CLIENT_SERVER hashes a server ID + client ID tuple to
+ * generate a unique key that can be used for quick lookup of the
+ * target execution context while receiving a notification.
+ *
+ * @param[in] __c Unique client ID as assigned by the server during bootstrapping (type: uint64)
+ * @param[in] __s Unique server ID (type: uint64)
+ */
+#define HASH_CLIENT_SERVER(__c, __s) ({ \
+    uint64_t _h = 5381;                 \
+    _h = ((_h << 5) + _h) + __s;        \
+    _h = ((_h << 5) + _h) + __c;        \
+    _h;                                 \
+})
+
+#define CLIENT_SERVER_ADD(__e, __c, __s, __ec)                    \
+    do                                                            \
+    {                                                             \
+        uint64_t _lookup_key = HASH_CLIENT_SERVER(__c, __s);      \
+        khiter_t _k = kh_get(client_lookup_hash_t,                \
+                             (__e)->client_lookup_table,          \
+                             _lookup_key);                        \
+        if (_k == kh_end((__e)->client_lookup_table))             \
+        {                                                         \
+            /* Not in the hash table */                           \
+            int _ret;                                             \
+            khiter_t _newKey = kh_put(client_lookup_hash_t,       \
+                                      (__e)->client_lookup_table, \
+                                      _lookup_key,                \
+                                      &_ret);                     \
+            kh_value((__e)->client_lookup_table, _newKey) = __ec; \
+        }                                                         \
+    } while (0)
+
+/**
+ * @brief CLIENT_SERVER_LOOKUP returns the execution context based on
+ * a server and client ID. This is used on the client side to quick
+ * get the execution context associated to a received notification.
+ * As a reminder, remember the server ID is always unique, it is the
+ * global service process ID, which the client ID is unique in the
+ * context of that specific server (assigned by the server during
+ * bootstrapping).
+ *
+ * @param[in] __e Associated offloading engine
+ * @param[in] __c Client ID
+ * @param[in] __s Server ID
+ */
+#define CLIENT_SERVER_LOOKUP(__e, __c, __s) ({               \
+        execution_context_t *_ec = NULL;                     \
+        uint64_t _lookup_key = HASH_CLIENT_SERVER(__c, __s); \
+        khiter_t _k = kh_get(client_lookup_hash_t,           \
+                             (__e)->client_lookup_table,     \
+                             _lookup_key);                   \
+        if (_k != kh_end((__e)->client_lookup_table))        \
+        {                                                    \
+            /* in the cache */                               \
+            _ec = kh_value((__e)->client_lookup_table, _k);  \
+        }                                                    \
+        _ec;                                                 \
     })
 
 struct remote_service_proc_info; // Forward declaration
@@ -2029,8 +2107,6 @@ typedef struct offloading_engine
     // Smart buffer system associated to the engine
     smart_buffers_t smart_buffer_sys;
 
-    bool use_ucx_am_backend;
-
 #if USE_AM_IMPLEM
     // free_pending_rdv_recv is a list of allocated descriptors used to track pending UCX AM RDV messages.
     // This list prevents us from allocating memory while handling AM RDV messages.
@@ -2040,114 +2116,14 @@ typedef struct offloading_engine
     // Once completed, the element is returned to free_pending_rdv_recv.
     ucs_list_link_t pending_rdv_recvs;
 #endif
+
+    // Lookup table to quickly retrieve the execution context in the context
+    // of clients when receiving a notification. Used on service processes only
+    // when the AM backend is used. Put here since initialized/finalized based
+    // on the value of the settings field.
+    khash_t(client_lookup_hash_t) * client_lookup_table;
 } offloading_engine_t;
 
-#if BUDDY_BUFFER_SYS_ENABLE
-#define RESET_CORE_ENGINE_STRUCT(_core_engine, _core_ret)                                                                    \
-    do                                                                                                                       \
-    {                                                                                                                        \
-        (_core_engine)->done = false;                                                                                        \
-        (_core_engine)->config = NULL;                                                                                       \
-        (_core_engine)->client = NULL;                                                                                       \
-        (_core_engine)->num_max_servers = DEFAULT_MAX_NUM_SERVERS;                                                           \
-        (_core_engine)->num_servers = 0;                                                                                     \
-        (_core_engine)->servers = NULL;                                                                                      \
-        (_core_engine)->servers = DPU_OFFLOAD_MALLOC((_core_engine)->num_max_servers * sizeof(dpu_offload_server_t *));      \
-        if ((_core_engine)->servers == NULL)                                                                                 \
-        {                                                                                                                    \
-            fprintf(stderr, "unable to allocated memory to track servers\n");                                                \
-            _core_ret = -1;                                                                                                  \
-            break;                                                                                                           \
-        }                                                                                                                    \
-        memset((_core_engine)->servers, 0, (_core_engine)->num_max_servers * sizeof(dpu_offload_server_t *));                \
-        (_core_engine)->self_econtext = NULL;                                                                                \
-        (_core_engine)->ucp_worker = NULL;                                                                                   \
-        (_core_engine)->ucp_worker_allocated = false;                                                                        \
-        (_core_engine)->ucp_context = NULL;                                                                                  \
-        (_core_engine)->ucp_context_allocated = false;                                                                       \
-        (_core_engine)->self_ep = NULL;                                                                                      \
-        (_core_engine)->num_inter_service_proc_clients = 0;                                                                  \
-        (_core_engine)->num_max_inter_service_proc_clients = DEFAULT_MAX_NUM_SERVERS;                                        \
-        (_core_engine)->inter_service_proc_clients = NULL;                                                                   \
-        (_core_engine)->inter_service_proc_clients = DPU_OFFLOAD_MALLOC((_core_engine)->num_max_inter_service_proc_clients * \
-                                                                        sizeof(remote_service_procs_connect_tracker_t));     \
-        if ((_core_engine)->inter_service_proc_clients == NULL)                                                              \
-        {                                                                                                                    \
-            fprintf(stderr, "unable to allocate memory to track inter-service-processes clients\n");                         \
-            _core_ret = -1;                                                                                                  \
-            break;                                                                                                           \
-        }                                                                                                                    \
-        (_core_engine)->num_registered_ops = 0;                                                                              \
-        DYN_LIST_ALLOC((_core_engine)->free_op_descs, 8, op_desc_t, item);                                                   \
-        if ((_core_engine)->free_op_descs == NULL)                                                                           \
-        {                                                                                                                    \
-            fprintf(stderr, "unable to allocate memory pool of operation descriptors\n");                                    \
-            _core_ret = -1;                                                                                                  \
-            break;                                                                                                           \
-        }                                                                                                                    \
-        GROUPS_CACHE_INIT(&((_core_engine)->procs_cache));                                                                   \
-        DYN_LIST_ALLOC((_core_engine)->free_cache_entry_requests, DEFAULT_NUM_PEERS, cache_entry_request_t, item);           \
-        if ((_core_engine)->free_cache_entry_requests == NULL)                                                               \
-        {                                                                                                                    \
-            fprintf(stderr, "unable to allocate memory pool of cache entry requests");                                       \
-            _core_ret = -1;                                                                                                  \
-            break;                                                                                                           \
-        }                                                                                                                    \
-        DYN_LIST_ALLOC((_core_engine)->pool_conn_params, 32, conn_params_t, item);                                           \
-        if ((_core_engine)->pool_conn_params == NULL)                                                                        \
-        {                                                                                                                    \
-            fprintf(stderr, "unable to allocate pool of connection parameter descriptors\n");                                \
-            _core_ret = -1;                                                                                                  \
-            break;                                                                                                           \
-        }                                                                                                                    \
-        DYN_LIST_ALLOC_WITH_INIT_CALLBACK((_core_engine)->pool_remote_dpu_info,                                              \
-                                          32,                                                                                \
-                                          remote_dpu_info_t,                                                                 \
-                                          item,                                                                              \
-                                          init_remote_dpu_info_struct);                                                      \
-        if ((_core_engine)->pool_remote_dpu_info == NULL)                                                                    \
-        {                                                                                                                    \
-            fprintf(stderr, "unable to allocate pool of remote DPU information descriptors\n");                              \
-            _core_ret = -1;                                                                                                  \
-            break;                                                                                                           \
-        }                                                                                                                    \
-        DYN_LIST_ALLOC((_core_engine)->pool_group_revoke_msgs, 32, group_revoke_msg_obj_t, item);                            \
-        if ((_core_engine)->pool_group_revoke_msgs == NULL)                                                                  \
-        {                                                                                                                    \
-            fprintf(stderr, "unable to allocate pool of objects for send group revoke messages\n");                          \
-            _core_ret = -1;                                                                                                  \
-            break;                                                                                                           \
-        }                                                                                                                    \
-        DYN_LIST_ALLOC((_core_engine)->pool_pending_recv_group_add, 32, pending_group_add_t, item);                          \
-        if ((_core_engine)->pool_pending_recv_group_add == NULL)                                                             \
-        {                                                                                                                    \
-            fprintf(stderr, "unable to allocate pool of objects for recv group revoke messages\n");                          \
-            _core_ret = -1;                                                                                                  \
-            break;                                                                                                           \
-        }                                                                                                                    \
-        DYN_LIST_ALLOC((_core_engine)->pool_pending_send_group_add, 32, pending_send_group_add_t, item);                     \
-        if ((_core_engine)->pool_pending_send_group_add == NULL)                                                             \
-        {                                                                                                                    \
-            fprintf(stderr, "unable to allocate pool of objects for group add messages\n");                                  \
-            _core_ret = -1;                                                                                                  \
-            break;                                                                                                           \
-        }                                                                                                                    \
-        ucs_list_head_init(&((_core_engine)->pending_group_revoke_msgs));                                                    \
-        ucs_list_head_init(&((_core_engine)->pending_group_add_msgs));                                                       \
-        ucs_list_head_init(&((_core_engine)->pending_send_group_add_msgs));                                                  \
-        (_core_engine)->on_dpu = false;                                                                                      \
-        /* Note that engine->dpus is a vector of remote_dpu_info_t pointers. */                                              \
-        /* The actual object are from pool_remote_dpu_info */                                                                \
-        DYN_ARRAY_ALLOC(&((_core_engine)->dpus), 32, remote_dpu_info_t *);                                                   \
-        DYN_ARRAY_ALLOC(&((_core_engine)->service_procs), 256, remote_service_proc_info_t);                                  \
-        (_core_engine)->num_dpus = 0;                                                                                        \
-        (_core_engine)->num_service_procs = 0;                                                                               \
-        (_core_engine)->num_connected_service_procs = 0;                                                                     \
-        (_core_engine)->default_notifications = NULL;                                                                        \
-        (_core_engine)->num_default_notifications = 0;                                                                       \
-        SMART_BUFFS_INIT(&((_core_engine)->smart_buffer_sys), NULL);                                                         \
-    } while (0)
-#else
 #define RESET_CORE_ENGINE_STRUCT(_core_engine, _core_ret)                                                                    \
     do                                                                                                                       \
     {                                                                                                                        \
@@ -2250,8 +2226,11 @@ typedef struct offloading_engine
         (_core_engine)->num_connected_service_procs = 0;                                                                     \
         (_core_engine)->default_notifications = NULL;                                                                        \
         (_core_engine)->num_default_notifications = 0;                                                                       \
+        if ((_core_engine)->settings.buddy_buffer_system_enabled)                                                            \
+            SMART_BUFFS_INIT(&((_core_engine)->smart_buffer_sys), NULL);                                                     \
+        if ((_core_engine)->settings.ucx_am_backend_enabled)                                                                 \
+            (_core_engine)->client_lookup_table = kh_init(client_lookup_hash_t);                                             \
     } while (0)
-#endif // BUDDY_BUFFER_SYS_ENABLE
 
 typedef struct pending_am_rdv_recv
 {
@@ -2296,8 +2275,6 @@ typedef struct pending_am_rdv_recv
     {                                                \
         _ret = 0;                                    \
         RESET_CORE_ENGINE_STRUCT(_engine, _ret);     \
-        if ((_engine)->use_ucx_am_backend)           \
-            (_engine)->free_pending_rdv_recv = NULL; \
     } while (0)
 #endif // OFFLOADING_MT_ENABLE
 
