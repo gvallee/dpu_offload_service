@@ -2107,7 +2107,6 @@ typedef struct offloading_engine
     // Smart buffer system associated to the engine
     smart_buffers_t smart_buffer_sys;
 
-#if USE_AM_IMPLEM
     // free_pending_rdv_recv is a list of allocated descriptors used to track pending UCX AM RDV messages.
     // This list prevents us from allocating memory while handling AM RDV messages.
     dyn_list_t *free_pending_rdv_recv;
@@ -2115,7 +2114,6 @@ typedef struct offloading_engine
     // pending_rdv_recvs is the current list of pending AM RDV receives.
     // Once completed, the element is returned to free_pending_rdv_recv.
     ucs_list_link_t pending_rdv_recvs;
-#endif
 
     // Lookup table to quickly retrieve the execution context in the context
     // of clients when receiving a notification. Used on service processes only
@@ -2226,10 +2224,8 @@ typedef struct offloading_engine
         (_core_engine)->num_connected_service_procs = 0;                                                                     \
         (_core_engine)->default_notifications = NULL;                                                                        \
         (_core_engine)->num_default_notifications = 0;                                                                       \
-        if ((_core_engine)->settings.buddy_buffer_system_enabled)                                                            \
-            SMART_BUFFS_INIT(&((_core_engine)->smart_buffer_sys), NULL);                                                     \
-        if ((_core_engine)->settings.ucx_am_backend_enabled)                                                                 \
-            (_core_engine)->client_lookup_table = kh_init(client_lookup_hash_t);                                             \
+        (_core_engine)->free_pending_rdv_recv = NULL;                                                                        \
+        (_core_engine)->client_lookup_table = NULL;                                                                          \
     } while (0)
 
 typedef struct pending_am_rdv_recv

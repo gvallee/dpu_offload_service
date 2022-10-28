@@ -1046,6 +1046,20 @@ dpu_offload_status_t offload_engine_init(offloading_engine_t **engine)
     d->settings.ucx_am_backend_enabled = false;
 #endif
 
+    if (d->settings.buddy_buffer_system_enabled)
+        SMART_BUFFS_INIT(&(d->smart_buffer_sys), NULL);
+    if (d->settings.ucx_am_backend_enabled)
+    {
+        DYN_LIST_ALLOC_WITH_INIT_CALLBACK(d->free_pending_rdv_recv,
+                                          32,
+                                          pending_am_rdv_recv_t,
+                                          item,
+                                          init_pending_am_rdv_recv_t);
+        ucs_list_head_init(&(d->pending_rdv_recvs));
+        d->client_lookup_table = kh_init(client_lookup_hash_t);                                             \
+    }
+
+
     dpu_offload_status_t rc = ev_channels_init(&(d->default_notifications));
     CHECK_ERR_GOTO((rc), error_out, "ev_channels_init() failed");
 
@@ -1065,11 +1079,6 @@ dpu_offload_status_t offload_engine_init(offloading_engine_t **engine)
         self_econtext->event_channels,
         self_econtext,
         self_econtext->scope_id);
-
-#if USE_AM_IMPLEM
-    DYN_LIST_ALLOC_WITH_INIT_CALLBACK(d->free_pending_rdv_recv, 32, pending_am_rdv_recv_t, item, init_pending_am_rdv_recv_t);
-    ucs_list_head_init(&(d->pending_rdv_recvs));
-#endif
 
     *engine = d;
     return DO_SUCCESS;
@@ -1951,34 +1960,7 @@ void offload_engine_fini(offloading_engine_t **offload_engine)
     DYN_LIST_FREE((*offload_engine)->pool_pending_send_group_add, pending_send_group_add_t, item);
     DYN_ARRAY_FREE(&((*offload_engine)->dpus));
     DYN_ARRAY_FREE(&((*offload_engine)->service_procs));
-#if USE_AM_IMPLEM
-    for (i = 0; i < (*offload_engine)->free_pending_rdv_recv->num_elts; i++)
-    {
-        pending_am_rdv_recv_t *elt;
-        DYN_LIST_GET((*offload_engine)->free_pending_rdv_recv, pending_am_rdv_recv_t, item, elt);
-        if (elt == NULL)
-            continue;
-        if (elt->buff_size > 0)
-        {
-            if (elt->user_data != NULL)
-            {
-                if (elt->pool.mem_pool != NULL && elt->pool.return_buf != NULL)
-                {
-                    elt->pool.return_buf(elt->pool.mem_pool, elt->user_data);
-                    RESET_NOTIF_INFO(&(elt->pool));
-                }
-                else
-                {
-                    if (elt->user_data != NULL)
-                        free(elt->user_data);
-                }
-                elt->user_data = NULL;
-            }
-            elt->buff_size = 0;
-        }
-    }
-    DYN_LIST_FREE((*offload_engine)->free_pending_rdv_recv, pending_am_rdv_recv_t, item);
-#endif
+
     assert((*offload_engine)->self_econtext);
 #if !USE_AM_IMPLEM && BUDDY_BUFFER_SYS_ENABLE
     // Before finalizing the self execution context, clean up the pending recvs for notifications
@@ -2074,7 +2056,34 @@ void offload_engine_fini(offloading_engine_t **offload_engine)
                    key,
                    value,
                    { /* nothing special to do*/ })
-            kh_destroy(client_lookup_hash_t, (*offload_engine)->client_lookup_table);  
+            kh_destroy(client_lookup_hash_t, (*offload_engine)->client_lookup_table);
+
+        for (i = 0; i < (*offload_engine)->free_pending_rdv_recv->num_elts; i++)
+        {
+            pending_am_rdv_recv_t *elt;
+            DYN_LIST_GET((*offload_engine)->free_pending_rdv_recv, pending_am_rdv_recv_t, item, elt);
+            if (elt == NULL)
+                continue;
+            if (elt->buff_size > 0)
+            {
+                if (elt->user_data != NULL)
+                {
+                    if (elt->pool.mem_pool != NULL && elt->pool.return_buf != NULL)
+                    {
+                        elt->pool.return_buf(elt->pool.mem_pool, elt->user_data);
+                        RESET_NOTIF_INFO(&(elt->pool));
+                    }
+                    else
+                    {
+                        if (elt->user_data != NULL)
+                            free(elt->user_data);
+                    }
+                    elt->user_data = NULL;
+                }
+                elt->buff_size = 0;
+            }
+        }
+        DYN_LIST_FREE((*offload_engine)->free_pending_rdv_recv, pending_am_rdv_recv_t, item);
     }
 
     if ((*offload_engine)->servers)
