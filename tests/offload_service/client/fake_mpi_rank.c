@@ -35,6 +35,7 @@ int main(int argc, char **argv)
     conn_params_t client_conn_params;
     rank_info_t client_rank_info;
     group_id_t group;
+    group_uid_t dummy_uid = 1234;
 
     if (argc != 7)
     {
@@ -71,8 +72,7 @@ int main(int argc, char **argv)
     RESET_CONN_PARAMS(&client_conn_params);
     client_init_params.conn_params = &client_conn_params;
     client_init_params.proc_info = &client_rank_info;
-    client_init_params.proc_info->group_id.lead = lead_rank;
-    client_init_params.proc_info->group_id.id = group_id;
+    client_init_params.proc_info->group_uid = dummy_uid;
     client_init_params.proc_info->group_rank = rank;
     client_init_params.proc_info->group_size = group_size;
     client_init_params.proc_info->n_local_ranks = group_size;
@@ -95,7 +95,7 @@ int main(int argc, char **argv)
     } while (client->client->bootstrapping.phase != BOOTSTRAP_DONE);
 
     // Wait for full initialization to complete, i.e., until the group cache is fully populated
-    while (!group_cache_populated(engine, group))
+    while (!group_cache_populated(engine, dummy_uid))
         offload_engine_progress(engine);
     fprintf(stdout, "Rank %d: connection to DPU succeeded\n", rank);
 

@@ -12,7 +12,7 @@
 
 int main(int argc, char **argv)
 {
-    group_id_t group;
+    group_uid_t group;
 
     /* Initialize everything we need for the test */
     offloading_engine_t *offload_engine;
@@ -75,13 +75,12 @@ int main(int argc, char **argv)
     // todo: we should use the event to know when it is all completed
     int retry = 0;
     bool test_done = false;
-    group.lead = 41;
-    group.id = 42;
+    group = 42;
     while (!test_done)
     {
         lib_progress(client);
         cache_t *cache = &(offload_engine->procs_cache);
-        group_cache_t *gp_cache = GET_GROUP_CACHE(cache, &group);
+        group_cache_t *gp_cache = GET_GROUP_CACHE(cache, group);
         if (gp_cache->initialized)
         {
             peer_cache_entry_t *list_ranks = (peer_cache_entry_t *)gp_cache->ranks.base;

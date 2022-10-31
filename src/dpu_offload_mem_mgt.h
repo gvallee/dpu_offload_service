@@ -39,11 +39,9 @@
 #define GROUPS_CACHE_INIT(_cache)                                                            \
     do                                                                                       \
     {                                                                                        \
+        RESET_CACHE(_cache);                                                                 \
         (_cache)->data = kh_init(group_hash_t);                                              \
-        DYN_ARRAY_ALLOC(&((_cache)->keys), DEFAULT_NUM_GROUPS, int64_t);                     \
         DYN_LIST_ALLOC((_cache)->group_cache_pool, DEFAULT_NUM_GROUPS, group_cache_t, item); \
-        (_cache)->size = 0;                                                                  \
-        (_cache)->keys_in_use = 0;                                                           \
     } while (0)
 
 #define GROUPS_CACHE_FINI(_cache)                                       \
@@ -54,9 +52,8 @@
         kh_foreach((_cache)->data, key, value, {                        \
             if (value != NULL)                                          \
             {                                                           \
-                group_id_t _gp = GROUP_KEY_TO_GROUP(key);               \
                 group_cache_t *_gp_cache = NULL;                        \
-                _gp_cache = GET_GROUP_CACHE((_cache), &_gp);            \
+                _gp_cache = GET_GROUP_CACHE((_cache), key);             \
                 assert(_gp_cache);                                      \
                 dyn_array_t *__da = NULL;                               \
                 __da = &(_gp_cache->ranks);                             \
@@ -64,11 +61,9 @@
                     DYN_ARRAY_FREE(__da);                               \
             }                                                           \
         }) kh_destroy(group_hash_t, (_cache)->data);                    \
-        DYN_ARRAY_FREE(&((_cache)->keys));                              \
         DYN_LIST_FREE((_cache)->group_cache_pool, group_cache_t, item); \
         (_cache)->group_cache_pool = NULL;                              \
         (_cache)->size = 0;                                             \
-        (_cache)->keys_in_use = 0;                                      \
     } while (0)
 
 /* GROUP_CACHE_INIT initializes the cache for a given group */

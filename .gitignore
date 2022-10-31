@@ -54,6 +54,7 @@ tests/cache/cache_client
 tests/cache/cache_server
 tests/cache/cache_job_client
 tests/cache/cache_dpu_daemon
+tests/cache/group_hash_test
 tests/dyn_structs/dyn_structs_test
 tests/dyn_structs/smart_buffers_test
 tests/config/config_file_host
@@ -104,6 +105,7 @@ configure~
 
 # VScode files
 .vscode/settings.json
+.vscode
 
 # Vi/vim stuff
 *.swp

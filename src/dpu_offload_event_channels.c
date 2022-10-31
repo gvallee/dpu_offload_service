@@ -26,22 +26,73 @@
     {                                                               \
         INFO_MSG("econtext %p: %ld ongoing events",                 \
                  (_ec), ucs_list_length(&((_ec)->ongoing_events))); \
-    } while(0)
+    } while (0)
 
-#define DISPLAY_ONGOING_EVENTS_INFO(_e)                         \
-    do                                                          \
-    {                                                           \
-        size_t _i;                                              \
-        for (_i = 0; _i < (_e)->num_servers; _i++)              \
-        {                                                       \
-            DISPLAY_ECONTEXT_ONGOING_EVTS((_e)->servers[_i]);   \
-        }                                                       \
-                                                                \
-        if ((_e)->client)                                       \
-        {                                                       \
-            DISPLAY_ECONTEXT_ONGOING_EVTS((_e)->client);        \
-        }                                                       \
-    } while(0)
+#define DISPLAY_ONGOING_EVENTS_INFO(_e)                       \
+    do                                                        \
+    {                                                         \
+        size_t _i;                                            \
+        for (_i = 0; _i < (_e)->num_servers; _i++)            \
+        {                                                     \
+            DISPLAY_ECONTEXT_ONGOING_EVTS((_e)->servers[_i]); \
+        }                                                     \
+                                                              \
+        if ((_e)->client)                                     \
+        {                                                     \
+            DISPLAY_ECONTEXT_ONGOING_EVTS((_e)->client);      \
+        }                                                     \
+    } while (0)
+
+/*
+ * Queue a message to add a group, typically because the group is being revoked.
+ * Adding a group always requires for a revoke to complete so until it happens,
+ * because everything is asynchronous, we queue and differ the group addition.
+ * The library handles the queued group addition upon final deletion of the group
+ * and therefore guarantee group consistency.
+ */
+#define QUEUE_PENDING_GROUP_ADD_MSG(_econtext, _client_id, _data, _data_len)        \
+    do                                                                              \
+    {                                                                               \
+        pending_group_add_t *_pending_group_add = NULL;                             \
+                                                                                    \
+        /* Make the message persistent, we may deal a bunch of rank_info objects */ \
+        DYN_LIST_GET((_econtext)->engine->pool_pending_recv_group_add,              \
+                     pending_group_add_t,                                           \
+                     item,                                                          \
+                     _pending_group_add);                                           \
+        assert(_pending_group_add);                                                 \
+        RESET_PENDING_RECV_GROUP_ADD(_pending_group_add);                           \
+        _pending_group_add->client_id = _client_id;                                 \
+        _pending_group_add->data_len = data_len;                                    \
+        _pending_group_add->data = malloc(data_len);                                \
+        _pending_group_add->econtext = _econtext;                                   \
+        assert(_pending_group_add->data);                                           \
+        memcpy(_pending_group_add->data, data, data_len);                           \
+                                                                                    \
+        /* Queue the pending msg */                                                 \
+        ucs_list_add_tail(&((_econtext)->engine->pending_group_add_msgs),           \
+                          &(_pending_group_add->item));                             \
+    } while (0)
+
+/*
+ * Actual revoke a group: all the element in the rank array are reset and the cache itself is also
+ * reset. Note that both are required:
+ * - when receiving cache entry, the state of the entry (from the rank array) only is checked,
+ * - when initiating operation at the cache level, the cache state is checked.
+ */
+#define REVOKE_GROUP_CACHE(_c)                                              \
+    do                                                                      \
+    {                                                                       \
+        size_t _i;                                                          \
+        for (_i = 0; _i < (_c)->group_size; _i++)                           \
+        {                                                                   \
+            peer_cache_entry_t *_e = DYN_ARRAY_GET_ELT(&((_c)->ranks),      \
+                                                       _i,                  \
+                                                       peer_cache_entry_t); \
+            RESET_PEER_CACHE_ENTRY(_e);                                     \
+        }                                                                   \
+        RESET_GROUP_CACHE(_c);                                              \
+    } while (0)
 
 #if USE_AM_IMPLEM
 
@@ -69,33 +120,32 @@ dpu_offload_status_t get_associated_econtext(offloading_engine_t *engine, am_hea
         // Message exchanged between service processes
         switch (hdr->sender_type)
         {
-            case CONTEXT_SERVER:
+        case CONTEXT_SERVER:
+        {
+            // The sender was a server
+            econtext = CLIENT_SERVER_LOOKUP(engine, hdr->client_id, hdr->server_id);
+            break;
+        }
+        case CONTEXT_CLIENT:
+        {
+            // The sender was a client
+            assert(hdr->server_id == engine->config->local_service_proc.info.global_id);
+            if (hdr->scope_id == SCOPE_INTER_SERVICE_PROCS)
             {
-                // The sender was a server
-                // FIXME: avoid O(n) lookup
-                size_t i;
-                for (i = 0; i < engine->num_inter_service_proc_clients; i++)
-                {
-                    if (engine->inter_service_proc_clients[i].remote_service_proc_info->service_proc.global_id == hdr->server_id &&
-                        engine->inter_service_proc_clients[i].client_econtext->client->id == hdr->client_id)
-                    {
-                        econtext = engine->inter_service_proc_clients[i].client_econtext;
-                        break;
-                    }
-                }
-                break;
+                assert(engine->servers[0] != NULL);
+                econtext = engine->servers[0];
             }
-            case CONTEXT_CLIENT:
+            else
             {
-                // The sender was a client
-                econtext = engine->servers[hdr->server_id];
-                break;
+                econtext = get_server_servicing_host(engine);
             }
-            default:
-            {
-                ERR_MSG("invalid sender type: %d", hdr->sender_type);
-                goto error_out;
-            }
+            break;
+        }
+        default:
+        {
+            ERR_MSG("invalid sender type: %d", hdr->sender_type);
+            goto error_out;
+        }
         }
     }
 
@@ -233,7 +283,7 @@ static ucs_status_t am_notification_recv_rdv_msg(offloading_engine_t *engine, am
     pending_recv->hdr_len = hdr_len;
     pending_recv->engine = econtext->engine;
     pending_recv->payload_size = payload_size;
-    
+
     am_rndv_recv_request_params.cb.recv_am = &am_rdv_recv_cb;
     am_rndv_recv_request_params.datatype = ucp_dt_make_contig(1);
     am_rndv_recv_request_params.user_data = pending_recv;
@@ -323,7 +373,7 @@ void *get_notif_buf(dpu_offload_ev_sys_t *ev_sys, uint64_t type)
     return (entry->info.get_buf(entry->info.mem_pool, entry->info.get_buf_args));
 }
 
-notification_callback_entry_t* get_notif_callback_entry(dpu_offload_ev_sys_t *ev_sys, uint64_t type)
+notification_callback_entry_t *get_notif_callback_entry(dpu_offload_ev_sys_t *ev_sys, uint64_t type)
 {
     notification_callback_entry_t *entry;
     entry = DYN_ARRAY_GET_ELT(&(ev_sys->notification_callbacks), type, notification_callback_entry_t);
@@ -374,7 +424,7 @@ dpu_offload_status_t event_channels_init(execution_context_t *econtext)
         return DO_SUCCESS;
     }
 
-    // Register the UCX AM handler        
+    // Register the UCX AM handler
     CHECK_ERR_RETURN((GET_WORKER(econtext) == NULL), DO_ERROR, "Undefined worker");
     ucp_am_handler_param_t am_param = {0};
     am_param.field_mask = UCP_AM_HANDLER_PARAM_FIELD_ID |
@@ -605,32 +655,34 @@ static void notif_payload_send_cb(void *request, ucs_status_t status, void *user
 }
 #endif // !USE_AM_IMPLEM
 
-#define PREP_EVENT_FOR_EMIT(__ev) do { \
-    execution_context_t *__econtext = (__ev)->event_system->econtext;\
-    uint64_t __cid, __sid;\
-    switch ((__ev)->event_system->econtext->type)\
-    {\
-    case CONTEXT_CLIENT:\
-        __cid = __econtext->client->id;\
-        __sid = __econtext->client->server_id;\
-        break;\
-    case CONTEXT_SERVER:\
-        __sid = __econtext->server->id;\
-        __cid = (__ev)->dest.id;\
-        break;\
-    case CONTEXT_SELF:\
-        __cid = 0;\
-        __sid = 0;\
-        break;\
-    default:\
-        return DO_ERROR;\
-    }\
-    (__ev)->client_id = __cid;\
-    (__ev)->server_id = __sid;\
-    EVENT_HDR_SEQ_NUM(__ev) = (__ev)->seq_num;\
-    EVENT_HDR_CLIENT_ID(__ev) = (__ev)->client_id;\
-    EVENT_HDR_SERVER_ID(__ev) = (__ev)->server_id;\
-} while(0)
+#define PREP_EVENT_FOR_EMIT(__ev)                                         \
+    do                                                                    \
+    {                                                                     \
+        execution_context_t *__econtext = (__ev)->event_system->econtext; \
+        uint64_t __cid, __sid;                                            \
+        switch ((__ev)->event_system->econtext->type)                     \
+        {                                                                 \
+        case CONTEXT_CLIENT:                                              \
+            __cid = __econtext->client->id;                               \
+            __sid = __econtext->client->server_id;                        \
+            break;                                                        \
+        case CONTEXT_SERVER:                                              \
+            __sid = __econtext->server->id;                               \
+            __cid = (__ev)->dest.id;                                      \
+            break;                                                        \
+        case CONTEXT_SELF:                                                \
+            __cid = 0;                                                    \
+            __sid = 0;                                                    \
+            break;                                                        \
+        default:                                                          \
+            return DO_ERROR;                                              \
+        }                                                                 \
+        (__ev)->client_id = __cid;                                        \
+        (__ev)->server_id = __sid;                                        \
+        EVENT_HDR_SEQ_NUM(__ev) = (__ev)->seq_num;                        \
+        EVENT_HDR_CLIENT_ID(__ev) = (__ev)->client_id;                    \
+        EVENT_HDR_SERVER_ID(__ev) = (__ev)->server_id;                    \
+    } while (0)
 
 #if USE_AM_IMPLEM
 uint64_t num_ev_sent = 0;
@@ -735,7 +787,7 @@ int do_tag_send_event_msg(dpu_offload_event_t *event)
         hdr_send_param.cb.send = notif_hdr_send_cb;
         hdr_send_param.datatype = ucp_dt_make_contig(1);
         hdr_send_param.user_data = (void *)event;
-        DBG("Sending notification header - ev: %" PRIu64 ", type: %" PRIu64 ", econtext: %p, scope_id: %d, client_id: %" PRIu64", server_id: %" PRIu64,
+        DBG("Sending notification header - ev: %" PRIu64 ", type: %" PRIu64 ", econtext: %p, scope_id: %d, client_id: %" PRIu64 ", server_id: %" PRIu64,
             event->seq_num, EVENT_HDR_TYPE(event), event->event_system->econtext, event->scope_id, event->client_id, event->server_id);
         event->hdr_request = NULL;
         event->payload_request = NULL;
@@ -767,7 +819,7 @@ int do_tag_send_event_msg(dpu_offload_event_t *event)
         {
             DBG("Sending payload - tag: %d, scope_id: %d, size: %ld, client_id: %" PRIu64 ", server_id: %" PRIu64,
                 AM_EVENT_MSG_ID,
-                event->scope_id, 
+                event->scope_id,
                 EVENT_HDR_PAYLOAD_SIZE(event),
                 event->client_id,
                 event->server_id);
@@ -1202,25 +1254,28 @@ bool event_completed(dpu_offload_event_t *ev)
     // Update the list of sub-event by removing the completed ones
     if (EVENT_HDR_TYPE(ev) == META_EVENT_TYPE)
     {
-        dpu_offload_event_t *subevt, *next;
-        ucs_list_for_each_safe(subevt, next, &(ev->sub_events), item)
+        if (ev->sub_events_initialized)
         {
-            assert(subevt->is_subevent);
-#if USE_AM_IMPLEM
-            if (subevt->ctx.complete)
-#else
-            if (subevt->ctx.hdr_completed && subevt->ctx.payload_completed)
-#endif
+            dpu_offload_event_t *subevt, *next;
+            ucs_list_for_each_safe(subevt, next, &(ev->sub_events), item)
             {
-                ucs_list_del(&(subevt->item));
-                subevt->is_subevent = false;
-                DBG("returning sub event %" PRIu64 " %p of main event %p", subevt->seq_num, subevt, ev);
-                dpu_offload_status_t rc = do_event_return(subevt);
-                CHECK_ERR_RETURN((rc), DO_ERROR, "event_return() failed");
+                assert(subevt->is_subevent);
+#if USE_AM_IMPLEM
+                if (subevt->ctx.complete)
+#else
+                if (subevt->ctx.hdr_completed && subevt->ctx.payload_completed)
+#endif
+                {
+                    ucs_list_del(&(subevt->item));
+                    subevt->is_subevent = false;
+                    DBG("returning sub event %" PRIu64 " %p of main event %p", subevt->seq_num, subevt, ev);
+                    dpu_offload_status_t rc = do_event_return(subevt);
+                    CHECK_ERR_RETURN((rc), DO_ERROR, "event_return() failed");
+                }
             }
         }
 
-        if (ucs_list_is_empty(&(ev->sub_events)))
+        if (!ev->sub_events_initialized || ucs_list_is_empty(&(ev->sub_events)))
         {
             DBG("All sub-events completed, metaev %p %ld completes", ev, ev->seq_num);
             goto event_completed;
@@ -1327,10 +1382,9 @@ static dpu_offload_status_t peer_cache_entries_request_recv_cb(struct dpu_offloa
     assert(data);
     rank_info_t *rank_info = (rank_info_t *)data;
 
-    DBG("Cache entry requested received for gp/rank %d-%d/%" PRIu64,
-        rank_info->group_id.lead, rank_info->group_id.id, rank_info->group_rank);
+    DBG("Cache entry requested received for gp/rank 0x%x/%" PRIu64, rank_info->group_uid, rank_info->group_rank);
 
-    if (is_in_cache(&(econtext->engine->procs_cache), rank_info->group_id, rank_info->group_rank, rank_info->group_size))
+    if (is_in_cache(&(econtext->engine->procs_cache), rank_info->group_uid, rank_info->group_rank, rank_info->group_size))
     {
         // We send the cache back to the sender
         dpu_offload_status_t rc;
@@ -1342,9 +1396,12 @@ static dpu_offload_status_t peer_cache_entries_request_recv_cb(struct dpu_offloa
         EVENT_HDR_TYPE(send_cache_ev) = META_EVENT_TYPE;
         assert(econtext->type == CONTEXT_SERVER);
         DBG("Sending group cache to DPU #%" PRIu64 ": event=%p", hdr->id, send_cache_ev);
-        rc = send_group_cache(econtext, peer_info->ep, peer_info->id, rank_info->group_id, send_cache_ev);
+        rc = send_group_cache(econtext, peer_info->ep, peer_info->id, rank_info->group_uid, send_cache_ev);
         CHECK_ERR_RETURN((rc), DO_ERROR, "send_group_cache() failed");
-        QUEUE_EVENT(send_cache_ev);
+        if (!event_completed(send_cache_ev))
+            QUEUE_EVENT(send_cache_ev);
+        else
+            event_return(&send_cache_ev);
         return DO_SUCCESS;
     }
 
@@ -1368,64 +1425,52 @@ static dpu_offload_status_t peer_cache_entries_request_recv_cb(struct dpu_offloa
     return DO_ERROR;
 }
 
-/**
- * @brief receive handler for cache entry notifications. Note that a single notification
- * can hold multiple cache entries.
- * 
- * @param ev_sys Associated event channels/system
- * @param econtext Associated execution context
- * @param hdr Header of the notification
- * @param hdr_size Size of the header
- * @param data Notifaction's payload, i.e., the cache entries
- * @param data_len Total size of the notification's payload
- * @return dpu_offload_status_t 
- */
-static dpu_offload_status_t peer_cache_entries_recv_cb(struct dpu_offload_ev_sys *ev_sys, execution_context_t *econtext, am_header_t *hdr, size_t hdr_size, void *data, size_t data_len)
+static dpu_offload_status_t handle_peer_cache_entries_recv(execution_context_t *econtext, uint64_t dpu_global_id, void *data, size_t data_len)
 {
-    assert(econtext);
-    assert(data);
-    offloading_engine_t *engine = (offloading_engine_t *)econtext->engine;
-    peer_cache_entry_t *entries = (peer_cache_entry_t *)data;
     size_t cur_size = 0;
     size_t idx = 0;
-    group_id_t group_id;
     int64_t group_rank, group_size;
-    uint64_t dpu_global_id = LOCAL_ID_TO_GLOBAL(econtext, hdr->id);
-    cache_t *cache = &(engine->procs_cache);
     size_t n_added = 0;
+    group_cache_t *gp_cache = NULL;
+    peer_cache_entry_t *entries = (peer_cache_entry_t *)data;
+    cache_t *cache = NULL;
+    offloading_engine_t *engine = NULL;
+    int group_uid = INT_MAX;
 
-    RESET_GROUP_ID(&group_id);
-    // Make sure we know the group ID of what we receive otherwise we do not know what to do
-    if (group_id.id == INVALID_GROUP)
-        group_id = entries[idx].peer.proc_info.group_id;
+    assert(econtext);
+    engine = econtext->engine;
+    assert(engine);
+    cache = &(engine->procs_cache);
     group_size = entries[idx].peer.proc_info.group_size;
-    group_cache_t *gp_cache = GET_GROUP_CACHE(&(econtext->engine->procs_cache), &group_id);
+    group_uid = entries[idx].peer.proc_info.group_uid;
+    gp_cache = GET_GROUP_CACHE(&(econtext->engine->procs_cache), group_uid);
+    assert(gp_cache);
+
     while (cur_size < data_len)
     {
         // Now that we know for sure we have the group ID, we can move the received data into the local cache
         group_rank = entries[idx].peer.proc_info.group_rank;
 #if !NDEBUG
-        if (entries[idx].peer.proc_info.group_id.lead != group_id.lead)
+        if (entries[idx].peer.proc_info.group_uid != group_uid)
         {
-            ERR_MSG("Invalid lead group: %d vs. %d", entries[idx].peer.proc_info.group_id.lead, group_id.lead);
-            return DO_ERROR;
-        }
-        if (entries[idx].peer.proc_info.group_id.id != group_id.id)
-        {
-            ERR_MSG("Invalid group id: %d vs. %d", entries[idx].peer.proc_info.group_id.id, group_id.id);
+            ERR_MSG("Invalid lead group: %d vs. %d", entries[idx].peer.proc_info.group_uid, group_uid);
             return DO_ERROR;
         }
 #endif
         assert(entries[idx].peer.proc_info.group_size == group_size);
-        DBG("Received a cache entry for rank:%ld, group:%d-%d, group size:%ld, number of local rank: %ld from DPU %" PRId64 " (msg size=%ld, peer addr len=%ld)",
-            group_rank, group_id.lead, group_id.id, group_size, entries[idx].peer.proc_info.n_local_ranks, dpu_global_id, data_len, entries[idx].peer.addr_len);
-        if (!is_in_cache(cache, group_id, group_rank, group_size))
+        DBG("Received a cache entry for rank:%ld, group:0x%x, group size:%ld, number of local rank: %ld from DPU %" PRId64 " (msg size=%ld, peer addr len=%ld)",
+            group_rank, group_uid, group_size, entries[idx].peer.proc_info.n_local_ranks,
+            dpu_global_id, data_len, entries[idx].peer.addr_len);
+        if (!is_in_cache(cache, group_uid, group_rank, group_size))
         {
+            peer_cache_entry_t *cache_entry = NULL;
             size_t n;
+
+            if (gp_cache->group_uid == INT_MAX)
+                gp_cache->group_uid = group_uid;
             n_added++;
             gp_cache->num_local_entries++;
-            peer_cache_entry_t *cache_entry;
-            cache_entry = GET_GROUP_RANK_CACHE_ENTRY(cache, &group_id, group_rank, group_size);
+            cache_entry = GET_GROUP_RANK_CACHE_ENTRY(cache, group_uid, group_rank, group_size);
             cache_entry->set = true;
             COPY_PEER_DATA(&(entries[idx].peer), &(cache_entry->peer));
             assert(entries[idx].num_shadow_service_procs > 0);
@@ -1444,6 +1489,7 @@ static dpu_offload_status_t peer_cache_entries_recv_cb(struct dpu_offload_ev_sys
                 {
                     dpu_offload_event_t *e = SIMPLE_LIST_EXTRACT_HEAD(&(cache_entry->events), dpu_offload_event_t, item);
                     COMPLETE_EVENT(e);
+                    event_return(&e);
                 }
             }
 
@@ -1459,8 +1505,7 @@ static dpu_offload_status_t peer_cache_entries_recv_cb(struct dpu_offload_ev_sys
     }
 
     // Once we handled all the cache entries we received, we check whether the cache is full and if so, send it to the local ranks
-    DBG("The cache for group %d-%d now has %ld entries (group size: %ld)",
-        group_id.lead, group_id.id, gp_cache->num_local_entries, gp_cache->group_size);
+    DBG("The cache for group 0x%x now has %ld entries (group size: %ld)", group_uid, gp_cache->num_local_entries, gp_cache->group_size);
     if (econtext->engine->on_dpu && n_added > 0)
     {
         // If all the ranks are on the local hosts, the case is handled in the callback that deals with the
@@ -1472,7 +1517,7 @@ static dpu_offload_status_t peer_cache_entries_recv_cb(struct dpu_offload_ev_sys
         {
             execution_context_t *server = get_server_servicing_host(engine);
             assert(server->scope_id == SCOPE_HOST_DPU);
-            dpu_offload_status_t rc = send_gp_cache_to_host(server, group_id);
+            dpu_offload_status_t rc = send_gp_cache_to_host(server, group_uid);
             CHECK_ERR_RETURN((rc), DO_ERROR, "send_gp_cache_to_host() failed");
         }
         else
@@ -1481,6 +1526,46 @@ static dpu_offload_status_t peer_cache_entries_recv_cb(struct dpu_offload_ev_sys
                 gp_cache->group_size, gp_cache->num_local_entries);
         }
     }
+    return DO_SUCCESS;
+}
+
+
+/**
+ * @brief receive handler for cache entry notifications. Note that a single notification
+ * can hold multiple cache entries.
+ *
+ * @param ev_sys Associated event channels/system
+ * @param econtext Associated execution context
+ * @param hdr Header of the notification
+ * @param hdr_size Size of the header
+ * @param data Notifaction's payload, i.e., the cache entries
+ * @param data_len Total size of the notification's payload
+ * @return dpu_offload_status_t
+ */
+static dpu_offload_status_t peer_cache_entries_recv_cb(struct dpu_offload_ev_sys *ev_sys, execution_context_t *econtext, am_header_t *hdr, size_t hdr_size, void *data, size_t data_len)
+{
+    offloading_engine_t *engine = NULL;
+    peer_cache_entry_t *entries = NULL;
+    int64_t group_size;
+    uint64_t dpu_global_id = UINT64_MAX;
+    int group_uid;
+    dpu_offload_status_t rc;
+    group_cache_t *gp_cache = NULL;
+
+    assert(econtext);
+    assert(data);
+    engine = (offloading_engine_t *)econtext->engine;
+    assert(engine);
+    dpu_global_id = LOCAL_ID_TO_GLOBAL(econtext, hdr->id);
+    entries = (peer_cache_entry_t *)data;
+    group_uid = entries[0].peer.proc_info.group_uid;
+    group_size = entries[0].peer.proc_info.group_size;
+    DBG("Receive cache entry for group 0x%x", group_uid);
+    gp_cache = GET_GROUP_CACHE(&(econtext->engine->procs_cache), group_uid);
+    assert(gp_cache);
+
+    rc = handle_peer_cache_entries_recv(econtext, dpu_global_id, data, data_len);
+    CHECK_ERR_RETURN((rc != DO_SUCCESS), DO_ERROR, "handle_peer_cache_entries_recv() failed");
 
     DBG("Reception completed");
     return DO_SUCCESS;
@@ -1488,8 +1573,7 @@ static dpu_offload_status_t peer_cache_entries_recv_cb(struct dpu_offload_ev_sys
 
 static bool rank_is_on_sp(int64_t world_rank, offloading_engine_t *engine)
 {
-    group_id_t *world = &engine->procs_cache.world_group;
-    group_cache_t *c = GET_GROUP_CACHE(&(engine->procs_cache), world);
+    group_cache_t *c = GET_GROUP_CACHE(&(engine->procs_cache), engine->procs_cache.world_group);
     peer_cache_entry_t *cache_entry = DYN_ARRAY_GET_ELT(&(c->ranks), world_rank, peer_cache_entry_t);
     assert(cache_entry);
     if (cache_entry->shadow_service_procs[0] == engine->config->local_service_proc.info.global_id)
@@ -1498,6 +1582,366 @@ static bool rank_is_on_sp(int64_t world_rank, offloading_engine_t *engine)
         return true;
     }
     return false;
+}
+
+static dpu_offload_status_t send_revoke_group_to_ranks(offloading_engine_t *engine, group_uid_t gp_uid, uint64_t num_ranks)
+{
+    dpu_offload_status_t rc;
+    size_t n = 0, idx = 0;
+    execution_context_t *host_server = get_server_servicing_host(engine);
+    assert(host_server);
+    assert(num_ranks);
+    while (n < host_server->server->connected_clients.num_connected_clients)
+    {
+        dpu_offload_event_t *metaev = NULL;
+        peer_info_t *c = NULL;
+
+        c = DYN_ARRAY_GET_ELT(&(host_server->server->connected_clients.clients),
+                              idx, peer_info_t);
+        if (c == NULL)
+        {
+            idx++;
+            continue;
+        }
+        assert(c->rank_data.group_uid != INT_MAX);
+
+        rc = event_get(host_server->event_channels, NULL, &metaev);
+        CHECK_ERR_RETURN((rc), DO_ERROR, "event_get() failed");
+        assert(metaev);
+        EVENT_HDR_TYPE(metaev) = META_EVENT_TYPE;
+        rc = send_revoke_group_rank_request_through_num_ranks(host_server, c->ep, c->id, gp_uid, num_ranks, metaev);
+        CHECK_ERR_RETURN((rc), DO_ERROR, "send_revoke_group_rank_request_through_num_ranks() failed");
+        if (!event_completed(metaev))
+            QUEUE_EVENT(metaev);
+        else
+            event_return(&metaev);
+        n++;
+        idx++;
+    }
+    return DO_SUCCESS;
+}
+
+static dpu_offload_status_t do_add_group_rank_recv_cb(execution_context_t *econtext, uint64_t client_id, void *data, size_t data_len)
+{
+    size_t cur_size = 0;
+    rank_info_t *rank_info = (rank_info_t *)data;
+
+    execution_context_t *service_server = get_server_servicing_host(econtext->engine);
+    assert(service_server);
+
+    // we check on the first element, all the data is supposed to be ranks from the same group
+    if (rank_info->group_uid == INT_MAX ||
+        rank_info->group_rank == INVALID_RANK)
+    {
+        // The data we received really does not include any usable group data
+        return DO_SUCCESS;
+    }
+
+    DBG("Recv'd data about group_rank 0x%x %" PRId64 " %" PRId64,
+        rank_info->group_uid, rank_info->group_rank, rank_info->group_size);
+    group_cache_t *gp_cache = GET_GROUP_CACHE(&(econtext->engine->procs_cache), rank_info->group_uid);
+    assert(gp_cache);
+
+    if (gp_cache->global_revoked > 0)
+    {
+        QUEUE_PENDING_GROUP_ADD_MSG(econtext, client_id, data, data_len);
+        return DO_SUCCESS;
+    }
+
+    if (!is_in_cache(&(econtext->engine->procs_cache), rank_info->group_uid, rank_info->group_rank, rank_info->group_size))
+    {
+        peer_cache_entry_t *cache_entry = NULL;
+        execution_context_t *host_server = get_server_servicing_host(econtext->engine);
+        assert(host_server);
+        peer_info_t *client_info = DYN_ARRAY_GET_ELT(&(host_server->server->connected_clients.clients),
+                                                     client_id,
+                                                     peer_info_t);
+        assert(client_info);
+        cache_entry = GET_GROUP_RANK_CACHE_ENTRY(&(econtext->engine->procs_cache),
+                                                 rank_info->group_uid,
+                                                 rank_info->group_rank,
+                                                 rank_info->group_size);
+        assert(cache_entry);
+        cache_entry->peer.addr_len = client_info->peer_addr_len;
+        memcpy(cache_entry->peer.addr,
+               client_info->peer_addr,
+               client_info->peer_addr_len);
+        COPY_RANK_INFO(rank_info, &(cache_entry->peer.proc_info));
+        cache_entry->num_shadow_service_procs = 1;
+        cache_entry->shadow_service_procs[0] = econtext->engine->config->local_service_proc.info.global_id;
+        cache_entry->client_id = client_id;
+        cache_entry->set = true;
+
+        if (gp_cache->group_uid == 0)
+            gp_cache->group_uid = rank_info->group_uid;
+        if (gp_cache->n_local_ranks <= 0 && rank_info->n_local_ranks >= 0)
+        {
+            gp_cache->n_local_ranks = rank_info->n_local_ranks;
+        }
+        gp_cache->n_local_ranks_populated++;
+        gp_cache->num_local_entries++;
+        DBG("group 0x%x now has %ld entries, %ld local ranks, %ld being populated",
+            gp_cache->group_uid,
+            gp_cache->num_local_entries,
+            gp_cache->n_local_ranks,
+            gp_cache->n_local_ranks_populated);
+
+        // Unpack the mapping of all the ranks
+        int64_t rank = 0;
+        size_t ranks_attached_to_sp = 0;
+        int64_t *ptr = (int64_t *)((ptrdiff_t)data + sizeof(rank_info_t));
+        cur_size = sizeof(rank_info_t);
+        while (cur_size < data_len)
+        {
+            if (gp_cache->sp_ranks == 0)
+            {
+                DBG("Rank %" PRId64 " is rank %" PRId64 " on comm world\n", rank, *ptr);
+                if (rank_is_on_sp(*ptr, econtext->engine))
+                    ranks_attached_to_sp++;
+            }
+            rank++;
+            cur_size += sizeof(int64_t);
+            ptr = (int64_t *)((ptrdiff_t)ptr + sizeof(int64_t));
+        }
+
+        if (gp_cache->sp_ranks == 0)
+        {
+            gp_cache->sp_ranks = ranks_attached_to_sp;
+            DBG("%ld/%ld ranks of group 0x%x are expected on SP #%" PRIu64,
+                gp_cache->sp_ranks,
+                gp_cache->group_size,
+                rank_info->group_uid,
+                econtext->engine->config->local_service_proc.info.global_id);
+        }
+    }
+
+    GROUP_CACHE_EXCHANGE(econtext->engine, rank_info->group_uid, gp_cache->sp_ranks);
+    return DO_SUCCESS;
+}
+
+static dpu_offload_status_t handle_pending_group_cache_add_msgs(offloading_engine_t *engine, group_uid_t gp_uid)
+{
+    dpu_offload_status_t rc;
+    pending_group_add_t *pending_group_add, *next_pending;
+    ucs_list_for_each_safe(pending_group_add, next_pending, &(engine->pending_group_add_msgs), item)
+    {
+        rank_info_t *rank_info = pending_group_add->data;
+        if (gp_uid == rank_info->group_uid)
+        {
+            ucs_list_del(&(pending_group_add)->item);
+            rc = do_add_group_rank_recv_cb(pending_group_add->econtext,
+                                           pending_group_add->client_id,
+                                           pending_group_add->data,
+                                           pending_group_add->data_len);
+            CHECK_ERR_RETURN((rc != DO_SUCCESS), DO_ERROR, "do_add_group_rank_recv_cb() failed");
+            free(pending_group_add->data);
+            pending_group_add->data = NULL;
+            pending_group_add->data_len = 0;
+            DYN_LIST_RETURN(engine->pool_pending_recv_group_add, pending_group_add, item);
+        }
+    }
+
+    return DO_SUCCESS;
+}
+
+static dpu_offload_status_t handle_revoke_group_rank_through_num_ranks(execution_context_t *econtext,
+                                                                       group_revoke_msg_t *revoke_msg)
+{
+    dpu_offload_status_t rc;
+    group_cache_t *gp_cache = NULL;
+    gp_cache = GET_GROUP_CACHE(&(econtext->engine->procs_cache), revoke_msg->num_ranks.gp_uid);
+    assert(gp_cache);
+    if (econtext->engine->on_dpu)
+    {
+        DBG("Revoke msg received, local data: n_local_ranks=%ld n_local_ranks_populated=%ld group_size=%ld",
+            gp_cache->n_local_ranks, gp_cache->n_local_ranks_populated,
+            gp_cache->group_size);
+
+        if (!gp_cache->initialized ||
+            gp_cache->n_local_ranks == 0 ||
+            gp_cache->n_local_ranks != gp_cache->local_revoked)
+        {
+            group_revoke_msg_obj_t *pending_msg = NULL;
+
+            // Make the message persistent
+            DBG("Queuing revoke msg from another SP (n_local_ranks: %ld, local_revoked: %ld, group ID: 0x%x)",
+                gp_cache->n_local_ranks, gp_cache->local_revoked, revoke_msg->num_ranks.gp_uid);
+            DYN_LIST_GET(econtext->engine->pool_group_revoke_msgs,
+                         group_revoke_msg_obj_t,
+                         item,
+                         pending_msg);
+            pending_msg->msg.type = GROUP_REVOKE_THROUGH_NUM_RANKS;
+            pending_msg->msg.num_ranks.num = revoke_msg->num_ranks.num;
+            pending_msg->msg.num_ranks.gp_uid = revoke_msg->num_ranks.gp_uid;
+            // Queue the new pending message
+            ucs_list_add_tail(&(econtext->engine->pending_group_revoke_msgs), &(pending_msg->item));
+        }
+        else
+        {
+            DBG("Handling the revoke message from another SP");
+            gp_cache->global_revoked += revoke_msg->num_ranks.num;
+            if (gp_cache->global_revoked == gp_cache->group_size)
+            {
+                group_uid_t gpuid = revoke_msg->num_ranks.gp_uid;
+                size_t group_size = gp_cache->group_size; // Get the number of ranks involved in the revoke before resetting the group cache
+                REVOKE_GROUP_CACHE(gp_cache);
+                DBG("Sending revoke message to ranks for group 0x%x (size=%ld)", gp_cache->group_uid, group_size);
+                rc = send_revoke_group_to_ranks(econtext->engine, gpuid, group_size);
+                CHECK_ERR_RETURN((rc != DO_SUCCESS), DO_ERROR, "send_revoke_group_to_ranks() failed");
+                // We make sure that we handle the pending group add for the group that was just revoked
+                rc = handle_pending_group_cache_add_msgs(econtext->engine, gpuid);
+                CHECK_ERR_RETURN((rc != DO_SUCCESS), DO_ERROR, "handle_pending_group_cache_add_msgs() failed");
+            }
+        }
+    }
+    else
+    {
+        // On the host
+        pending_send_group_add_t *pending_send, *next_pending;
+
+        // We got a revoke message from our service process so the group is fully revoked, we can reset it
+        REVOKE_GROUP_CACHE(gp_cache);
+
+        // If some group add message are pending and corresponding to the group that was just revoked, we send them now
+        ucs_list_for_each_safe(pending_send, next_pending, &(econtext->engine->pending_send_group_add_msgs), item)
+        {
+            rank_info_t *rank_info = (rank_info_t *)pending_send->ev->payload;
+            assert(rank_info);
+            if (revoke_msg->num_ranks.gp_uid == rank_info->group_uid)
+            {
+                ucs_list_del(&(pending_send->item));
+                rc = do_send_add_group_rank_request(pending_send->econtext,
+                                                    pending_send->dest_ep,
+                                                    pending_send->dest_id,
+                                                    pending_send->ev);
+                CHECK_ERR_RETURN((rc != DO_SUCCESS), DO_ERROR, "do_send_add_group_rank_request() failed");
+                DYN_LIST_RETURN(econtext->engine->pool_pending_send_group_add, pending_send, item);
+            }
+        }
+    }
+
+    return DO_SUCCESS;
+}
+
+static dpu_offload_status_t handle_revoke_group_rank_through_rank_info(execution_context_t *econtext, group_revoke_msg_t *revoke_msg)
+{
+    dpu_offload_status_t rc;
+    group_cache_t *gp_cache = NULL;
+
+    // rank info objects are only used right now from the host to a service process
+    assert(econtext->engine->on_dpu);
+
+    if (revoke_msg->info.group_uid == INT_MAX)
+    {
+        // The data we received really does not include any usable group data
+        return DO_SUCCESS;
+    }
+
+    // Revoke message received from the local host
+    assert(is_in_cache(&(econtext->engine->procs_cache), revoke_msg->info.group_uid, revoke_msg->info.group_rank, revoke_msg->info.group_size));
+    gp_cache = GET_GROUP_CACHE(&(econtext->engine->procs_cache), revoke_msg->info.group_uid);
+    assert(gp_cache);
+    assert(gp_cache->initialized);
+    assert(gp_cache->n_local_ranks > 0);
+    assert(gp_cache->n_local_ranks_populated > 0);
+    assert(gp_cache->global_revoked <= gp_cache->group_size);
+    assert(gp_cache->local_revoked <= gp_cache->n_local_ranks);
+
+    if (gp_cache->group_size != gp_cache->num_local_entries)
+    {
+        // Group cache is not fully populated yet, queuing the revoke request
+        group_revoke_msg_obj_t *desc = NULL;
+        INFO_MSG("Cache not fully populated, queuing revoke request");
+        DYN_LIST_GET(econtext->engine->pool_group_revoke_msgs, group_revoke_msg_obj_t, item, desc);
+        assert(desc);
+        desc->msg.type = GROUP_REVOKE_THROUGH_RANK_INFO;
+        COPY_RANK_INFO(&(revoke_msg->info), &(desc->msg.info));
+    }
+    else
+    {
+        gp_cache->local_revoked++;
+        gp_cache->global_revoked++;
+        DBG("Revoke recv'd from rank %ld for group 0x%x from local ranks, we now have %ld local and %ld global revokes",
+            revoke_msg->info.group_rank, revoke_msg->info.group_uid, gp_cache->local_revoked, gp_cache->global_revoked);
+
+        if (gp_cache->local_revoked == gp_cache->sp_ranks)
+        {
+            group_revoke_msg_obj_t *pending_revoke_msg, *next_pending;
+
+            // All the local ranks attached to this SP revoked this group, we now notify other SPs that the group
+            // has been deleted here.
+            rc = broadcast_group_cache_revoke(econtext->engine, revoke_msg->info.group_uid, gp_cache->sp_ranks);
+            CHECK_ERR_RETURN((rc != DO_SUCCESS), DO_ERROR, "broadcast_group_cache_revoke() failed");
+
+            // Handle the pending revoke messages we received from other SPs
+            ucs_list_for_each_safe(pending_revoke_msg, next_pending, &(econtext->engine->pending_group_revoke_msgs), item)
+            {
+                if (pending_revoke_msg->msg.num_ranks.gp_uid == revoke_msg->info.group_uid)
+                {
+                    ucs_list_del(&(pending_revoke_msg->item));
+                    // Make sure it is an applicable message, if not, drop.
+                    // Note: with the group UID we have a unique
+                    // way to identify group, regardless of asynchronous events and resuse of group ID
+                    // (for example reuse of MPI communicator IDs).
+                    assert(pending_revoke_msg->msg.num_ranks.gp_uid != INT_MAX);
+                    gp_cache->global_revoked += pending_revoke_msg->msg.num_ranks.num;
+                    DYN_LIST_RETURN(econtext->engine->pool_group_revoke_msgs, pending_revoke_msg, item);
+                }
+            }
+        }
+        if (gp_cache->global_revoked == gp_cache->group_size)
+        {
+            DBG("Sending final revoke to ranks: %ld", gp_cache->group_size);
+            rc = send_revoke_group_to_ranks(econtext->engine, revoke_msg->info.group_uid, gp_cache->group_size);
+            CHECK_ERR_RETURN((rc != DO_SUCCESS), DO_ERROR, "send_revoke_group_to_ranks() failed");
+            DBG("Revoking group 0x%x size: %ld", revoke_msg->info.group_uid, revoke_msg->info.group_size);
+            REVOKE_GROUP_CACHE(gp_cache);
+            // We make sure that we handle the pending group add for the group that was just revoked
+            rc = handle_pending_group_cache_add_msgs(econtext->engine, revoke_msg->info.group_uid);
+            CHECK_ERR_RETURN((rc != DO_SUCCESS), DO_ERROR, "handle_pending_group_cache_add_msgs() failed");
+        }
+    }
+
+    return DO_SUCCESS;
+}
+
+/**
+ * @brief revoke_group_rank_recv_cb is invoked on the DPU when receiving a notification from a rank running on the local host
+ * that a group/rank had been revoked.
+ *
+ * @param ev_sys Associated event/notification system
+ * @param econtext Associated execution contexxt
+ * @param hdr Header of the received notification
+ * @param hdr_size Size of the header
+ * @param data Payload associated to the notification
+ * @param data_len Size of the payload
+ * @return dpu_offload_status_t
+ */
+static dpu_offload_status_t revoke_group_rank_recv_cb(struct dpu_offload_ev_sys *ev_sys, execution_context_t *econtext, am_header_t *hdr, size_t hdr_size, void *data, size_t data_len)
+{
+    assert(econtext);
+    assert(data);
+    assert(data_len == sizeof(group_revoke_msg_t));
+    group_revoke_msg_t *revoke_msg = (group_revoke_msg_t *)data;
+    switch (revoke_msg->type)
+    {
+    case GROUP_REVOKE_THROUGH_RANK_INFO:
+#if !NDEBUG
+        // On the DPU, rank info object can only received from the host, otherwise it would be a revoke message using num_ranks
+        if (econtext->engine->on_dpu)
+            assert(hdr->scope_id == SCOPE_HOST_DPU);
+#endif
+        return handle_revoke_group_rank_through_rank_info(econtext, revoke_msg);
+    case GROUP_REVOKE_THROUGH_NUM_RANKS:
+#if !NDEBUG
+        if (econtext->engine->on_dpu)
+            assert(hdr->scope_id == SCOPE_INTER_SERVICE_PROCS);
+#endif
+        return handle_revoke_group_rank_through_num_ranks(econtext, revoke_msg);
+    default:
+        ERR_MSG("unknown revoke message type (%d)", revoke_msg->type);
+        return DO_ERROR;
+    }
 }
 
 /**
@@ -1514,93 +1958,10 @@ static bool rank_is_on_sp(int64_t world_rank, offloading_engine_t *engine)
  */
 static dpu_offload_status_t add_group_rank_recv_cb(struct dpu_offload_ev_sys *ev_sys, execution_context_t *econtext, am_header_t *hdr, size_t hdr_size, void *data, size_t data_len)
 {
-    size_t cur_size = 0;
     assert(econtext);
     assert(data);
     assert(ev_sys->econtext->engine->on_dpu);
-
-    // The rank info is always at the beginning of the payload
-    rank_info_t *rank_info = (rank_info_t *)data;
-    if (rank_info->group_id.id == INVALID_GROUP ||
-        rank_info->group_id.lead == INVALID_GROUP_LEAD ||
-        rank_info->group_rank == INVALID_RANK)
-    {
-        // The data we received really does not include any usable group data
-        return DO_SUCCESS;
-    }
-
-    DBG("Recv'd data about group_rank %d-%d %" PRId64 " %" PRId64, 
-        rank_info->group_id.lead, rank_info->group_id.id, rank_info->group_rank, rank_info->group_size);
-    group_cache_t *gp_cache = GET_GROUP_CACHE(&(econtext->engine->procs_cache), &(rank_info->group_id));
-    assert(gp_cache);
-    if (!is_in_cache(&(econtext->engine->procs_cache), rank_info->group_id, rank_info->group_rank, rank_info->group_size))
-    {
-        peer_cache_entry_t *cache_entry;
-        execution_context_t *host_server = get_server_servicing_host(ev_sys->econtext->engine);
-        assert(host_server);
-        peer_info_t *client_info = DYN_ARRAY_GET_ELT(&(host_server->server->connected_clients.clients),
-                                                     hdr->client_id,
-                                                     peer_info_t);
-        assert(client_info);
-        cache_entry = GET_GROUP_RANK_CACHE_ENTRY(&(econtext->engine->procs_cache),
-                                                 &(rank_info->group_id),
-                                                 rank_info->group_rank,
-                                                 rank_info->group_size);
-        assert(cache_entry);
-        cache_entry->peer.addr_len = client_info->peer_addr_len;
-        memcpy(cache_entry->peer.addr,
-               client_info->peer_addr,
-               client_info->peer_addr_len);
-        COPY_RANK_INFO(rank_info, &(cache_entry->peer.proc_info));
-        cache_entry->num_shadow_service_procs = 1;
-        cache_entry->shadow_service_procs[0] = econtext->engine->config->local_service_proc.info.global_id;
-        cache_entry->client_id = hdr->client_id;
-        cache_entry->set = true;
-
-        if (gp_cache->n_local_ranks <= 0 && rank_info->n_local_ranks >= 0)
-        {
-            gp_cache->n_local_ranks = rank_info->n_local_ranks;
-        }
-        gp_cache->n_local_ranks_populated++;
-        gp_cache->num_local_entries++;
-        DBG("group now has %ld entries, %ld local ranks, %ld being populated",
-            gp_cache->num_local_entries,
-            gp_cache->n_local_ranks,
-            gp_cache->n_local_ranks_populated);
-
-        // Unpack the mapping of all the ranks
-        int64_t rank = 0;
-        size_t ranks_attached_to_sp = 0;
-        int64_t *ptr = (int64_t*)((ptrdiff_t)data + sizeof(rank_info_t));
-        cur_size = sizeof(rank_info_t);
-        while (cur_size < data_len)
-        {
-            if (gp_cache->sp_ranks == 0)
-            {
-                DBG("Rank %" PRId64 " is rank %" PRId64 " on comm world\n", rank, *ptr);
-                if (rank_is_on_sp(*ptr, econtext->engine))
-                    ranks_attached_to_sp++;
-            }
-            rank++;
-            cur_size += sizeof(int64_t);
-            ptr = (int64_t*)((ptrdiff_t)ptr + sizeof(int64_t));
-        }
-
-        if (gp_cache->sp_ranks == 0)
-        {
-            gp_cache->sp_ranks = ranks_attached_to_sp;
-            DBG("%ld/%ld ranks of group %d-%d are expected on SP #%" PRIu64,
-                gp_cache->sp_ranks,
-                gp_cache->group_size,
-                rank_info->group_id.lead,
-                rank_info->group_id.id,
-                econtext->engine->config->local_service_proc.info.global_id);
-        }
-    }
-    
-    GROUP_CACHE_EXCHANGE(econtext->engine, rank_info->group_id, gp_cache->sp_ranks);
-
-    return DO_SUCCESS;
+    return do_add_group_rank_recv_cb(econtext, hdr->client_id, data, data_len);
 }
 
 static dpu_offload_status_t term_msg_cb(struct dpu_offload_ev_sys *ev_sys, execution_context_t *econtext, am_header_t *hdr, size_t hdr_size, void *data, size_t data_len)
@@ -1612,34 +1973,35 @@ static dpu_offload_status_t term_msg_cb(struct dpu_offload_ev_sys *ev_sys, execu
     assert(hdr);
 
     DBG("Recv'd a termination message from %" PRIu64, hdr->id);
-    switch(econtext->type) {
-        case CONTEXT_SERVER:
+    switch (econtext->type)
+    {
+    case CONTEXT_SERVER:
+    {
+        peer_info_t *client;
+        client = DYN_ARRAY_GET_ELT(&(econtext->server->connected_clients.clients), hdr->id, peer_info_t);
+        client->bootstrapping.phase = DISCONNECTED;
+        econtext->server->connected_clients.num_connected_clients--;
+        DBG("Remaining number of connected clients: %ld, ongoing connections: %ld",
+            econtext->server->connected_clients.num_connected_clients,
+            econtext->server->connected_clients.num_ongoing_connections);
+        if (econtext->server->connected_clients.num_connected_clients == 0 && econtext->server->connected_clients.num_ongoing_connections == 0)
         {
-            peer_info_t *client;
-            client = DYN_ARRAY_GET_ELT(&(econtext->server->connected_clients.clients), hdr->id, peer_info_t);
-            client->bootstrapping.phase = DISCONNECTED;
-            econtext->server->connected_clients.num_connected_clients--;
-            DBG("Remaining number of connected clients: %ld, ongoing connections: %ld",
-                econtext->server->connected_clients.num_connected_clients,
-                econtext->server->connected_clients.num_ongoing_connections);
-            if (econtext->server->connected_clients.num_connected_clients == 0 && econtext->server->connected_clients.num_ongoing_connections == 0)
-            {
-                DBG("server is now done");
-                econtext->server->done = true;
-            }
-            break;
+            DBG("server is now done");
+            econtext->server->done = true;
         }
-        case CONTEXT_CLIENT:
-        {
-            // The server sent us a termination message, we immediatly switch our state to done
-            econtext->client->done = true;
-            break;
-        }
-        default:
-        {
-            ERR_MSG("Recv'd a termination message on execution context of type %d", econtext->type);
-            return DO_ERROR;
-        }
+        break;
+    }
+    case CONTEXT_CLIENT:
+    {
+        // The server sent us a termination message, we immediatly switch our state to done
+        econtext->client->done = true;
+        break;
+    }
+    default:
+    {
+        ERR_MSG("Recv'd a termination message on execution context of type %d", econtext->type);
+        return DO_ERROR;
+    }
     }
     return DO_SUCCESS;
 }
@@ -1655,7 +2017,7 @@ dpu_offload_status_t register_default_notifications(dpu_offload_ev_sys_t *ev_sys
 
     int rc = event_channel_register(ev_sys, AM_TERM_MSG_ID, term_msg_cb, NULL);
     CHECK_ERR_GOTO(rc, error_out, "cannot register handler to the term notification");
-    
+
     rc = event_channel_register(ev_sys, AM_OP_START_MSG_ID, op_start_cb, NULL);
     CHECK_ERR_GOTO(rc, error_out, "cannot register handler to start operations");
 
@@ -1676,6 +2038,9 @@ dpu_offload_status_t register_default_notifications(dpu_offload_ev_sys_t *ev_sys
 
     rc = event_channel_register(ev_sys, AM_ADD_GP_RANK_MSG_ID, add_group_rank_recv_cb, NULL);
     CHECK_ERR_GOTO(rc, error_out, "cannot register handler for receiving requests to add a group/rank");
+
+    rc = event_channel_register(ev_sys, AM_REVOKE_GP_RANK_MSG_ID, revoke_group_rank_recv_cb, NULL);
+    CHECK_ERR_GOTO(rc, error_out, "cannot register handler for receiving requests to revoke a group/rank");
     SYS_EVENT_UNLOCK(ev_sys);
 
     return DO_SUCCESS;

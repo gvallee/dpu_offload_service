@@ -103,20 +103,6 @@ struct oob_msg
 
 extern dpu_offload_status_t get_env_config(conn_params_t *params);
 
-#if 0
-static void ep_create_err_cb(void *arg, ucp_ep_h ep, ucs_status_t status)
-{
-    execution_context_t *econtext = (execution_context_t *)arg;
-    if (econtext == NULL)
-        WARN_MSG("execution context is undefined");
-    ERR_MSG("error callback was invoked with status %d (%s) on ep %p\n",
-            status, ucs_status_string(status), ep);
-    ERR_MSG("econtext info - type: %d, scope_id: %d",
-            econtext->type, econtext->scope_id);
-    abort();
-}
-#endif
-
 static void oob_recv_addr_handler_2(void *request, ucs_status_t status, const ucp_tag_recv_info_t *tag_info, void *user_data)
 {
     DBG("Bootstrapping message received\n");
@@ -629,7 +615,7 @@ dpu_offload_status_t client_init_context(execution_context_t *econtext, init_par
     // If we have a group/rank in the init params, we pass it down
     if (init_params != NULL && init_params->proc_info != NULL)
     {
-        econtext->rank.group_id = init_params->proc_info->group_id;
+        econtext->rank.group_uid = init_params->proc_info->group_uid;
         econtext->rank.group_rank = init_params->proc_info->group_rank;
     }
 
@@ -724,8 +710,8 @@ static dpu_offload_status_t client_ucx_boostrap_step3(execution_context_t *econt
     ECONTEXT_LOCK(econtext);
     DBG("Sent addr to server");
     // We send our "rank", i.e., unique application ID
-    DBG("Sending my group/rank info (%d-%d/%" PRId64 "), len=%ld",
-        econtext->rank.group_id.lead, econtext->rank.group_id.id, econtext->rank.group_rank, sizeof(econtext->rank));
+    DBG("Sending my group/rank info (0x%x/%" PRId64 "), len=%ld",
+        econtext->rank.group_uid, econtext->rank.group_rank, sizeof(econtext->rank));
     ucp_request_param_t send_param = {0};
     send_param.op_attr_mask = UCP_OP_ATTR_FIELD_CALLBACK |
                               UCP_OP_ATTR_FIELD_DATATYPE |
@@ -1060,6 +1046,20 @@ dpu_offload_status_t offload_engine_init(offloading_engine_t **engine)
     d->settings.ucx_am_backend_enabled = false;
 #endif
 
+    if (d->settings.buddy_buffer_system_enabled)
+        SMART_BUFFS_INIT(&(d->smart_buffer_sys), NULL);
+    if (d->settings.ucx_am_backend_enabled)
+    {
+        DYN_LIST_ALLOC_WITH_INIT_CALLBACK(d->free_pending_rdv_recv,
+                                          32,
+                                          pending_am_rdv_recv_t,
+                                          item,
+                                          init_pending_am_rdv_recv_t);
+        ucs_list_head_init(&(d->pending_rdv_recvs));
+        d->client_lookup_table = kh_init(client_lookup_hash_t);                                             \
+    }
+
+
     dpu_offload_status_t rc = ev_channels_init(&(d->default_notifications));
     CHECK_ERR_GOTO((rc), error_out, "ev_channels_init() failed");
 
@@ -1079,11 +1079,6 @@ dpu_offload_status_t offload_engine_init(offloading_engine_t **engine)
         self_econtext->event_channels,
         self_econtext,
         self_econtext->scope_id);
-
-#if USE_AM_IMPLEM
-    DYN_LIST_ALLOC_WITH_INIT_CALLBACK(d->free_pending_rdv_recv, 32, pending_am_rdv_recv_t, item, init_pending_am_rdv_recv_t);
-    ucs_list_head_init(&(d->pending_rdv_recvs));
-#endif
 
     *engine = d;
     return DO_SUCCESS;
@@ -1298,7 +1293,7 @@ void local_rank_connect_default_callback(void *data)
     connected_peer_data_t *connected_peer;
     uint64_t peer_id;
     peer_info_t *client_info;
-    group_id_t group_id;
+    group_uid_t group_uid;
     group_cache_t *gc;
 
     assert(data);
@@ -1310,28 +1305,28 @@ void local_rank_connect_default_callback(void *data)
     DBG("Finalizing connection with rank on the host (client #%ld)", peer_id);
     client_info = DYN_ARRAY_GET_ELT(&(connected_peer->econtext->server->connected_clients.clients), peer_id, peer_info_t);
     assert(client_info);
-    group_id = client_info->rank_data.group_id;
+    group_uid = client_info->rank_data.group_uid;
 
-    if (group_id.id == INVALID_GROUP || group_id.lead == INVALID_GROUP_LEAD)
+    if (group_uid == INT_MAX)
     {
         DBG("No group associated to peer that is finalizing connection, not dealing with cache aspects");
         return;
     }
 
     assert(connected_peer->econtext->engine);
-    gc = GET_GROUP_CACHE(&(connected_peer->econtext->engine->procs_cache), &group_id);
+    gc = GET_GROUP_CACHE(&(connected_peer->econtext->engine->procs_cache), group_uid);
     assert(gc);
-    DBG("Checking group %d-%d (number of local entries: %ld, n_local_populated: %ld, n_local: %ld)",
-        group_id.lead, group_id.id, gc->n_local_ranks_populated, gc->n_local_ranks_populated, gc->n_local_ranks);
+    DBG("Checking group 0x%x (number of local entries: %ld, n_local_populated: %ld, n_local: %ld)",
+        group_uid, gc->n_local_ranks_populated, gc->n_local_ranks_populated, gc->n_local_ranks);
     assert(gc->n_local_ranks_populated <= gc->group_size);
 
     // If the cache is full, i.e., all the ranks of the group are on the host,
     // or if the entire cache is there, we make sure to send it to the local ranks if necessary
     if (gc->group_size == gc->num_local_entries)
     {
-        DBG("Cache for group %d-%d is now complete, sending it to the local ranks (scope_id: %d, num connected clients: %ld)",
-            group_id.lead, group_id.id, connected_peer->econtext->scope_id, connected_peer->econtext->server->connected_clients.num_connected_clients);
-        dpu_offload_status_t rc = send_gp_cache_to_host(connected_peer->econtext, group_id);
+        DBG("Cache for group 0x%x is now complete, sending it to the local ranks (scope_id: %d, num connected clients: %ld)",
+            group_uid, connected_peer->econtext->scope_id, connected_peer->econtext->server->connected_clients.num_connected_clients);
+        dpu_offload_status_t rc = send_gp_cache_to_host(connected_peer->econtext, group_uid);
         CHECK_ERR_GOTO((rc), error_out, "send_gp_cache_to_host() failed");
     }
 
@@ -1345,18 +1340,16 @@ error_out:
 static int add_cache_entry_for_new_client(peer_info_t *client_info, execution_context_t *ctx)
 {
 
-    if (client_info->rank_data.group_id.id != INVALID_GROUP &&
-        client_info->rank_data.group_id.lead != INVALID_GROUP_LEAD &&
+    if (client_info->rank_data.group_uid != INT_MAX &&
         client_info->rank_data.group_rank != INVALID_RANK)
     {
         // Update the pointer to track cache entries, i.e., groups/ranks, for the peer
-        DBG("Adding gp/rank %d-%d/%" PRId64 " to cache",
-            client_info->rank_data.group_id.lead,
-            client_info->rank_data.group_id.id,
+        DBG("Adding gp/rank 0x%x/%" PRId64 " to cache",
+            client_info->rank_data.group_uid,
             client_info->rank_data.group_rank);
         peer_cache_entry_t *cache_entry;
         cache_entry = GET_GROUP_RANK_CACHE_ENTRY(&(ctx->engine->procs_cache),
-                                                 &(client_info->rank_data.group_id),
+                                                 client_info->rank_data.group_uid,
                                                  client_info->rank_data.group_rank,
                                                  client_info->rank_data.group_size);
         assert(cache_entry);
@@ -1374,7 +1367,7 @@ static int add_cache_entry_for_new_client(peer_info_t *client_info, execution_co
         assert(cache_entry->ep == NULL);
         cache_entry->set = true;
 
-        group_cache_t *gp_cache = GET_GROUP_CACHE(&(ctx->engine->procs_cache), &(client_info->rank_data.group_id));
+        group_cache_t *gp_cache = GET_GROUP_CACHE(&(ctx->engine->procs_cache), client_info->rank_data.group_uid);
         if (cache_entry == NULL)
         {
             ERR_MSG("undefined cache entry");
@@ -1382,9 +1375,8 @@ static int add_cache_entry_for_new_client(peer_info_t *client_info, execution_co
         }
         if (gp_cache->n_local_ranks <= 0 && client_info->rank_data.n_local_ranks >= 0)
         {
-            DBG("Setting the number of local ranks for the group %d-%d (%" PRId64 ")",
-                client_info->rank_data.group_id.lead,
-                client_info->rank_data.group_id.id,
+            DBG("Setting the number of local ranks for the group 0x%x (%" PRId64 ")",
+                client_info->rank_data.group_uid,
                 client_info->rank_data.n_local_ranks);
             gp_cache->n_local_ranks = client_info->rank_data.n_local_ranks;
         }
@@ -1482,14 +1474,13 @@ static void progress_server_econtext(execution_context_t *ctx)
                     // and fully complete the local initialization for the client.
                     ECONTEXT_LOCK(ctx);
                     client_info->bootstrapping.phase = UCX_CONNECT_DONE;
-                    DBG("group/rank received: (%d-%d/%" PRId64 "); group_size: %ld, local ranks: %ld",
-                        client_info->rank_data.group_id.lead,
-                        client_info->rank_data.group_id.id,
+                    INFO_MSG("group/rank received: (0x%x/%" PRId64 "); group_size: %ld, local ranks: %ld",
+                        client_info->rank_data.group_uid,
                         client_info->rank_data.group_rank,
                         client_info->rank_data.group_size,
                         client_info->rank_data.n_local_ranks);
 
-                    // add_cache_entry_for_new_client chechks if the data actually needs to be put in the cache
+                    // add_cache_entry_for_new_client checks if the data actually needs to be put in the cache
                     rc = add_cache_entry_for_new_client(client_info, ctx);
                     if (rc == DO_ERROR)
                     {
@@ -1535,12 +1526,11 @@ static void progress_server_econtext(execution_context_t *ctx)
                     // Do not check for errors, it may fail at this point (if all service processes are not connected) and it is okay
                     if (ECONTEXT_ON_DPU(ctx) &&
                         ctx->scope_id == SCOPE_HOST_DPU &&
-                        client_info->rank_data.group_id.id != INVALID_GROUP &&
-                        client_info->rank_data.group_id.lead != INVALID_GROUP_LEAD &&
+                        client_info->rank_data.group_uid != INT_MAX &&
                         client_info->rank_data.group_rank != INVALID_RANK)
                     {
                         GROUP_CACHE_EXCHANGE(ctx->engine,
-                                             client_info->rank_data.group_id,
+                                             client_info->rank_data.group_uid,
                                              client_info->rank_data.n_local_ranks);
                     }
 
@@ -1865,16 +1855,17 @@ execution_context_t *client_init(offloading_engine_t *offload_engine, init_param
             COPY_RANK_INFO(init_params->proc_info, &(ctx->rank));
 
             // In the context of inter-SP connections and situations without groups,
-            // the group ID is set to INVALID_GROUP and we should not try to update
+            // the group UID is set to INT_MAX and we should not try to update
             // the cache.
-            if (ctx->rank.group_id.id != INVALID_GROUP && ctx->rank.group_id.lead != INVALID_GROUP_LEAD)
+            if (ctx->rank.group_uid != INT_MAX)
             {
                 /* Update the local cache for consistency */
-                group_cache_t *gp_cache = GET_GROUP_CACHE(&(offload_engine->procs_cache), &(ctx->rank.group_id));
+                group_cache_t *gp_cache = GET_GROUP_CACHE(&(offload_engine->procs_cache), ctx->rank.group_uid);
                 if (gp_cache->group_size <= 0)
                 {
                     gp_cache->group_size = init_params->proc_info->group_size;
                     gp_cache->n_local_ranks = init_params->proc_info->n_local_ranks;
+                    gp_cache->group_uid = init_params->proc_info->group_uid;
                 }
             }
         }
@@ -1921,21 +1912,20 @@ execution_context_t *client_init(offloading_engine_t *offload_engine, init_param
     CHECK_ERR_GOTO((rc), error_out, "register_default_notfications() failed");
 
     // We add ourselves to the local EP cache as shadow service process
-    if (ctx->rank.group_id.id != INVALID_GROUP &&
-        ctx->rank.group_id.lead != INVALID_GROUP_LEAD &&
+    if (ctx->rank.group_uid != INT_MAX &&
         ctx->rank.group_rank != INVALID_RANK &&
-        !is_in_cache(&(offload_engine->procs_cache), ctx->rank.group_id, ctx->rank.group_rank, ctx->rank.group_size))
+        !is_in_cache(&(offload_engine->procs_cache), ctx->rank.group_uid, ctx->rank.group_rank, ctx->rank.group_size))
     {
         peer_cache_entry_t *cache_entry = GET_GROUP_RANK_CACHE_ENTRY(&(offload_engine->procs_cache),
-                                                                     &(ctx->rank.group_id),
+                                                                     ctx->rank.group_uid,
                                                                      ctx->rank.group_rank,
                                                                      ctx->rank.group_size);
-        group_cache_t *gp_cache = GET_GROUP_CACHE(&(offload_engine->procs_cache), &(ctx->rank.group_id));
+        group_cache_t *gp_cache = GET_GROUP_CACHE(&(offload_engine->procs_cache), ctx->rank.group_uid);
         assert(cache_entry);
         assert(gp_cache);
         assert(ctx->engine->config != NULL);
         cache_entry->shadow_service_procs[cache_entry->num_shadow_service_procs] = ctx->engine->config->local_service_proc.info.global_id;
-        cache_entry->peer.proc_info.group_id = ctx->rank.group_id;
+        cache_entry->peer.proc_info.group_uid = ctx->rank.group_uid;
         cache_entry->peer.proc_info.group_rank = ctx->rank.group_rank;
         cache_entry->peer.proc_info.group_size = ctx->rank.group_size;
         cache_entry->peer.proc_info.n_local_ranks = ctx->rank.n_local_ranks;
@@ -1965,36 +1955,12 @@ void offload_engine_fini(offloading_engine_t **offload_engine)
     DYN_LIST_FREE((*offload_engine)->free_cache_entry_requests, cache_entry_request_t, item);
     DYN_LIST_FREE((*offload_engine)->pool_conn_params, conn_params_t, item);
     DYN_LIST_FREE((*offload_engine)->pool_remote_dpu_info, remote_dpu_info_t, item);
+    DYN_LIST_FREE((*offload_engine)->pool_group_revoke_msgs, group_revoke_msg_obj_t, item);
+    DYN_LIST_FREE((*offload_engine)->pool_pending_recv_group_add, pending_group_add_t, item);
+    DYN_LIST_FREE((*offload_engine)->pool_pending_send_group_add, pending_send_group_add_t, item);
     DYN_ARRAY_FREE(&((*offload_engine)->dpus));
     DYN_ARRAY_FREE(&((*offload_engine)->service_procs));
-#if USE_AM_IMPLEM
-    for (i = 0; i < (*offload_engine)->free_pending_rdv_recv->num_elts; i++)
-    {
-        pending_am_rdv_recv_t *elt;
-        DYN_LIST_GET((*offload_engine)->free_pending_rdv_recv, pending_am_rdv_recv_t, item, elt);
-        if (elt == NULL)
-            continue;
-        if (elt->buff_size > 0)
-        {
-            if (elt->user_data != NULL)
-            {
-                if (elt->pool.mem_pool != NULL && elt->pool.return_buf != NULL)
-                {
-                    elt->pool.return_buf(elt->pool.mem_pool, elt->user_data);
-                    RESET_NOTIF_INFO(&(elt->pool));
-                }
-                else
-                {
-                    if (elt->user_data != NULL)
-                        free(elt->user_data);
-                }
-                elt->user_data = NULL;
-            }
-            elt->buff_size = 0;
-        }
-    }
-    DYN_LIST_FREE((*offload_engine)->free_pending_rdv_recv, pending_am_rdv_recv_t, item);
-#endif
+
     assert((*offload_engine)->self_econtext);
 #if !USE_AM_IMPLEM && BUDDY_BUFFER_SYS_ENABLE
     // Before finalizing the self execution context, clean up the pending recvs for notifications
@@ -2077,9 +2043,48 @@ void offload_engine_fini(offloading_engine_t **offload_engine)
         (*offload_engine)->ucp_context = NULL;
     }
 
-#if BUDDY_BUFFER_SYS_ENABLE
-    SMART_BUFFS_FINI(&((*offload_engine)->smart_buffer_sys));
-#endif
+    if ((*offload_engine)->settings.buddy_buffer_system_enabled)
+    {
+        SMART_BUFFS_FINI(&((*offload_engine)->smart_buffer_sys));
+    }
+
+    if ((*offload_engine)->settings.ucx_am_backend_enabled)
+    {
+        uint64_t key;
+        execution_context_t *value;
+        kh_foreach((*offload_engine)->client_lookup_table, 
+                   key,
+                   value,
+                   { /* nothing special to do*/ })
+            kh_destroy(client_lookup_hash_t, (*offload_engine)->client_lookup_table);
+
+        for (i = 0; i < (*offload_engine)->free_pending_rdv_recv->num_elts; i++)
+        {
+            pending_am_rdv_recv_t *elt;
+            DYN_LIST_GET((*offload_engine)->free_pending_rdv_recv, pending_am_rdv_recv_t, item, elt);
+            if (elt == NULL)
+                continue;
+            if (elt->buff_size > 0)
+            {
+                if (elt->user_data != NULL)
+                {
+                    if (elt->pool.mem_pool != NULL && elt->pool.return_buf != NULL)
+                    {
+                        elt->pool.return_buf(elt->pool.mem_pool, elt->user_data);
+                        RESET_NOTIF_INFO(&(elt->pool));
+                    }
+                    else
+                    {
+                        if (elt->user_data != NULL)
+                            free(elt->user_data);
+                    }
+                    elt->user_data = NULL;
+                }
+                elt->buff_size = 0;
+            }
+        }
+        DYN_LIST_FREE((*offload_engine)->free_pending_rdv_recv, pending_am_rdv_recv_t, item);
+    }
 
     if ((*offload_engine)->servers)
     {
@@ -2130,6 +2135,8 @@ void client_fini(execution_context_t **exec_ctx)
         // We explicitly manage the event so we need to progress it here
         context->progress(context);
     }
+
+    // Some memory is freed in the term_notification_completed callback
 
     // The event system is finalized when we finalize the execution context object.
     // The worker is freed when the engine is finalized.
