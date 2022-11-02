@@ -1759,13 +1759,13 @@ static dpu_offload_status_t handle_revoke_group_rank_through_num_ranks(execution
 
         if (!gp_cache->initialized ||
             gp_cache->n_local_ranks == 0 ||
-            gp_cache->n_local_ranks != gp_cache->local_revoked)
+            gp_cache->sp_ranks != gp_cache->local_revoked)
         {
             group_revoke_msg_obj_t *pending_msg = NULL;
 
             // Make the message persistent
-            DBG("Queuing revoke msg from another SP (n_local_ranks: %ld, local_revoked: %ld, group ID: 0x%x)",
-                gp_cache->n_local_ranks, gp_cache->local_revoked, revoke_msg->num_ranks.gp_uid);
+            DBG("Queuing revoke msg from another SP (n_local_ranks: %ld, local_revoked: %ld, group ID: 0x%x, ranks for SP: %ld)",
+                gp_cache->n_local_ranks, gp_cache->local_revoked, revoke_msg->num_ranks.gp_uid, gp_cache->sp_ranks);
             DYN_LIST_GET(econtext->engine->pool_group_revoke_msgs,
                          group_revoke_msg_obj_t,
                          item,
@@ -1851,7 +1851,7 @@ static dpu_offload_status_t handle_revoke_group_rank_through_rank_info(execution
     {
         // Group cache is not fully populated yet, queuing the revoke request
         group_revoke_msg_obj_t *desc = NULL;
-        INFO_MSG("Cache not fully populated, queuing revoke request");
+        DBG("Cache not fully populated, queuing revoke request");
         DYN_LIST_GET(econtext->engine->pool_group_revoke_msgs, group_revoke_msg_obj_t, item, desc);
         assert(desc);
         desc->msg.type = GROUP_REVOKE_THROUGH_RANK_INFO;
