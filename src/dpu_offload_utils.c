@@ -535,6 +535,16 @@ static dpu_offload_status_t send_local_revoke_rank_group_cache(execution_context
     return DO_SUCCESS;
 }
 
+/**
+ * @brief send_local_rank_group_cache sends the cache entries of the local ranks that are assigned to the service process.
+ *
+ * @param econtext Associated execution context (service process)
+ * @param dest_ep Remote service process endpoint
+ * @param dest_id Remote service process ID
+ * @param gp_uid Group UID associated to the operation
+ * @param metaev Meta event to track all the different sends involve in the broadcast invoking the call to this function
+ * @return dpu_offload_status_t
+ */
 static dpu_offload_status_t send_local_rank_group_cache(execution_context_t *econtext, ucp_ep_h dest_ep, uint64_t dest_id, group_uid_t gp_uid, dpu_offload_event_t *metaev)
 {
     size_t count, idx;
@@ -568,8 +578,12 @@ static dpu_offload_status_t send_local_rank_group_cache(execution_context_t *eco
         rc = event_get(econtext->event_channels, NULL, &e);
         CHECK_ERR_RETURN((rc), DO_ERROR, "event_get() failed");
         e->is_subevent = true;
-        DBG("Sending %ld cache entries to %ld from entry %ld, ev: %p (%ld), metaev: %ld (msg size: %ld)\n",
-            n_entries_to_send, dest_id, idx_start, e, e->seq_num, metaev->seq_num, n_entries_to_send * sizeof(peer_cache_entry_t));
+
+#if !NDEBUG
+        uint64_t sp_global_id = LOCAL_ID_TO_GLOBAL(econtext, dest_id);
+        DBG("Sending %ld cache entries to %ld (SP %" PRIu64 ") from entry %ld, ev: %p (%ld), metaev: %ld (msg size: %ld)\n",
+            n_entries_to_send, dest_id, sp_global_id, idx_start, e, e->seq_num, metaev->seq_num, n_entries_to_send * sizeof(peer_cache_entry_t));
+#endif
         rc = event_channel_emit_with_payload(&e, AM_PEER_CACHE_ENTRIES_MSG_ID, dest_ep, dest_id, NULL, first_entry, n_entries_to_send * sizeof(peer_cache_entry_t));
         if (rc != EVENT_DONE && rc != EVENT_INPROGRESS)
         {
