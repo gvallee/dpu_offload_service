@@ -1795,6 +1795,7 @@ typedef struct cache
         if (_gp_cache->initialized == false)                                           \
         {                                                                              \
             /* Cache for the group is empty, lazy initialization */                    \
+            RESET_GROUP_CACHE(_gp_cache);                                              \
             _gp_cache->initialized = true;                                             \
             if (_gp_size >= 0)                                                         \
                 _gp_cache->group_size = _gp_size;                                      \
@@ -1990,6 +1991,36 @@ typedef struct pending_send_group_add
         (_p)->dest_ep = NULL;            \
     } while (0)
 
+typedef struct pending_recv_cache_entry
+{
+    // So it can be put on a list
+    ucs_list_link_t item;
+
+    // Unique ID for the associated group
+    group_uid_t gp_uid;
+
+    // Associated execution context
+    execution_context_t *econtext;
+
+    // Service process global ID from which we received the entries
+    uint64_t sp_gid;
+
+    // Received payload, i.e., cache entries
+    void *payload;
+
+    // Size of the received payload
+    size_t payload_size;
+} pending_recv_cache_entry_t;
+
+#define RESET_PENDING_RECV_CACHE_ENTRY(_p) \
+    do                                     \
+    {                                      \
+        (_p)->econtext = NULL;             \
+        (_p)->sp_gid = UINT64_MAX;         \
+        (_p)->payload = NULL;              \
+        (_p)->payload_size = 0;            \
+    } while (0)
+
 typedef struct offloading_engine
 {
 #if OFFLOADING_MT_ENABLE
@@ -2066,6 +2097,9 @@ typedef struct offloading_engine
     // Pool of pending_send_group_add_t objects that are available to track group add messages that cannot be sent right away because the group is being revoked
     dyn_list_t *pool_pending_send_group_add;
 
+    // Pool of pool_pending_recv_cache_entries objects that are available to track received cache entries that cannot be handled right away because the group is not fully revoked yet
+    dyn_list_t *pool_pending_recv_cache_entries;
+
     // List of pending group revoke notifications (type: group_revoke_msg_t)
     ucs_list_link_t pending_group_revoke_msgs;
 
@@ -2074,6 +2108,10 @@ typedef struct offloading_engine
 
     // List of pending send group add notification (type: pending_send_group_add_t)
     ucs_list_link_t pending_send_group_add_msgs;
+
+    // pending_recv_cache_entries is the list of pending cache entries that needs
+    // to be processed once the associated group has been fully revoked (type: pending_recv_cache_entry_t).
+    ucs_list_link_t pending_recv_cache_entries;
 
     // Flag to specify if we are on the DPU or not
     bool on_dpu;
@@ -2211,9 +2249,17 @@ typedef struct offloading_engine
             _core_ret = -1;                                                                                                  \
             break;                                                                                                           \
         }                                                                                                                    \
+        DYN_LIST_ALLOC((_core_engine)->pool_pending_recv_cache_entries, 32, pending_recv_cache_entry_t, item);               \
+        if ((_core_engine)->pool_pending_recv_cache_entries == NULL)                                                         \
+        {                                                                                                                    \
+            fprintf(stderr, "unable to allocate pool of objects for pending recv's of cache entries\n");                     \
+            _core_ret = -1;                                                                                                  \
+            break;                                                                                                           \
+        }                                                                                                                    \
         ucs_list_head_init(&((_core_engine)->pending_group_revoke_msgs));                                                    \
         ucs_list_head_init(&((_core_engine)->pending_group_add_msgs));                                                       \
         ucs_list_head_init(&((_core_engine)->pending_send_group_add_msgs));                                                  \
+        ucs_list_head_init(&((_core_engine)->pending_recv_cache_entries));                                                   \
         (_core_engine)->on_dpu = false;                                                                                      \
         /* Note that engine->dpus is a vector of remote_dpu_info_t pointers. */                                              \
         /* The actual object are from pool_remote_dpu_info */                                                                \
