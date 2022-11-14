@@ -1684,8 +1684,6 @@ typedef struct group_cache
     dest_client_t _c;                                                          \
     _c.ep = NULL;                                                              \
     _c.id = UINT64_MAX;                                                        \
-    size_t _idx = 0;                                                           \
-    size_t _n = 0;                                                             \
     if ((_exec_ctx)->type == CONTEXT_SERVER)                                   \
     {                                                                          \
         peer_cache_entry_t *__entry;                                           \
