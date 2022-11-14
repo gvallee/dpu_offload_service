@@ -251,7 +251,7 @@ typedef struct dyn_list
         if (_new_chunk_buf != NULL)                                                                                              \
         {                                                                                                                        \
             size_t _gdl_idx;                                                                                                     \
-            void *_ptr;                                                                                                          \
+            void *_ptr = NULL;                                                                                                          \
             mem_chunk_t *_chunk_ptr = DYN_ARRAY_GET_ELT(&((__dyn_list)->mem_chunks), (__dyn_list)->num_mem_chunks, mem_chunk_t); \
             assert(_chunk_ptr);                                                                                                  \
             _chunk_ptr->ptr = _new_chunk_buf;                                                                                    \
