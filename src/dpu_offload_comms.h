@@ -127,9 +127,9 @@
             /* populated. */                                                                                    \
             uint64_t n_connecting_ranks;                                                                        \
             get_num_connecting_ranks((_engine)->config->num_service_procs_per_dpu,                              \
-                                 (_n_local_ranks),                                                              \
-                                 (_engine)->config->local_service_proc.info.local_id,                           \
-                                 &n_connecting_ranks);                                                          \
+                                     (_n_local_ranks),                                                          \
+                                     (_engine)->config->local_service_proc.info.local_id,                       \
+                                     &n_connecting_ranks);                                                      \
             if (__gp_cache->n_local_ranks > 0 && __gp_cache->n_local_ranks_populated == n_connecting_ranks)     \
             {                                                                                                   \
                 DBG("We now have a connection with all local ranks, we can broadcast the group cache at once"); \
@@ -154,7 +154,7 @@
             DBG("We do not know how many ranks to locally expect for the group, broadcast by default");         \
             broadcast_group_cache((_engine), (_gp_uid));                                                        \
         }                                                                                                       \
-     } while (0)
+    } while (0)
 
 #if USE_AM_IMPLEM
 static bool event_posted(dpu_offload_event_t *ev)
@@ -432,17 +432,20 @@ static void notif_payload_recv_handler(void *request, ucs_status_t status, const
         }
         else
         {
-#if BUDDY_BUFFER_SYS_ENABLE
-            // Return the buffer to the smart buffer system
-            assert(ctx->payload_ctx.smart_buf);
-            SMART_BUFF_RETURN(&(ctx->econtext->engine->smart_buffer_sys),
-                              ctx->hdr.payload_size,
-                              ctx->payload_ctx.smart_buf);
-            ctx->payload_ctx.smart_buf = NULL;
-#else
-            free(ctx->payload_ctx.buffer);
-            ctx->payload_ctx.buffer = NULL;
-#endif
+            if (ctx->econtext->engine.setting.buddy_buffer_system_enabled)
+            {
+                // Return the buffer to the smart buffer system
+                assert(ctx->payload_ctx.smart_buf);
+                SMART_BUFF_RETURN(&(ctx->econtext->engine->smart_buffer_sys),
+                                  ctx->hdr.payload_size,
+                                  ctx->payload_ctx.smart_buf);
+                ctx->payload_ctx.smart_buf = NULL;
+            }
+            else
+            {
+                free(ctx->payload_ctx.buffer);
+                ctx->payload_ctx.buffer = NULL;
+            }
         }
         ctx->payload_ctx.buffer = NULL;
     }
@@ -500,13 +503,16 @@ static int post_recv_for_notif_payload(hdr_notif_req_t *ctx, execution_context_t
         {
             // Get a buffer from the smart buffer system to avoid allocating memory
             assert(ctx->payload_ctx.smart_buf == NULL);
-#if BUDDY_BUFFER_SYS_ENABLE
-            ctx->payload_ctx.smart_buf = SMART_BUFF_GET(&(econtext->engine->smart_buffer_sys), ctx->hdr.payload_size);
-            assert(ctx->payload_ctx.smart_buf);
-            ctx->payload_ctx.buffer = ctx->payload_ctx.smart_buf->base;
-#else
-            ctx->payload_ctx.buffer = malloc(ctx->hdr.payload_size);
-#endif
+            if (econtext->engine.setting.buddy_buffer_system_enabled)
+            {
+                ctx->payload_ctx.smart_buf = SMART_BUFF_GET(&(econtext->engine->smart_buffer_sys), ctx->hdr.payload_size);
+                assert(ctx->payload_ctx.smart_buf);
+                ctx->payload_ctx.buffer = ctx->payload_ctx.smart_buf->base;
+            }
+            else
+            {
+                ctx->payload_ctx.buffer = malloc(ctx->hdr.payload_size);
+            }
         }
         assert(ctx->payload_ctx.buffer);
         worker = GET_WORKER(econtext);
@@ -545,18 +551,21 @@ static int post_recv_for_notif_payload(hdr_notif_req_t *ctx, execution_context_t
             {
                 if (ctx->payload_ctx.pool.mem_pool == NULL)
                 {
-#if BUDDY_BUFFER_SYS_ENABLE
-                    // Return the smart chunk to the smart buffer system.
-                    assert(ctx->payload_ctx.smart_buf);
-                    SMART_BUFF_RETURN(&(econtext->engine->smart_buffer_sys),
-                                      ctx->hdr.payload_size,
-                                      ctx->payload_ctx.smart_buf);
-                    ctx->payload_ctx.smart_buf = NULL;
-                    assert(ctx->payload_ctx.smart_buf == NULL);
-#else
-                    free(ctx->payload_ctx.buffer);
-                    ctx->payload_ctx.buffer = NULL;
-#endif
+                    if (ctx->econtext->engine.setting.buddy_buffer_system_enabled)
+                    {
+                        // Return the smart chunk to the smart buffer system.
+                        assert(ctx->payload_ctx.smart_buf);
+                        SMART_BUFF_RETURN(&(econtext->engine->smart_buffer_sys),
+                                          ctx->hdr.payload_size,
+                                          ctx->payload_ctx.smart_buf);
+                        ctx->payload_ctx.smart_buf = NULL;
+                        assert(ctx->payload_ctx.smart_buf == NULL);
+                    }
+                    else
+                    {
+                        free(ctx->payload_ctx.buffer);
+                        ctx->payload_ctx.buffer = NULL;
+                    }
                 }
                 if (ctx->payload_ctx.pool.mem_pool != NULL)
                 {

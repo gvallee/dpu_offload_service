@@ -1038,13 +1038,13 @@ dpu_offload_status_t offload_engine_init(offloading_engine_t **engine)
     d->settings.buddy_buffer_system_enabled = true;
 #else
     d->settings.buddy_buffer_system_enabled = false;
-#endif
+#endif // BUDDY_BUFFER_SYS_ENABLE
 
 #if USE_AM_IMPLEM
     d->settings.ucx_am_backend_enabled = true;
 #else
     d->settings.ucx_am_backend_enabled = false;
-#endif
+#endif // USE_AM_IMPLEM
 
     if (d->settings.buddy_buffer_system_enabled)
         SMART_BUFFS_INIT(&(d->smart_buffer_sys), NULL);
@@ -1056,9 +1056,8 @@ dpu_offload_status_t offload_engine_init(offloading_engine_t **engine)
                                           item,
                                           init_pending_am_rdv_recv_t);
         ucs_list_head_init(&(d->pending_rdv_recvs));
-        d->client_lookup_table = kh_init(client_lookup_hash_t);                                             \
+        d->client_lookup_table = kh_init(client_lookup_hash_t);
     }
-
 
     dpu_offload_status_t rc = ev_channels_init(&(d->default_notifications));
     CHECK_ERR_GOTO((rc), error_out, "ev_channels_init() failed");
@@ -1694,47 +1693,43 @@ static void term_notification_completed(execution_context_t *econtext)
     case CONTEXT_CLIENT:
     {
         // Free resources to receive notifications
-#if !USE_AM_IMPLEM && BUDDY_BUFFER_SYS_ENABLE
-        if (econtext->event_channels->notif_recv.ctx.req != NULL)
+#if !USE_AM_IMPLEM
+        if (!econtext->engine->settings.ucx_am_backend_enabled)
         {
-            ucp_request_cancel(GET_WORKER(econtext), econtext->event_channels->notif_recv.ctx.req);
-            ucp_request_release(econtext->event_channels->notif_recv.ctx.req);
-            econtext->event_channels->notif_recv.ctx.req = NULL;
+            /* WE ARE NOT USING THE AM BACKEND */
+            if (econtext->event_channels->notif_recv.ctx.req != NULL)
+            {
+                ucp_request_cancel(GET_WORKER(econtext), econtext->event_channels->notif_recv.ctx.req);
+                ucp_request_release(econtext->event_channels->notif_recv.ctx.req);
+                econtext->event_channels->notif_recv.ctx.req = NULL;
+            }
+            if (econtext->event_channels->notif_recv.ctx.payload_ctx.req != NULL)
+            {
+                ucp_request_cancel(GET_WORKER(econtext), econtext->event_channels->notif_recv.ctx.payload_ctx.req);
+                ucp_request_release(econtext->event_channels->notif_recv.ctx.payload_ctx.req);
+                econtext->event_channels->notif_recv.ctx.payload_ctx.req = NULL;
+            }
+            if (econtext->engine->settings.buddy_buffer_system_enabled)
+            {
+                if (econtext->event_channels->notif_recv.ctx.payload_ctx.smart_buf != NULL)
+                {
+                    SMART_BUFF_RETURN(&(econtext->engine->smart_buffer_sys),
+                                      econtext->event_channels->notif_recv.ctx.hdr.payload_size,
+                                      econtext->event_channels->notif_recv.ctx.payload_ctx.smart_buf);
+                    econtext->event_channels->notif_recv.ctx.payload_ctx.smart_buf = NULL;
+                }
+            }
+            else
+            {
+                if (econtext->event_channels->notif_recv.ctx.payload_ctx.buffer != NULL)
+                {
+                    free(econtext->event_channels->notif_recv.ctx.payload_ctx.buffer);
+                    econtext->event_channels->notif_recv.ctx.payload_ctx.buffer = NULL;
+                }
+            }
         }
-        if (econtext->event_channels->notif_recv.ctx.payload_ctx.req != NULL)
-        {
-            ucp_request_cancel(GET_WORKER(econtext), econtext->event_channels->notif_recv.ctx.payload_ctx.req);
-            ucp_request_release(econtext->event_channels->notif_recv.ctx.payload_ctx.req);
-            econtext->event_channels->notif_recv.ctx.payload_ctx.req = NULL;
-        }
-        if (econtext->event_channels->notif_recv.ctx.payload_ctx.smart_buf != NULL)
-        {
-            SMART_BUFF_RETURN(&(econtext->engine->smart_buffer_sys),
-                              econtext->event_channels->notif_recv.ctx.hdr.payload_size,
-                              econtext->event_channels->notif_recv.ctx.payload_ctx.smart_buf);
-            econtext->event_channels->notif_recv.ctx.payload_ctx.smart_buf = NULL;
-        }
-#endif
+#endif // !USE_AM_IMPLEM
 
-#if !USE_AM_IMPLEM && !BUDDY_BUFFER_SYS_ENABLE
-        if (econtext->event_channels->notif_recv.ctx.req != NULL)
-        {
-            ucp_request_cancel(GET_WORKER(econtext), econtext->event_channels->notif_recv.ctx.req);
-            ucp_request_release(econtext->event_channels->notif_recv.ctx.req);
-            econtext->event_channels->notif_recv.ctx.req = NULL;
-        }
-        if (econtext->event_channels->notif_recv.ctx.payload_ctx.req != NULL)
-        {
-            ucp_request_cancel(GET_WORKER(econtext), econtext->event_channels->notif_recv.ctx.payload_ctx.req);
-            ucp_request_release(econtext->event_channels->notif_recv.ctx.payload_ctx.req);
-            econtext->event_channels->notif_recv.ctx.payload_ctx.req = NULL;
-        }
-        if (econtext->event_channels->notif_recv.ctx.payload_ctx.smart_buf != NULL)
-        {
-            free(econtext->event_channels->notif_recv.ctx.payload_ctx.buffer);
-            econtext->event_channels->notif_recv.ctx.payload_ctx.buffer = NULL;
-        }
-#endif
         econtext->client->done = true;
         break;
     }
@@ -1963,53 +1958,45 @@ void offload_engine_fini(offloading_engine_t **offload_engine)
     DYN_ARRAY_FREE(&((*offload_engine)->service_procs));
 
     assert((*offload_engine)->self_econtext);
-#if !USE_AM_IMPLEM && BUDDY_BUFFER_SYS_ENABLE
-    // Before finalizing the self execution context, clean up the pending recvs for notifications
-    if ((*offload_engine)->self_econtext->event_channels->notif_recv.ctx.req != NULL)
+#if !USE_AM_IMPLEM
+    if (!(*offloading_engine)->settings.ucx_am_backend_enabled)
     {
-        ucp_request_cancel(GET_WORKER((*offload_engine)->self_econtext),
-                           (*offload_engine)->self_econtext->event_channels->notif_recv.ctx.req);
-        ucp_request_release((*offload_engine)->self_econtext->event_channels->notif_recv.ctx.req);
-        (*offload_engine)->self_econtext->event_channels->notif_recv.ctx.req = NULL;
+        // Before finalizing the self execution context, clean up the pending recvs for notifications
+        if ((*offload_engine)->self_econtext->event_channels->notif_recv.ctx.req != NULL)
+        {
+            ucp_request_cancel(GET_WORKER((*offload_engine)->self_econtext),
+                               (*offload_engine)->self_econtext->event_channels->notif_recv.ctx.req);
+            ucp_request_release((*offload_engine)->self_econtext->event_channels->notif_recv.ctx.req);
+            (*offload_engine)->self_econtext->event_channels->notif_recv.ctx.req = NULL;
+        }
+        if ((*offload_engine)->self_econtext->event_channels->notif_recv.ctx.payload_ctx.req != NULL)
+        {
+            ucp_request_cancel(GET_WORKER((*offload_engine)->self_econtext),
+                               (*offload_engine)->self_econtext->event_channels->notif_recv.ctx.payload_ctx.req);
+            ucp_request_release((*offload_engine)->self_econtext->event_channels->notif_recv.ctx.payload_ctx.req);
+            (*offload_engine)->self_econtext->event_channels->notif_recv.ctx.payload_ctx.req = NULL;
+        }
+        if ((*offload_engine)->settings.buddy_buffer_system_enabled)
+        {
+            if ((*offload_engine)->self_econtext->event_channels->notif_recv.ctx.payload_ctx.smart_buf != NULL)
+            {
+                SMART_BUFF_RETURN(&((*offload_engine)->self_econtext->engine->smart_buffer_sys),
+                                  (*offload_engine)->self_econtext->event_channels->notif_recv.ctx.hdr.payload_size,
+                                  (*offload_engine)->self_econtext->event_channels->notif_recv.ctx.payload_ctx.smart_buf);
+                (*offload_engine)->self_econtext->event_channels->notif_recv.ctx.payload_ctx.smart_buf = NULL;
+            }
+        }
+        else
+        {
+            if ((*offload_engine)->self_econtext->event_channels->notif_recv.ctx.payload_ctx.buffer != NULL)
+            {
+                free((*offload_engine)->self_econtext->event_channels->notif_recv.ctx.payload_ctx.buffer);
+                (*offload_engine)->self_econtext->event_channels->notif_recv.ctx.payload_ctx.buffer = NULL;
+            }
+        }
     }
-    if ((*offload_engine)->self_econtext->event_channels->notif_recv.ctx.payload_ctx.req != NULL)
-    {
-        ucp_request_cancel(GET_WORKER((*offload_engine)->self_econtext),
-                           (*offload_engine)->self_econtext->event_channels->notif_recv.ctx.payload_ctx.req);
-        ucp_request_release((*offload_engine)->self_econtext->event_channels->notif_recv.ctx.payload_ctx.req);
-        (*offload_engine)->self_econtext->event_channels->notif_recv.ctx.payload_ctx.req = NULL;
-    }
-    if ((*offload_engine)->self_econtext->event_channels->notif_recv.ctx.payload_ctx.smart_buf != NULL)
-    {
-        SMART_BUFF_RETURN(&((*offload_engine)->self_econtext->engine->smart_buffer_sys),
-                          (*offload_engine)->self_econtext->event_channels->notif_recv.ctx.hdr.payload_size,
-                          (*offload_engine)->self_econtext->event_channels->notif_recv.ctx.payload_ctx.smart_buf);
-        (*offload_engine)->self_econtext->event_channels->notif_recv.ctx.payload_ctx.smart_buf = NULL;
-    }
-#endif
+#endif // !USE_AM_IMPLEM
 
-#if !USE_AM_IMPLEM && !BUDDY_BUFFER_SYS_ENABLE
-    // Before finalizing the self execution context, clean up the pending recvs for notifications
-    if ((*offload_engine)->self_econtext->event_channels->notif_recv.ctx.req != NULL)
-    {
-        ucp_request_cancel(GET_WORKER((*offload_engine)->self_econtext),
-                           (*offload_engine)->self_econtext->event_channels->notif_recv.ctx.req);
-        ucp_request_release((*offload_engine)->self_econtext->event_channels->notif_recv.ctx.req);
-        (*offload_engine)->self_econtext->event_channels->notif_recv.ctx.req = NULL;
-    }
-    if ((*offload_engine)->self_econtext->event_channels->notif_recv.ctx.payload_ctx.req != NULL)
-    {
-        ucp_request_cancel(GET_WORKER((*offload_engine)->self_econtext),
-                           (*offload_engine)->self_econtext->event_channels->notif_recv.ctx.payload_ctx.req);
-        ucp_request_release((*offload_engine)->self_econtext->event_channels->notif_recv.ctx.payload_ctx.req);
-        (*offload_engine)->self_econtext->event_channels->notif_recv.ctx.payload_ctx.req = NULL;
-    }
-    if ((*offload_engine)->self_econtext->event_channels->notif_recv.ctx.payload_ctx.smart_buf != NULL)
-    {
-        free((*offload_engine)->self_econtext->event_channels->notif_recv.ctx.payload_ctx.buffer);
-        (*offload_engine)->self_econtext->event_channels->notif_recv.ctx.payload_ctx.buffer = NULL;
-    }
-#endif
     execution_context_fini(&((*offload_engine)->self_econtext));
 
     if ((*offload_engine)->client)
@@ -2053,10 +2040,10 @@ void offload_engine_fini(offloading_engine_t **offload_engine)
     {
         uint64_t key;
         execution_context_t *value;
-        kh_foreach((*offload_engine)->client_lookup_table, 
+        kh_foreach((*offload_engine)->client_lookup_table,
                    key,
                    value,
-                   { /* nothing special to do*/ })
+                   {/* nothing special to do*/})
             kh_destroy(client_lookup_hash_t, (*offload_engine)->client_lookup_table);
 
         for (i = 0; i < (*offload_engine)->free_pending_rdv_recv->num_elts; i++)
