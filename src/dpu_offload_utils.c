@@ -837,7 +837,7 @@ void display_group_cache(cache_t *cache, group_uid_t gp_uid)
         peer_cache_entry_t *entry = GET_GROUPRANK_CACHE_ENTRY(cache, gp_uid, idx);
         if (entry->set)
         {
-            fprintf(stderr, "Rank %" PRId64 "\n", entry->peer.proc_info.group_rank);
+            fprintf(stderr, "Rank %" PRId64 " host: 0x%lx\n", entry->peer.proc_info.group_rank, entry->peer.host_info);
             assert(idx == entry->peer.proc_info.group_rank);
             i++;
         }

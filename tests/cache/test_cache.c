@@ -7,8 +7,6 @@
 #include <stdlib.h>
 #include <stdint.h>
 
-//#include "ucs/datastruct/khash.h"
-
 #include "dpu_offload_service_daemon.h"
 #include "test_cache_common.h"
 
