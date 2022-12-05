@@ -1808,37 +1808,39 @@ typedef struct cache
  * exist. Of course, I means that the data passed in is assumed accurate, i.e.,
  * the group identifier, rank and group size are the actual value and won't change.
  */
-#define GET_GROUP_RANK_CACHE_ENTRY(_cache, _gp_uid, _rank, _gp_size)                 \
-    ({                                                                               \
-        peer_cache_entry_t *_entry = NULL;                                           \
-        group_cache_t *_gp_cache = NULL;                                             \
-        dyn_array_t *_rank_cache = NULL;                                             \
-        _gp_cache = GET_GROUP_CACHE((_cache), _gp_uid);                              \
-        assert(_gp_cache);                                                           \
-        _rank_cache = &(_gp_cache->ranks);                                           \
-        if (_gp_cache->initialized == false)                                         \
-        {                                                                            \
-            /* Cache for the group is empty, lazy initialization */                  \
-            RESET_GROUP_CACHE(_gp_cache);                                            \
-            _gp_cache->initialized = true;                                           \
-            if (_gp_size >= 0)                                                       \
-                _gp_cache->group_size = _gp_size;                                    \
-            (_cache)->size++;                                                        \
-            /* We set the value for the first group when we add the first rank to */ \
-            /* a cache. GET_GROUP_CACHE only made sure we could use the structure */ \
-            /* The first group is MPI_COMM_WORLD or equivalent. */                   \
-            if ((_cache)->size == 1)                                                 \
-                (_cache)->world_group = (_gp_uid);                                   \
-        }                                                                            \
-        if (_gp_cache->initialized &&                                                \
-            _gp_cache->group_size <= 0 &&                                            \
-            _gp_size >= 0)                                                           \
-        {                                                                            \
-            /* the cache was initialized with a group size but we now know it */     \
-            _gp_cache->group_size = _gp_size;                                        \
-        }                                                                            \
-        _entry = DYN_ARRAY_GET_ELT(_rank_cache, _rank, peer_cache_entry_t);          \
-        _entry;                                                                      \
+#define GET_GROUP_RANK_CACHE_ENTRY(_cache, _gp_uid, _rank, _gp_size)        \
+    ({                                                                      \
+        peer_cache_entry_t *_entry = NULL;                                  \
+        group_cache_t *_gp_cache = NULL;                                    \
+        dyn_array_t *_rank_cache = NULL;                                    \
+        _gp_cache = GET_GROUP_CACHE((_cache), _gp_uid);                     \
+        assert(_gp_cache);                                                  \
+        _rank_cache = &(_gp_cache->ranks);                                  \
+        if (_gp_cache->initialized == false)                                \
+        {                                                                   \
+            /* Cache for the group is empty, lazy initialization */         \
+            RESET_GROUP_CACHE(_gp_cache);                                   \
+            _gp_cache->initialized = true;                                  \
+            if (_gp_size >= 0)                                              \
+                _gp_cache->group_size = _gp_size;                           \
+            (_cache)->size++;                                               \
+            /* We set the value for the first group when we add */          \
+            /* the first rank to a cache. GET_GROUP_CACHE only made */      \
+            /* sure we could use the structure */                           \
+            /* The first group is MPI_COMM_WORLD or equivalent. */          \
+            if ((_cache)->size == 1)                                        \
+                (_cache)->world_group = (_gp_uid);                          \
+        }                                                                   \
+        if (_gp_cache->initialized &&                                       \
+            _gp_cache->group_size <= 0 &&                                   \
+            _gp_size >= 0)                                                  \
+        {                                                                   \
+            /* the cache was initialized without a group size */            \
+            /* but we now know it */                                        \
+            _gp_cache->group_size = _gp_size;                               \
+        }                                                                   \
+        _entry = DYN_ARRAY_GET_ELT(_rank_cache, _rank, peer_cache_entry_t); \
+        _entry;                                                             \
     })
 
 KHASH_MAP_INIT_INT64(client_lookup_hash_t, execution_context_t *);
