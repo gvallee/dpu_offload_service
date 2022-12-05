@@ -162,14 +162,14 @@ dpu_offload_status_t send_revoke_group_rank_request_through_rank_info(execution_
  * The function is non-blocking.
  * The function implicitly manages an event to send the notification to ensure the caller does not need to handle
  * completion and ensure that once the function exists, it does not rely on the data from the caller.
- * 
+ *
  * @param econtext Execution context to use to send the message to the service process
  * @param ep Endpoint of the target service process
  * @param dest_id Identifier of the target service process (i.e., the server identifier)
  * @param gp_uid UID of the group to revoke
  * @param num_ranks Number of ranks that have revoked the group
  * @param meta_ev Optional meta-event to use to track completion of multiple sends (can be NULL)
- * @return dpu_offload_status_t 
+ * @return dpu_offload_status_t
  */
 dpu_offload_status_t send_revoke_group_rank_request_through_num_ranks(execution_context_t *econtext,
                                                                       ucp_ep_h ep,
@@ -281,7 +281,7 @@ dpu_offload_status_t get_cache_entry_by_group_rank(offloading_engine_t *engine, 
 /**
  * @brief Get the service process endpoint by ID object, i.e., the identifier returned by get_sp_id_by_host_rank
  *
- * @param[in] engine engine Offloading engine for the query
+ * @param[in] engine Offloading engine for the query
  * @param[in] id Global service process identifier
  * @param[out] ucp_ep_h DPU's endpoint to use to communicate with the target DPU
  * @param[out] econtext_comm The execution context to use for notification, must be used to get an event
@@ -290,8 +290,56 @@ dpu_offload_status_t get_cache_entry_by_group_rank(offloading_engine_t *engine, 
  */
 dpu_offload_status_t get_sp_ep_by_id(offloading_engine_t *engine, uint64_t sp_id, ucp_ep_h *sp_ep, execution_context_t **econtext_comm, uint64_t *comm_id);
 
+/**
+ * @brief Get the group rank host identifier from the local cache
+ *
+ * @param[in] engine Offloading engine for the query
+ * @param[in] gp_uid Target group's UID
+ * @param[in] rank Target rank in the group
+ * @param[out] host_id ID of the host where the rank is running (64-bit hash)
+ * @return dpu_offload_status_t
+ */
+dpu_offload_status_t get_group_rank_host(offloading_engine_t *engine,
+                                         group_uid_t gp_uid,
+                                         int64_t rank,
+                                         uint64_t *host_id);
+
+/**
+ * @brief Get the group ranks on a host from the local cache
+ * 
+ * @param[in] engine Offloading engine for the query
+ * @param[in] gp_uid Target group's UID
+ * @param[in] host_id Target host ID
+ * @param[in,out] n_ranks Pointer to the variable that will hold the number of ranks on the target host
+ * @param[in,out] ranks Pointer to the dynamic array of int64_t that will store all the ranks
+ * @return dpu_offload_status_t 
+ */
+dpu_offload_status_t get_group_ranks_on_host(offloading_engine_t *engine,
+                                             group_uid_t gp_uid,
+                                             uint64_t host_id,
+                                             size_t *n_ranks,
+                                             dyn_array_t ranks);
+
+/**
+ * @brief Checks whether a group's cache is fully populated
+ * 
+ * @param engine Offloading engine for the query
+ * @param gp_uid Target group's UID
+ * @return true 
+ * @return false 
+ */
 bool group_cache_populated(offloading_engine_t *engine, group_uid_t gp_uid);
 
+/**
+ * @brief Checks whether a rank in a given group is in the cache.
+ * 
+ * @param cache Pointer to the target cache to query
+ * @param gp_uid Target group's UID
+ * @param rank_id Target rank in the group
+ * @param group_size Group size (can be GROUP_SIZE_UNKNOWN)
+ * @return true 
+ * @return false 
+ */
 bool is_in_cache(cache_t *cache, group_uid_t gp_uid, int64_t rank_id, int64_t group_size);
 
 execution_context_t *get_server_servicing_host(offloading_engine_t *engine);
