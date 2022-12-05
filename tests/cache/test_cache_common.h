@@ -28,7 +28,7 @@
             RESET_PEER_DATA(&(new_entry->peer));                                           \
             new_entry->peer.proc_info.group_rank = i;                                      \
             new_entry->peer.proc_info.group_uid = 42;                                      \
-            new_entry->peer.host_info = HASH_HOSTNAME(); \
+            new_entry->peer.host_info = HASH_HOSTNAME();                                   \
             new_entry->set = true;                                                         \
         }                                                                                  \
                                                                                            \
