@@ -2140,6 +2140,9 @@ typedef struct offloading_engine
     // Flag to specify if we are on the DPU or not
     bool on_dpu;
 
+    // Only used on DPU: identifier of the local host, the SP is attached to
+    host_info_t host_id;
+
     // dpus is a vector of remote_dpu_info_t structures used on the DPUs
     // to easily track all the DPUs used in the current configuration.
     // This is at the moment not used on the host. Type: remote_dpu_info_t*
@@ -2285,6 +2288,7 @@ typedef struct offloading_engine
         ucs_list_head_init(&((_core_engine)->pending_send_group_add_msgs));                                                  \
         ucs_list_head_init(&((_core_engine)->pending_recv_cache_entries));                                                   \
         (_core_engine)->on_dpu = false;                                                                                      \
+        (_core_engine)->host_id = UINT64_MAX;                                                                                \
         /* Note that engine->dpus is a vector of remote_dpu_info_t pointers. */                                              \
         /* The actual object are from pool_remote_dpu_info */                                                                \
         DYN_ARRAY_ALLOC(&((_core_engine)->dpus), 32, remote_dpu_info_t *);                                                   \

@@ -318,7 +318,40 @@ dpu_offload_status_t get_group_ranks_on_host(offloading_engine_t *engine,
                                              group_uid_t gp_uid,
                                              uint64_t host_id,
                                              size_t *n_ranks,
-                                             dyn_array_t ranks);
+                                             dyn_array_t *ranks);
+
+/**
+ * @brief Get the list of all local SPs for a given rank in a group.
+ * Note that the function returns all the local SPs, including the SPs
+ * the rank may not be directly connected to.
+ * 
+ * @param[in] engine Offloading engine for the query
+ * @param[in] gp_uid Target group's UID
+ * @param[in] rank Target rank in the group
+ * @param[in,out] n_sps Pointer to the variable that will hold the number of local SPs
+ * @param[in,out] sps Pointer to the dunamic array of uint64_t that will store all the service processes global ID
+ * @return dpu_offload_status_t 
+ */
+dpu_offload_status_t get_group_rank_sps(offloading_engine_t *engine,
+                                        group_uid_t gp_uid,
+                                        uint64_t rank,
+                                        size_t *n_sps,
+                                        dyn_array_t *sps);
+
+/**
+ * @brief Get the local SPs for a given group. Can be used only is the context of SPs.
+ * This can be used to know how many and which local SPs are involved in a given group.
+ * 
+ * @param[in] engine Offloading engine for the query
+ * @param[in] gp_uid Target group's UID
+ * @param[in,out] n_sps Pointer to the variable that will hold the number of local SPs
+ * @param[in,out] sps Pointer to the dunamic array of uint64_t that will store all the service processes global ID
+ * @return dpu_offload_status_t 
+ */
+dpu_offload_status_t get_group_local_sps(offloading_engine_t *engine,
+                                         group_uid_t gp_uid,
+                                         size_t *n_sps,
+                                         dyn_array_t *sps);
 
 /**
  * @brief Checks whether a group's cache is fully populated

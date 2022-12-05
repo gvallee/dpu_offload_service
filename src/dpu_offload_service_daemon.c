@@ -1540,6 +1540,8 @@ static void progress_server_econtext(execution_context_t *ctx)
                         client_info->rank_data.group_uid != INT_MAX &&
                         client_info->rank_data.group_rank != INVALID_RANK)
                     {
+                        if (ctx->engine->host_id == UINT64_MAX)
+                            ctx->engine->host_id = client_info->rank_data.host_info;
                         GROUP_CACHE_EXCHANGE(ctx->engine,
                                              client_info->rank_data.group_uid,
                                              client_info->rank_data.n_local_ranks);
