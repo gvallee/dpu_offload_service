@@ -273,14 +273,6 @@ bool group_cache_populated(offloading_engine_t *engine, group_uid_t gp_uid)
     return false;
 }
 
-/**
- * @brief Get the local service process identifier from its global identifier
- * 
- * @param engine Assoc
- * @param global_sp_id 
- * @param local_sp_id 
- * @return dpu_offload_status_t 
- */
 dpu_offload_status_t get_local_sp_id(offloading_engine_t *engine, uint64_t global_sp_id, uint64_t *local_sp_id)
 {
     remote_service_proc_info_t *sp_info = NULL;
