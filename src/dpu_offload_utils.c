@@ -273,7 +273,18 @@ bool group_cache_populated(offloading_engine_t *engine, group_uid_t gp_uid)
     return false;
 }
 
-// Translate the local SP ID received in the header of a notification to a global ID
+dpu_offload_status_t get_local_sp_id(offloading_engine_t *engine, uint64_t global_sp_id, uint64_t *local_sp_id)
+{
+    remote_service_proc_info_t *sp_info = NULL;
+    *local_sp_id = UINT64_MAX;
+    assert(engine);
+    sp_info = DYN_ARRAY_GET_ELT(&(engine->service_procs), global_sp_id, remote_service_proc_info_t);
+    if (sp_info == NULL)
+        return DO_ERROR;
+    *local_sp_id = sp_info->service_proc.local_id;
+    return DO_SUCCESS;
+}
+
 uint64_t LOCAL_ID_TO_GLOBAL(execution_context_t *econtext, uint64_t local_id)
 {
     uint64_t global_id = UINT64_MAX;

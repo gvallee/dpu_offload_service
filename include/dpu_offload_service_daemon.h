@@ -180,6 +180,23 @@ dpu_offload_status_t send_revoke_group_rank_request_through_num_ranks(execution_
 
 void local_rank_connect_default_callback(void *data);
 
+/**
+ * @brief Get the local service process identifier from its global identifier
+ * 
+ * @param[in] engine Associated offload engine to use for the query
+ * @param[in] global_sp_id Service process's global identifier
+ * @param[in,out] local_sp_id Associated local identifier; UINT64_MAX when lookup fails
+ * @return dpu_offload_status_t 
+ */
+dpu_offload_status_t get_local_sp_id(offloading_engine_t *engine, uint64_t global_sp_id, uint64_t *local_sp_id);
+
+/**
+ * @brief Translate the local SP ID received in the header of a notification to a global ID
+ * 
+ * @param[in] econtext Execution context on which we received the header
+ * @param[in] local_id Local identifier from the header
+ * @return uint64_t Associated global identifier
+ */
 uint64_t LOCAL_ID_TO_GLOBAL(execution_context_t *econtext, uint64_t local_id);
 
 /**
