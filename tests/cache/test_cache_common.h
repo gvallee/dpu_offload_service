@@ -7,6 +7,8 @@
 #ifndef _TEST_CACHE_COMMON_H_
 #define _TEST_CACHE_COMMON_H_
 
+#include <unistd.h>
+
 #define NUM_CACHE_ENTRIES (10) //(DEFAULT_NUM_PEERS * 2)
 
 #define POPULATE_CACHE(_engine)                                                            \
@@ -26,6 +28,7 @@
             RESET_PEER_DATA(&(new_entry->peer));                                           \
             new_entry->peer.proc_info.group_rank = i;                                      \
             new_entry->peer.proc_info.group_uid = 42;                                      \
+            new_entry->peer.host_info = HASH_HOSTNAME();                                   \
             new_entry->set = true;                                                         \
         }                                                                                  \
                                                                                            \

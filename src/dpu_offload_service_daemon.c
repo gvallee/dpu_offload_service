@@ -613,6 +613,7 @@ dpu_offload_status_t client_init_context(execution_context_t *econtext, init_par
     assert(GET_WORKER(econtext));
 
     // If we have a group/rank in the init params, we pass it down
+    econtext->rank.host_info = HASH_HOSTNAME();
     if (init_params != NULL && init_params->proc_info != NULL)
     {
         econtext->rank.group_uid = init_params->proc_info->group_uid;
@@ -1336,7 +1337,17 @@ error_out:
     return;
 }
 
-static int add_cache_entry_for_new_client(peer_info_t *client_info, execution_context_t *ctx)
+/**
+ * @brief add_cache_entry_for_new_client is called by a service process once a process
+ * on the host finalizes its connection; it adds the newly connected process to the
+ * group cache when applicable.
+ *
+ * @param client_info Data about the newly connected client
+ * @param ctx Execution context in the context of which the data was received
+ * @return dpu_offload_status_t
+ */
+static dpu_offload_status_t
+add_cache_entry_for_new_client(peer_info_t *client_info, execution_context_t *ctx)
 {
 
     if (client_info->rank_data.group_uid != INT_MAX &&
@@ -1355,6 +1366,7 @@ static int add_cache_entry_for_new_client(peer_info_t *client_info, execution_co
         COPY_RANK_INFO(&(client_info->rank_data), &(cache_entry->peer.proc_info));
         cache_entry->client_id = client_info->id;
         cache_entry->num_shadow_service_procs = 1;
+        cache_entry->peer.host_info = client_info->rank_data.host_info;
         if (ctx->engine->on_dpu)
         {
             cache_entry->shadow_service_procs[0] = ctx->engine->config->local_service_proc.info.global_id;
@@ -1528,6 +1540,8 @@ static void progress_server_econtext(execution_context_t *ctx)
                         client_info->rank_data.group_uid != INT_MAX &&
                         client_info->rank_data.group_rank != INVALID_RANK)
                     {
+                        if (ctx->engine->host_id == UINT64_MAX)
+                            ctx->engine->host_id = client_info->rank_data.host_info;
                         GROUP_CACHE_EXCHANGE(ctx->engine,
                                              client_info->rank_data.group_uid,
                                              client_info->rank_data.n_local_ranks);

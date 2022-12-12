@@ -259,12 +259,12 @@ typedef struct active_ops
 #define INVALID_GROUP (-1)
 #define INVALID_RANK (-1)
 
-#define IS_A_VALID_PEER_DATA(_peer_data) ({                            \
-    bool _valid = false;                                               \
-    if ((_peer_data)->proc_info.group_uid != INT_MAX &&                \
-        (_peer_data)->proc_info.group_rank != INVALID_RANK)            \
-        _valid = true;                                                 \
-    _valid;                                                            \
+#define IS_A_VALID_PEER_DATA(_peer_data) ({                 \
+    bool _valid = false;                                    \
+    if ((_peer_data)->proc_info.group_uid != INT_MAX &&     \
+        (_peer_data)->proc_info.group_rank != INVALID_RANK) \
+        _valid = true;                                      \
+    _valid;                                                 \
 })
 
 typedef struct ucx_server_ctx
@@ -303,6 +303,26 @@ typedef struct group_id
 // signature
 typedef int group_uid_t;
 
+typedef uint64_t host_info_t;
+
+#define HASH64_FROM_STRING(_s, _len) ({                  \
+    uint64_t __hash = 5381;                              \
+    size_t __idx = 0;                                    \
+    for (__idx = 0; __idx < _len; __idx++)               \
+    {                                                    \
+        __hash = ((__hash << 5) + __hash) + (_s)[__idx]; \
+    }                                                    \
+    __hash;                                              \
+})
+
+#define HASH_HOSTNAME() ({                                  \
+    char __h[1024];                                         \
+    __h[1023] = '\0';                                       \
+    gethostname(__h, 1023);                                 \
+    uint64_t __hash = HASH64_FROM_STRING(__h, strlen(__h)); \
+    __hash;                                                 \
+})
+
 typedef struct rank_info
 {
     // So it can used with list
@@ -322,26 +342,30 @@ typedef struct rank_info
 
     // Rank on the host, can be used to figure out which service process on the local DPU to connect to.
     int64_t local_rank;
+
+    host_info_t host_info;
 } rank_info_t;
 
-#define RESET_RANK_INFO(_r)                \
-    do                                     \
-    {                                      \
-        (_r)->group_uid = INT_MAX;         \
-        (_r)->group_rank = INVALID_RANK;   \
-        (_r)->group_size = 0;              \
-        (_r)->n_local_ranks = 0;           \
-        (_r)->local_rank = INVALID_RANK;   \
+#define RESET_RANK_INFO(_r)              \
+    do                                   \
+    {                                    \
+        (_r)->group_uid = INT_MAX;       \
+        (_r)->group_rank = INVALID_RANK; \
+        (_r)->group_size = 0;            \
+        (_r)->n_local_ranks = 0;         \
+        (_r)->local_rank = INVALID_RANK; \
+        (_r)->host_info = UINT64_MAX;    \
     } while (0)
 
-#define COPY_RANK_INFO(__s, __d)                               \
-    do                                                         \
-    {                                                          \
-        (__d)->group_uid = (__s)->group_uid;                   \
-        (__d)->group_rank = (__s)->group_rank;                 \
-        (__d)->group_size = (__s)->group_size;                 \
-        (__d)->n_local_ranks = (__s)->n_local_ranks;           \
-        (__d)->local_rank = (__s)->local_rank;                 \
+#define COPY_RANK_INFO(__s, __d)                     \
+    do                                               \
+    {                                                \
+        (__d)->group_uid = (__s)->group_uid;         \
+        (__d)->group_rank = (__s)->group_rank;       \
+        (__d)->group_size = (__s)->group_size;       \
+        (__d)->n_local_ranks = (__s)->n_local_ranks; \
+        (__d)->local_rank = (__s)->local_rank;       \
+        (__d)->host_info = (__s)->host_info;         \
     } while (0)
 
 // fixme: long term, we do not want to have a limit on the length of the address
@@ -373,6 +397,7 @@ typedef struct rank_info
 typedef struct peer_data
 {
     rank_info_t proc_info;
+    host_info_t host_info;
     size_t addr_len;
     char addr[MAX_ADDR_LEN]; // ultimately ucp_address_t * when using UCX
 } peer_data_t;
@@ -382,6 +407,7 @@ typedef struct peer_data
     {                                        \
         RESET_RANK_INFO(&((_d)->proc_info)); \
         (_d)->addr_len = 0;                  \
+        (_d)->host_info = UINT64_MAX;        \
     } while (0)
 
 #define COPY_PEER_DATA(_src, _dst)                                  \
@@ -1734,13 +1760,13 @@ typedef struct cache
     dyn_list_t *group_cache_pool;
 } cache_t;
 
-#define RESET_CACHE(__c)                     \
-    do                                       \
-    {                                        \
-        (__c)->size = 0;                     \
-        (__c)->data = NULL;                  \
-        (__c)->group_cache_pool = NULL;      \
-        (__c)->world_group = INT_MAX;        \
+#define RESET_CACHE(__c)                \
+    do                                  \
+    {                                   \
+        (__c)->size = 0;                \
+        (__c)->data = NULL;             \
+        (__c)->group_cache_pool = NULL; \
+        (__c)->world_group = INT_MAX;   \
     } while (0)
 
 #define HASH_GROUP_FROM_STRING(_s, _len) ({              \
@@ -1782,37 +1808,39 @@ typedef struct cache
  * exist. Of course, I means that the data passed in is assumed accurate, i.e.,
  * the group identifier, rank and group size are the actual value and won't change.
  */
-#define GET_GROUP_RANK_CACHE_ENTRY(_cache, _gp_uid, _rank, _gp_size)                   \
-    ({                                                                                 \
-        peer_cache_entry_t *_entry = NULL;                                             \
-        group_cache_t *_gp_cache = NULL;                                               \
-        dyn_array_t *_rank_cache = NULL;                                               \
-        _gp_cache = GET_GROUP_CACHE((_cache), _gp_uid);                                \
-        assert(_gp_cache);                                                             \
-        _rank_cache = &(_gp_cache->ranks);                                             \
-        if (_gp_cache->initialized == false)                                           \
-        {                                                                              \
-            /* Cache for the group is empty, lazy initialization */                    \
-            RESET_GROUP_CACHE(_gp_cache);                                              \
-            _gp_cache->initialized = true;                                             \
-            if (_gp_size >= 0)                                                         \
-                _gp_cache->group_size = _gp_size;                                      \
-            (_cache)->size++;                                                          \
-            /* We set the value for the first group when we add the first rank to */   \
-            /* a cache. GET_GROUP_CACHE only made sure we could use the structure */   \
-            /* The first group is MPI_COMM_WORLD or equivalent. */                     \
-            if ((_cache)->size == 1)                                                   \
-                (_cache)->world_group = (_gp_uid);                                     \
-        }                                                                              \
-        if (_gp_cache->initialized &&                                                  \
-            _gp_cache->group_size <= 0 &&                                              \
-            _gp_size >= 0)                                                             \
-        {                                                                              \
-            /* the cache was initialized with a group size but we now know it */       \
-            _gp_cache->group_size = _gp_size;                                          \
-        }                                                                              \
-        _entry = DYN_ARRAY_GET_ELT(_rank_cache, _rank, peer_cache_entry_t);            \
-        _entry;                                                                        \
+#define GET_GROUP_RANK_CACHE_ENTRY(_cache, _gp_uid, _rank, _gp_size)        \
+    ({                                                                      \
+        peer_cache_entry_t *_entry = NULL;                                  \
+        group_cache_t *_gp_cache = NULL;                                    \
+        dyn_array_t *_rank_cache = NULL;                                    \
+        _gp_cache = GET_GROUP_CACHE((_cache), _gp_uid);                     \
+        assert(_gp_cache);                                                  \
+        _rank_cache = &(_gp_cache->ranks);                                  \
+        if (_gp_cache->initialized == false)                                \
+        {                                                                   \
+            /* Cache for the group is empty, lazy initialization */         \
+            RESET_GROUP_CACHE(_gp_cache);                                   \
+            _gp_cache->initialized = true;                                  \
+            if (_gp_size >= 0)                                              \
+                _gp_cache->group_size = _gp_size;                           \
+            (_cache)->size++;                                               \
+            /* We set the value for the first group when we add */          \
+            /* the first rank to a cache. GET_GROUP_CACHE only made */      \
+            /* sure we could use the structure */                           \
+            /* The first group is MPI_COMM_WORLD or equivalent. */          \
+            if ((_cache)->size == 1)                                        \
+                (_cache)->world_group = (_gp_uid);                          \
+        }                                                                   \
+        if (_gp_cache->initialized &&                                       \
+            _gp_cache->group_size <= 0 &&                                   \
+            _gp_size >= 0)                                                  \
+        {                                                                   \
+            /* the cache was initialized without a group size */            \
+            /* but we now know it */                                        \
+            _gp_cache->group_size = _gp_size;                               \
+        }                                                                   \
+        _entry = DYN_ARRAY_GET_ELT(_rank_cache, _rank, peer_cache_entry_t); \
+        _entry;                                                             \
     })
 
 KHASH_MAP_INIT_INT64(client_lookup_hash_t, execution_context_t *);
@@ -1864,19 +1892,19 @@ KHASH_MAP_INIT_INT64(client_lookup_hash_t, execution_context_t *);
  * @param[in] __c Client ID
  * @param[in] __s Server ID
  */
-#define CLIENT_SERVER_LOOKUP(__e, __c, __s) ({               \
-        execution_context_t *_ec = NULL;                     \
-        uint64_t _lookup_key = HASH_CLIENT_SERVER(__c, __s); \
-        khiter_t _k = kh_get(client_lookup_hash_t,           \
-                             (__e)->client_lookup_table,     \
-                             _lookup_key);                   \
-        if (_k != kh_end((__e)->client_lookup_table))        \
-        {                                                    \
-            /* in the cache */                               \
-            _ec = kh_value((__e)->client_lookup_table, _k);  \
-        }                                                    \
-        _ec;                                                 \
-    })
+#define CLIENT_SERVER_LOOKUP(__e, __c, __s) ({           \
+    execution_context_t *_ec = NULL;                     \
+    uint64_t _lookup_key = HASH_CLIENT_SERVER(__c, __s); \
+    khiter_t _k = kh_get(client_lookup_hash_t,           \
+                         (__e)->client_lookup_table,     \
+                         _lookup_key);                   \
+    if (_k != kh_end((__e)->client_lookup_table))        \
+    {                                                    \
+        /* in the cache */                               \
+        _ec = kh_value((__e)->client_lookup_table, _k);  \
+    }                                                    \
+    _ec;                                                 \
+})
 
 struct remote_service_proc_info; // Forward declaration
 
@@ -2114,6 +2142,9 @@ typedef struct offloading_engine
     // Flag to specify if we are on the DPU or not
     bool on_dpu;
 
+    // Only used on DPU: identifier of the local host, the SP is attached to
+    host_info_t host_id;
+
     // dpus is a vector of remote_dpu_info_t structures used on the DPUs
     // to easily track all the DPUs used in the current configuration.
     // This is at the moment not used on the host. Type: remote_dpu_info_t*
@@ -2259,6 +2290,7 @@ typedef struct offloading_engine
         ucs_list_head_init(&((_core_engine)->pending_send_group_add_msgs));                                                  \
         ucs_list_head_init(&((_core_engine)->pending_recv_cache_entries));                                                   \
         (_core_engine)->on_dpu = false;                                                                                      \
+        (_core_engine)->host_id = UINT64_MAX;                                                                                \
         /* Note that engine->dpus is a vector of remote_dpu_info_t pointers. */                                              \
         /* The actual object are from pool_remote_dpu_info */                                                                \
         DYN_ARRAY_ALLOC(&((_core_engine)->dpus), 32, remote_dpu_info_t *);                                                   \
@@ -2310,11 +2342,11 @@ typedef struct pending_am_rdv_recv
         RESET_CORE_ENGINE_STRUCT(_engine, _ret);                       \
     } while (0)
 #else
-#define RESET_ENGINE(_engine, _ret)                  \
-    do                                               \
-    {                                                \
-        _ret = 0;                                    \
-        RESET_CORE_ENGINE_STRUCT(_engine, _ret);     \
+#define RESET_ENGINE(_engine, _ret)              \
+    do                                           \
+    {                                            \
+        _ret = 0;                                \
+        RESET_CORE_ENGINE_STRUCT(_engine, _ret); \
     } while (0)
 #endif // OFFLOADING_MT_ENABLE
 

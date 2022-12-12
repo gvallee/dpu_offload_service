@@ -232,7 +232,7 @@ dpu_offload_status_t send_revoke_group_rank_request_through_num_ranks(execution_
     desc->num_ranks.gp_uid = gp_uid;
     assert(num_ranks);
     desc->num_ranks.num = num_ranks;
-    
+
     if (meta_ev != NULL)
         ev->is_subevent = true;
 
@@ -837,7 +837,7 @@ void display_group_cache(cache_t *cache, group_uid_t gp_uid)
         peer_cache_entry_t *entry = GET_GROUPRANK_CACHE_ENTRY(cache, gp_uid, idx);
         if (entry->set)
         {
-            fprintf(stderr, "Rank %" PRId64 "\n", entry->peer.proc_info.group_rank);
+            fprintf(stderr, "Rank %" PRId64 " host: 0x%lx\n", entry->peer.proc_info.group_rank, entry->peer.host_info);
             assert(idx == entry->peer.proc_info.group_rank);
             i++;
         }
@@ -845,7 +845,138 @@ void display_group_cache(cache_t *cache, group_uid_t gp_uid)
     }
 }
 
-static dpu_offload_status_t do_get_cache_entry_by_group_rank(offloading_engine_t *engine, group_uid_t gp_uid, int64_t rank, int64_t sp_idx, request_compl_cb_t cb, int64_t *sp_global_id, dpu_offload_event_t **ev)
+dpu_offload_status_t get_group_rank_host(offloading_engine_t *engine,
+                                         group_uid_t gp_uid,
+                                         int64_t rank,
+                                         uint64_t *host_id)
+{
+    *host_id = UINT64_MAX;
+    assert(engine);
+    if (is_in_cache(&(engine->procs_cache), gp_uid, rank, -1))
+    {
+        // The cache has the data
+        peer_cache_entry_t *cache_entry = NULL;
+        cache_entry = GET_GROUP_RANK_CACHE_ENTRY(&(engine->procs_cache), gp_uid, rank, GROUP_SIZE_UNKNOWN);
+        assert(cache_entry);
+        *host_id = cache_entry->peer.host_info;
+        return DO_SUCCESS;
+    }
+
+    return DO_ERROR;
+}
+
+dpu_offload_status_t get_group_ranks_on_host(offloading_engine_t *engine,
+                                             group_uid_t gp_uid,
+                                             uint64_t host_id,
+                                             size_t *n_ranks,
+                                             dyn_array_t *ranks)
+{
+    group_cache_t *gp = NULL;
+    int64_t i, num = 0;
+
+    *n_ranks = 0;
+    assert(engine);
+    gp = GET_GROUP_CACHE(&(engine->procs_cache), gp_uid);
+    assert(gp);
+    for (i = 0; gp->group_size; i++)
+    {
+        peer_cache_entry_t *peer;
+        peer = GET_GROUP_RANK_CACHE_ENTRY(&(engine->procs_cache), gp_uid, i, GROUP_SIZE_UNKNOWN);
+        if (peer->peer.host_info == host_id)
+        {
+            int64_t *rank_entry = NULL;
+            rank_entry = DYN_ARRAY_GET_ELT(ranks, num, int64_t);
+            assert(rank_entry);
+            *rank_entry = i;
+            num++;
+        }
+    }
+    *n_ranks = num;
+    return DO_SUCCESS;
+}
+
+dpu_offload_status_t get_group_local_sps(offloading_engine_t *engine,
+                                         group_uid_t gp_uid,
+                                         size_t *n_sps,
+                                         dyn_array_t *sps)
+{
+    group_cache_t *gp = NULL;
+    size_t i, num = 0;
+
+    assert(engine);
+    *n_sps = 0;
+    if (!engine->on_dpu)
+        return DO_SUCCESS;
+    assert(engine->host_id != UINT64_MAX);
+    gp = GET_GROUP_CACHE(&(engine->procs_cache), gp_uid);
+    assert(gp);
+    for (i = 0; gp->group_size; i++)
+    {
+        peer_cache_entry_t *peer;
+        peer = GET_GROUP_RANK_CACHE_ENTRY(&(engine->procs_cache), gp_uid, i, GROUP_SIZE_UNKNOWN);
+        if (peer->peer.host_info == engine->host_id)
+        {
+            size_t sp_idx;
+            for (sp_idx = 0; sp_idx < peer->num_shadow_service_procs; sp_idx++)
+            {
+                uint64_t *sp_id_entry = NULL;
+                sp_id_entry = DYN_ARRAY_GET_ELT(sps, num, uint64_t);
+                assert(sp_id_entry);
+                *sp_id_entry = peer->shadow_service_procs[sp_idx];
+                num++;
+            }
+        }
+    }
+    *n_sps = num;
+    return DO_SUCCESS;
+
+}
+
+dpu_offload_status_t get_group_rank_sps(offloading_engine_t *engine,
+                                        group_uid_t gp_uid,
+                                        uint64_t rank,
+                                        size_t *n_sps,
+                                        dyn_array_t *sps)
+{
+    dpu_offload_status_t rc;
+    uint64_t host_id;
+    group_cache_t *gp = NULL;
+    size_t num = 0, i;
+
+    *n_sps = 0;
+    rc = get_group_rank_host(engine, gp_uid, rank, &host_id);
+    CHECK_ERR_RETURN((rc), DO_ERROR, "get_group_rank_host() failed");
+    gp = GET_GROUP_CACHE(&(engine->procs_cache), gp_uid);
+    assert(gp);
+    for (i = 0; gp->group_size; i++)
+    {
+        peer_cache_entry_t *peer;
+        peer = GET_GROUP_RANK_CACHE_ENTRY(&(engine->procs_cache), gp_uid, i, GROUP_SIZE_UNKNOWN);
+        if (peer->peer.host_info == host_id)
+        {
+            size_t sp_idx;
+            for (sp_idx = 0; sp_idx < peer->num_shadow_service_procs; sp_idx++)
+            {
+                uint64_t *sp_id_entry = NULL;
+                sp_id_entry = DYN_ARRAY_GET_ELT(sps, num, uint64_t);
+                assert(sp_id_entry);
+                *sp_id_entry = peer->shadow_service_procs[sp_idx];
+                num++;
+            }
+        }
+    }
+    *n_sps = num;
+    return DO_SUCCESS;
+}
+
+static dpu_offload_status_t
+do_get_cache_entry_by_group_rank(offloading_engine_t *engine,
+                                 group_uid_t gp_uid,
+                                 int64_t rank,
+                                 int64_t sp_idx,
+                                 request_compl_cb_t cb,
+                                 int64_t *sp_global_id,
+                                 dpu_offload_event_t **ev)
 {
     if (ev != NULL && cb != NULL)
     {
@@ -901,7 +1032,7 @@ static dpu_offload_status_t do_get_cache_entry_by_group_rank(offloading_engine_t
         cache_entry->events_initialized = true;
     }
     EVENT_HDR_TYPE(cache_entry_updated_ev) = META_EVENT_TYPE;
-    // We just queue a local event on the list for the cache entry to track what is being done in the 
+    // We just queue a local event on the list for the cache entry to track what is being done in the
     // context of that entry
     SIMPLE_LIST_PREPEND(&(cache_entry->events), &(cache_entry_updated_ev->item));
     DBG("Cache entry %p for gp/rank 0x%x/%" PRIu64 " now has %ld update events",

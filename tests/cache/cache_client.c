@@ -10,6 +10,12 @@
 #include "dpu_offload_service_daemon.h"
 #include "test_cache_common.h"
 
+/*
+ * This test connects to a daemon, explicitely sends all the rank information
+ * and waits for the cache to be locally populated. Once populated, we check
+ * the content of the cache.
+ */
+
 int main(int argc, char **argv)
 {
     group_uid_t group;
