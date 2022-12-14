@@ -889,7 +889,7 @@ dpu_offload_status_t get_group_ranks_on_host(offloading_engine_t *engine,
     assert(engine);
     gp = GET_GROUP_CACHE(&(engine->procs_cache), gp_uid);
     assert(gp);
-    for (i = 0; gp->group_size; i++)
+    for (i = 0; i < gp->group_size; i++)
     {
         peer_cache_entry_t *peer;
         peer = GET_GROUP_RANK_CACHE_ENTRY(&(engine->procs_cache), gp_uid, i, GROUP_SIZE_UNKNOWN);
@@ -921,7 +921,7 @@ dpu_offload_status_t get_group_local_sps(offloading_engine_t *engine,
     assert(engine->host_id != UINT64_MAX);
     gp = GET_GROUP_CACHE(&(engine->procs_cache), gp_uid);
     assert(gp);
-    for (i = 0; gp->group_size; i++)
+    for (i = 0; i < gp->group_size; i++)
     {
         peer_cache_entry_t *peer;
         peer = GET_GROUP_RANK_CACHE_ENTRY(&(engine->procs_cache), gp_uid, i, GROUP_SIZE_UNKNOWN);
@@ -959,7 +959,7 @@ dpu_offload_status_t get_group_rank_sps(offloading_engine_t *engine,
     CHECK_ERR_RETURN((rc), DO_ERROR, "get_group_rank_host() failed");
     gp = GET_GROUP_CACHE(&(engine->procs_cache), gp_uid);
     assert(gp);
-    for (i = 0; gp->group_size; i++)
+    for (i = 0; i < gp->group_size; i++)
     {
         peer_cache_entry_t *peer;
         peer = GET_GROUP_RANK_CACHE_ENTRY(&(engine->procs_cache), gp_uid, i, GROUP_SIZE_UNKNOWN);
