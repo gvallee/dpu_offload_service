@@ -129,7 +129,6 @@ dpu_offload_status_t get_associated_econtext(offloading_engine_t *engine, am_hea
         }
     }
 
-    assert(econtext);
     *econtext_out = econtext;
     return DO_SUCCESS;
 error_out:
@@ -323,6 +322,17 @@ static ucs_status_t am_notification_msg_cb(void *arg, const void *header, size_t
     {
         ERR_MSG("get_associated_econtext() failed");
         return UCS_ERR_NO_MESSAGE;
+    }
+
+    if (econtext == NULL && hdr->type == AM_REVOKE_GP_RANK_MSG_ID)
+    {
+        // The execution context is NULL (fully terminated) and we just
+        // received a group revoke message. It is not something that is
+        // unexpected: when the world group is revoked during finalization,
+        // the client may get terminated before we get the ACK (this notification).
+        // We can safely drop the notification
+        DBG("Safely dropping the group revoke notification since execution context is terminated");
+        return UCS_OK;
     }
     assert(econtext);
     if (econtext->event_channels == NULL)
