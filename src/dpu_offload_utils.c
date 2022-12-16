@@ -876,6 +876,25 @@ dpu_offload_status_t get_group_rank_host(offloading_engine_t *engine,
     return DO_ERROR;
 }
 
+bool on_same_host(offloading_engine_t *engine,
+                  group_uid_t gp_uid,
+                  int64_t rank1,
+                  int64_t rank2)
+{
+    uint64_t host1, host2;
+    dpu_offload_status_t rc;
+    assert(engine);
+    rc = get_group_rank_host(engine, gp_uid, rank1, &host1);
+    if (rc != DO_SUCCESS)
+        return false;
+    rc = get_group_rank_host(engine, gp_uid, rank2, &host2);
+    if (rc != DO_SUCCESS)
+        return false;
+    if (host1 == host2)
+        return true;
+    return false;
+}
+
 dpu_offload_status_t get_group_ranks_on_host(offloading_engine_t *engine,
                                              group_uid_t gp_uid,
                                              uint64_t host_id,
