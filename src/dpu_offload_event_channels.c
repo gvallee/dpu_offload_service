@@ -326,11 +326,11 @@ static ucs_status_t am_notification_msg_cb(void *arg, const void *header, size_t
 
     if (econtext == NULL && hdr->type == AM_REVOKE_GP_RANK_MSG_ID)
     {
-        // No execution context is NULL and we just received a group
-        // revoke message. It is not something that is unexpected: when
-        // the world group is revoked at the end, the client may get
-        // terminated before we get the ACK (this notification). We can
-        // safely drop the notification
+        // The execution context is NULL (fully terminated) and we just
+        // received a group revoke message. It is not something that is
+        // unexpected: when the world group is revoked during finalization,
+        // the client may get terminated before we get the ACK (this notification).
+        // We can safely drop the notification
         DBG("Safely dropping the group revoke notification since execution context is terminated");
         return UCS_OK;
     }
