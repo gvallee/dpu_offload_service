@@ -322,6 +322,21 @@ dpu_offload_status_t get_group_rank_host(offloading_engine_t *engine,
                                          uint64_t *host_id);
 
 /**
+ * @brief Checks whether two ranks of a same group are on the same host.
+ * 
+ * @param[in] engine Offloading engine for the query
+ * @param[in] gp_uid Target group's UID
+ * @param[in] rank1 First rank to use for the comparison
+ * @param[in] rank2 Second rank to use for the comparison
+ * @return false if the two ranks are not on the same host or in the context of an error
+ * @return true if the two ranks are on the same host
+ */
+bool on_same_host(offloading_engine_t *engine,
+                  group_uid_t gp_uid,
+                  int64_t rank1,
+                  int64_t rank2);
+
+/**
  * @brief Get the group ranks on a host from the local cache
  * 
  * @param[in] engine Offloading engine for the query
