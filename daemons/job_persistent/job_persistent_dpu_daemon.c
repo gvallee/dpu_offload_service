@@ -14,12 +14,14 @@
 #include "dpu_offload_service_daemon.h"
 #include "dpu_offload_envvars.h"
 
+/** 
+ * @brief This is an example of a service process that can be executed on DPUs
+ * and let processes on the hosts connect. Please refer to the documentation 
+ * [RUN.md](../../RUN.md) for details about how to start a daemon on DPUs.
+ */
+
 int main(int argc, char **argv)
 {
-    /*
-     * BOOTSTRAPPING: WE CREATE A CLIENT THAT CONNECT TO THE INITIATOR ON THE HOST
-     * AND INITIALIZE THE OFFLOADING SERVICE.
-     */
     fprintf(stderr, "Creating offload engine...\n");
     offloading_engine_t *offload_engine;
     dpu_offload_status_t rc = offload_engine_init(&offload_engine);
