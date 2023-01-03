@@ -1948,6 +1948,7 @@ execution_context_t *client_init(offloading_engine_t *offload_engine, init_param
         cache_entry->peer.proc_info.group_rank = ctx->rank.group_rank;
         cache_entry->peer.proc_info.group_size = ctx->rank.group_size;
         cache_entry->peer.proc_info.n_local_ranks = ctx->rank.n_local_ranks;
+        cache_entry->peer.host_info = ctx->rank.host_info;
         cache_entry->num_shadow_service_procs++;
         cache_entry->set = true;
         gp_cache->num_local_entries++;
