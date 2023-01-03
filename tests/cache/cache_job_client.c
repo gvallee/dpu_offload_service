@@ -17,7 +17,7 @@
  *
  * The intent of the test is the following:
  * - start the daemon on the DPU(s) (see documentation)
- * - start 2 clients, which the associated DPU daemons will track
+ * - start at least one client, which the associated DPU daemons will track
  * - both clients request the endpoint for the other client
  * - cache entries should end up being exchanged
  * - the clients should ultimately get the endpoints.
@@ -25,24 +25,41 @@
  * whether the ranks are running on the same host.
  *
  * Please provide the rank on the command line to start the test. Each process must have a unique rank.
- *      ./cache_job_client <RANK>
+ *      ./cache_job_client <TOTAL NUMBER OF RANKS> <TOTAL NUMBER OF RANKS ON HOST> <RANK>
  */
 
-uint64_t group_size = 2;
+enum {
+    BIN_NAME_ARG = 0,
+    TOTAL_NUM_RANKS_ARG,
+    TOTAL_NUM_LOCAL_RANKS_ARG,
+    MY_RANK_ARG,
+};
+
+const int num_args = 3;
 
 int main(int argc, char **argv)
 {
     offloading_engine_t *offload_engine = NULL;
     execution_context_t *client = NULL;
+    uint64_t group_size = 0, local_ranks = 0;
+    int my_rank;
 
     /* Get the rank for the arguments */
-    if (argc != 2)
+    if (argc != num_args + 1)
     {
         fprintf(stderr, "the test requires exactly two arguments, please update your command:\n");
-        fprintf(stderr, "\t%s <RANK>\n", argv[0]);
+        fprintf(stderr, "\t%s <TOTAL NUMBER OF RANKS> <RANK>\n", argv[0]);
         return EXIT_FAILURE;
     }
-    int my_rank = atoi(argv[1]);
+
+    group_size = atoi(argv[TOTAL_NUM_RANKS_ARG]);
+    local_ranks = atoi(argv[TOTAL_NUM_LOCAL_RANKS_ARG]);
+    my_rank = atoi(argv[MY_RANK_ARG]);
+
+    fprintf(stdout, "Starting test with the following data:\n");
+    fprintf(stdout, "\tMy rank: %d\n", my_rank);
+    fprintf(stdout, "\tGroup size: %" PRId64 "\n", group_size);
+    fprintf(stdout, "\tLocal ranks: %" PRId64 "\n", local_ranks);
 
     /* Get the configuration */
     offloading_config_t config_data;
@@ -53,6 +70,8 @@ int main(int argc, char **argv)
         fprintf(stderr, "get_host_config() failed\n");
         return EXIT_FAILURE;
     }
+    assert(config_data.num_dpus > 0);
+    assert(config_data.num_service_procs_per_dpu > 0);
 
     /* Initialize everything we need for the test */
     rc = offload_engine_init(&offload_engine);
@@ -70,9 +89,15 @@ int main(int argc, char **argv)
     fprintf(stderr, "INFO: connecting to DPU %s:%d\n", dpu_config[0].version_1.addr, *connect_port);
 
     group_uid_t guid = 42;
+    group_id_t gp_id = {
+        .id = 42,
+        .lead = 0,
+    };
     rank_info_t my_rank_info = {
         .group_uid = guid,
         .group_rank = my_rank,
+        .group_size = group_size,
+        .n_local_ranks = local_ranks,
     };
     init_params_t init_params;
     conn_params_t conn_params;
@@ -87,6 +112,7 @@ int main(int argc, char **argv)
         fprintf(stderr, "ERROR: get_local_service_proc_connect_info() failed\n");
         goto error_out;
     }
+    assert(init_params.num_sps > 0);
 
     client = client_init(offload_engine, &init_params);
     if (client == NULL)
@@ -94,10 +120,29 @@ int main(int argc, char **argv)
         fprintf(stderr, "client handle is undefined\n");
         return EXIT_FAILURE;
     }
+    ADD_CLIENT_TO_ENGINE(client, offload_engine);
 
-    int64_t target = 1;
-    if (my_rank == 1)
-        target = 0;
+    // Wait for the connection to the DPU to complete
+    // Avoid timing issues when a single rank is being used
+    while (GET_ECONTEXT_BOOTSTRAPING_PHASE(client) != BOOTSTRAP_DONE)
+    {
+        offload_engine_progress(offload_engine);
+    }
+
+    // Wait for the cache to be populated
+    while (!group_cache_populated(offload_engine, guid))
+    {
+        offload_engine_progress(offload_engine);
+    }
+
+    assert(client->type == CONTEXT_CLIENT);
+
+    fprintf(stdout, "\n***********\n");
+    fprintf(stdout, "Cache data:\n");
+    display_group_cache(&(offload_engine->procs_cache), gp_id);
+    fprintf(stdout, "***********\n");
+
+    int64_t target = (my_rank + 1) % group_size;
 
     dpu_offload_event_t *ev;
     int64_t shadow_dpu_id;
@@ -153,14 +198,13 @@ int main(int argc, char **argv)
         goto error_out;
     }
 
-    client_fini(&client);
+    // client finalized during offload_engine_fini()
     offload_engine_fini(&offload_engine);
     fprintf(stdout, "%s: test successful\n", argv[0]);
     return EXIT_SUCCESS;
 
 error_out:
-    if (client != NULL)
-        client_fini(&client);
+    // client finalized during offload_engine_fini()
     if (offload_engine != NULL)
         offload_engine_fini(&offload_engine);
     fprintf(stderr, "%s: test failed\n", argv[0]);
