@@ -1878,6 +1878,16 @@ execution_context_t *client_init(offloading_engine_t *offload_engine, init_param
                 }
             }
         }
+
+        if (init_params->num_sps > 0 && offload_engine->num_service_procs == 0)
+        {
+            offload_engine->num_service_procs = init_params->num_sps;
+        }
+        if (init_params->num_sps > 0 && offload_engine->num_service_procs > 0 && init_params->num_sps != offload_engine->num_service_procs)
+        {
+            ERR_MSG("Inconsistent number of service processes: %ld vs. %ld", init_params->num_sps, offload_engine->num_service_procs);
+            goto error_out;
+        }
     }
     else
     {

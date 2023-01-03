@@ -414,6 +414,7 @@ typedef struct peer_data
     do                                                              \
     {                                                               \
         COPY_RANK_INFO(&((_src)->proc_info), &((_dst)->proc_info)); \
+        (_dst)->host_info = (_src)->host_info;                      \
         assert((_src)->addr_len < MAX_ADDR_LEN);                    \
         (_dst)->addr_len = (_src)->addr_len;                        \
         if ((_src)->addr_len > 0)                                   \
@@ -963,6 +964,14 @@ typedef struct init_params
 
     // Optional unique ID to use when creating the execution context
     uint64_t id;
+
+    // Number of service processes expected on each DPU. Mainly used on the host to temporarily
+    // store data from get_local_service_proc_connect_info();
+    size_t sps_per_dpu;
+
+    // Total number of service processes. Mainly used on the host to temporarily
+    // store data from get_local_service_proc_connect_info();
+    size_t num_sps;
 
     // Callback to invoke when a connection completes
     connect_completed_cb connected_cb;

@@ -46,6 +46,7 @@ int main(int argc, char **argv)
 
     /* Get the configuration */
     offloading_config_t config_data;
+    INIT_DPU_CONFIG_DATA(&config_data);
     dpu_offload_status_t rc = get_host_config(&config_data);
     if (rc != DO_SUCCESS)
     {
@@ -60,6 +61,8 @@ int main(int argc, char **argv)
         fprintf(stderr, "offload_engine_init() failed\n");
         goto error_out;
     }
+    config_data.offloading_engine = offload_engine;
+    offload_engine->config = &config_data;
 
     dpu_config_data_t *dpu_config;
     dpu_config = config_data.dpus_config.base;
@@ -72,8 +75,19 @@ int main(int argc, char **argv)
         .group_rank = my_rank,
     };
     init_params_t init_params;
+    conn_params_t conn_params;
     RESET_INIT_PARAMS(&init_params);
+    RESET_CONN_PARAMS(&conn_params);
+    init_params.conn_params = &conn_params;
     init_params.proc_info = &my_rank_info;
+
+    rc = get_local_service_proc_connect_info(&config_data, &my_rank_info, &init_params);
+    if (rc)
+    {
+        fprintf(stderr, "ERROR: get_local_service_proc_connect_info() failed\n");
+        goto error_out;
+    }
+
     client = client_init(offload_engine, &init_params);
     if (client == NULL)
     {
