@@ -414,6 +414,7 @@ typedef struct peer_data
     do                                                              \
     {                                                               \
         COPY_RANK_INFO(&((_src)->proc_info), &((_dst)->proc_info)); \
+        (_dst)->host_info = (_src)->host_info;                      \
         assert((_src)->addr_len < MAX_ADDR_LEN);                    \
         (_dst)->addr_len = (_src)->addr_len;                        \
         if ((_src)->addr_len > 0)                                   \
