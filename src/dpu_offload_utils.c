@@ -1874,6 +1874,12 @@ dpu_offload_status_t get_local_service_proc_connect_info(offloading_config_t *cf
     init_params->conn_params->port = *host_port;
     assert(dpu_config->version_1.addr);
     init_params->conn_params->addr_str = dpu_config->version_1.addr;
+    init_params->sps_per_dpu = cfg->num_service_procs_per_dpu;
+    if (cfg->num_service_procs == 0)
+    {
+        cfg->num_service_procs = cfg->num_service_procs_per_dpu * cfg->num_service_procs_per_dpu;
+    }
+    init_params->num_sps = cfg->num_service_procs;
     DBG("Service process connection info - port: %d, addr: %s, local_id: %" PRIu64 ", global_id: %" PRIu64,
         init_params->conn_params->port,
         init_params->conn_params->addr_str,

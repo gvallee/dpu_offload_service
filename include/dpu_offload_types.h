@@ -964,6 +964,14 @@ typedef struct init_params
     // Optional unique ID to use when creating the execution context
     uint64_t id;
 
+    // Number of service processes expected on each DPU. Mainly used on the host to temporarily
+    // store data from get_local_service_proc_connect_info();
+    size_t sps_per_dpu;
+
+    // Total number of service processes. Mainly used on the host to temporarily
+    // store data from get_local_service_proc_connect_info();
+    size_t num_sps;
+
     // Callback to invoke when a connection completes
     connect_completed_cb connected_cb;
 } init_params_t;
