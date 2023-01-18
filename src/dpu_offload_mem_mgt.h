@@ -56,9 +56,13 @@
                 _gp_cache = GET_GROUP_CACHE((_cache), key);             \
                 assert(_gp_cache);                                      \
                 dyn_array_t *__da = NULL;                               \
+                /* avoid compile time warnings */                       \
                 __da = &(_gp_cache->ranks);                             \
-                if (__da)                                               \
-                    DYN_ARRAY_FREE(__da);                               \
+                DYN_ARRAY_FREE(__da);                                   \
+                __da = &(_gp_cache->hosts);                             \
+                DYN_ARRAY_FREE(__da);                                   \
+                __da = &(_gp_cache->sps);                               \
+                DYN_ARRAY_FREE(__da);                                   \
             }                                                           \
         }) kh_destroy(group_hash_t, (_cache)->data);                    \
         DYN_LIST_FREE((_cache)->group_cache_pool, group_cache_t, item); \

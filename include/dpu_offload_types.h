@@ -1653,7 +1653,7 @@ typedef struct group_cache
     // The index in the array is referred to as a "host group ID", i.e.,
     // the host ID within the group, from 0 to n, n being the total number of hosts
     // that are involved.
-    // Type: TBD
+    // Type: group_uid_t
     dyn_array_t hosts;
 
     // Number of hosts involved in the group, i.e., the number of elements in the 'hosts' array
@@ -1667,6 +1667,7 @@ typedef struct group_cache
     // The index in the array is referred to as "global group SP id", i.e.,
     // the SP ID within the group, from 0 to n, n being the total number of SPs
     // involved in the group.
+    // Type: remote_service_proc_info_t
     dyn_array_t sps;
 
     // Number of SPs involved in the group, i.e., the number of elements in the 'sps' array.
@@ -1686,6 +1687,8 @@ typedef struct group_cache
         (__g)->n_local_ranks = 0;           \
         (__g)->n_local_ranks_populated = 0; \
         (__g)->sp_ranks = 0;                \
+        (__g)->n_hosts = 0;                 \
+        (__g)->n_sps = 0;                   \
     } while (0)
 
 /**
@@ -1706,6 +1709,8 @@ typedef struct group_cache
         DYN_LIST_GET((_cache)->group_cache_pool, group_cache_t, item, _new_group_cache); \
         RESET_GROUP_CACHE(_new_group_cache);                                             \
         DYN_ARRAY_ALLOC(&(_new_group_cache->ranks), 1024, peer_cache_entry_t);           \
+        DYN_ARRAY_ALLOC(&(_new_group_cache->hosts), 32, group_uid_t);                    \
+        DYN_ARRAY_ALLOC(&(_new_group_cache->sps), (32 * 8), remote_service_proc_info_t); \
         kh_value((_cache)->data, _newKey) = _new_group_cache;                            \
         _gp_cache = _new_group_cache;                                                    \
     }                                                                                    \
@@ -2221,7 +2226,7 @@ typedef struct offloading_engine
     // Lookup table to quickly retrieve the execution context in the context
     // of clients when receiving a notification. Used on service processes only
     // when the AM backend is used. Put here since initialized/finalized based
-    // on the value of the settings field.
+    // on the value of the 'settings' field.
     khash_t(client_lookup_hash_t) * client_lookup_table;
 } offloading_engine_t;
 
