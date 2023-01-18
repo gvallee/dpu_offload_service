@@ -1644,6 +1644,33 @@ typedef struct group_cache
 
     // Array with all the ranks in the group (type: peer_cache_entry_t)
     dyn_array_t ranks;
+
+    // Lookup table implemented as an array of all the hosts involved in the group.
+    // The array is contiguous and ordered, i.e., each host involved in the group
+    // are added to the array based on the order from the configuration,
+    // which for most jobs is from a configuration file.
+    // The array is guaranteed to be the same on all hosts and SPs.
+    // The index in the array is referred to as a "host group ID", i.e.,
+    // the host ID within the group, from 0 to n, n being the total number of hosts
+    // that are involved.
+    // Type: TBD
+    dyn_array_t hosts;
+
+    // Number of hosts involved in the group, i.e., the number of elements in the 'hosts' array
+    size_t n_hosts;
+
+    // Lookup table implemented as an array of all the SPs involved in the group.
+    // The array is contiguous and ordered, i.e., each SP involved in the group
+    // are added to the array based on the order from the configuration,
+    // which for most jobs is from a configuration file.
+    // The array is guaranteed to be the same on all hosts and SPs.
+    // The index in the array is referred to as "global group SP id", i.e.,
+    // the SP ID within the group, from 0 to n, n being the total number of SPs
+    // involved in the group.
+    dyn_array_t sps;
+
+    // Number of SPs involved in the group, i.e., the number of elements in the 'sps' array.
+    size_t n_sps;
 } group_cache_t;
 
 #define RESET_GROUP_CACHE(__g)              \
