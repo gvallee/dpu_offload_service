@@ -17,6 +17,7 @@
 #include "dpu_offload_debug.h"
 #include "dpu_offload_event_channels.h"
 #include "dpu_offload_envvars.h"
+#include "dpu_offload_group_cache.h"
 
 #if !NDEBUG
 debug_config_t dbg_cfg = {
@@ -621,6 +622,7 @@ dpu_offload_status_t send_gp_cache_to_host(execution_context_t *econtext, group_
     assert(econtext->type == CONTEXT_SERVER);
     assert(econtext->scope_id == SCOPE_HOST_DPU);
     size_t n = 0, idx = 0;
+    dpu_offload_status_t rc;
     group_cache_t *gp_cache = GET_GROUP_CACHE(&(econtext->engine->procs_cache), group_uid);
     if (gp_cache->sent_to_host == false)
     {
@@ -640,7 +642,7 @@ dpu_offload_status_t send_gp_cache_to_host(execution_context_t *econtext, group_
                 continue;
             }
             DBG("Send cache to client #%ld (id: %" PRIu64 ")", idx, c->id);
-            dpu_offload_status_t rc = event_get(econtext->event_channels, NULL, &metaev);
+            rc = event_get(econtext->event_channels, NULL, &metaev);
             CHECK_ERR_RETURN((rc), DO_ERROR, "event_get() failed");
             assert(metaev);
             EVENT_HDR_TYPE(metaev) = META_EVENT_TYPE;
@@ -654,6 +656,14 @@ dpu_offload_status_t send_gp_cache_to_host(execution_context_t *econtext, group_
             idx++;
         }
         gp_cache->sent_to_host = true;
+
+        // Once the cache is sent to the host, we know it cannot change so we
+        // populate the few lookup table.
+        // Note that we pre-emptively create the cache on the SPs, it might not
+        // be the case on the host where these tables may be populated in a lazy
+        // manner.
+        rc = populate_group_cache_lookup_table(econtext->engine, gp_cache);
+        CHECK_ERR_RETURN((rc), DO_ERROR, "populate_group_cache_lookup_table() failed");
     }
     else
         DBG("cache aleady sent to host");
