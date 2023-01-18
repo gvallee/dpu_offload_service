@@ -1281,13 +1281,6 @@ static void progress_event_recv(execution_context_t *econtext)
 #endif
 }
 
-/**
- * @brief callback that servers (service processes acting as servers) on DPUs can
- * set (server->connected_cb) to have implicit management of caches, especially
- * when all the ranks of the group are on the local host. In such a situation,
- * it will be detected when the last ranks connects, the group cache therefore
- * completes and the cache is then sent back to local ranks.
- */
 void local_rank_connect_default_callback(void *data)
 {
     connected_peer_data_t *connected_peer;
