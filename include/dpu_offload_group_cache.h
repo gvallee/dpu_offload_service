@@ -200,4 +200,15 @@ dpu_offload_status_t get_nth_sp_by_group_host(offloading_engine_t *engine,
                                               host_info_t host_id,
                                               uint64_t *global_group_sp_id);
 
+/**
+ * @brief Checks whether a group's cache is fully populated
+ * 
+ * @param engine Offloading engine for the query
+ * @param gp_uid Target group's UID
+ * @return true 
+ * @return false 
+ */
+bool group_cache_populated(offloading_engine_t *engine, group_uid_t gp_uid);
+
+
 #endif // DPU_OFFLOAD_GROUP_CACHE_H_

@@ -44,6 +44,12 @@
         DYN_LIST_ALLOC((_cache)->group_cache_pool, DEFAULT_NUM_GROUPS, group_cache_t, item); \
     } while (0)
 
+#define GROUP_CACHE_SP_HASH_FINI(_gp_cache) \
+    do \
+    { \
+        /*TODO;*/ \
+    } while(0)
+
 #define GROUPS_CACHE_FINI(_cache)                                       \
     do                                                                  \
     {                                                                   \
@@ -63,6 +69,8 @@
                 DYN_ARRAY_FREE(__da);                                   \
                 __da = &(_gp_cache->sps);                               \
                 DYN_ARRAY_FREE(__da);                                   \
+                /* Free hash table(s) */                                \
+                GROUP_CACHE_SP_HASH_FINI(_gp_cache);                    \
             }                                                           \
         }) kh_destroy(group_hash_t, (_cache)->data);                    \
         DYN_LIST_FREE((_cache)->group_cache_pool, group_cache_t, item); \

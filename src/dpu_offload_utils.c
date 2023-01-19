@@ -260,20 +260,8 @@ dpu_offload_status_t send_revoke_group_rank_request_through_num_ranks(execution_
 
 /********************************************/
 /* FUNCTIONS RELATED TO THE ENDPOINT CACHES */
+/* TODO: move to dpu_offload_group_cache.c  */
 /********************************************/
-
-bool group_cache_populated(offloading_engine_t *engine, group_uid_t gp_uid)
-{
-    group_cache_t *gp_cache = GET_GROUP_CACHE(&(engine->procs_cache), gp_uid);
-    assert(gp_cache);
-    if (gp_cache->global_revoked == 0 && gp_cache->group_size == gp_cache->num_local_entries)
-    {
-        DBG("Group cache for group 0x%x fully populated. num_local_entries = %" PRIu64 " group_size = %" PRIu64,
-            gp_uid, gp_cache->num_local_entries, gp_cache->group_size);
-        return true;
-    }
-    return false;
-}
 
 dpu_offload_status_t get_local_sp_id(offloading_engine_t *engine, uint64_t global_sp_id, uint64_t *local_sp_id)
 {

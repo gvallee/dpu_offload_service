@@ -1605,6 +1605,12 @@ typedef enum
 /* OFFLOADING ENGINE */
 /*********************/
 
+typedef struct sp_cache_data {
+    size_t n_ranks;
+} sp_cache_data_t;
+
+KHASH_MAP_INIT_INT(group_sps_hash_t, sp_cache_data_t *);
+
 typedef struct group_cache
 {
     ucs_list_link_t item;
@@ -1659,6 +1665,11 @@ typedef struct group_cache
     // Number of hosts involved in the group, i.e., the number of elements in the 'hosts' array
     size_t n_hosts;
 
+    // Hash for all the SPs in the group. We use a hash so we can efficiently
+    // track which SPs are used in a group as we receive cache entries.
+    // The key is the group ID, the value the number of ranks associated to that SP.
+    khash_t(group_sps_hash_t) * sps_hash;
+
     // Lookup table implemented as an array of all the SPs involved in the group.
     // The array is contiguous and ordered, i.e., each SP involved in the group
     // are added to the array based on the order from the configuration,
@@ -1711,6 +1722,7 @@ typedef struct group_cache
         DYN_ARRAY_ALLOC(&(_new_group_cache->ranks), 1024, peer_cache_entry_t);           \
         DYN_ARRAY_ALLOC(&(_new_group_cache->hosts), 32, group_uid_t);                    \
         DYN_ARRAY_ALLOC(&(_new_group_cache->sps), (32 * 8), remote_service_proc_info_t); \
+        _new_group_cache->sps_hash = kh_init(group_sps_hash_t);                          \
         kh_value((_cache)->data, _newKey) = _new_group_cache;                            \
         _gp_cache = _new_group_cache;                                                    \
     }                                                                                    \

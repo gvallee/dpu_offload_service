@@ -18,6 +18,7 @@
 
 #include "dpu_offload_types.h"
 #include "dpu_offload_event_channels.h"
+#include "dpu_offload_group_cache.h"
 
 #define DAEMON_GET_PEER_EP(_d, _ep) ({ \
     if (_d->type == DAEMON_CLIENT)     \
@@ -391,16 +392,6 @@ dpu_offload_status_t get_group_local_sps(offloading_engine_t *engine,
                                          group_uid_t gp_uid,
                                          size_t *n_sps,
                                          dyn_array_t *sps);
-
-/**
- * @brief Checks whether a group's cache is fully populated
- * 
- * @param engine Offloading engine for the query
- * @param gp_uid Target group's UID
- * @return true 
- * @return false 
- */
-bool group_cache_populated(offloading_engine_t *engine, group_uid_t gp_uid);
 
 /**
  * @brief Checks whether a rank in a given group is in the cache.
