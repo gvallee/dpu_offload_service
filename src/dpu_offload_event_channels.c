@@ -1499,6 +1499,8 @@ static dpu_offload_status_t handle_peer_cache_entries_recv(execution_context_t *
                     sp_data->n_ranks = 1;
                     sp_data->gp_uid = gp_cache->group_uid;
                     ADD_GROUP_SP_HASH_ENTRY(gp_cache, sp_data);
+                    GROUP_CACHE_BITSET_SET(gp_cache->sps_bitset,
+                                           entries[idx].shadow_service_procs[n]);
                 }
                 else
                 {
@@ -1834,6 +1836,10 @@ static dpu_offload_status_t revoke_group_cache(offloading_engine_t *engine, grou
                                                    peer_cache_entry_t);
         assert(e);
         RESET_PEER_CACHE_ENTRY(e);
+    }
+    if (c->sps_bitset != NULL)
+    {
+        GROUP_CACHE_BITSET_DESTROY(c->sps_bitset);
     }
     RESET_GROUP_CACHE(engine, c);
 

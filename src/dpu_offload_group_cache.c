@@ -10,44 +10,6 @@
 #include "dpu_offload_types.h"
 #include "dpu_offload_debug.h"
 
-typedef char group_cache_bitset_t;
-
-// Create a bitset mask
-#define GROUP_CACHE_BITSET_MASK(_bit) (1 << ((_bit) % CHAR_BIT))
-
-// Return the slot of a given bit
-#define GROUP_CACHE_BITSET_SLOT(_bit) ((_bit) / CHAR_BIT)
-
-// Set a given bit in a bitset
-#define GROUP_CACHE_BITSET_SET(_bitset, _bit) ((_bistset)[GROUP_CACHE_BITSET_SLOT(_bit)] |= GROUP_CACHE_BITSET_MASK(_bit))
-
-// Clear a given bit in a bitset
-#define GROUP_CACHE_BITSET_CLEAR(_bitset, _bit) ((_bitset)[GROUP_CACHE_BITSET_SLOT(_bit)] &= ~GROUP_CACHE_BITSET_MASK(_bit))
-
-// Test if a bit in the bitset is set
-#define GROUP_CACHE_BITSET_TEST(_bitset, _bitset_idx) ((_bitset)[GROUP_CACHE_BITSET_SLOT(_bitset_idx)] & GROUP_CACHE_BITSET_MASK(_bitset_idx))
-
-// Return the number of slots required to implement a bitset of a given size
-#define GROUP_CACHE_BITSET_NSLOTS(_bitset_size) ((_bitset_size + CHAR_BIT - 1) / CHAR_BIT)
-
-// Create a given bitset based on a size
-#define GROUP_CACHE_BITSET_CREATE(_bitset_ptr, _size)                                        \
-    do                                                                                       \
-    {                                                                                        \
-        _bitset_ptr = calloc(GROUP_CACHE_BITSET_NSLOTS(size), sizeof(group_cache_bitset_t)); \
-    } while (0)
-
-// Destroy a given bitset that was previously created with GROUP_CACHE_BITSET_CREATE
-#define GROUP_CACHE_BITSET_DESTROY(_bitset_ptr) \
-    do                                          \
-    {                                           \
-        if ((_bitset_ptr) != NULL)              \
-        {                                       \
-            free(_bitset_ptr);                  \
-            _bitset_ptr = NULL;                 \
-        }                                       \
-    } while (0)
-
 bool group_cache_populated(offloading_engine_t *engine, group_uid_t gp_uid)
 {
     group_cache_t *gp_cache = GET_GROUP_CACHE(&(engine->procs_cache), gp_uid);

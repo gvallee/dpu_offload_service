@@ -65,6 +65,8 @@
                 DYN_ARRAY_FREE(__da);                                   \
                 /* Free hash table(s) */                                \
                 GROUP_CACHE_SP_HASH_FINI((_cache)->engine, _gp_cache);  \
+                /* Free the bitset for SPs */                           \
+                GROUP_CACHE_BITSET_DESTROY(_gp_cache->sps_bitset);      \
             }                                                           \
         }) kh_destroy(group_hash_t, (_cache)->data);                    \
         DYN_LIST_FREE((_cache)->group_cache_pool, group_cache_t, item); \

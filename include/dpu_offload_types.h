@@ -1627,6 +1627,48 @@ typedef struct sp_cache_data {
 
 KHASH_MAP_INIT_INT(group_sps_hash_t, sp_cache_data_t *);
 
+/**
+ * @brief Type used to define and use bitset of any size
+ */
+typedef char group_cache_bitset_t;
+
+// Create a bitset mask
+#define GROUP_CACHE_BITSET_MASK(_bit) (1 << ((_bit) % CHAR_BIT))
+
+// Return the slot of a given bit
+#define GROUP_CACHE_BITSET_SLOT(_bit) ((_bit) / CHAR_BIT)
+
+// Set a given bit in a bitset
+#define GROUP_CACHE_BITSET_SET(_bitset, _bit) ((_bitset)[GROUP_CACHE_BITSET_SLOT(_bit)] |= GROUP_CACHE_BITSET_MASK(_bit))
+
+// Clear a given bit in a bitset
+#define GROUP_CACHE_BITSET_CLEAR(_bitset, _bit) ((_bitset)[GROUP_CACHE_BITSET_SLOT(_bit)] &= ~GROUP_CACHE_BITSET_MASK(_bit))
+
+// Test if a bit in the bitset is set
+#define GROUP_CACHE_BITSET_TEST(_bitset, _bitset_idx) ((_bitset)[GROUP_CACHE_BITSET_SLOT(_bitset_idx)] & GROUP_CACHE_BITSET_MASK(_bitset_idx))
+
+// Return the number of slots required to implement a bitset of a given size
+#define GROUP_CACHE_BITSET_NSLOTS(_bitset_size) ((_bitset_size + CHAR_BIT - 1) / CHAR_BIT)
+
+// Create a given bitset based on a size
+#define GROUP_CACHE_BITSET_CREATE(_bitset_ptr, _size)          \
+    do                                                         \
+    {                                                          \
+        _bitset_ptr = calloc(GROUP_CACHE_BITSET_NSLOTS(_size), \
+                             sizeof(group_cache_bitset_t));    \
+    } while (0)
+
+// Destroy a given bitset that was previously created with GROUP_CACHE_BITSET_CREATE
+#define GROUP_CACHE_BITSET_DESTROY(_bitset_ptr) \
+    do                                          \
+    {                                           \
+        if ((_bitset_ptr) != NULL)              \
+        {                                       \
+            free(_bitset_ptr);                  \
+            _bitset_ptr = NULL;                 \
+        }                                       \
+    } while (0)
+
 typedef struct group_cache
 {
     ucs_list_link_t item;
@@ -1684,7 +1726,13 @@ typedef struct group_cache
     // Hash for all the SPs in the group. We use a hash so we can efficiently
     // track which SPs are used in a group as we receive cache entries.
     // The key is the group ID, the value the number of ranks associated to that SP.
+    // It creates a logically contiguous, unordered list of all the SPs involed in
+    // the group
     khash_t(group_sps_hash_t) * sps_hash;
+
+    // Bitset used to identify all the SPs involed in the group. This creates a
+    // non-contiguous but ordered list of all the SPs that are involed.
+    group_cache_bitset_t *sps_bitset;
 
     // Lookup table implemented as an array of all the SPs involved in the group.
     // The array is contiguous and ordered, i.e., each SP involved in the group
@@ -1713,22 +1761,23 @@ typedef struct group_cache
         }) kh_destroy(group_sps_hash_t, (_gp_cache->sps_hash)); \
     } while(0)
 
-#define RESET_GROUP_CACHE(__e, __g)         \
-    do                                      \
-    {                                       \
-        (__g)->initialized = false;         \
-        (__g)->global_revoked = 0;          \
-        (__g)->local_revoked = 0;           \
-        (__g)->sent_to_host = false;        \
-        (__g)->group_size = 0;              \
-        (__g)->group_uid = INT_MAX;         \
-        (__g)->num_local_entries = 0;       \
-        (__g)->n_local_ranks = 0;           \
-        (__g)->n_local_ranks_populated = 0; \
-        (__g)->sp_ranks = 0;                \
-        (__g)->n_hosts = 0;                 \
-        (__g)->n_sps = 0;                   \
-        GROUP_CACHE_SP_HASH_FINI(__e, __g); \
+#define RESET_GROUP_CACHE(__e, __g)                   \
+    do                                                \
+    {                                                 \
+        (__g)->initialized = false;                   \
+        (__g)->global_revoked = 0;                    \
+        (__g)->local_revoked = 0;                     \
+        (__g)->sent_to_host = false;                  \
+        (__g)->group_size = 0;                        \
+        (__g)->group_uid = INT_MAX;                   \
+        (__g)->num_local_entries = 0;                 \
+        (__g)->n_local_ranks = 0;                     \
+        (__g)->n_local_ranks_populated = 0;           \
+        (__g)->sp_ranks = 0;                          \
+        (__g)->n_hosts = 0;                           \
+        (__g)->n_sps = 0;                             \
+        GROUP_CACHE_SP_HASH_FINI(__e, __g);           \
+        (__g)->sps_bitset = NULL;                     \
     } while (0)
 
 #define GET_GROUP_SP_HASH_ENTRY(_gp_cache, _sp_gid) ({                      \
@@ -1954,6 +2003,7 @@ typedef struct cache
             /* The first group is MPI_COMM_WORLD or equivalent. */          \
             if ((_cache)->size == 1)                                        \
                 (_cache)->world_group = (_gp_uid);                          \
+            GROUP_CACHE_BITSET_CREATE(_gp_cache->sps_bitset, _gp_size);     \
         }                                                                   \
         if (_gp_cache->initialized &&                                       \
             _gp_cache->group_size <= 0 &&                                   \
