@@ -1467,7 +1467,44 @@ static dpu_offload_status_t handle_peer_cache_entries_recv(execution_context_t *
             // append the shadow DPU data to the data already local available (if any)
             for (n = 0; n < entries[idx].num_shadow_service_procs; n++)
             {
+                sp_cache_data_t *sp_data;
                 cache_entry->shadow_service_procs[cache_entry->num_shadow_service_procs + n] = entries[idx].shadow_service_procs[n];
+
+                // SPs have a unique ID, are all known, as well as the host associated to them.
+                // So when we receive a cache entry, we look the SP of the cache entry and update
+                // a SP lookup table so we can track which SPs are involved in the group.
+                // As mentioned, knowing which SPs are involed in the group also allows us to track
+                // which hosts are involved in the group. Note that it is difficult to directly
+                // track which hosts are involved because host are represented via a hash and
+                // it is therefore difficult to keep an ordered list of hosts that is consistent
+                // everywhere.
+                INFO_MSG("cache entry has SP %" PRIu64", updating SP hash for the group (0x%x)",
+                         entries[idx].shadow_service_procs[n], group_uid);
+                // Check if the SP is already in the group SP hash; if not, it means it is first
+                // time we learn about that SP in the group so we increment the number of SPs
+                // involved in the group
+
+                sp_data = GET_GROUP_SP_HASH_ENTRY(gp_cache, entries[idx].shadow_service_procs[n]);
+                if (sp_data == NULL)
+                {
+                    // SP is not in the hash, we start by updating some bookkeeping variables
+                    gp_cache->n_sps++;
+                    // Add the SP to the hash using the global SP id as key
+                    DYN_LIST_GET(engine->free_sp_cache_hash_obj,
+                                 sp_cache_data_t,
+                                 item,
+                                 sp_data);
+                    RESSET_SP_CACHE_DATA(sp_data);
+                    sp_data->gid = entries[idx].shadow_service_procs[n];
+                    sp_data->n_ranks = 1;
+                    sp_data->gp_uid = gp_cache->group_uid;
+                    ADD_GROUP_SP_HASH_ENTRY(gp_cache, sp_data);
+                }
+                else
+                {
+                    // The SP is already in the hash
+                    sp_data->n_ranks++;
+                }
             }
             cache_entry->num_shadow_service_procs += entries[idx].num_shadow_service_procs;
             cache_entry->client_id = entries[idx].client_id;
@@ -1482,6 +1519,7 @@ static dpu_offload_status_t handle_peer_cache_entries_recv(execution_context_t *
                     event_return(&e);
                 }
             }
+
 
             DBG("Cache now has %ld local entries and group size is %ld", gp_cache->num_local_entries, gp_cache->group_size);
 
@@ -1797,7 +1835,7 @@ static dpu_offload_status_t revoke_group_cache(offloading_engine_t *engine, grou
         assert(e);
         RESET_PEER_CACHE_ENTRY(e);
     }
-    RESET_GROUP_CACHE(c);
+    RESET_GROUP_CACHE(engine, c);
 
     // Handle potential pending receives of cache emtries
     ucs_list_for_each_safe(pending_cache_entry, next_pending, &(engine->pending_recv_cache_entries), item)

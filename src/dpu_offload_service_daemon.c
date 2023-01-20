@@ -1060,6 +1060,13 @@ dpu_offload_status_t offload_engine_init(offloading_engine_t **engine)
         d->client_lookup_table = kh_init(client_lookup_hash_t);
     }
 
+    /* Some initialization of the group/endpoint cache */
+    DYN_LIST_ALLOC(d->free_sp_cache_hash_obj,
+                   1024,
+                   sp_cache_data_t,
+                   item);
+    d->procs_cache.engine = d;
+
     dpu_offload_status_t rc = ev_channels_init(&(d->default_notifications));
     CHECK_ERR_GOTO((rc), error_out, "ev_channels_init() failed");
 
@@ -1091,6 +1098,8 @@ error_out:
         DYN_LIST_FREE(d->free_op_descs, op_desc_t, item);
     if (d->free_cache_entry_requests)
         DYN_LIST_FREE(d->free_cache_entry_requests, cache_entry_request_t, item);
+    if (d->free_sp_cache_hash_obj)
+        DYN_LIST_FREE(d->free_sp_cache_hash_obj, sp_cache_data_t, item);
     if (d->self_econtext)
         execution_context_fini(&d->self_econtext);
     *engine = NULL;
@@ -1972,6 +1981,7 @@ void offload_engine_fini(offloading_engine_t **offload_engine)
     DYN_LIST_FREE((*offload_engine)->pool_pending_recv_group_add, pending_group_add_t, item);
     DYN_LIST_FREE((*offload_engine)->pool_pending_send_group_add, pending_send_group_add_t, item);
     DYN_LIST_FREE((*offload_engine)->pool_pending_recv_cache_entries, pending_recv_cache_entry_t, item);
+    DYN_LIST_FREE((*offload_engine)->free_sp_cache_hash_obj, sp_cache_data_t, item);
     DYN_ARRAY_FREE(&((*offload_engine)->dpus));
     DYN_ARRAY_FREE(&((*offload_engine)->service_procs));
 

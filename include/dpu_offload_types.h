@@ -1605,9 +1605,25 @@ typedef enum
 /* OFFLOADING ENGINE */
 /*********************/
 
+/**
+ * @brief Elements saved in a group cache hash used to know which SPs are
+ * involved in a group.
+ * 
+ */
 typedef struct sp_cache_data {
+    ucs_list_link_t item;
     size_t n_ranks;
+    uint64_t gid;
+    group_uid_t gp_uid;
 } sp_cache_data_t;
+
+#define RESSET_SP_CACHE_DATA(_sp_data) \
+    do                                 \
+    {                                  \
+        (_sp_data)->n_ranks = 0;       \
+        (_sp_data)->gid = UINT64_MAX;  \
+        (_sp_data)->gp_uid = 0;        \
+    } while (0)
 
 KHASH_MAP_INIT_INT(group_sps_hash_t, sp_cache_data_t *);
 
@@ -1685,7 +1701,19 @@ typedef struct group_cache
     size_t n_sps;
 } group_cache_t;
 
-#define RESET_GROUP_CACHE(__g)              \
+#define GROUP_CACHE_SP_HASH_FINI(_engine, _gp_cache)            \
+    do                                                          \
+    {                                                           \
+        uint64_t __k;                                           \
+        sp_cache_data_t *__v = NULL;                            \
+        kh_foreach((_gp_cache)->sps_hash, __k, __v, {           \
+            DYN_LIST_RETURN((_engine)->free_sp_cache_hash_obj,  \
+                            __v,                                \
+                            item);                              \
+        }) kh_destroy(group_sps_hash_t, (_gp_cache->sps_hash)); \
+    } while(0)
+
+#define RESET_GROUP_CACHE(__e, __g)         \
     do                                      \
     {                                       \
         (__g)->initialized = false;         \
@@ -1700,7 +1728,46 @@ typedef struct group_cache
         (__g)->sp_ranks = 0;                \
         (__g)->n_hosts = 0;                 \
         (__g)->n_sps = 0;                   \
+        GROUP_CACHE_SP_HASH_FINI(__e, __g); \
     } while (0)
+
+#define GET_GROUP_SP_HASH_ENTRY(_gp_cache, _sp_gid) ({                      \
+    sp_cache_data_t *_sp_data = NULL;                                       \
+    khiter_t _k = kh_get(group_sps_hash_t, (_gp_cache)->sps_hash, _sp_gid); \
+    if (_k != kh_end((_gp_cache)->sps_hash))                                \
+    {                                                                       \
+        /* The SP is already in the hash */                                 \
+        _sp_data = kh_value((_gp_cache)->sps_hash, _k);                     \
+    }                                                                       \
+    _sp_data;                                                               \
+})
+
+#if NDEBUG
+#define ADD_GROUP_SP_HASH_ENTRY(_gp_cache, _sp_data) \
+    do \
+    {\
+        khiter_t _newKey = kh_put(group_sps_hash_t,                                    \
+                                  (_gp_cache)->sps_hash,                               \
+                                  (_sp_data->gid));                                    \
+        kh_value((_gp_cache)->sps_hash, _newKey) = _sp_data;                           \
+    } while(0)
+#else
+#define ADD_GROUP_SP_HASH_ENTRY(_gp_cache, _sp_data)                                   \
+    do                                                                                 \
+    {                                                                                  \
+        int _ret;                                                                      \
+        khiter_t _k = kh_get(group_sps_hash_t,                                         \
+                             (_gp_cache)->sps_hash,                                    \
+                             _sp_data->gid);                                           \
+        /* if the SP is already in the cache, we assume for now it is a fatal error */ \
+        assert (_k == kh_end((_gp_cache)->sps_hash));                                  \
+        khiter_t _newKey = kh_put(group_sps_hash_t,                                    \
+                                  (_gp_cache)->sps_hash,                               \
+                                  (_sp_data)->gid,                                     \
+                                  &_ret);                                              \
+        kh_value((_gp_cache)->sps_hash, _newKey) = _sp_data;                           \
+    } while(0)
+#endif
 
 /**
  * @brief GET_GROUP_CACHE looks up a specific group from the cache. If the cache does
@@ -1718,7 +1785,7 @@ typedef struct group_cache
         group_cache_t *_new_group_cache;                                                 \
         khiter_t _newKey = kh_put(group_hash_t, (_cache)->data, (_gp_uid), &_ret);       \
         DYN_LIST_GET((_cache)->group_cache_pool, group_cache_t, item, _new_group_cache); \
-        RESET_GROUP_CACHE(_new_group_cache);                                             \
+        RESET_GROUP_CACHE((_cache)->engine, _new_group_cache);                           \
         DYN_ARRAY_ALLOC(&(_new_group_cache->ranks), 1024, peer_cache_entry_t);           \
         DYN_ARRAY_ALLOC(&(_new_group_cache->hosts), 32, group_uid_t);                    \
         DYN_ARRAY_ALLOC(&(_new_group_cache->sps), (32 * 8), remote_service_proc_info_t); \
@@ -1800,6 +1867,9 @@ KHASH_MAP_INIT_INT(group_hash_t, group_cache_t *);
 
 typedef struct cache
 {
+    // Associated offload engine
+    struct offloading_engine *engine;
+
     // How many group caches that compose the cache are currently in use.
     size_t size;
 
@@ -1816,6 +1886,7 @@ typedef struct cache
 #define RESET_CACHE(__c)                \
     do                                  \
     {                                   \
+        (__c)->engine = NULL;           \
         (__c)->size = 0;                \
         (__c)->data = NULL;             \
         (__c)->group_cache_pool = NULL; \
@@ -1872,7 +1943,7 @@ typedef struct cache
         if (_gp_cache->initialized == false)                                \
         {                                                                   \
             /* Cache for the group is empty, lazy initialization */         \
-            RESET_GROUP_CACHE(_gp_cache);                                   \
+            RESET_GROUP_CACHE((_cache)->engine, _gp_cache);                 \
             _gp_cache->initialized = true;                                  \
             if (_gp_size >= 0)                                              \
                 _gp_cache->group_size = _gp_size;                           \
@@ -2234,6 +2305,9 @@ typedef struct offloading_engine
     // pending_rdv_recvs is the current list of pending AM RDV receives.
     // Once completed, the element is returned to free_pending_rdv_recv.
     ucs_list_link_t pending_rdv_recvs;
+
+    // Pool of objects to populate SP hashes in group cache.
+    dyn_list_t *free_sp_cache_hash_obj;
 
     // Lookup table to quickly retrieve the execution context in the context
     // of clients when receiving a notification. Used on service processes only

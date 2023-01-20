@@ -1,3 +1,9 @@
+//
+// Copyright (c) 2023, NVIDIA CORPORATION. All rights reserved.
+//
+// See LICENSE.txt for license information
+//
+
 #ifndef DPU_OFFLOAD_GROUP_CACHE_H_
 
 /**

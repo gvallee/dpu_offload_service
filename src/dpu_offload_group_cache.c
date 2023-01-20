@@ -10,7 +10,6 @@
 #include "dpu_offload_types.h"
 #include "dpu_offload_debug.h"
 
-
 typedef char group_cache_bitset_t;
 
 // Create a bitset mask
@@ -49,9 +48,7 @@ typedef char group_cache_bitset_t;
         }                                       \
     } while (0)
 
-
-bool
-group_cache_populated(offloading_engine_t *engine, group_uid_t gp_uid)
+bool group_cache_populated(offloading_engine_t *engine, group_uid_t gp_uid)
 {
     group_cache_t *gp_cache = GET_GROUP_CACHE(&(engine->procs_cache), gp_uid);
     assert(gp_cache);
