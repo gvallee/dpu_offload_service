@@ -41,9 +41,9 @@ get_local_sp_id_by_group(offloading_engine_t *engine,
 }
 
 dpu_offload_status_t
-get_ordered_host_id_by_group(offloading_engine_t *engine,
+get_host_idx_by_group(offloading_engine_t *engine,
                              group_uid_t group_uid,
-                             host_info_t *host_id)
+                             size_t *host_idx)
 {
     return DO_SUCCESS;
 }
@@ -51,7 +51,7 @@ get_ordered_host_id_by_group(offloading_engine_t *engine,
 dpu_offload_status_t
 get_num_sps_by_group_host(offloading_engine_t *engine,
                           group_uid_t group_uid,
-                          host_info_t host_id,
+                          size_t host_idx,
                           size_t *num_sps)
 {
     return DO_SUCCESS;
@@ -66,21 +66,31 @@ get_num_ranks_for_group_sp(offloading_engine_t *engine,
     return DO_SUCCESS;
 }
 
-dpu_offload_status_t
-get_num_ranks_for_group_host(offloading_engine_t *engine,
-                             group_uid_t group_uid,
-                             host_info_t host_id,
-                             size_t *num_ranks)
+dpu_offload_status_t 
+get_num_ranks_for_group_host_local_sp(offloading_engine_t *engine,
+                                      group_uid_t group_uid,
+                                      size_t host_idx,
+                                      uint64_t local_host_sp_id,
+                                      size_t *num_ranks)
 {
     return DO_SUCCESS;
 }
 
 dpu_offload_status_t
-get_n_for_rank_by_group_host(offloading_engine_t *engine,
-                             group_uid_t group_uid,
-                             host_info_t host_id,
-                             int64_t rank,
-                             int64_t *idx)
+get_num_ranks_for_group_host_idx(offloading_engine_t *engine,
+                                 group_uid_t group_uid,
+                                 size_t host_idx,
+                                 size_t *num_ranks)
+{
+    return DO_SUCCESS;
+}
+
+dpu_offload_status_t
+get_rank_idx_by_group_host_idx(offloading_engine_t *engine,
+                               group_uid_t group_uid,
+                               size_t host_idx,
+                               int64_t rank,
+                               int64_t *idx)
 {
     return DO_SUCCESS;
 }
@@ -88,7 +98,7 @@ get_n_for_rank_by_group_host(offloading_engine_t *engine,
 dpu_offload_status_t
 get_all_sps_by_group_host(offloading_engine_t *engine,
                           group_uid_t group_uid,
-                          host_info_t host_id,
+                          size_t host_idx,
                           dyn_array_t *sps,
                           size_t *num_sps)
 {
@@ -107,7 +117,7 @@ get_all_hosts_by_group(offloading_engine_t *engine,
 dpu_offload_status_t
 get_all_ranks_by_group_sp(offloading_engine_t *engine,
                           group_uid_t group_uid,
-                          uint64_t remote_global_group_sp_id,
+                          uint64_t sp_group_gid,
                           dyn_array_t *ranks,
                           size_t *num_ranks)
 {
@@ -115,10 +125,10 @@ get_all_ranks_by_group_sp(offloading_engine_t *engine,
 }
 
 dpu_offload_status_t
-get_nth_sp_by_group_host(offloading_engine_t *engine,
-                         group_uid_t group_uid,
-                         host_info_t host_id,
-                         uint64_t *global_group_sp_id)
+get_nth_sp_by_group_host_idx(offloading_engine_t *engine,
+                             group_uid_t group_uid,
+                             size_t host_idx,
+                             uint64_t *global_group_sp_id)
 {
     return DO_SUCCESS;
 }
