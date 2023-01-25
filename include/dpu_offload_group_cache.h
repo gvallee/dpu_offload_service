@@ -55,7 +55,7 @@ dpu_offload_status_t get_local_sp_id_by_group(offloading_engine_t *engine,
                                               uint64_t *sp_gp_lid);
 
 /**
- * @brief Get the host ID within a group of the current associated host.
+ * @brief Get the host index within a group of the current associated host.
  * That identifier is based on a ordered, contiguous list of all the 
  * hosts involved in the group. The list is based on the ordered of all
  * the hosts that MIMOSA creates from the job configuration (in most
@@ -64,12 +64,12 @@ dpu_offload_status_t get_local_sp_id_by_group(offloading_engine_t *engine,
  * 
  * @param[in] engine Associated offload engine
  * @param[in] group_uid Target group identified by its unique group identifier
- * @param[in,out] host_id Host identifier from the ordered list of hosts that are involved in the group
+ * @param[in,out] host_idx Host index from the ordered list of hosts that are involved in the group.
  * @return dpu_offload_status_t 
  */
 dpu_offload_status_t get_ordered_host_id_by_group(offloading_engine_t *engine,
                                                   group_uid_t group_uid,
-                                                  host_info_t *host_id);
+                                                  size_t *host_idx);
 
 /**
  * @brief Get the number of service process on a specific host within a specific group.
@@ -103,7 +103,7 @@ dpu_offload_status_t get_num_ranks_for_group_sp(offloading_engine_t *engine,
                                                 size_t *num_ranks);
 
 /**
- * @brief Get the num ranks running on a target host within a specific group.
+ * @brief Get the number of ranks running on a target host within a specific group.
  * 
  * @param[in] engine Associated offload engine
  * @param[in] group_uid Target group identified by its unique group identifier
