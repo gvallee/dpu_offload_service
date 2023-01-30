@@ -1754,12 +1754,33 @@ typedef struct group_cache
     {                                                           \
         uint64_t __k;                                           \
         sp_cache_data_t *__v = NULL;                            \
+        assert((_gp_cache)->sps_hash);                          \
+        if (kh_size((_gp_cache)->sps_hash) == 0)                \
+            break;                                              \
         kh_foreach((_gp_cache)->sps_hash, __k, __v, {           \
             DYN_LIST_RETURN((_engine)->free_sp_cache_hash_obj,  \
                             __v,                                \
                             item);                              \
         }) kh_destroy(group_sps_hash_t, (_gp_cache->sps_hash)); \
     } while(0)
+
+#define INIT_GROUP_CACHE(__e, __g)                    \
+    do                                                \
+    {                                                 \
+        (__g)->initialized = false;                   \
+        (__g)->global_revoked = 0;                    \
+        (__g)->local_revoked = 0;                     \
+        (__g)->sent_to_host = false;                  \
+        (__g)->group_size = 0;                        \
+        (__g)->group_uid = INT_MAX;                   \
+        (__g)->num_local_entries = 0;                 \
+        (__g)->n_local_ranks = 0;                     \
+        (__g)->n_local_ranks_populated = 0;           \
+        (__g)->sp_ranks = 0;                          \
+        (__g)->n_hosts = 0;                           \
+        (__g)->n_sps = 0;                             \
+        (__g)->sps_bitset = NULL;                     \
+    } while (0)
 
 #define RESET_GROUP_CACHE(__e, __g)                   \
     do                                                \
@@ -1826,6 +1847,7 @@ typedef struct group_cache
  */
 #define GET_GROUP_CACHE(_cache, _gp_uid) ({                                              \
     group_cache_t *_gp_cache = NULL;                                                     \
+    assert((_cache)->data);\
     khiter_t k = kh_get(group_hash_t, (_cache)->data, _gp_uid);                          \
     if (k == kh_end((_cache)->data))                                                     \
     {                                                                                    \
@@ -1833,8 +1855,10 @@ typedef struct group_cache
         int _ret;                                                                        \
         group_cache_t *_new_group_cache;                                                 \
         khiter_t _newKey = kh_put(group_hash_t, (_cache)->data, (_gp_uid), &_ret);       \
+        assert(_newKey);                                                                 \
         DYN_LIST_GET((_cache)->group_cache_pool, group_cache_t, item, _new_group_cache); \
-        RESET_GROUP_CACHE((_cache)->engine, _new_group_cache);                           \
+        assert(_new_group_cache);                                                        \
+        INIT_GROUP_CACHE((_cache)->engine, _new_group_cache);                            \
         DYN_ARRAY_ALLOC(&(_new_group_cache->ranks), 1024, peer_cache_entry_t);           \
         DYN_ARRAY_ALLOC(&(_new_group_cache->hosts), 32, group_uid_t);                    \
         DYN_ARRAY_ALLOC(&(_new_group_cache->sps), (32 * 8), remote_service_proc_info_t); \

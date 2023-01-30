@@ -21,10 +21,12 @@
         size_t i;                                                                          \
         _gp_uid = 42;                                                                      \
         _gp_cache = GET_GROUP_CACHE(_cache, _gp_uid);                                      \
+        assert(_gp_cache);                                                                 \
         for (i = 0; i < NUM_CACHE_ENTRIES; i++)                                            \
         {                                                                                  \
             peer_cache_entry_t *new_entry = NULL;                                          \
             new_entry = GET_GROUP_RANK_CACHE_ENTRY(_cache, _gp_uid, i, NUM_CACHE_ENTRIES); \
+            assert(new_entry);                                                             \
             RESET_PEER_DATA(&(new_entry->peer));                                           \
             new_entry->peer.proc_info.group_rank = i;                                      \
             new_entry->peer.proc_info.group_uid = 42;                                      \
