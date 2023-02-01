@@ -27,6 +27,8 @@ enum {
 #define NUM_FAKE_SPS (NUM_FAKE_HOSTS * NUM_FAKE_DPU_PER_HOST * NUM_FAKE_SP_PER_DPU)
 #define NUM_FAKE_CACHE_ENTRIES (NUM_FAKE_SPS * NUM_FAKE_RANKS_PER_SP)
 
+extern dpu_offload_status_t register_default_notifications(dpu_offload_ev_sys_t *);
+
 /**
  * Function that generates a bunch of dummy cache entries that we
  * sent to self. It should properly populate the cache and let us
@@ -39,8 +41,18 @@ simulate_cache_entry_exchange(offloading_engine_t *engine)
     peer_cache_entry_t entries[NUM_FAKE_CACHE_ENTRIES];
     group_cache_t *gp_cache = NULL;
     size_t num_hashed_sps = 0;
+    dpu_offload_status_t rc;
 
     assert(engine);
+
+    // the self execution context does not register the default event
+    // handlers so we explicitly do so.
+    rc = register_default_notifications(engine->self_econtext->event_channels);
+    if (rc != DO_SUCCESS)
+    {
+        fprintf(stderr, "ERROR: register_default_notifications() failed\n");
+        return DO_ERROR;
+    }
 
     // Create the dummy cache entries
     for (i = 0; i < NUM_FAKE_CACHE_ENTRIES; i++)
@@ -68,7 +80,6 @@ simulate_cache_entry_exchange(offloading_engine_t *engine)
     for (i = 0; i < NUM_FAKE_CACHE_ENTRIES; i++)
     {
         dpu_offload_event_t *ev = NULL;
-        dpu_offload_status_t rc;
         rc = event_get(engine->self_econtext->event_channels, NULL, &ev);
         if (rc)
         {
