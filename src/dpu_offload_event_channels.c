@@ -1478,16 +1478,16 @@ static dpu_offload_status_t handle_peer_cache_entries_recv(execution_context_t *
                 // track which hosts are involved because host are represented via a hash and
                 // it is therefore difficult to keep an ordered list of hosts that is consistent
                 // everywhere.
-                INFO_MSG("cache entry has SP %" PRIu64", updating SP hash for the group (0x%x)",
-                         entries[idx].shadow_service_procs[n], group_uid);
+
                 // Check if the SP is already in the group SP hash; if not, it means it is first
                 // time we learn about that SP in the group so we increment the number of SPs
                 // involved in the group
-
                 sp_data = GET_GROUP_SP_HASH_ENTRY(gp_cache, entries[idx].shadow_service_procs[n]);
                 if (sp_data == NULL)
                 {
                     // SP is not in the hash, we start by updating some bookkeeping variables
+                    DBG("group cache does not have SP SP %" PRIu64 ", adding SP to hash for the group (0x%x)",
+                        entries[idx].shadow_service_procs[n], group_uid);
                     gp_cache->n_sps++;
                     // Add the SP to the hash using the global SP id as key
                     DYN_LIST_GET(engine->free_sp_cache_hash_obj,
@@ -1505,6 +1505,8 @@ static dpu_offload_status_t handle_peer_cache_entries_recv(execution_context_t *
                 else
                 {
                     // The SP is already in the hash
+                    DBG("cache entry has SP %" PRIu64 ", updating SP hash for the group (0x%x)",
+                        entries[idx].shadow_service_procs[n], group_uid);
                     sp_data->n_ranks++;
                 }
             }
@@ -1521,7 +1523,6 @@ static dpu_offload_status_t handle_peer_cache_entries_recv(execution_context_t *
                     event_return(&e);
                 }
             }
-
 
             DBG("Cache now has %ld local entries and group size is %ld", gp_cache->num_local_entries, gp_cache->group_size);
 
@@ -1560,7 +1561,6 @@ static dpu_offload_status_t handle_peer_cache_entries_recv(execution_context_t *
     }
     return DO_SUCCESS;
 }
-
 
 /**
  * @brief receive handler for cache entry notifications. Note that a single notification
@@ -1823,7 +1823,7 @@ static dpu_offload_status_t handle_pending_group_cache_add_msgs(offloading_engin
  * @return dpu_offload_status_t
  */
 static dpu_offload_status_t revoke_group_cache(offloading_engine_t *engine, group_uid_t gp_uid)
-    {
+{
     size_t i;
     dpu_offload_status_t rc;
     pending_recv_cache_entry_t *pending_cache_entry, *next_pending;
@@ -1832,8 +1832,8 @@ static dpu_offload_status_t revoke_group_cache(offloading_engine_t *engine, grou
     for (i = 0; i < c->group_size; i++)
     {
         peer_cache_entry_t *e = DYN_ARRAY_GET_ELT(&(c->ranks),
-                                                   i,
-                                                   peer_cache_entry_t);
+                                                  i,
+                                                  peer_cache_entry_t);
         assert(e);
         RESET_PEER_CACHE_ENTRY(e);
     }
