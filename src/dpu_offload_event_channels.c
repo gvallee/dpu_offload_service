@@ -905,7 +905,6 @@ int event_channel_emit_with_payload(dpu_offload_event_t **event, uint64_t type, 
 {
     int rc = EVENT_INPROGRESS;
     assert(event);
-    assert(dest_ep);
     assert((*event));
     // This function can only be used when the user is managing the payload
     assert((*event)->manage_payload_buf == false);
@@ -957,6 +956,7 @@ int event_channel_emit_with_payload(dpu_offload_event_t **event, uint64_t type, 
         return ret;
     }
 
+    assert(dest_ep);
 #if USE_AM_IMPLEM
     rc = am_send_event_msg(event);
 #else
