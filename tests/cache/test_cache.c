@@ -111,6 +111,25 @@ simulate_cache_entry_exchange(offloading_engine_t *engine)
         return DO_ERROR;
     }
 
+    // Check we have the correct number of ranks per SP when using the SP hash
+    // First we do so by iterating over the global SP identifers since we know them
+    for (i = 0; i < NUM_FAKE_SPS; i++)
+    {
+        sp_cache_data_t *sp_data = NULL;
+        sp_data = GET_GROUP_SP_HASH_ENTRY(gp_cache, i);
+        if (sp_data == NULL)
+        {
+            fprintf(stderr, "ERROR: unable to get data for SP #%ld\n", i);
+            return DO_ERROR;
+        }
+        if (sp_data->n_ranks != NUM_FAKE_RANKS_PER_SP)
+        {
+            fprintf(stderr, "ERROR: the number of ranks associated to SP #%ld is reported as %ld instead of %d\n",
+                    i, sp_data->n_ranks, NUM_FAKE_RANKS_PER_SP);
+            return DO_ERROR;
+        }
+    }
+
     return DO_SUCCESS;
 }
 
