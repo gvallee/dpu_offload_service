@@ -613,7 +613,7 @@ dpu_offload_status_t client_init_context(execution_context_t *econtext, init_par
     assert(GET_WORKER(econtext));
 
     // If we have a group/rank in the init params, we pass it down
-    econtext->rank.host_info = HASH_HOSTNAME();
+    econtext->rank.host_info = HASH_LOCAL_HOSTNAME();
     if (init_params != NULL && init_params->proc_info != NULL)
     {
         econtext->rank.group_uid = init_params->proc_info->group_uid;

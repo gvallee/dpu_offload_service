@@ -1467,7 +1467,8 @@ static dpu_offload_status_t handle_peer_cache_entries_recv(execution_context_t *
             // append the shadow DPU data to the data already local available (if any)
             for (n = 0; n < entries[idx].num_shadow_service_procs; n++)
             {
-                sp_cache_data_t *sp_data;
+                sp_cache_data_t *sp_data = NULL;
+                host_cache_data_t *host_data = NULL;
                 cache_entry->shadow_service_procs[cache_entry->num_shadow_service_procs + n] = entries[idx].shadow_service_procs[n];
 
                 // SPs have a unique ID, are all known, as well as the host associated to them.
@@ -1486,7 +1487,7 @@ static dpu_offload_status_t handle_peer_cache_entries_recv(execution_context_t *
                 if (sp_data == NULL)
                 {
                     // SP is not in the hash, we start by updating some bookkeeping variables
-                    DBG("group cache does not have SP SP %" PRIu64 ", adding SP to hash for the group (0x%x)",
+                    DBG("group cache does not have SP %" PRIu64 ", adding SP to hash for the group (0x%x)",
                         entries[idx].shadow_service_procs[n], group_uid);
                     gp_cache->n_sps++;
                     // Add the SP to the hash using the global SP id as key
@@ -1494,7 +1495,7 @@ static dpu_offload_status_t handle_peer_cache_entries_recv(execution_context_t *
                                  sp_cache_data_t,
                                  item,
                                  sp_data);
-                    RESSET_SP_CACHE_DATA(sp_data);
+                    RESET_SP_CACHE_DATA(sp_data);
                     sp_data->gid = entries[idx].shadow_service_procs[n];
                     sp_data->n_ranks = 1;
                     sp_data->gp_uid = gp_cache->group_uid;
@@ -1508,6 +1509,33 @@ static dpu_offload_status_t handle_peer_cache_entries_recv(execution_context_t *
                     DBG("cache entry has SP %" PRIu64 ", updating SP hash for the group (0x%x)",
                         entries[idx].shadow_service_procs[n], group_uid);
                     sp_data->n_ranks++;
+                }
+
+                // Same idea for the host
+                host_data = GET_GROUP_HOST_HASH_ENTRY(gp_cache, entries[idx].peer.host_info);
+                if (host_data == NULL)
+                {
+                    // The host is not in the hash yet
+                    size_t host_idx = 0;
+                    DBG("group cache does not have host 0x%lx, adding host to hash for the group (0x%x)",
+                        entries[idx].peer.host_info, group_uid);
+                    gp_cache->n_hosts++;
+                    // Add the SP to the hash using the global SP id as key
+                    DYN_LIST_GET(engine->free_host_cache_hash_obj,
+                                 host_cache_data_t,
+                                 item,
+                                 host_data);
+                    RESET_HOST_CACHE_DATA(host_data);
+                    host_data->uid = entries[idx].peer.host_info;
+                    host_data->num_sps = 1;
+                    ADD_GROUP_HOST_HASH_ENTRY(gp_cache, host_data);
+                    GROUP_CACHE_BITSET_SET(gp_cache->hosts_bitset,
+                                           host_idx); // FIXME: figure out the host index
+                }
+                else
+                {
+                    // The host is already in the hash
+                    host_data->num_sps++;
                 }
             }
             cache_entry->num_shadow_service_procs += entries[idx].num_shadow_service_procs;

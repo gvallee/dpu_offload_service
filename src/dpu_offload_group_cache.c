@@ -42,8 +42,8 @@ get_local_sp_id_by_group(offloading_engine_t *engine,
 
 dpu_offload_status_t
 get_host_idx_by_group(offloading_engine_t *engine,
-                             group_uid_t group_uid,
-                             size_t *host_idx)
+                      group_uid_t group_uid,
+                      size_t *host_idx)
 {
     return DO_SUCCESS;
 }
@@ -66,7 +66,7 @@ get_num_ranks_for_group_sp(offloading_engine_t *engine,
     return DO_SUCCESS;
 }
 
-dpu_offload_status_t 
+dpu_offload_status_t
 get_num_ranks_for_group_host_local_sp(offloading_engine_t *engine,
                                       group_uid_t group_uid,
                                       size_t host_idx,
@@ -137,9 +137,38 @@ dpu_offload_status_t
 populate_group_cache_lookup_table(offloading_engine_t *engine,
                                   group_cache_t *gp_cache)
 {
+    size_t i, idx = 0;
+
     assert(gp_cache);
     assert(group_cache_populated(engine, gp_cache->group_uid));
-    // TODO
+
+    INFO_MSG("Creating contiguous list of SPs involved in the group");
+
+    // Get the total number of SPs that are involved
+    INFO_MSG("-> %ld SPs", gp_cache->n_sps);
+    if (gp_cache->sp_array_initialized == false)
+    {
+        gp_cache->sps = malloc(gp_cache->n_sps * sizeof(remote_service_proc_info_t*));
+        assert(gp_cache->sps);
+        gp_cache->sp_array_initialized = true;
+    }
+
+    i = 0;
+    while (i < gp_cache->n_sps)
+    {
+        if (GROUP_CACHE_BITSET_TEST(gp_cache->sps_bitset, idx))
+        {
+            remote_service_proc_info_t *sp_data = NULL;
+            sp_data = DYN_ARRAY_GET_ELT(&(engine->service_procs),
+                                        idx,
+                                        remote_service_proc_info_t);
+            assert(sp_data);
+            INFO_MSG("\tSP %ld is involved (idx: %ld)", idx, sp_data->idx);
+            gp_cache->sps[i] = sp_data;
+            i++;
+        }
+        idx++;
+    }
 
     return DO_SUCCESS;
 }

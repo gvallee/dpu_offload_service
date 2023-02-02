@@ -16,6 +16,12 @@ extern dpu_offload_status_t dpu_offload_parse_list_dpus(offloading_engine_t *eng
 int main(int argc, char **argv)
 {
     dpu_offload_status_t rc;
+    size_t i;
+    offloading_engine_t *engine = NULL;
+    offloading_config_t cfg;
+    uint64_t host_hash_key;
+    host_info_t *host_hash_value = NULL;
+
     if (argc != 4)
     {
         fprintf(stderr, "Please give in order:\n");
@@ -25,7 +31,6 @@ int main(int argc, char **argv)
         return EXIT_FAILURE;
     }
 
-    offloading_engine_t *engine;
     rc = offload_engine_init(&engine);
     if (rc != DO_SUCCESS)
     {
@@ -34,7 +39,6 @@ int main(int argc, char **argv)
     }
     assert(engine);
 
-    offloading_config_t cfg;
     INIT_DPU_CONFIG_DATA(&cfg);
     cfg.list_dpus = argv[2];
     strcpy(cfg.local_service_proc.hostname, argv[3]);
@@ -85,7 +89,23 @@ int main(int argc, char **argv)
         }
     }
 
-    fprintf(stderr, "%s: test succeeded\n", argv[0]);
+    fprintf(stdout, "\nHost(s) information:\n");
+    fprintf(stdout, "\tNumber of hosts: %ld\n", cfg.num_hosts);
+    fprintf(stdout, "\tList: ");
+    for (i = 0; i < cfg.num_hosts; i++)
+    {
+        host_info_t *host_info = NULL;
+        host_info = DYN_ARRAY_GET_ELT(&(cfg.hosts_config), i, host_info_t);
+        assert(host_info);
+        fprintf(stdout, "%s ", host_info->hostname);
+    }
+    fprintf(stdout, "\tLookup table content:\n");
+    kh_foreach(cfg.host_lookup_table, host_hash_key, host_hash_value, {
+        fprintf(stderr, "\tHost UID: 0x%lx, %s, index: %ld\n", host_hash_key, host_hash_value->hostname, host_hash_value->idx);
+    })
+    fprintf(stdout, "\n");
+
+    fprintf(stdout, "%s: test succeeded\n", argv[0]);
     return EXIT_SUCCESS;
 error_out:
     fprintf(stderr, "%s: test failed\n", argv[0]);

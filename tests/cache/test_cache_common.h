@@ -32,7 +32,7 @@ const group_uid_t default_gp_uid = 42;
             RESET_PEER_DATA(&(new_entry->peer));                                           \
             new_entry->peer.proc_info.group_rank = i;                                      \
             new_entry->peer.proc_info.group_uid = _group_uid;                              \
-            new_entry->peer.host_info = HASH_HOSTNAME();                                   \
+            new_entry->peer.host_info = HASH_LOCAL_HOSTNAME();                                   \
             new_entry->set = true;                                                         \
         }                                                                                  \
                                                                                            \

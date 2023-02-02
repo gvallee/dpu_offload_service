@@ -958,7 +958,6 @@ dpu_offload_status_t get_group_local_sps(offloading_engine_t *engine,
     }
     *n_sps = num;
     return DO_SUCCESS;
-
 }
 
 dpu_offload_status_t get_group_rank_sps(offloading_engine_t *engine,
@@ -1358,6 +1357,7 @@ bool parse_line_dpu_version_1(offloading_config_t *data, char *line)
     char *rest_line = line;
     dpu_config_data_t *target_entry = NULL;
     remote_dpu_info_t **list_dpus = NULL;
+    host_uid_t last_host = UNKNOWN_HOST;
 
     assert(data);
     assert(data->offloading_engine);
@@ -1405,6 +1405,33 @@ bool parse_line_dpu_version_1(offloading_config_t *data, char *line)
         {
             size_t sp_idx = 0;
             size_t d;
+            host_uid_t target_host;
+
+            // Handle the host so we can know all the hosts that are involved
+            target_host = HASH_HOSTNAME(target_entry->version_1.hostname);
+            if (target_host != last_host)
+            {
+                // First we know about the host
+                host_info_t *host_info = NULL;
+                khiter_t host_key;
+                int ret;
+                host_info = DYN_ARRAY_GET_ELT(&(data->hosts_config),
+                                              data->num_hosts,
+                                              host_info_t);
+                assert(host_info);
+                host_info->hostname = target_entry->version_1.hostname;
+                host_info->idx = data->num_hosts;
+
+                // Add the host to the lookup table
+                host_key = kh_put(host_info_hash_t,
+                                  data->host_lookup_table,
+                                  target_host,
+                                  &ret);
+                kh_value(data->host_lookup_table, host_key) = host_info;
+                data->num_hosts++;
+                last_host = target_host;
+            }
+
             // Find the corresponding remote_dpu_info_t structure so we can populate it
             // while parsing the line.
             remote_dpu_info_t *cur_dpu = NULL;
@@ -1450,7 +1477,7 @@ bool parse_line_dpu_version_1(offloading_config_t *data, char *line)
                                               int);
                 cur_sp->init_params.conn_params->port = *port;
                 service_proc_config_data_t *sp_config;
-                sp_config = DYN_ARRAY_GET_ELT(&(data->sps_configs), cur_global_sp_id, service_proc_config_data_t);
+                sp_config = DYN_ARRAY_GET_ELT(&(data->sps_config), cur_global_sp_id, service_proc_config_data_t);
                 assert(sp_config);
                 cur_sp->config = sp_config;
                 sp_config->version_1.hostname = target_entry->version_1.hostname;
@@ -1920,7 +1947,9 @@ void offload_config_free(offloading_config_t *cfg)
     DYN_LIST_FREE(cfg->info_connecting_to.pool_remote_sp_connect_to, connect_to_service_proc_t, item);
 
     DYN_ARRAY_FREE(&(cfg->dpus_config));
-    DYN_ARRAY_FREE(&(cfg->sps_configs));
+    DYN_ARRAY_FREE(&(cfg->sps_config));
+    DYN_ARRAY_FREE(&(cfg->hosts_config));
+    CONFIG_HOSTS_HASH_FINI(cfg);
 }
 
 #if !NDEBUG

@@ -15,8 +15,9 @@
  * To run the test, simply execute: $ ./test_cache
  */
 
-enum {
-    CACHE_POPULATION_GROUP_CACHE_ID=42,
+enum
+{
+    CACHE_POPULATION_GROUP_CACHE_ID = 42,
     DUMMY_CACHE_ENTRY_EXCHANGE_GROUP_UID,
 };
 
@@ -54,10 +55,25 @@ simulate_cache_entry_exchange(offloading_engine_t *engine)
         return DO_ERROR;
     }
 
+    // Create the dummy SPs
+    for (i = 0; i < NUM_FAKE_SPS; i++)
+    {
+        remote_service_proc_info_t *ptr = NULL;
+        ptr = DYN_ARRAY_GET_ELT(&(engine->service_procs),
+                                i,
+                                remote_service_proc_info_t);
+        ptr->offload_engine = engine;
+        ptr->idx = i;
+        ptr->service_proc.global_id = i;
+        ptr->service_proc.local_id = i % NUM_FAKE_SP_PER_DPU;
+    }
+    engine->num_service_procs = 4;
+    fprintf(stdout, "Number of fake SPs that are now setup: %ld\n", engine->num_service_procs);
+
     // Create the dummy cache entries
     for (i = 0; i < NUM_FAKE_CACHE_ENTRIES; i++)
     {
-        host_info_t host_id = 1234;
+        host_uid_t host_id = 1234;
         if (i >= NUM_FAKE_CACHE_ENTRIES / 2)
             host_id++;
         entries[i].set = true;
@@ -98,7 +114,7 @@ simulate_cache_entry_exchange(offloading_engine_t *engine)
         {
             fprintf(stderr, "ERROR: event_channel_emit_with_payload() failed\n");
             return DO_ERROR;
-        } 
+        }
     }
 
     gp_cache = GET_GROUP_CACHE(&(engine->procs_cache), DUMMY_CACHE_ENTRY_EXCHANGE_GROUP_UID);
@@ -108,6 +124,15 @@ simulate_cache_entry_exchange(offloading_engine_t *engine)
         fprintf(stderr, "ERROR: number of SPs in hash is %ld instead of %d\n",
                 num_hashed_sps,
                 NUM_FAKE_SPS);
+        return DO_ERROR;
+    }
+
+    // Force the creation of the lookup tables, the context of this test does not
+    // provide all the requirements for an automatic creation.
+    rc = populate_group_cache_lookup_table(engine, gp_cache);
+    if (rc != DO_SUCCESS)
+    {
+        fprintf(stderr, "ERROR: populate_group_cache_lookup_table() failed\n");
         return DO_ERROR;
     }
 
@@ -126,6 +151,24 @@ simulate_cache_entry_exchange(offloading_engine_t *engine)
         {
             fprintf(stderr, "ERROR: the number of ranks associated to SP #%ld is reported as %ld instead of %d\n",
                     i, sp_data->n_ranks, NUM_FAKE_RANKS_PER_SP);
+            return DO_ERROR;
+        }
+    }
+
+    // Second, check the content of the contiguous ordered array of SPs involed in the group
+    assert(gp_cache->sps);
+    for (i = 0; i < gp_cache->n_sps; i++)
+    {
+        if (gp_cache->sps[i]->idx != i)
+        {
+            fprintf(stderr, "ERROR: the index of SP %ld is reported as %ld\n",
+                    i, gp_cache->sps[i]->idx);
+            return DO_ERROR;
+        }
+        if (gp_cache->sps[i]->service_proc.global_id != i)
+        {
+            fprintf(stderr, "ERROR: the global SP ID for %ld is %ld instead of %ld\n",
+                    i, gp_cache->sps[i]->service_proc.global_id, i);
             return DO_ERROR;
         }
     }
