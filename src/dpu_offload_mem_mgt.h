@@ -61,8 +61,10 @@
                 DYN_ARRAY_FREE(__da);                                   \
                 __da = &(_gp_cache->hosts);                             \
                 DYN_ARRAY_FREE(__da);                                   \
-                if (_gp_cache->sps)                                     \
-                    free(_gp_cache->sps);                               \
+                if (_gp_cache->sp_array_initialized)                    \
+                    DYN_ARRAY_FREE(&(_gp_cache->sps));                  \
+                if (_gp_cache->host_array_initialized)                  \
+                    DYN_ARRAY_FREE(&(_gp_cache->hosts));                \
                 /* Free hash table(s) */                                \
                 GROUP_CACHE_HASHES_FINI((_cache)->engine, _gp_cache);   \
                 /* Free the bitset for SPs */                           \

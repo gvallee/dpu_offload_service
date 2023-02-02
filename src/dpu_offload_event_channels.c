@@ -1516,21 +1516,27 @@ static dpu_offload_status_t handle_peer_cache_entries_recv(execution_context_t *
                 if (host_data == NULL)
                 {
                     // The host is not in the hash yet
-                    size_t host_idx = 0;
+                    host_info_t *host_info = NULL;
                     DBG("group cache does not have host 0x%lx, adding host to hash for the group (0x%x)",
                         entries[idx].peer.host_info, group_uid);
                     gp_cache->n_hosts++;
                     // Add the SP to the hash using the global SP id as key
+                    assert(engine->free_host_cache_hash_obj);
                     DYN_LIST_GET(engine->free_host_cache_hash_obj,
                                  host_cache_data_t,
                                  item,
                                  host_data);
+                    assert(host_data);
                     RESET_HOST_CACHE_DATA(host_data);
                     host_data->uid = entries[idx].peer.host_info;
                     host_data->num_sps = 1;
                     ADD_GROUP_HOST_HASH_ENTRY(gp_cache, host_data);
+                    host_info = LOOKUP_HOST_CONFIG(engine, entries[idx].peer.host_info);
+                    assert(host_info);
+                    host_data->config_idx = host_info->idx;
+                    assert(gp_cache->hosts_bitset);
                     GROUP_CACHE_BITSET_SET(gp_cache->hosts_bitset,
-                                           host_idx); // FIXME: figure out the host index
+                                           host_info->idx);
                 }
                 else
                 {
@@ -1868,6 +1874,10 @@ static dpu_offload_status_t revoke_group_cache(offloading_engine_t *engine, grou
     if (c->sps_bitset != NULL)
     {
         GROUP_CACHE_BITSET_DESTROY(c->sps_bitset);
+    }
+    if (c->hosts_bitset != NULL)
+    {
+        GROUP_CACHE_BITSET_DESTROY(c->hosts_bitset);
     }
     RESET_GROUP_CACHE(engine, c);
 

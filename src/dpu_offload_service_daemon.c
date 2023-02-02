@@ -1065,6 +1065,10 @@ dpu_offload_status_t offload_engine_init(offloading_engine_t **engine)
                    1024,
                    sp_cache_data_t,
                    item);
+    DYN_LIST_ALLOC(d->free_host_cache_hash_obj,
+                   32,
+                   host_cache_data_t,
+                   item);
     d->procs_cache.engine = d;
 
     dpu_offload_status_t rc = ev_channels_init(&(d->default_notifications));
@@ -1100,6 +1104,8 @@ error_out:
         DYN_LIST_FREE(d->free_cache_entry_requests, cache_entry_request_t, item);
     if (d->free_sp_cache_hash_obj)
         DYN_LIST_FREE(d->free_sp_cache_hash_obj, sp_cache_data_t, item);
+    if (d->free_host_cache_hash_obj)
+        DYN_LIST_FREE(d->free_host_cache_hash_obj, host_cache_data_t, item);
     if (d->self_econtext)
         execution_context_fini(&d->self_econtext);
     *engine = NULL;

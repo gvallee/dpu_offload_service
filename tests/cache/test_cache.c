@@ -25,10 +25,48 @@ enum
 #define NUM_FAKE_SP_PER_DPU (2)
 #define NUM_FAKE_HOSTS (2)
 #define NUM_FAKE_RANKS_PER_SP (8)
+#define FIRST_FAKE_HOST_UID (1234)
 #define NUM_FAKE_SPS (NUM_FAKE_HOSTS * NUM_FAKE_DPU_PER_HOST * NUM_FAKE_SP_PER_DPU)
 #define NUM_FAKE_CACHE_ENTRIES (NUM_FAKE_SPS * NUM_FAKE_RANKS_PER_SP)
 
 extern dpu_offload_status_t register_default_notifications(dpu_offload_ev_sys_t *);
+
+static host_uid_t get_host_uid(size_t i)
+{
+    host_uid_t host_id = FIRST_FAKE_HOST_UID;
+    if (i >= NUM_FAKE_CACHE_ENTRIES / 2)
+        host_id += 1;
+    return host_id;
+}
+
+// Create a dummy engine configuration
+static int create_dummy_config(offloading_engine_t *engine)
+{
+    size_t i;
+    engine->config = malloc(sizeof(offloading_config_t));
+    assert(engine->config);
+    INIT_DPU_CONFIG_DATA(engine->config);
+    for (i = 0; i < NUM_FAKE_HOSTS; i++)
+    {
+        int ret;
+        host_info_t *host_info = NULL;
+        khiter_t host_key;
+        host_uid_t host_uid;
+
+        host_info = DYN_ARRAY_GET_ELT(&(engine->config->hosts_config), i, host_info_t);
+        assert(host_info);
+        host_info->idx = i;
+        host_info->hostname = strdup("dummy");
+        host_uid = FIRST_FAKE_HOST_UID + i;
+        host_key = kh_put(host_info_hash_t,
+                          engine->config->host_lookup_table,
+                          host_uid,
+                          &ret);
+        kh_value(engine->config->host_lookup_table, host_key) = host_info;
+        engine->config->num_hosts++;
+    }
+    return 0;
+}
 
 /**
  * Function that generates a bunch of dummy cache entries that we
@@ -73,17 +111,15 @@ simulate_cache_entry_exchange(offloading_engine_t *engine)
     // Create the dummy cache entries
     for (i = 0; i < NUM_FAKE_CACHE_ENTRIES; i++)
     {
-        host_uid_t host_id = 1234;
-        if (i >= NUM_FAKE_CACHE_ENTRIES / 2)
-            host_id++;
+        host_uid_t host_uid = get_host_uid(i);
         entries[i].set = true;
         entries[i].peer.proc_info.group_uid = DUMMY_CACHE_ENTRY_EXCHANGE_GROUP_UID;
         entries[i].peer.proc_info.group_rank = i;
         entries[i].peer.proc_info.group_size = NUM_FAKE_CACHE_ENTRIES;
         entries[i].peer.proc_info.n_local_ranks = NUM_FAKE_RANKS_PER_SP;
         entries[i].peer.proc_info.local_rank = NUM_FAKE_RANKS_PER_SP;
-        entries[i].peer.proc_info.host_info = host_id;
-        entries[i].peer.host_info = host_id;
+        entries[i].peer.proc_info.host_info = host_uid;
+        entries[i].peer.host_info = host_uid;
         entries[i].peer.addr_len = 8;
         strcpy(entries[i].peer.addr, "deadbeef");
         entries[i].client_id = 0;
@@ -156,21 +192,60 @@ simulate_cache_entry_exchange(offloading_engine_t *engine)
     }
 
     // Second, check the content of the contiguous ordered array of SPs involed in the group
-    assert(gp_cache->sps);
     for (i = 0; i < gp_cache->n_sps; i++)
     {
-        if (gp_cache->sps[i]->idx != i)
+        remote_service_proc_info_t **sp_info = NULL;
+        sp_info = DYN_ARRAY_GET_ELT(&(gp_cache->sps),
+                                      i,
+                                      remote_service_proc_info_t *);
+        if ((*sp_info)->idx != i)
         {
             fprintf(stderr, "ERROR: the index of SP %ld is reported as %ld\n",
-                    i, gp_cache->sps[i]->idx);
+                    i, (*sp_info)->idx);
             return DO_ERROR;
         }
-        if (gp_cache->sps[i]->service_proc.global_id != i)
+        if ((*sp_info)->service_proc.global_id != i)
         {
             fprintf(stderr, "ERROR: the global SP ID for %ld is %ld instead of %ld\n",
-                    i, gp_cache->sps[i]->service_proc.global_id, i);
+                    i, (*sp_info)->service_proc.global_id, i);
             return DO_ERROR;
         }
+    }
+    // Display some information
+    fprintf(stdout, "Number of SP(s) involved in the group: %ld\n", gp_cache->n_sps);
+    for (i = 0; i < gp_cache->n_sps; i++)
+    {
+        remote_service_proc_info_t **sp_info = NULL;
+        sp_info = DYN_ARRAY_GET_ELT(&(gp_cache->sps),
+                                      i,
+                                      remote_service_proc_info_t *);
+        fprintf(stdout, "\tSP %" PRIu64 " is involved in the group\n", (*sp_info)->service_proc.global_id);
+    }
+
+    // Then we check the hosts involved in the group
+    if (gp_cache->n_hosts != NUM_FAKE_HOSTS)
+    {
+        fprintf(stderr, "ERROR: the number of host in the group is reported as %ld instead of %d\n",
+                gp_cache->n_hosts, NUM_FAKE_HOSTS);
+        return DO_ERROR;
+    }
+    for (i = 0; i < gp_cache->n_hosts; i++)
+    {
+        if (!GROUP_CACHE_BITSET_TEST(gp_cache->hosts_bitset, i))
+        {
+            fprintf(stderr, "ERROR: bit %ld in hosts_bitset is not properly set\n", i);
+            return DO_ERROR;
+        }
+    }
+    // Display some information about the hosts
+    fprintf(stdout, "\nNumber of host(s) involved in the group: %ld\n", gp_cache->n_hosts);
+    for (i = 0; i < gp_cache->n_hosts; i++)
+    {
+        host_info_t **host_info = NULL;
+        host_info = DYN_ARRAY_GET_ELT(&(gp_cache->hosts),
+                                      i,
+                                      host_info_t *);
+        fprintf(stdout, "\t%s (index: %ld)\n", (*host_info)->hostname, (*host_info)->idx);
     }
 
     return DO_SUCCESS;
@@ -184,6 +259,13 @@ int main(int argc, char **argv)
     if (rc || offload_engine == NULL)
     {
         fprintf(stderr, "offload_engine_init() failed\n");
+        goto error_out;
+    }
+
+    rc = create_dummy_config(offload_engine);
+    if (rc)
+    {
+        fprintf(stderr, "ERROR: create_dummy_config() failed");
         goto error_out;
     }
 
@@ -207,12 +289,19 @@ int main(int argc, char **argv)
         goto error_out;
     }
 
+    free(offload_engine->config);
+    offload_engine->config = NULL;
     offload_engine_fini(&offload_engine);
 
     fprintf(stdout, "%s: test successful\n", argv[0]);
     return EXIT_SUCCESS;
 
 error_out:
+    if (offload_engine->config)
+    {
+        free(offload_engine->config);
+        offload_engine->config = NULL;
+    }
     offload_engine_fini(&offload_engine);
     fprintf(stderr, "%s: test failed\n", argv[0]);
     return EXIT_FAILURE;

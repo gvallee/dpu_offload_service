@@ -143,28 +143,55 @@ populate_group_cache_lookup_table(offloading_engine_t *engine,
     assert(group_cache_populated(engine, gp_cache->group_uid));
 
     INFO_MSG("Creating contiguous list of SPs involved in the group");
-
-    // Get the total number of SPs that are involved
-    INFO_MSG("-> %ld SPs", gp_cache->n_sps);
     if (gp_cache->sp_array_initialized == false)
     {
-        gp_cache->sps = malloc(gp_cache->n_sps * sizeof(remote_service_proc_info_t*));
-        assert(gp_cache->sps);
+        DYN_ARRAY_ALLOC(&(gp_cache->sps),
+                        gp_cache->n_sps,
+                        remote_service_proc_info_t *);
         gp_cache->sp_array_initialized = true;
     }
-
     i = 0;
     while (i < gp_cache->n_sps)
     {
         if (GROUP_CACHE_BITSET_TEST(gp_cache->sps_bitset, idx))
         {
-            remote_service_proc_info_t *sp_data = NULL;
+            remote_service_proc_info_t *sp_data = NULL, **ptr = NULL;
             sp_data = DYN_ARRAY_GET_ELT(&(engine->service_procs),
                                         idx,
                                         remote_service_proc_info_t);
             assert(sp_data);
-            INFO_MSG("\tSP %ld is involved (idx: %ld)", idx, sp_data->idx);
-            gp_cache->sps[i] = sp_data;
+            ptr = DYN_ARRAY_GET_ELT(&(gp_cache->sps),
+                                    i,
+                                    remote_service_proc_info_t *);
+            *ptr = sp_data;
+            i++;
+        }
+        idx++;
+    }
+
+    INFO_MSG("Creating contiguous list of hosts involved in the group");
+    if (gp_cache->host_array_initialized == false)
+    {
+        DYN_ARRAY_ALLOC(&(gp_cache->hosts),
+                        gp_cache->n_hosts,
+                        host_info_t *);
+        gp_cache->host_array_initialized = true;
+    }
+    i = 0;
+    idx = 0;
+    while (i < gp_cache->n_hosts)
+    {
+        if (GROUP_CACHE_BITSET_TEST(gp_cache->hosts_bitset, idx))
+        {
+            host_info_t *info = NULL, **ptr = NULL;
+            info = DYN_ARRAY_GET_ELT(&(engine->config->hosts_config),
+                                     idx,
+                                     host_info_t);
+            assert(info);
+            ptr = DYN_ARRAY_GET_ELT(&(gp_cache->hosts),
+                                    i,
+                                    host_info_t *);
+            *ptr = info;
             i++;
         }
         idx++;
