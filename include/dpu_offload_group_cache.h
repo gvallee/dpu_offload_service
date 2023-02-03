@@ -286,6 +286,7 @@ dpu_offload_status_t get_all_ranks_by_group_sp_lid(offloading_engine_t *engine,
 dpu_offload_status_t get_nth_sp_by_group_host_idx(offloading_engine_t *engine,
                                                   group_uid_t group_uid,
                                                   size_t host_idx,
+                                                  size_t n,
                                                   uint64_t *global_group_sp_id);
 
 /**
