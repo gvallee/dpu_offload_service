@@ -167,9 +167,18 @@ dpu_offload_status_t get_rank_idx_by_group_host_idx(offloading_engine_t *engine,
  * @param[in,out] sps Pointer to the internal lookup array associated to the list of service processes for the target host.
  * Since the table is exposed directly from the cache, the caller must not free the array, it will be freed when the group cache is freed.
  * If no service process on the target host is involved in the group, the pointer is set to NULL and no exception is raised.
+ * The array is composed of pointers of pointer of sp_cache_data_t structures.
  * @param[in,out] num_sps Number of service processes associated to the target host within the group;
  * 0 if no service process on the host is involved in the group.
  * @return dpu_offload_status_t
+ * 
+ * @code{.unparsed}
+ *  // Get the data of the first SP involved in the group and associated to the first host
+ *  dyn_array_t *sps = NULL;
+ *  sp_cache_data_t **sp_data = NULL;
+ *  size_t n_sps;
+ *  get_all_sps_by_group_host_idx(engine, group_uid, 0, sps, &n_sps);
+ *  sp_data = DYN_ARRAY_GET_ELT(sps, 0, sp_cache_data_t *);
  */
 dpu_offload_status_t get_all_sps_by_group_host_idx(offloading_engine_t *engine,
                                                    group_uid_t group_uid,
@@ -186,10 +195,18 @@ dpu_offload_status_t get_all_sps_by_group_host_idx(offloading_engine_t *engine,
  * @param[in] group_uid Target group identified by its unique group identifier
  * @param[in,out] hosts Pointer to the internal lookup array associated to the list of hosts that are involved in the group.
  * The caller must not free the array at any point since it is an internal array directly exposed to users. It is freed when
- * the group cache is being freed.
+ * the group cache is being freed. The array is composed of pointers of pointer of host_info_t structures.
  * @param[in,out] num_hosts Number of hosts involed in the group. The returned value must strictly be greater than 0 since groups
  * are created only when a rank from the group triggers its creatiom, guaranteeing that all known groups must have a minimum of 1 rank.
  * @return dpu_offload_status_t
+ * 
+ * @code{.unparsed}
+ *  // Get the data of the first host involved in the group
+ *  dyn_array_t *hosts = NULL;
+ *  host_info_t **host_data = NULL;
+ *  size_t n_hosts;
+ *  get_all_hosts_by_group(engine, group_uid, hosts, *n_hosts);
+ *  host_data = DYN_ARRAY_GET_ELT(hosts, 0, host_info_t *);
  */
 dpu_offload_status_t get_all_hosts_by_group(offloading_engine_t *engine,
                                             group_uid_t group_uid,
@@ -205,11 +222,19 @@ dpu_offload_status_t get_all_hosts_by_group(offloading_engine_t *engine,
  * @param[in] sp_group_gid Global group service process identifer, as for example returned by get_local_sp_id_by_group(). Must be valid.
  * @param[in,out] ranks Pointer to the internal lookup array associated to the list of ranks associated with a given service process.
  * The caller must not free the array at any point since it is an internal array directly exposed to users. It is freed when
- * the group cache is being freed.
+ * the group cache is being freed. The array is composed of pointers of pointer of peer_cache_entry_t structures.
  * @param[in,out] num_ranks Number of ranks associated to the target service process. The returned value must strictly be greater than
  * 0 since the global group service identifier is assumed valid and therefore a strict minimum of one rank must be associated to the
  * service process (otherwise the global group service process would be invalid)
  * @return dpu_offload_status_t
+ * 
+ * @code{.unparsed}
+ *  // Get the data of the first rank involved in the group and associated with the first SP in the group
+ *  peer_cache_entry_t **rank_data = NULL;
+ *  dyn_array_t *ranks = NULL;
+ *  size_t n_ranks;
+ *  get_all_ranks_by_group_sp_gid(engine, group_uid, 0, ranks, &n_ranks);
+ *  rank_data = DYN_ARRAY_GET_ELT(ranks, 0, peer_cache_entry_t *)
  */
 dpu_offload_status_t get_all_ranks_by_group_sp_gid(offloading_engine_t *engine,
                                                    group_uid_t group_uid,
@@ -227,11 +252,19 @@ dpu_offload_status_t get_all_ranks_by_group_sp_gid(offloading_engine_t *engine,
  * @param[in] sp_group_lid Local group service process identifer, as for example returned by get_local_sp_id_by_group(). Must be valid.
  * @param[in,out] ranks Pointer to the internal lookup array associated to the list of ranks associated with a given service process.
  * The caller must not free the array at any point since it is an internal array directly exposed to users. It is freed when
- * the group cache is being freed.
+ * the group cache is being freed. The array is composed of pointers of pointer of peer_cache_entry_t structures.
  * @param[in,out] num_ranks Number of ranks associated to the target service process. The returned value must strictly be greater than
  * 0 since the global group service identifier is assumed valid and therefore a strict minimum of one rank must be associated to the
  * service process (otherwise the global group service process would be invalid)
  * @return dpu_offload_status_t
+ * 
+ * @code{.unparsed}
+ *  // Get the list of ranks associated to the first SP on the first host that is involved in the group
+ *  dyn_array_t *ranks = NULL;
+ *  size_t n_ranks;
+ *  peer_cache_entry_t **rank_info = NULL;
+ *  get_all_ranks_by_group_sp_lid(engine, group_uid, 0, 0, ranks, &n_ranks);
+ *  ranks_info = DYN_ARRAY_GET_ELT(ranks, 0, peer_cache_entry_t *);
  */
 dpu_offload_status_t get_all_ranks_by_group_sp_lid(offloading_engine_t *engine,
                                                    group_uid_t group_uid,
