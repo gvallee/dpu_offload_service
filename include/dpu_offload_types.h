@@ -1744,7 +1744,7 @@ typedef struct hosts_cache_data
     // Number of ranks that are being running on the host and within the group
     size_t num_ranks;
 
-    // Bitset to track which SPs is being used on the host 
+    // Bitset to track which SPs is being used on the host
     // out of the list of all the service at the engine level
     group_cache_bitset_t *sps_bitset;
 
@@ -2042,7 +2042,8 @@ typedef struct group_cache
         assert(_new_group_cache);                                                        \
         INIT_GROUP_CACHE((_cache)->engine, _new_group_cache);                            \
         DYN_ARRAY_ALLOC(&(_new_group_cache->ranks), 1024, peer_cache_entry_t);           \
-        DYN_ARRAY_ALLOC(&(_new_group_cache->hosts), 32, group_uid_t);                    \
+        /* No need to allocate _new_group_cache->hosts, we handle it when we populte */  \
+        /* lookup tables in populate_group_cache_lookup_table() */                       \
         _new_group_cache->sps_hash = kh_init(group_sps_hash_t);                          \
         _new_group_cache->hosts_hash = kh_init(group_hosts_hash_t);                      \
         kh_value((_cache)->data, _newKey) = _new_group_cache;                            \
