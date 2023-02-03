@@ -61,7 +61,18 @@ get_local_sp_id_by_group(offloading_engine_t *engine,
                          uint64_t sp_gp_guid,
                          uint64_t *sp_gp_lid)
 {
-    // FIXME
+    remote_service_proc_info_t **ptr = NULL;
+    sp_cache_data_t *sp_data = NULL;
+    group_cache_t *gp_cache = NULL;
+
+    assert(engine);
+    gp_cache = GET_GROUP_CACHE(&(engine->procs_cache), gp_uid);
+    assert(gp_cache);
+    ptr = DYN_ARRAY_GET_ELT(&(gp_cache->sps), sp_gp_guid, remote_service_proc_info_t *);
+    assert(ptr);
+    sp_data = GET_GROUP_SP_HASH_ENTRY(gp_cache, (*ptr)->service_proc.global_id);
+    assert(sp_data);
+    *sp_gp_lid = sp_data->lid;
     return DO_SUCCESS;
 }
 
@@ -124,7 +135,15 @@ get_num_ranks_for_group_sp(offloading_engine_t *engine,
                            uint64_t sp_gp_gid,
                            size_t *num_ranks)
 {
-    // FIXME
+    sp_cache_data_t **sp_data = NULL;
+    group_cache_t *gp_cache = NULL;
+
+    assert(engine);
+    gp_cache = GET_GROUP_CACHE(&(engine->procs_cache), group_uid);
+    assert(gp_cache);
+    sp_data = DYN_ARRAY_GET_ELT(&(gp_cache->sps), sp_gp_gid, sp_cache_data_t *);
+    assert(sp_data);
+    *num_ranks = (*sp_data)->n_ranks;
     return DO_SUCCESS;
 }
 
@@ -135,7 +154,27 @@ get_num_ranks_for_group_host_local_sp(offloading_engine_t *engine,
                                       uint64_t local_host_sp_id,
                                       size_t *num_ranks)
 {
-    // FIXME
+    group_cache_t *gp_cache = NULL;
+    host_info_t **host_info_ptr = NULL;
+    host_cache_data_t *host_data = NULL;
+    sp_cache_data_t **sp_data_ptr = NULL;
+
+    assert(engine);
+    gp_cache = GET_GROUP_CACHE(&(engine->procs_cache), group_uid);
+    assert(gp_cache);
+    host_info_ptr = DYN_ARRAY_GET_ELT(&(gp_cache->hosts), host_idx, host_info_t *);
+    assert(host_info_ptr);
+    host_data = GET_GROUP_HOST_HASH_ENTRY(gp_cache, (*host_info_ptr)->uid);
+    assert(host_data);
+    if (local_host_sp_id >= host_data->num_sps)
+    {
+        // The requested local SP is beyond the number of SP associated to the host
+        // and involved in the group. This is an error.
+        return DO_ERROR;
+    }
+    sp_data_ptr = DYN_ARRAY_GET_ELT(&(host_data->sps), local_host_sp_id, sp_cache_data_t *);
+    assert(sp_data_ptr);
+    *num_ranks = (*sp_data_ptr)->n_ranks;
     return DO_SUCCESS;
 }
 
@@ -169,7 +208,35 @@ get_rank_idx_by_group_host_idx(offloading_engine_t *engine,
                                int64_t rank,
                                int64_t *idx)
 {
-    // FIXME
+    group_cache_t *gp_cache = NULL;
+    host_info_t **host_info_ptr = NULL;
+    host_cache_data_t *host_data = NULL;
+    size_t i, rank_index = 0;
+
+    assert(engine);
+    gp_cache = GET_GROUP_CACHE(&(engine->procs_cache), group_uid);
+    assert(gp_cache);
+    host_info_ptr = DYN_ARRAY_GET_ELT(&(gp_cache->hosts), host_idx, host_info_t *);
+    assert(host_info_ptr);
+    host_data = GET_GROUP_HOST_HASH_ENTRY(gp_cache, (*host_info_ptr)->uid);
+    assert(host_data);
+    if (!GROUP_CACHE_BITSET_TEST(host_data->ranks_bitset, rank))
+    {
+        // The rank is not involved in the group and running on that host, error
+        return DO_ERROR;
+    }
+
+    // From there we know the rank is on the host and involved in the rank, we just need
+    // to find its index
+    for (i = 0; i < host_data->num_ranks; i++)
+    {
+        if (i == rank)
+            break;
+
+        if (GROUP_CACHE_BITSET_TEST(host_data->ranks_bitset, i))
+            rank_index++;
+    }
+    *idx = rank_index;
     return DO_SUCCESS;
 }
 
@@ -180,7 +247,19 @@ get_all_sps_by_group_host_idx(offloading_engine_t *engine,
                               dyn_array_t *sps,
                               size_t *num_sps)
 {
-    // FIXME
+    group_cache_t *gp_cache = NULL;
+    host_info_t **host_info_ptr = NULL;
+    host_cache_data_t *host_data = NULL;
+
+    assert(engine);
+    gp_cache = GET_GROUP_CACHE(&(engine->procs_cache), group_uid);
+    assert(gp_cache);
+    host_info_ptr = DYN_ARRAY_GET_ELT(&(gp_cache->hosts), host_idx, host_info_t *);
+    assert(host_info_ptr);
+    host_data = GET_GROUP_HOST_HASH_ENTRY(gp_cache, (*host_info_ptr)->uid);
+    assert(host_data);
+    sps = &(host_data->sps);
+    *num_sps = host_data->num_sps;
     return DO_SUCCESS;
 }
 
@@ -233,7 +312,26 @@ get_all_ranks_by_group_sp_lid(offloading_engine_t *engine,
                               dyn_array_t *ranks,
                               size_t *num_ranks)
 {
-    // FIXME
+    group_cache_t *gp_cache = NULL;
+    host_info_t **host_info_ptr = NULL;
+    host_cache_data_t *host_data = NULL;
+    sp_cache_data_t **sp_data_ptr = NULL;
+
+    assert(engine);
+    gp_cache = GET_GROUP_CACHE(&(engine->procs_cache), group_uid);
+    assert(gp_cache);
+
+    // Get the host data
+    host_info_ptr = DYN_ARRAY_GET_ELT(&(gp_cache->hosts), host_idx, host_info_t *);
+    assert(host_info_ptr);
+    host_data = GET_GROUP_HOST_HASH_ENTRY(gp_cache, (*host_info_ptr)->uid);
+    assert(host_data);
+
+    // Get the SP's data
+    sp_data_ptr = DYN_ARRAY_GET_ELT(&(host_data->sps), sp_group_lid, sp_cache_data_t *);
+    assert(sp_data_ptr);
+    ranks = &((*sp_data_ptr)->ranks);
+    *num_ranks = (*sp_data_ptr)->n_ranks;
     return DO_SUCCESS;
 }
 
@@ -247,10 +345,13 @@ get_nth_sp_by_group_host_idx(offloading_engine_t *engine,
     group_cache_t *gp_cache = NULL;
     host_info_t **host_ptr = NULL;
     host_cache_data_t *host_data = NULL;
+    sp_cache_data_t **sp_data_ptr = NULL;
 
     assert(engine);
     gp_cache = GET_GROUP_CACHE(&(engine->procs_cache), group_uid);
     assert(gp_cache);
+
+    // Lookup the host's data
     host_ptr = DYN_ARRAY_GET_ELT(&(gp_cache->hosts),
                                  host_idx,
                                  host_info_t *);
@@ -258,7 +359,11 @@ get_nth_sp_by_group_host_idx(offloading_engine_t *engine,
     host_data = GET_GROUP_HOST_HASH_ENTRY(gp_cache, (*host_ptr)->uid);
     if (n >= host_data->num_sps)
         return DO_ERROR;
-    // FIXME
+    
+    // Lookup the SP's data
+    sp_data_ptr = DYN_ARRAY_GET_ELT(&(host_data->sps), n, sp_cache_data_t *);
+    assert(sp_data_ptr);
+    *global_group_sp_id = (*sp_data_ptr)->gid;
     return DO_SUCCESS;
 }
 
@@ -268,7 +373,7 @@ populate_sp_ranks(offloading_engine_t *engine, group_cache_t *gp_cache, sp_cache
     size_t i = 0, idx = 0;
     DYN_ARRAY_ALLOC(&(sp_data->ranks),
                     gp_cache->group_size,
-                    peer_info_t *);
+                    peer_cache_entry_t *);
     while (i < sp_data->n_ranks)
     {
         if (GROUP_CACHE_BITSET_TEST(sp_data->ranks_bitset, i))
@@ -283,6 +388,30 @@ populate_sp_ranks(offloading_engine_t *engine, group_cache_t *gp_cache, sp_cache
             ptr = DYN_ARRAY_GET_ELT(&(sp_data->ranks), idx, peer_cache_entry_t *);
             assert(ptr);
             (*ptr) = rank_info;
+            idx++;
+        }
+        i++;
+    }
+}
+
+static void
+populate_host_sps(group_cache_t *gp_cache, host_cache_data_t *host_data)
+{
+    size_t i = 0, idx = 0;
+    DYN_ARRAY_ALLOC(&(host_data->sps),
+                    gp_cache->group_size,
+                    sp_cache_data_t *);
+    while (i < host_data->num_sps)
+    {
+        if (GROUP_CACHE_BITSET_TEST(host_data->sps_bitset, i))
+        {
+            sp_cache_data_t **ptr = NULL, *sp_info = NULL;
+            sp_info = GET_GROUP_SP_HASH_ENTRY(gp_cache, i);
+            assert(sp_info);
+            ptr = DYN_ARRAY_GET_ELT(&(host_data->sps), idx, sp_cache_data_t *);
+            assert(ptr);
+            sp_info->lid = idx;
+            (*ptr) = sp_info;
             idx++;
         }
         i++;
@@ -361,6 +490,16 @@ populate_group_cache_lookup_table(offloading_engine_t *engine,
             i++;
         }
         idx++;
+    }
+
+    INFO_MSG("Handling data of SPs in the context of hosts");
+    if (kh_size(gp_cache->hosts_hash) != 0)
+    {
+        uint64_t host_key;
+        host_cache_data_t *host_value = NULL;
+        kh_foreach(gp_cache->hosts_hash, host_key, host_value, {
+            populate_host_sps(gp_cache, host_value);
+        })
     }
 
     return DO_SUCCESS;

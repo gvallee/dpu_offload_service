@@ -1669,13 +1669,19 @@ typedef struct sp_cache_data
     // service process global identifier (from the engine, not the group)
     uint64_t gid;
 
+    // service process local identifier (within the group, not the engine)
+    uint64_t lid;
+
+    // host unique identifier the service process is associated with
+    host_uid_t host_uid;
+
     // Group unique identifier
     group_uid_t gp_uid;
 
     // List of ranks from the group that are associated to the service process
     group_cache_bitset_t *ranks_bitset;
 
-    // Contiguous/ordered list of ranks associated with the SP (type: peer_cache_entry_t *)
+    // Contiguous & ordered list of ranks associated with the SP (type: peer_cache_entry_t *)
     dyn_array_t ranks;
 } sp_cache_data_t;
 
@@ -1726,6 +1732,9 @@ typedef struct hosts_cache_data
 {
     ucs_list_link_t item;
 
+    // Index in the configuration array for the hosts config (i.e., engine->config->hosts_config)
+    size_t config_idx;
+
     // Host unique identifier
     host_uid_t uid;
 
@@ -1735,11 +1744,16 @@ typedef struct hosts_cache_data
     // Number of ranks that are being running on the host and within the group
     size_t num_ranks;
 
-    // Bitset to track which SPs is being used on the host
+    // Bitset to track which SPs is being used on the host 
+    // out of the list of all the service at the engine level
     group_cache_bitset_t *sps_bitset;
 
-    // Index in the configuration array for the hosts config (i.e., engine->config->hosts_config)
-    size_t config_idx;
+    // Contiguous & ordered list of SPs associated with the host and
+    // involved in the group (type: sp_cache_data_t *)
+    dyn_array_t sps;
+
+    // Bitset to track which ranks on the host are involved in thr group
+    group_cache_bitset_t *ranks_bitset; // FIXME write code for this
 } host_cache_data_t;
 
 #define RESET_HOST_CACHE_DATA(_host_data) \
@@ -1815,7 +1829,7 @@ typedef struct group_cache
     // The index in the array is referred to as a "host group ID", i.e.,
     // the host ID within the group, from 0 to n, n being the total number of hosts
     // that are involved.
-    // Type: host_info_t **
+    // Type: host_info_t *
     dyn_array_t hosts;
 
     // Number of hosts involved in the group, i.e., the number of elements in the 'hosts' array
@@ -1842,7 +1856,7 @@ typedef struct group_cache
     // The array is guaranteed to be the same on all hosts and SPs.
     // The index in the array is referred to as "global group SP id", i.e.,
     // the SP ID within the group, from 0 to n, n being the total number of SPs
-    // involved in the group (type: remote_service_proc_info_t **).
+    // involved in the group (type: remote_service_proc_info_t *).
     dyn_array_t sps;
 
     // Boolean to track is the dynamic array 'sps' has been initialized or not
@@ -1873,6 +1887,7 @@ typedef struct group_cache
         {                                                               \
             kh_foreach((_gp_cache)->hosts_hash, __k, __host_v, {        \
                 GROUP_CACHE_BITSET_DESTROY(__host_v->sps_bitset);       \
+                GROUP_CACHE_BITSET_DESTROY(__host_v->ranks_bitset);     \
                 DYN_LIST_RETURN((_engine)->free_host_cache_hash_obj,    \
                                 __host_v,                               \
                                 item);                                  \

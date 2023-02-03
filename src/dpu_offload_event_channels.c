@@ -1500,6 +1500,7 @@ static dpu_offload_status_t handle_peer_cache_entries_recv(execution_context_t *
                     sp_data->gid = entries[idx].shadow_service_procs[n];
                     sp_data->n_ranks = 1;
                     sp_data->gp_uid = gp_cache->group_uid;
+                    sp_data->host_uid = entries[idx].peer.host_info;
                     ADD_GROUP_SP_HASH_ENTRY(gp_cache, sp_data);
                     GROUP_CACHE_BITSET_SET(gp_cache->sps_bitset,
                                            entries[idx].shadow_service_procs[n]);
@@ -1537,6 +1538,7 @@ static dpu_offload_status_t handle_peer_cache_entries_recv(execution_context_t *
                     host_data->num_sps = 1;
                     GROUP_CACHE_BITSET_CREATE(host_data->sps_bitset, gp_cache->group_size);
                     GROUP_CACHE_BITSET_SET(host_data->sps_bitset, sp_gid);
+                    GROUP_CACHE_BITSET_CREATE(host_data->ranks_bitset, gp_cache->group_size);
                     ADD_GROUP_HOST_HASH_ENTRY(gp_cache, host_data);
                     host_info = LOOKUP_HOST_CONFIG(engine, entries[idx].peer.host_info);
                     assert(host_info);
@@ -1556,6 +1558,8 @@ static dpu_offload_status_t handle_peer_cache_entries_recv(execution_context_t *
                         host_data->num_sps++;
                     }
                 }
+                // Mark the rank as being part of the group and running on the host
+                GROUP_CACHE_BITSET_SET(host_data->ranks_bitset, group_rank);
             }
             cache_entry->num_shadow_service_procs += entries[idx].num_shadow_service_procs;
             cache_entry->client_id = entries[idx].client_id;
