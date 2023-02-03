@@ -1496,6 +1496,7 @@ static dpu_offload_status_t handle_peer_cache_entries_recv(execution_context_t *
                                  item,
                                  sp_data);
                     RESET_SP_CACHE_DATA(sp_data);
+                    GROUP_CACHE_BITSET_CREATE(sp_data->ranks_bitset, group_size);
                     sp_data->gid = entries[idx].shadow_service_procs[n];
                     sp_data->n_ranks = 1;
                     sp_data->gp_uid = gp_cache->group_uid;
@@ -1510,12 +1511,15 @@ static dpu_offload_status_t handle_peer_cache_entries_recv(execution_context_t *
                         entries[idx].shadow_service_procs[n], group_uid);
                     sp_data->n_ranks++;
                 }
+                // Mkae the rank as associated to the SP
+                GROUP_CACHE_BITSET_SET(sp_data->ranks_bitset, group_rank);
 
                 // Same idea for the host
                 host_data = GET_GROUP_HOST_HASH_ENTRY(gp_cache, entries[idx].peer.host_info);
                 if (host_data == NULL)
                 {
                     // The host is not in the hash yet
+                    uint64_t sp_gid = entries[idx].shadow_service_procs[n];
                     host_info_t *host_info = NULL;
                     DBG("group cache does not have host 0x%lx, adding host to hash for the group (0x%x)",
                         entries[idx].peer.host_info, group_uid);
@@ -1529,7 +1533,10 @@ static dpu_offload_status_t handle_peer_cache_entries_recv(execution_context_t *
                     assert(host_data);
                     RESET_HOST_CACHE_DATA(host_data);
                     host_data->uid = entries[idx].peer.host_info;
+                    host_data->num_ranks = 1;
                     host_data->num_sps = 1;
+                    GROUP_CACHE_BITSET_CREATE(host_data->sps_bitset, gp_cache->group_size);
+                    GROUP_CACHE_BITSET_SET(host_data->sps_bitset, sp_gid);
                     ADD_GROUP_HOST_HASH_ENTRY(gp_cache, host_data);
                     host_info = LOOKUP_HOST_CONFIG(engine, entries[idx].peer.host_info);
                     assert(host_info);
@@ -1541,7 +1548,13 @@ static dpu_offload_status_t handle_peer_cache_entries_recv(execution_context_t *
                 else
                 {
                     // The host is already in the hash
-                    host_data->num_sps++;
+                    uint64_t sp_gid = entries[idx].shadow_service_procs[n];
+                    host_data->num_ranks++;
+                    if (!GROUP_CACHE_BITSET_TEST(host_data->sps_bitset, sp_gid))
+                    {
+                        // The SP is not known yet as being involved in the group
+                        host_data->num_sps++;
+                    }
                 }
             }
             cache_entry->num_shadow_service_procs += entries[idx].num_shadow_service_procs;

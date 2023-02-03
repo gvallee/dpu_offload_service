@@ -1614,77 +1614,6 @@ typedef enum
 /*********************/
 
 /**
- * @brief Elements saved in a group cache hash used to know which SPs are
- * involved in a group.
- *
- */
-typedef struct sp_cache_data
-{
-    ucs_list_link_t item;
-    size_t n_ranks;
-    uint64_t gid;
-    group_uid_t gp_uid;
-} sp_cache_data_t;
-
-#define RESET_SP_CACHE_DATA(_sp_data) \
-    do                                \
-    {                                 \
-        (_sp_data)->n_ranks = 0;      \
-        (_sp_data)->gid = UINT64_MAX; \
-        (_sp_data)->gp_uid = 0;       \
-    } while (0)
-
-KHASH_MAP_INIT_INT(group_sps_hash_t, sp_cache_data_t *);
-
-/**
- * @brief Structure used to store information about all the hosts being used.
- * It is for instance used when parsing the configuration file
- */
-typedef struct host_info
-{
-    // Pointer to the hostname, e.g., string created when parsing the configuration file
-    char *hostname;
-
-    // Index in the configuration structure, hosts_config dynamic array
-    size_t idx;
-} host_info_t;
-
-KHASH_MAP_INIT_INT(host_info_hash_t, host_info_t *);
-
-#define CONFIG_HOSTS_HASH_FINI(_cfg)                                 \
-    do                                                               \
-    {                                                                \
-        assert((_cfg)->host_lookup_table);                           \
-        if (kh_size((_cfg)->host_lookup_table) != 0)                 \
-        {                                                            \
-            kh_destroy(host_info_hash_t, (_cfg)->host_lookup_table); \
-        }                                                            \
-    } while (0)
-
-/**
- * @brief Elements saved in a group cache hash used to know which hosts are
- * involved in a group.
- *
- */
-typedef struct hosts_cache_data
-{
-    ucs_list_link_t item;
-
-    // Host unique identifier
-    host_uid_t uid;
-
-    // Number of SPs that are being used of the host and within the group
-    size_t num_sps;
-
-    // Index in the configuration array for the hosts config (i.e., engine->config->hosts_config)
-    size_t config_idx;
-} host_cache_data_t;
-
-#define RESET_HOST_CACHE_DATA(_host_data)
-
-KHASH_MAP_INIT_INT(group_hosts_hash_t, host_cache_data_t *);
-
-/**
  * @brief Type used to define and use bitset of any size
  */
 typedef char group_cache_bitset_t;
@@ -1725,6 +1654,104 @@ typedef char group_cache_bitset_t;
             _bitset_ptr = NULL;                 \
         }                                       \
     } while (0)
+
+/**
+ * @brief Elements saved in a group cache hash used to know which SPs are
+ * involved in a group.
+ */
+typedef struct sp_cache_data
+{
+    ucs_list_link_t item;
+
+    // Number of ranks in the group that are associated to the SP
+    size_t n_ranks;
+
+    // service process global identifier (from the engine, not the group)
+    uint64_t gid;
+
+    // Group unique identifier
+    group_uid_t gp_uid;
+
+    // List of ranks from the group that are associated to the service process
+    group_cache_bitset_t *ranks_bitset;
+
+    // Contiguous/ordered list of ranks associated with the SP (type: peer_cache_entry_t *)
+    dyn_array_t ranks;
+} sp_cache_data_t;
+
+#define RESET_SP_CACHE_DATA(_sp_data) \
+    do                                \
+    {                                 \
+        (_sp_data)->n_ranks = 0;      \
+        (_sp_data)->gid = UINT64_MAX; \
+        (_sp_data)->gp_uid = 0;       \
+    } while (0)
+
+KHASH_MAP_INIT_INT(group_sps_hash_t, sp_cache_data_t *);
+
+/**
+ * @brief Structure used to store information about all the hosts being used.
+ * It is for instance used when parsing the configuration file
+ */
+typedef struct host_info
+{
+    // Pointer to the hostname, e.g., string created when parsing the configuration file
+    char *hostname;
+
+    // Host's unique identifier
+    host_uid_t uid;
+
+    // Index in the configuration structure, hosts_config dynamic array
+    size_t idx;
+} host_info_t;
+
+KHASH_MAP_INIT_INT(host_info_hash_t, host_info_t *);
+
+#define CONFIG_HOSTS_HASH_FINI(_cfg)                                 \
+    do                                                               \
+    {                                                                \
+        assert((_cfg)->host_lookup_table);                           \
+        if (kh_size((_cfg)->host_lookup_table) != 0)                 \
+        {                                                            \
+            kh_destroy(host_info_hash_t, (_cfg)->host_lookup_table); \
+        }                                                            \
+    } while (0)
+
+/**
+ * @brief Elements saved in a group cache hash used to know which hosts are
+ * involved in a group.
+ *
+ */
+typedef struct hosts_cache_data
+{
+    ucs_list_link_t item;
+
+    // Host unique identifier
+    host_uid_t uid;
+
+    // Number of SPs that are being used on the host and within the group
+    size_t num_sps;
+
+    // Number of ranks that are being running on the host and within the group
+    size_t num_ranks;
+
+    // Bitset to track which SPs is being used on the host
+    group_cache_bitset_t *sps_bitset;
+
+    // Index in the configuration array for the hosts config (i.e., engine->config->hosts_config)
+    size_t config_idx;
+} host_cache_data_t;
+
+#define RESET_HOST_CACHE_DATA(_host_data) \
+    do                                    \
+    {                                     \
+        (_host_data)->uid = UINT64_MAX;   \
+        (_host_data)->num_sps = 0;        \
+        (_host_data)->num_ranks = 0;      \
+        (_host_data)->config_idx = 0;     \
+    } while (0)
+
+KHASH_MAP_INIT_INT(group_hosts_hash_t, host_cache_data_t *);
 
 struct remote_service_proc_info; // Forward declaration
 
@@ -1835,6 +1862,7 @@ typedef struct group_cache
         if (kh_size((_gp_cache)->sps_hash) != 0)                        \
         {                                                               \
             kh_foreach((_gp_cache)->sps_hash, __k, __sp_v, {            \
+                GROUP_CACHE_BITSET_DESTROY(__sp_v->ranks_bitset);       \
                 DYN_LIST_RETURN((_engine)->free_sp_cache_hash_obj,      \
                                 __sp_v,                                 \
                                 item);                                  \
@@ -1844,6 +1872,7 @@ typedef struct group_cache
         if (kh_size((_gp_cache)->hosts_hash) != 0)                      \
         {                                                               \
             kh_foreach((_gp_cache)->hosts_hash, __k, __host_v, {        \
+                GROUP_CACHE_BITSET_DESTROY(__host_v->sps_bitset);       \
                 DYN_LIST_RETURN((_engine)->free_host_cache_hash_obj,    \
                                 __host_v,                               \
                                 item);                                  \
@@ -3143,6 +3172,7 @@ typedef struct offloading_config
         service_proc_t info;
         service_proc_config_data_t *config;
         char hostname[1024];
+        host_uid_t host_uid;
 
         // Connection parameters for the service processes to connect to each other
         conn_params_t inter_service_procs_conn_params;
@@ -3180,6 +3210,7 @@ typedef struct offloading_config
         RESET_SERVICE_PROC(&((_data)->local_service_proc.info));                                                    \
         (_data)->local_service_proc.config = NULL;                                                                  \
         (_data)->local_service_proc.hostname[1023] = '\0';                                                          \
+        (_data)->local_service_proc.host_uid = UINT64_MAX;                                                          \
         RESET_INIT_PARAMS(&((_data)->local_service_proc.host_init_params));                                         \
         RESET_INIT_PARAMS(&((_data)->local_service_proc.inter_service_procs_init_params));                          \
         RESET_CONN_PARAMS(&((_data)->local_service_proc.host_conn_params));                                         \

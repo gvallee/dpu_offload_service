@@ -677,7 +677,7 @@ dpu_offload_status_t send_cache(execution_context_t *econtext, cache_t *cache, u
         }
     })
 
-        return DO_SUCCESS;
+    return DO_SUCCESS;
 }
 
 bool all_service_procs_connected(offloading_engine_t *engine)
@@ -1421,6 +1421,7 @@ bool parse_line_dpu_version_1(offloading_config_t *data, char *line)
                 assert(host_info);
                 host_info->hostname = target_entry->version_1.hostname;
                 host_info->idx = data->num_hosts;
+                host_info->uid = target_host;
 
                 // Add the host to the lookup table
                 host_key = kh_put(host_info_hash_t,
