@@ -58,6 +58,7 @@ static int create_dummy_config(offloading_engine_t *engine)
         host_info->idx = i;
         host_info->hostname = strdup("dummy");
         host_uid = FIRST_FAKE_HOST_UID + i;
+        host_info->uid = host_uid;
         host_key = kh_put(host_info_hash_t,
                           engine->config->host_lookup_table,
                           host_uid,
@@ -163,6 +164,11 @@ simulate_cache_entry_exchange(offloading_engine_t *engine)
         return DO_ERROR;
     }
 
+    // For the rest of the test, we simulate being on the first host, first SP
+    engine->on_dpu = true;
+    engine->config->local_service_proc.info.global_id = 0;
+    engine->config->local_service_proc.host_uid = FIRST_FAKE_HOST_UID;
+
     // Force the creation of the lookup tables, the context of this test does not
     // provide all the requirements for an automatic creation.
     rc = populate_group_cache_lookup_table(engine, gp_cache);
@@ -196,8 +202,8 @@ simulate_cache_entry_exchange(offloading_engine_t *engine)
     {
         remote_service_proc_info_t **sp_info = NULL;
         sp_info = DYN_ARRAY_GET_ELT(&(gp_cache->sps),
-                                      i,
-                                      remote_service_proc_info_t *);
+                                    i,
+                                    remote_service_proc_info_t *);
         if ((*sp_info)->idx != i)
         {
             fprintf(stderr, "ERROR: the index of SP %ld is reported as %ld\n",
@@ -217,8 +223,8 @@ simulate_cache_entry_exchange(offloading_engine_t *engine)
     {
         remote_service_proc_info_t **sp_info = NULL;
         sp_info = DYN_ARRAY_GET_ELT(&(gp_cache->sps),
-                                      i,
-                                      remote_service_proc_info_t *);
+                                    i,
+                                    remote_service_proc_info_t *);
         fprintf(stdout, "\tSP %" PRIu64 " is involved in the group\n", (*sp_info)->service_proc.global_id);
     }
 
@@ -246,6 +252,112 @@ simulate_cache_entry_exchange(offloading_engine_t *engine)
                                       i,
                                       host_info_t *);
         fprintf(stdout, "\t%s (index: %ld)\n", (*host_info)->hostname, (*host_info)->idx);
+    }
+
+    return DO_SUCCESS;
+}
+
+dpu_offload_status_t test_topo_api(offloading_engine_t *engine)
+{
+    group_uid_t gpuid = DUMMY_CACHE_ENTRY_EXCHANGE_GROUP_UID;
+    uint64_t sp_id, target_sp_gp_guid = 0, sp_qp_lid, target_local_host_sp_id = 0;
+    uint64_t target_gp_gp_lid = 0, global_group_sp_id;
+    int64_t target_rank = 0;
+    size_t host_idx, num_sps, num_ranks, target_host_idx = 0, rank_idx, num_hosts;
+    dyn_array_t *sps = NULL, *hosts = NULL, *ranks = NULL;
+    dpu_offload_status_t rc;
+
+    assert(engine);
+    fprintf(stdout, "Testing the topo API...\n");
+    rc = get_global_sp_id_by_group(engine, gpuid, &sp_id);
+    if (rc)
+    {
+        fprintf(stderr, "ERROR: get_global_sp_id_by_group() failed\n");
+        return DO_ERROR;
+    }
+
+    rc = get_local_sp_id_by_group(engine, gpuid, target_sp_gp_guid, &sp_qp_lid);
+    if (rc)
+    {
+        fprintf(stderr, "ERROR: get_local_sp_id_by_group() failed\n");
+        return DO_ERROR;
+    }
+
+    rc = get_host_idx_by_group(engine, gpuid, &host_idx);
+    if (rc)
+    {
+        fprintf(stderr, "ERROR: get_host_idx_by_group() failed\n");
+        return DO_ERROR;
+    }
+
+    rc = get_num_sps_by_group_host_idx(engine, gpuid, host_idx, &num_sps);
+    if (rc)
+    {
+        fprintf(stderr, "ERROR: get_num_sps_by_group_host_idx() failed\n");
+        return DO_ERROR;
+    }
+
+    rc = get_num_ranks_for_group_sp(engine, gpuid, target_sp_gp_guid, &num_ranks);
+    if (rc)
+    {
+        fprintf(stderr, "ERROR: get_num_ranks_for_group_sp() failed\n");
+        return DO_ERROR;
+    }
+
+    rc  = get_num_ranks_for_group_host_local_sp(engine, gpuid, target_host_idx, target_local_host_sp_id, &num_ranks);
+    if (rc)
+    {
+        fprintf(stderr, "ERROR: get_num_ranks_for_group_host_local_sp() failed\n");
+        return DO_ERROR;
+    }
+
+    rc = get_num_ranks_for_group_host_idx(engine, gpuid, host_idx, &num_ranks);
+    if (rc)
+    {
+        fprintf(stderr, "ERROR: get_num_ranks_for_group_host_idx() failed\n");
+        return DO_ERROR;
+    }
+
+    rc = get_rank_idx_by_group_host_idx(engine, gpuid, host_idx, target_rank, &rank_idx);
+    if (rc)
+    {
+        fprintf(stderr, "ERROR: get_rank_idx_by_group_host_idx() failed\n");
+        return DO_ERROR;
+    }
+
+    rc = get_all_sps_by_group_host_idx(engine, gpuid, host_idx, sps, &num_sps);
+    if (rc)
+    {
+        fprintf(stderr, "ERROR: get_all_sps_by_group_host_idx() failed\n");
+        return DO_ERROR;
+    }
+
+    rc = get_all_hosts_by_group(engine, gpuid, hosts, &num_hosts);
+    if (rc)
+    {
+        fprintf(stderr, "ERROR: get_all_hosts_by_group() failed\n");
+        return DO_ERROR;
+    }
+
+    rc = get_all_ranks_by_group_sp_gid(engine, gpuid, target_sp_gp_guid, ranks, &num_ranks);
+    if (rc)
+    {
+        fprintf(stderr, "ERROR: get_all_ranks_by_group_sp_gid() failed\n");
+        return DO_ERROR;
+    }
+
+    rc = get_all_ranks_by_group_sp_lid(engine, gpuid, host_idx, target_gp_gp_lid, ranks, &num_ranks);
+    if (rc)
+    {
+        fprintf(stderr, "ERROR: get_all_ranks_by_group_sp_lid() failed\n");
+        return DO_ERROR;
+    }
+
+    rc = get_nth_sp_by_group_host_idx(engine, gpuid, host_idx, 0, &global_group_sp_id);
+    if (rc)
+    {
+        fprintf(stderr, "ERROR: get_nth_sp_by_group_host_idx() failed\n");
+        return DO_ERROR;
     }
 
     return DO_SUCCESS;
@@ -288,6 +400,14 @@ int main(int argc, char **argv)
         fprintf(stderr, "ERROR: simulate_cache_entry_exchange() failed\n");
         goto error_out;
     }
+
+    rc = test_topo_api(offload_engine);
+    if (rc)
+    {
+        fprintf(stderr, "ERROR: test_topo_api() failed\n");
+        goto error_out;
+    }
+
 
     free(offload_engine->config);
     offload_engine->config = NULL;

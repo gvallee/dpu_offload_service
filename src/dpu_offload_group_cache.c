@@ -427,7 +427,7 @@ populate_group_cache_lookup_table(offloading_engine_t *engine,
     assert(gp_cache);
     assert(group_cache_populated(engine, gp_cache->group_uid));
 
-    INFO_MSG("Creating the contiguous and ordered list of SPs involved in the group");
+    DBG("Creating the contiguous and ordered list of SPs involved in the group");
     if (gp_cache->sp_array_initialized == false)
     {
         DYN_ARRAY_ALLOC(&(gp_cache->sps),
@@ -454,7 +454,7 @@ populate_group_cache_lookup_table(offloading_engine_t *engine,
         idx++;
     }
 
-    INFO_MSG("Creating the contiguous and ordered list of ranks associated with each SP");
+    DBG("Creating the contiguous and ordered list of ranks associated with each SP");
     if (kh_size(gp_cache->sps_hash) != 0)
     {
         uint64_t sp_key;
@@ -464,7 +464,7 @@ populate_group_cache_lookup_table(offloading_engine_t *engine,
         })
     }
 
-    INFO_MSG("Creating the contiguous and ordered list of hosts involved in the group");
+    DBG("Creating the contiguous and ordered list of hosts involved in the group");
     if (gp_cache->host_array_initialized == false)
     {
         DYN_ARRAY_ALLOC(&(gp_cache->hosts),
@@ -492,7 +492,7 @@ populate_group_cache_lookup_table(offloading_engine_t *engine,
         idx++;
     }
 
-    INFO_MSG("Handling data of SPs in the context of hosts");
+    DBG("Handling data of SPs in the context of hosts");
     if (kh_size(gp_cache->hosts_hash) != 0)
     {
         uint64_t host_key;
