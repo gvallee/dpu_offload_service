@@ -1556,6 +1556,7 @@ static dpu_offload_status_t handle_peer_cache_entries_recv(execution_context_t *
                     {
                         // The SP is not known yet as being involved in the group
                         host_data->num_sps++;
+                        GROUP_CACHE_BITSET_SET(host_data->sps_bitset, sp_gid);
                     }
                 }
                 // Mark the rank as being part of the group and running on the host
