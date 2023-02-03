@@ -31,12 +31,21 @@ enum
 
 extern dpu_offload_status_t register_default_notifications(dpu_offload_ev_sys_t *);
 
+// Based on 2 virtual hosts
 static host_uid_t get_host_uid(size_t i)
 {
     host_uid_t host_id = FIRST_FAKE_HOST_UID;
     if (i >= NUM_FAKE_CACHE_ENTRIES / 2)
         host_id += 1;
     return host_id;
+}
+
+// Based on 2 virtual hosts
+static size_t get_host_idx(size_t i)
+{
+    if (i < NUM_FAKE_CACHE_ENTRIES / 2)
+        return 0;
+    return 1;
 }
 
 // Create a dummy engine configuration
@@ -113,6 +122,8 @@ simulate_cache_entry_exchange(offloading_engine_t *engine)
     for (i = 0; i < NUM_FAKE_CACHE_ENTRIES; i++)
     {
         host_uid_t host_uid = get_host_uid(i);
+        size_t host_idx = get_host_idx(i);
+        size_t num_host_sps = NUM_FAKE_DPU_PER_HOST * NUM_FAKE_SP_PER_DPU;
         entries[i].set = true;
         entries[i].peer.proc_info.group_uid = DUMMY_CACHE_ENTRY_EXCHANGE_GROUP_UID;
         entries[i].peer.proc_info.group_rank = i;
@@ -126,7 +137,7 @@ simulate_cache_entry_exchange(offloading_engine_t *engine)
         entries[i].client_id = 0;
         entries[i].ep = NULL;
         entries[i].num_shadow_service_procs = 1;
-        entries[i].shadow_service_procs[0] = i % NUM_FAKE_SPS;
+        entries[i].shadow_service_procs[0] = (host_idx * num_host_sps) + i % num_host_sps;
         entries[i].events_initialized = false;
     }
 
@@ -260,12 +271,13 @@ simulate_cache_entry_exchange(offloading_engine_t *engine)
 dpu_offload_status_t test_topo_api(offloading_engine_t *engine)
 {
     group_uid_t gpuid = DUMMY_CACHE_ENTRY_EXCHANGE_GROUP_UID;
-    uint64_t sp_id, target_sp_gp_guid = 0, sp_qp_lid, target_local_host_sp_id = 0;
+    uint64_t sp_id, target_sp_gp_guid = 0, sp_gp_lid, target_local_host_sp_id = 0;
     uint64_t target_gp_gp_lid = 0, global_group_sp_id;
     int64_t target_rank = 0;
     size_t host_idx, num_sps, num_ranks, target_host_idx = 0, rank_idx, num_hosts;
     dyn_array_t *sps = NULL, *hosts = NULL, *ranks = NULL;
     dpu_offload_status_t rc;
+    size_t expected_number_of_sps_per_host = NUM_FAKE_DPU_PER_HOST * NUM_FAKE_SP_PER_DPU;
 
     assert(engine);
     fprintf(stdout, "Testing the topo API...\n");
@@ -275,11 +287,23 @@ dpu_offload_status_t test_topo_api(offloading_engine_t *engine)
         fprintf(stderr, "ERROR: get_global_sp_id_by_group() failed\n");
         return DO_ERROR;
     }
+    fprintf(stdout, "-> Global SP ID is %" PRIu64 "\n", sp_id);
+    if (sp_id != 0)
+    {
+        fprintf(stderr, "SP ID is %" PRIu64 " instead of 0\n", sp_id);
+        return DO_ERROR;
+    }
 
-    rc = get_local_sp_id_by_group(engine, gpuid, target_sp_gp_guid, &sp_qp_lid);
+    rc = get_local_sp_id_by_group(engine, gpuid, target_sp_gp_guid, &sp_gp_lid);
     if (rc)
     {
         fprintf(stderr, "ERROR: get_local_sp_id_by_group() failed\n");
+        return DO_ERROR;
+    }
+    fprintf(stderr, "-> SP group local ID: %" PRIu64 "\n", sp_gp_lid);
+    if (sp_gp_lid != 0)
+    {
+        fprintf(stderr, "ERROR: SP group LID is invalid\n");
         return DO_ERROR;
     }
 
@@ -289,11 +313,24 @@ dpu_offload_status_t test_topo_api(offloading_engine_t *engine)
         fprintf(stderr, "ERROR: get_host_idx_by_group() failed\n");
         return DO_ERROR;
     }
+    fprintf(stderr, "-> Host index: %ld\n", host_idx);
+    if (host_idx != 0)
+    {
+        fprintf(stderr, "ERROR: invalid host index\n");
+        return DO_ERROR;
+    }
 
     rc = get_num_sps_by_group_host_idx(engine, gpuid, host_idx, &num_sps);
     if (rc)
     {
         fprintf(stderr, "ERROR: get_num_sps_by_group_host_idx() failed\n");
+        return DO_ERROR;
+    }
+    fprintf(stderr, "-> Number of involved SP on the first host: %ld\n", num_sps);
+    if (num_sps != expected_number_of_sps_per_host)
+    {
+        fprintf(stderr, "ERROR: number of SPs reported as %ld instead of %ld\n",
+                num_sps, expected_number_of_sps_per_host);
         return DO_ERROR;
     }
 
@@ -304,7 +341,7 @@ dpu_offload_status_t test_topo_api(offloading_engine_t *engine)
         return DO_ERROR;
     }
 
-    rc  = get_num_ranks_for_group_host_local_sp(engine, gpuid, target_host_idx, target_local_host_sp_id, &num_ranks);
+    rc = get_num_ranks_for_group_host_local_sp(engine, gpuid, target_host_idx, target_local_host_sp_id, &num_ranks);
     if (rc)
     {
         fprintf(stderr, "ERROR: get_num_ranks_for_group_host_local_sp() failed\n");
@@ -407,7 +444,6 @@ int main(int argc, char **argv)
         fprintf(stderr, "ERROR: test_topo_api() failed\n");
         goto error_out;
     }
-
 
     free(offload_engine->config);
     offload_engine->config = NULL;
