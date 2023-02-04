@@ -274,10 +274,11 @@ dpu_offload_status_t test_topo_api(offloading_engine_t *engine)
     uint64_t sp_id, target_sp_gp_guid = 0, sp_gp_lid, target_local_host_sp_id = 0;
     uint64_t target_gp_gp_lid = 0, global_group_sp_id;
     int64_t target_rank = 0;
-    size_t host_idx, num_sps, num_ranks, target_host_idx = 0, rank_idx, num_hosts;
+    size_t i, host_idx, num_sps, num_ranks, target_host_idx = 0, rank_idx, num_hosts;
     dyn_array_t *sps = NULL, *hosts = NULL, *ranks = NULL;
     dpu_offload_status_t rc;
     size_t expected_number_of_sps_per_host = NUM_FAKE_DPU_PER_HOST * NUM_FAKE_SP_PER_DPU;
+    size_t expected_number_of_ranks_per_host = NUM_FAKE_DPU_PER_HOST * NUM_FAKE_SP_PER_DPU * NUM_FAKE_RANKS_PER_SP;
 
     assert(engine);
     fprintf(stdout, "Testing the topo API...\n");
@@ -300,7 +301,7 @@ dpu_offload_status_t test_topo_api(offloading_engine_t *engine)
         fprintf(stderr, "ERROR: get_local_sp_id_by_group() failed\n");
         return DO_ERROR;
     }
-    fprintf(stderr, "-> SP group local ID: %" PRIu64 "\n", sp_gp_lid);
+    fprintf(stdout, "-> SP group local ID: %" PRIu64 "\n", sp_gp_lid);
     if (sp_gp_lid != 0)
     {
         fprintf(stderr, "ERROR: SP group LID is invalid\n");
@@ -313,7 +314,7 @@ dpu_offload_status_t test_topo_api(offloading_engine_t *engine)
         fprintf(stderr, "ERROR: get_host_idx_by_group() failed\n");
         return DO_ERROR;
     }
-    fprintf(stderr, "-> Host index: %ld\n", host_idx);
+    fprintf(stdout, "-> Host index: %ld\n", host_idx);
     if (host_idx != 0)
     {
         fprintf(stderr, "ERROR: invalid host index\n");
@@ -340,11 +341,26 @@ dpu_offload_status_t test_topo_api(offloading_engine_t *engine)
         fprintf(stderr, "ERROR: get_num_ranks_for_group_sp() failed\n");
         return DO_ERROR;
     }
+    fprintf(stdout, "-> Number of ranks associated to SP %ld: %ld\n", target_sp_gp_guid, num_ranks);
+    if (num_ranks != NUM_FAKE_RANKS_PER_SP)
+    {
+        fprintf(stderr, "ERROR: number of ranks for SP %ld is reported %ld instead of %d\n",
+                target_gp_gp_lid, num_ranks, NUM_FAKE_RANKS_PER_SP);
+        return DO_ERROR;
+    }
 
     rc = get_num_ranks_for_group_host_local_sp(engine, gpuid, target_host_idx, target_local_host_sp_id, &num_ranks);
     if (rc)
     {
         fprintf(stderr, "ERROR: get_num_ranks_for_group_host_local_sp() failed\n");
+        return DO_ERROR;
+    }
+    fprintf(stdout, "-> Number of ranks for host at index %ld local SP %ld: %ld\n",
+            target_host_idx, target_local_host_sp_id, num_ranks);
+    if (num_ranks != NUM_FAKE_RANKS_PER_SP)
+    {
+        fprintf(stderr, "ERROR: number of ranks for host at index %ld and local SP %ld is %ld instead of %d\n",
+                target_host_idx, target_local_host_sp_id, num_ranks, NUM_FAKE_RANKS_PER_SP);
         return DO_ERROR;
     }
 
@@ -354,11 +370,25 @@ dpu_offload_status_t test_topo_api(offloading_engine_t *engine)
         fprintf(stderr, "ERROR: get_num_ranks_for_group_host_idx() failed\n");
         return DO_ERROR;
     }
+    fprintf(stdout, "-> Number of ranks associated with host at index %ld: %ld\n",
+            host_idx, num_ranks);
+    if (num_ranks != expected_number_of_ranks_per_host)
+    {
+        fprintf(stderr, "ERROR: number of ranks associated with host at index %ld is %ld instead of %ld\n",
+                host_idx, num_ranks, expected_number_of_ranks_per_host);
+        return DO_ERROR;
+    }
 
     rc = get_rank_idx_by_group_host_idx(engine, gpuid, host_idx, target_rank, &rank_idx);
     if (rc)
     {
         fprintf(stderr, "ERROR: get_rank_idx_by_group_host_idx() failed\n");
+        return DO_ERROR;
+    }
+    fprintf(stdout, "-> Index of rank %" PRId64 " on host index %ld: %ld\n", target_rank, host_idx, rank_idx);
+    if (rank_idx != 0)
+    {
+        fprintf(stderr, "ERROR: report index of rank %" PRId64 " is %ld instead of 0\n", target_rank, rank_idx);
         return DO_ERROR;
     }
 
@@ -374,6 +404,22 @@ dpu_offload_status_t test_topo_api(offloading_engine_t *engine)
     {
         fprintf(stderr, "ERROR: get_all_hosts_by_group() failed\n");
         return DO_ERROR;
+    }
+    fprintf(stdout, "Number of hosts in group: %ld\n", num_hosts);
+    if (num_hosts != NUM_FAKE_HOSTS)
+    {
+        fprintf(stderr, "ERROR: Number of hosts in the group is reported as %ld instead of %d\n",
+                num_hosts, NUM_FAKE_HOSTS);
+        return 0;
+    }
+    fprintf(stdout, "-> Host(s) data:\n");
+    for (i = 0; i < num_hosts; i++)
+    {
+        host_info_t **host_data = NULL;
+        host_data = DYN_ARRAY_GET_ELT(hosts, i, host_info_t *);
+        assert(host_data);
+        fprintf(stdout, "\tHostname: %s; index: %ld; UID: 0x%lx\n",
+                (*host_data)->hostname, (*host_data)->idx, (*host_data)->uid);
     }
 
     rc = get_all_ranks_by_group_sp_gid(engine, gpuid, target_sp_gp_guid, ranks, &num_ranks);
