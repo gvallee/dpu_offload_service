@@ -1999,7 +1999,7 @@ typedef struct group_cache
         int _ret;                                                \
         khiter_t _newKey = kh_put(group_hosts_hash_t,            \
                                   (_gp_cache)->hosts_hash,       \
-                                  (_host_data->host_uid),        \
+                                  (_host_data->uid),             \
                                   &_ret);                        \
         kh_value((_gp_cache)->hosts_hash, _newKey) = _host_data; \
     } while (0)
