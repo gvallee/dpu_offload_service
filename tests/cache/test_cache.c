@@ -119,6 +119,7 @@ simulate_cache_entry_exchange(offloading_engine_t *engine)
     fprintf(stdout, "Number of fake SPs that are now setup: %ld\n", engine->num_service_procs);
 
     // Create the dummy cache entries
+    fprintf(stdout, "Creating entries for %d fake ranks:\n", NUM_FAKE_CACHE_ENTRIES);
     for (i = 0; i < NUM_FAKE_CACHE_ENTRIES; i++)
     {
         host_uid_t host_uid = get_host_uid(i);
@@ -138,6 +139,7 @@ simulate_cache_entry_exchange(offloading_engine_t *engine)
         entries[i].ep = NULL;
         entries[i].num_shadow_service_procs = 1;
         entries[i].shadow_service_procs[0] = (host_idx * num_host_sps) + i % num_host_sps;
+        fprintf(stdout, "\trank %ld is assigned to SP %ld\n", i, entries[i].shadow_service_procs[0]);
         entries[i].events_initialized = false;
     }
 
@@ -444,7 +446,7 @@ dpu_offload_status_t test_topo_api(offloading_engine_t *engine)
         fprintf(stderr, "ERROR: get_all_ranks_by_group_sp_gid() failed\n");
         return DO_ERROR;
     }
-    fprintf(stdout, "-> Number of ranks associated to SP with geup UID %" PRIu64 ": %ld\n",
+    fprintf(stdout, "-> Number of ranks associated to SP with group UID %" PRIu64 ": %ld\n",
             target_sp_gp_guid, num_ranks);
     if (num_ranks != NUM_FAKE_RANKS_PER_SP)
     {

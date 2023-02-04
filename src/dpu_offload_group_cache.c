@@ -377,7 +377,8 @@ populate_sp_ranks(offloading_engine_t *engine, group_cache_t *gp_cache, sp_cache
     DYN_ARRAY_ALLOC(&(sp_data->ranks),
                     gp_cache->group_size,
                     peer_cache_entry_t *);
-    while (i < sp_data->n_ranks)
+    assert(sp_data->n_ranks);
+    while (idx < sp_data->n_ranks)
     {
         if (GROUP_CACHE_BITSET_TEST(sp_data->ranks_bitset, i))
         {
@@ -395,6 +396,7 @@ populate_sp_ranks(offloading_engine_t *engine, group_cache_t *gp_cache, sp_cache
         }
         i++;
     }
+    assert(idx == sp_data->n_ranks);
 }
 
 static void
@@ -458,6 +460,7 @@ populate_group_cache_lookup_table(offloading_engine_t *engine,
     }
 
     DBG("Creating the contiguous and ordered list of ranks associated with each SP");
+    assert(kh_size(gp_cache->sps_hash) == gp_cache->n_sps);
     if (kh_size(gp_cache->sps_hash) != 0)
     {
         uint64_t sp_key;
