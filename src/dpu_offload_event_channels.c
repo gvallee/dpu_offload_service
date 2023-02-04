@@ -1508,9 +1508,9 @@ static dpu_offload_status_t handle_peer_cache_entries_recv(execution_context_t *
                 else
                 {
                     // The SP is already in the hash
-                    DBG("cache entry has SP %" PRIu64 ", updating SP hash for the group (0x%x)",
-                        entries[idx].shadow_service_procs[n], group_uid);
                     sp_data->n_ranks++;
+                    DBG("cache entry has SP %" PRIu64 ", updating SP hash for the group (0x%x), ranks = %ld",
+                        entries[idx].shadow_service_procs[n], group_uid, sp_data->n_ranks);
                 }
                 // Mkae the rank as associated to the SP
                 GROUP_CACHE_BITSET_SET(sp_data->ranks_bitset, group_rank);
