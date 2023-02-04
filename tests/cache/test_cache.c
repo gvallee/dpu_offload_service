@@ -471,11 +471,36 @@ dpu_offload_status_t test_topo_api(offloading_engine_t *engine)
         fprintf(stderr, "ERROR: get_all_ranks_by_group_sp_lid() failed\n");
         return DO_ERROR;
     }
+    fprintf(stdout, "-> Number of ranks associated to SP %ld on host with index %ld: %ld\n",
+            target_gp_gp_lid, host_idx, num_ranks);
+    if (num_ranks != NUM_FAKE_RANKS_PER_SP)
+    {
+        fprintf(stderr, "ERROR: number of ranks is %ld instead of %d\n", num_ranks, NUM_FAKE_RANKS_PER_SP);
+        return DO_ERROR;
+    }
+    fprintf(stdout, "-> Rank(s) data:\n");
+    for (i = 0; i < num_ranks; i++)
+    {
+        peer_cache_entry_t **ptr = NULL;
+        ptr = DYN_ARRAY_GET_ELT(ranks, i, peer_cache_entry_t *);
+        assert(ptr);
+        assert(*ptr);
+        fprintf(stderr, "Rank %" PRId64 ": group UID=0x%x; host UID: 0x%lx\n",
+                (*ptr)->peer.proc_info.group_rank, (*ptr)->peer.proc_info.group_uid, (*ptr)->peer.host_info);
+    }
 
     rc = get_nth_sp_by_group_host_idx(engine, gpuid, host_idx, 0, &global_group_sp_id);
     if (rc)
     {
         fprintf(stderr, "ERROR: get_nth_sp_by_group_host_idx() failed\n");
+        return DO_ERROR;
+    }
+    fprintf(stdout, "-> First SP on host with index %ld is %" PRIu64 "\n",
+            host_idx, global_group_sp_id);
+    if (global_group_sp_id != 0)
+    {
+        fprintf(stderr, "ERROR: SP is reported as %" PRIu64 " instead of 9\n",
+                global_group_sp_id);
         return DO_ERROR;
     }
 
