@@ -177,13 +177,13 @@ dpu_offload_status_t get_rank_idx_by_group_host_idx(offloading_engine_t *engine,
  *  dyn_array_t *sps = NULL;
  *  sp_cache_data_t **sp_data = NULL;
  *  size_t n_sps;
- *  get_all_sps_by_group_host_idx(engine, group_uid, 0, sps, &n_sps);
+ *  get_all_sps_by_group_host_idx(engine, group_uid, 0, &sps, &n_sps);
  *  sp_data = DYN_ARRAY_GET_ELT(sps, 0, sp_cache_data_t *);
  */
 dpu_offload_status_t get_all_sps_by_group_host_idx(offloading_engine_t *engine,
                                                    group_uid_t group_uid,
                                                    size_t host_idx,
-                                                   dyn_array_t *sps,
+                                                   dyn_array_t **sps,
                                                    size_t *num_sps);
 
 /**
@@ -205,12 +205,12 @@ dpu_offload_status_t get_all_sps_by_group_host_idx(offloading_engine_t *engine,
  *  dyn_array_t *hosts = NULL;
  *  host_info_t **host_data = NULL;
  *  size_t n_hosts;
- *  get_all_hosts_by_group(engine, group_uid, hosts, *n_hosts);
+ *  get_all_hosts_by_group(engine, group_uid, &hosts, *n_hosts);
  *  host_data = DYN_ARRAY_GET_ELT(hosts, 0, host_info_t *);
  */
 dpu_offload_status_t get_all_hosts_by_group(offloading_engine_t *engine,
                                             group_uid_t group_uid,
-                                            dyn_array_t *hosts,
+                                            dyn_array_t **hosts,
                                             size_t *num_hosts);
 
 /**
@@ -233,13 +233,13 @@ dpu_offload_status_t get_all_hosts_by_group(offloading_engine_t *engine,
  *  peer_cache_entry_t **rank_data = NULL;
  *  dyn_array_t *ranks = NULL;
  *  size_t n_ranks;
- *  get_all_ranks_by_group_sp_gid(engine, group_uid, 0, ranks, &n_ranks);
+ *  get_all_ranks_by_group_sp_gid(engine, group_uid, 0, &ranks, &n_ranks);
  *  rank_data = DYN_ARRAY_GET_ELT(ranks, 0, peer_cache_entry_t *)
  */
 dpu_offload_status_t get_all_ranks_by_group_sp_gid(offloading_engine_t *engine,
                                                    group_uid_t group_uid,
                                                    uint64_t sp_group_gid,
-                                                   dyn_array_t *ranks,
+                                                   dyn_array_t **ranks,
                                                    size_t *num_ranks);
 
 /**
@@ -263,14 +263,14 @@ dpu_offload_status_t get_all_ranks_by_group_sp_gid(offloading_engine_t *engine,
  *  dyn_array_t *ranks = NULL;
  *  size_t n_ranks;
  *  peer_cache_entry_t **rank_info = NULL;
- *  get_all_ranks_by_group_sp_lid(engine, group_uid, 0, 0, ranks, &n_ranks);
+ *  get_all_ranks_by_group_sp_lid(engine, group_uid, 0, 0, &ranks, &n_ranks);
  *  ranks_info = DYN_ARRAY_GET_ELT(ranks, 0, peer_cache_entry_t *);
  */
 dpu_offload_status_t get_all_ranks_by_group_sp_lid(offloading_engine_t *engine,
                                                    group_uid_t group_uid,
                                                    size_t host_idx,
                                                    uint64_t sp_group_lid,
-                                                   dyn_array_t *ranks,
+                                                   dyn_array_t **ranks,
                                                    size_t *num_ranks);
 
 /**

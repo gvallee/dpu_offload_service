@@ -247,7 +247,7 @@ dpu_offload_status_t
 get_all_sps_by_group_host_idx(offloading_engine_t *engine,
                               group_uid_t group_uid,
                               size_t host_idx,
-                              dyn_array_t *sps,
+                              dyn_array_t **sps,
                               size_t *num_sps)
 {
     group_cache_t *gp_cache = NULL;
@@ -261,7 +261,7 @@ get_all_sps_by_group_host_idx(offloading_engine_t *engine,
     assert(host_info_ptr);
     host_data = GET_GROUP_HOST_HASH_ENTRY(gp_cache, (*host_info_ptr)->uid);
     assert(host_data);
-    sps = &(host_data->sps);
+    *sps = &(host_data->sps);
     *num_sps = host_data->num_sps;
     return DO_SUCCESS;
 }
@@ -269,7 +269,7 @@ get_all_sps_by_group_host_idx(offloading_engine_t *engine,
 dpu_offload_status_t
 get_all_hosts_by_group(offloading_engine_t *engine,
                        group_uid_t group_uid,
-                       dyn_array_t *hosts,
+                       dyn_array_t **hosts,
                        size_t *num_hosts)
 {
     group_cache_t *gp_cache = NULL;
@@ -277,7 +277,7 @@ get_all_hosts_by_group(offloading_engine_t *engine,
     assert(engine);
     gp_cache = GET_GROUP_CACHE(&(engine->procs_cache), group_uid);
     assert(gp_cache);
-    hosts = &(gp_cache->hosts);
+    *hosts = &(gp_cache->hosts);
     *num_hosts = gp_cache->n_hosts;
     return DO_SUCCESS;
 }
@@ -286,7 +286,7 @@ dpu_offload_status_t
 get_all_ranks_by_group_sp_gid(offloading_engine_t *engine,
                               group_uid_t group_uid,
                               uint64_t sp_group_gid,
-                              dyn_array_t *ranks,
+                              dyn_array_t **ranks,
                               size_t *num_ranks)
 {
     group_cache_t *gp_cache = NULL;
@@ -302,7 +302,7 @@ get_all_ranks_by_group_sp_gid(offloading_engine_t *engine,
     assert(ptr);
     sp_data = GET_GROUP_SP_HASH_ENTRY(gp_cache, (*ptr)->service_proc.global_id);
     assert(sp_data);
-    ranks = &(sp_data->ranks);
+    *ranks = &(sp_data->ranks);
     *num_ranks = sp_data->n_ranks;
     return DO_SUCCESS;
 }
@@ -312,7 +312,7 @@ get_all_ranks_by_group_sp_lid(offloading_engine_t *engine,
                               group_uid_t group_uid,
                               size_t host_idx,
                               uint64_t sp_group_lid,
-                              dyn_array_t *ranks,
+                              dyn_array_t **ranks,
                               size_t *num_ranks)
 {
     group_cache_t *gp_cache = NULL;
@@ -333,7 +333,7 @@ get_all_ranks_by_group_sp_lid(offloading_engine_t *engine,
     // Get the SP's data
     sp_data_ptr = DYN_ARRAY_GET_ELT(&(host_data->sps), sp_group_lid, sp_cache_data_t *);
     assert(sp_data_ptr);
-    ranks = &((*sp_data_ptr)->ranks);
+    *ranks = &((*sp_data_ptr)->ranks);
     *num_ranks = (*sp_data_ptr)->n_ranks;
     return DO_SUCCESS;
 }
