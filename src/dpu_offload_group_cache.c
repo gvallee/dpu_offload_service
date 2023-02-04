@@ -135,15 +135,18 @@ get_num_ranks_for_group_sp(offloading_engine_t *engine,
                            uint64_t sp_gp_gid,
                            size_t *num_ranks)
 {
-    sp_cache_data_t **sp_data = NULL;
+    remote_service_proc_info_t **sp_data = NULL;
+    sp_cache_data_t *sp_info = NULL;
     group_cache_t *gp_cache = NULL;
 
     assert(engine);
     gp_cache = GET_GROUP_CACHE(&(engine->procs_cache), group_uid);
     assert(gp_cache);
-    sp_data = DYN_ARRAY_GET_ELT(&(gp_cache->sps), sp_gp_gid, sp_cache_data_t *);
+    sp_data = DYN_ARRAY_GET_ELT(&(gp_cache->sps), sp_gp_gid, remote_service_proc_info_t *);
     assert(sp_data);
-    *num_ranks = (*sp_data)->n_ranks;
+    sp_info = GET_GROUP_SP_HASH_ENTRY(gp_cache, (*sp_data)->service_proc.global_id);
+    assert(sp_info);
+    *num_ranks = sp_info->n_ranks;
     return DO_SUCCESS;
 }
 
