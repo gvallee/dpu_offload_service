@@ -392,14 +392,30 @@ dpu_offload_status_t test_topo_api(offloading_engine_t *engine)
         return DO_ERROR;
     }
 
-    rc = get_all_sps_by_group_host_idx(engine, gpuid, host_idx, sps, &num_sps);
+    rc = get_all_sps_by_group_host_idx(engine, gpuid, host_idx, &sps, &num_sps);
     if (rc)
     {
         fprintf(stderr, "ERROR: get_all_sps_by_group_host_idx() failed\n");
         return DO_ERROR;
     }
+    fprintf(stdout, "-> Number of SPs on host at index %ld: %ld\n", host_idx, num_sps);
+    if (num_sps != expected_number_of_sps_per_host)
+    {
+        fprintf(stderr, "ERROR: number of SPs for host at index %ld is reported as %ld instead of %ld\n",
+                host_idx, num_sps, expected_number_of_sps_per_host);
+        return DO_ERROR;
+    }
+    fprintf(stdout, "-> SP(s) data:\n");
+    for (i = 0; i < num_sps; i++)
+    {
+        sp_cache_data_t **ptr = NULL;
+        ptr = DYN_ARRAY_GET_ELT(sps, i, sp_cache_data_t *);
+        assert(ptr);
+        fprintf(stdout, "\tGID: %" PRIu64 "; Group UID: 0x%x; Host UID: 0x%lx; LID: %" PRIu64 "; number of ranks: %ld\n",
+                (*ptr)->gid, (*ptr)->gp_uid, (*ptr)->host_uid, (*ptr)->lid, (*ptr)->n_ranks);
+    }
 
-    rc = get_all_hosts_by_group(engine, gpuid, hosts, &num_hosts);
+    rc = get_all_hosts_by_group(engine, gpuid, &hosts, &num_hosts);
     if (rc)
     {
         fprintf(stderr, "ERROR: get_all_hosts_by_group() failed\n");
@@ -422,14 +438,32 @@ dpu_offload_status_t test_topo_api(offloading_engine_t *engine)
                 (*host_data)->hostname, (*host_data)->idx, (*host_data)->uid);
     }
 
-    rc = get_all_ranks_by_group_sp_gid(engine, gpuid, target_sp_gp_guid, ranks, &num_ranks);
+    rc = get_all_ranks_by_group_sp_gid(engine, gpuid, target_sp_gp_guid, &ranks, &num_ranks);
     if (rc)
     {
         fprintf(stderr, "ERROR: get_all_ranks_by_group_sp_gid() failed\n");
         return DO_ERROR;
     }
+    fprintf(stdout, "-> Number of ranks associated to SP with geup UID %" PRIu64 ": %ld\n",
+            target_sp_gp_guid, num_ranks);
+    if (num_ranks != NUM_FAKE_RANKS_PER_SP)
+    {
+        fprintf(stderr, "ERROR: number of ranks is reported as %ld instead of %d\n",
+                num_ranks, NUM_FAKE_RANKS_PER_SP);
+        return DO_ERROR;
+    }
+    fprintf(stdout, "-> Rank(s) data:\n");
+    for (i = 0; i < num_ranks; i++)
+    {
+        peer_cache_entry_t **ptr = NULL;
+        ptr = DYN_ARRAY_GET_ELT(ranks, i, peer_cache_entry_t *);
+        assert(ptr);
+        assert(*ptr);
+        fprintf(stderr, "Rank %" PRId64 ": group UID=0x%x; host UID: 0x%lx\n",
+                (*ptr)->peer.proc_info.group_rank, (*ptr)->peer.proc_info.group_uid, (*ptr)->peer.host_info);
+    }
 
-    rc = get_all_ranks_by_group_sp_lid(engine, gpuid, host_idx, target_gp_gp_lid, ranks, &num_ranks);
+    rc = get_all_ranks_by_group_sp_lid(engine, gpuid, host_idx, target_gp_gp_lid, &ranks, &num_ranks);
     if (rc)
     {
         fprintf(stderr, "ERROR: get_all_ranks_by_group_sp_lid() failed\n");
