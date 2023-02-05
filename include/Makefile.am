@@ -17,4 +17,5 @@ nobase_include_HEADERS = dpu_offload_common.h \
                         dpu_offload_types.h \
                         dpu_offload_utils.h \
                         dynamic_structs.h \
+                        dpu_offload_group_cache.h \
                         host_dpu_offload_service.h

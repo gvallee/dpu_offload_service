@@ -905,7 +905,6 @@ int event_channel_emit_with_payload(dpu_offload_event_t **event, uint64_t type, 
 {
     int rc = EVENT_INPROGRESS;
     assert(event);
-    assert(dest_ep);
     assert((*event));
     // This function can only be used when the user is managing the payload
     assert((*event)->manage_payload_buf == false);
@@ -957,6 +956,7 @@ int event_channel_emit_with_payload(dpu_offload_event_t **event, uint64_t type, 
         return ret;
     }
 
+    assert(dest_ep);
 #if USE_AM_IMPLEM
     rc = am_send_event_msg(event);
 #else
@@ -1467,7 +1467,100 @@ static dpu_offload_status_t handle_peer_cache_entries_recv(execution_context_t *
             // append the shadow DPU data to the data already local available (if any)
             for (n = 0; n < entries[idx].num_shadow_service_procs; n++)
             {
+                sp_cache_data_t *sp_data = NULL;
+                host_cache_data_t *host_data = NULL;
                 cache_entry->shadow_service_procs[cache_entry->num_shadow_service_procs + n] = entries[idx].shadow_service_procs[n];
+
+                // SPs have a unique ID, are all known, as well as the host associated to them.
+                // So when we receive a cache entry, we look the SP of the cache entry and update
+                // a SP lookup table so we can track which SPs are involved in the group.
+                // As mentioned, knowing which SPs are involed in the group also allows us to track
+                // which hosts are involved in the group. Note that it is difficult to directly
+                // track which hosts are involved because host are represented via a hash and
+                // it is therefore difficult to keep an ordered list of hosts that is consistent
+                // everywhere.
+
+                // Check if the SP is already in the group SP hash; if not, it means it is first
+                // time we learn about that SP in the group so we increment the number of SPs
+                // involved in the group
+                sp_data = GET_GROUP_SP_HASH_ENTRY(gp_cache, entries[idx].shadow_service_procs[n]);
+                if (sp_data == NULL)
+                {
+                    // SP is not in the hash, we start by updating some bookkeeping variables
+                    DBG("group cache does not have SP %" PRIu64 ", adding SP to hash for the group (0x%x)",
+                        entries[idx].shadow_service_procs[n], group_uid);
+                    gp_cache->n_sps++;
+                    // Add the SP to the hash using the global SP id as key
+                    DYN_LIST_GET(engine->free_sp_cache_hash_obj,
+                                 sp_cache_data_t,
+                                 item,
+                                 sp_data);
+                    RESET_SP_CACHE_DATA(sp_data);
+                    GROUP_CACHE_BITSET_CREATE(sp_data->ranks_bitset, group_size);
+                    sp_data->gid = entries[idx].shadow_service_procs[n];
+                    sp_data->n_ranks = 1;
+                    sp_data->gp_uid = gp_cache->group_uid;
+                    sp_data->host_uid = entries[idx].peer.host_info;
+                    ADD_GROUP_SP_HASH_ENTRY(gp_cache, sp_data);
+                    GROUP_CACHE_BITSET_SET(gp_cache->sps_bitset,
+                                           entries[idx].shadow_service_procs[n]);
+                }
+                else
+                {
+                    // The SP is already in the hash
+                    sp_data->n_ranks++;
+                    DBG("cache entry has SP %" PRIu64 ", updating SP hash for the group (0x%x), # of ranks = %ld",
+                        entries[idx].shadow_service_procs[n], group_uid, sp_data->n_ranks);
+                }
+                // Make the rank as associated to the SP
+                GROUP_CACHE_BITSET_SET(sp_data->ranks_bitset, group_rank);
+
+                // Same idea for the host
+                host_data = GET_GROUP_HOST_HASH_ENTRY(gp_cache, entries[idx].peer.host_info);
+                if (host_data == NULL)
+                {
+                    // The host is not in the hash yet
+                    uint64_t sp_gid = entries[idx].shadow_service_procs[n];
+                    host_info_t *host_info = NULL;
+                    DBG("group cache does not have host 0x%lx, adding host to hash for the group (0x%x)",
+                        entries[idx].peer.host_info, group_uid);
+                    gp_cache->n_hosts++;
+                    // Add the SP to the hash using the global SP id as key
+                    assert(engine->free_host_cache_hash_obj);
+                    DYN_LIST_GET(engine->free_host_cache_hash_obj,
+                                 host_cache_data_t,
+                                 item,
+                                 host_data);
+                    assert(host_data);
+                    RESET_HOST_CACHE_DATA(host_data);
+                    host_data->uid = entries[idx].peer.host_info;
+                    host_data->num_ranks = 1;
+                    host_data->num_sps = 1;
+                    GROUP_CACHE_BITSET_CREATE(host_data->sps_bitset, gp_cache->group_size);
+                    GROUP_CACHE_BITSET_SET(host_data->sps_bitset, sp_gid);
+                    GROUP_CACHE_BITSET_CREATE(host_data->ranks_bitset, gp_cache->group_size);
+                    ADD_GROUP_HOST_HASH_ENTRY(gp_cache, host_data);
+                    host_info = LOOKUP_HOST_CONFIG(engine, entries[idx].peer.host_info);
+                    assert(host_info);
+                    host_data->config_idx = host_info->idx;
+                    assert(gp_cache->hosts_bitset);
+                    GROUP_CACHE_BITSET_SET(gp_cache->hosts_bitset,
+                                           host_info->idx);
+                }
+                else
+                {
+                    // The host is already in the hash
+                    uint64_t sp_gid = entries[idx].shadow_service_procs[n];
+                    host_data->num_ranks++;
+                    if (!GROUP_CACHE_BITSET_TEST(host_data->sps_bitset, sp_gid))
+                    {
+                        // The SP is not known yet as being involved in the group
+                        host_data->num_sps++;
+                        GROUP_CACHE_BITSET_SET(host_data->sps_bitset, sp_gid);
+                    }
+                }
+                // Mark the rank as being part of the group and running on the host
+                GROUP_CACHE_BITSET_SET(host_data->ranks_bitset, group_rank);
             }
             cache_entry->num_shadow_service_procs += entries[idx].num_shadow_service_procs;
             cache_entry->client_id = entries[idx].client_id;
@@ -1520,7 +1613,6 @@ static dpu_offload_status_t handle_peer_cache_entries_recv(execution_context_t *
     }
     return DO_SUCCESS;
 }
-
 
 /**
  * @brief receive handler for cache entry notifications. Note that a single notification
@@ -1783,7 +1875,7 @@ static dpu_offload_status_t handle_pending_group_cache_add_msgs(offloading_engin
  * @return dpu_offload_status_t
  */
 static dpu_offload_status_t revoke_group_cache(offloading_engine_t *engine, group_uid_t gp_uid)
-    {
+{
     size_t i;
     dpu_offload_status_t rc;
     pending_recv_cache_entry_t *pending_cache_entry, *next_pending;
@@ -1792,12 +1884,20 @@ static dpu_offload_status_t revoke_group_cache(offloading_engine_t *engine, grou
     for (i = 0; i < c->group_size; i++)
     {
         peer_cache_entry_t *e = DYN_ARRAY_GET_ELT(&(c->ranks),
-                                                   i,
-                                                   peer_cache_entry_t);
+                                                  i,
+                                                  peer_cache_entry_t);
         assert(e);
         RESET_PEER_CACHE_ENTRY(e);
     }
-    RESET_GROUP_CACHE(c);
+    if (c->sps_bitset != NULL)
+    {
+        GROUP_CACHE_BITSET_DESTROY(c->sps_bitset);
+    }
+    if (c->hosts_bitset != NULL)
+    {
+        GROUP_CACHE_BITSET_DESTROY(c->hosts_bitset);
+    }
+    RESET_GROUP_CACHE(engine, c);
 
     // Handle potential pending receives of cache emtries
     ucs_list_for_each_safe(pending_cache_entry, next_pending, &(engine->pending_recv_cache_entries), item)

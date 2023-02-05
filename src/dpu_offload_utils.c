@@ -17,6 +17,7 @@
 #include "dpu_offload_debug.h"
 #include "dpu_offload_event_channels.h"
 #include "dpu_offload_envvars.h"
+#include "dpu_offload_group_cache.h"
 
 #if !NDEBUG
 debug_config_t dbg_cfg = {
@@ -259,20 +260,8 @@ dpu_offload_status_t send_revoke_group_rank_request_through_num_ranks(execution_
 
 /********************************************/
 /* FUNCTIONS RELATED TO THE ENDPOINT CACHES */
+/* TODO: move to dpu_offload_group_cache.c  */
 /********************************************/
-
-bool group_cache_populated(offloading_engine_t *engine, group_uid_t gp_uid)
-{
-    group_cache_t *gp_cache = GET_GROUP_CACHE(&(engine->procs_cache), gp_uid);
-    assert(gp_cache);
-    if (gp_cache->global_revoked == 0 && gp_cache->group_size == gp_cache->num_local_entries)
-    {
-        DBG("Group cache for group 0x%x fully populated. num_local_entries = %" PRIu64 " group_size = %" PRIu64,
-            gp_uid, gp_cache->num_local_entries, gp_cache->group_size);
-        return true;
-    }
-    return false;
-}
 
 dpu_offload_status_t get_local_sp_id(offloading_engine_t *engine, uint64_t global_sp_id, uint64_t *local_sp_id)
 {
@@ -621,6 +610,7 @@ dpu_offload_status_t send_gp_cache_to_host(execution_context_t *econtext, group_
     assert(econtext->type == CONTEXT_SERVER);
     assert(econtext->scope_id == SCOPE_HOST_DPU);
     size_t n = 0, idx = 0;
+    dpu_offload_status_t rc;
     group_cache_t *gp_cache = GET_GROUP_CACHE(&(econtext->engine->procs_cache), group_uid);
     if (gp_cache->sent_to_host == false)
     {
@@ -640,7 +630,7 @@ dpu_offload_status_t send_gp_cache_to_host(execution_context_t *econtext, group_
                 continue;
             }
             DBG("Send cache to client #%ld (id: %" PRIu64 ")", idx, c->id);
-            dpu_offload_status_t rc = event_get(econtext->event_channels, NULL, &metaev);
+            rc = event_get(econtext->event_channels, NULL, &metaev);
             CHECK_ERR_RETURN((rc), DO_ERROR, "event_get() failed");
             assert(metaev);
             EVENT_HDR_TYPE(metaev) = META_EVENT_TYPE;
@@ -654,6 +644,14 @@ dpu_offload_status_t send_gp_cache_to_host(execution_context_t *econtext, group_
             idx++;
         }
         gp_cache->sent_to_host = true;
+
+        // Once the cache is sent to the host, we know it cannot change so we
+        // populate the few lookup table.
+        // Note that we pre-emptively create the cache on the SPs, it might not
+        // be the case on the host where these tables may be populated in a lazy
+        // manner.
+        rc = populate_group_cache_lookup_table(econtext->engine, gp_cache);
+        CHECK_ERR_RETURN((rc), DO_ERROR, "populate_group_cache_lookup_table() failed");
     }
     else
         DBG("cache aleady sent to host");
@@ -679,7 +677,7 @@ dpu_offload_status_t send_cache(execution_context_t *econtext, cache_t *cache, u
         }
     })
 
-        return DO_SUCCESS;
+    return DO_SUCCESS;
 }
 
 bool all_service_procs_connected(offloading_engine_t *engine)
@@ -960,7 +958,6 @@ dpu_offload_status_t get_group_local_sps(offloading_engine_t *engine,
     }
     *n_sps = num;
     return DO_SUCCESS;
-
 }
 
 dpu_offload_status_t get_group_rank_sps(offloading_engine_t *engine,
@@ -1360,6 +1357,7 @@ bool parse_line_dpu_version_1(offloading_config_t *data, char *line)
     char *rest_line = line;
     dpu_config_data_t *target_entry = NULL;
     remote_dpu_info_t **list_dpus = NULL;
+    host_uid_t last_host = UNKNOWN_HOST;
 
     assert(data);
     assert(data->offloading_engine);
@@ -1407,6 +1405,34 @@ bool parse_line_dpu_version_1(offloading_config_t *data, char *line)
         {
             size_t sp_idx = 0;
             size_t d;
+            host_uid_t target_host;
+
+            // Handle the host so we can know all the hosts that are involved
+            target_host = HASH_HOSTNAME(target_entry->version_1.hostname);
+            if (target_host != last_host)
+            {
+                // First we know about the host
+                host_info_t *host_info = NULL;
+                khiter_t host_key;
+                int ret;
+                host_info = DYN_ARRAY_GET_ELT(&(data->hosts_config),
+                                              data->num_hosts,
+                                              host_info_t);
+                assert(host_info);
+                host_info->hostname = target_entry->version_1.hostname;
+                host_info->idx = data->num_hosts;
+                host_info->uid = target_host;
+
+                // Add the host to the lookup table
+                host_key = kh_put(host_info_hash_t,
+                                  data->host_lookup_table,
+                                  target_host,
+                                  &ret);
+                kh_value(data->host_lookup_table, host_key) = host_info;
+                data->num_hosts++;
+                last_host = target_host;
+            }
+
             // Find the corresponding remote_dpu_info_t structure so we can populate it
             // while parsing the line.
             remote_dpu_info_t *cur_dpu = NULL;
@@ -1452,7 +1478,7 @@ bool parse_line_dpu_version_1(offloading_config_t *data, char *line)
                                               int);
                 cur_sp->init_params.conn_params->port = *port;
                 service_proc_config_data_t *sp_config;
-                sp_config = DYN_ARRAY_GET_ELT(&(data->sps_configs), cur_global_sp_id, service_proc_config_data_t);
+                sp_config = DYN_ARRAY_GET_ELT(&(data->sps_config), cur_global_sp_id, service_proc_config_data_t);
                 assert(sp_config);
                 cur_sp->config = sp_config;
                 sp_config->version_1.hostname = target_entry->version_1.hostname;
@@ -1922,7 +1948,9 @@ void offload_config_free(offloading_config_t *cfg)
     DYN_LIST_FREE(cfg->info_connecting_to.pool_remote_sp_connect_to, connect_to_service_proc_t, item);
 
     DYN_ARRAY_FREE(&(cfg->dpus_config));
-    DYN_ARRAY_FREE(&(cfg->sps_configs));
+    DYN_ARRAY_FREE(&(cfg->sps_config));
+    DYN_ARRAY_FREE(&(cfg->hosts_config));
+    CONFIG_HOSTS_HASH_FINI(cfg);
 }
 
 #if !NDEBUG

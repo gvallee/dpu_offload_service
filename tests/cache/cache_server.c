@@ -9,6 +9,8 @@
 #include "dpu_offload_service_daemon.h"
 #include "test_cache_common.h"
 
+const group_uid_t gp_uid = 42;
+
 int main(int argc, char **argv)
 {
     /* Initialize everything we need for the test */
@@ -39,7 +41,7 @@ int main(int argc, char **argv)
         ECONTEXT_UNLOCK(server);
     }
 
-    POPULATE_CACHE(offload_engine);
+    POPULATE_CACHE(offload_engine, default_gp_uid);
 
     peer_info_t *peer_info = DYN_ARRAY_GET_ELT(&(server->server->connected_clients.clients), 0UL, peer_info_t);
     assert(peer_info);

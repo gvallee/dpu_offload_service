@@ -613,7 +613,7 @@ dpu_offload_status_t client_init_context(execution_context_t *econtext, init_par
     assert(GET_WORKER(econtext));
 
     // If we have a group/rank in the init params, we pass it down
-    econtext->rank.host_info = HASH_HOSTNAME();
+    econtext->rank.host_info = HASH_LOCAL_HOSTNAME();
     if (init_params != NULL && init_params->proc_info != NULL)
     {
         econtext->rank.group_uid = init_params->proc_info->group_uid;
@@ -1060,6 +1060,17 @@ dpu_offload_status_t offload_engine_init(offloading_engine_t **engine)
         d->client_lookup_table = kh_init(client_lookup_hash_t);
     }
 
+    /* Some initialization of the group/endpoint cache */
+    DYN_LIST_ALLOC(d->free_sp_cache_hash_obj,
+                   1024,
+                   sp_cache_data_t,
+                   item);
+    DYN_LIST_ALLOC(d->free_host_cache_hash_obj,
+                   32,
+                   host_cache_data_t,
+                   item);
+    d->procs_cache.engine = d;
+
     dpu_offload_status_t rc = ev_channels_init(&(d->default_notifications));
     CHECK_ERR_GOTO((rc), error_out, "ev_channels_init() failed");
 
@@ -1091,6 +1102,10 @@ error_out:
         DYN_LIST_FREE(d->free_op_descs, op_desc_t, item);
     if (d->free_cache_entry_requests)
         DYN_LIST_FREE(d->free_cache_entry_requests, cache_entry_request_t, item);
+    if (d->free_sp_cache_hash_obj)
+        DYN_LIST_FREE(d->free_sp_cache_hash_obj, sp_cache_data_t, item);
+    if (d->free_host_cache_hash_obj)
+        DYN_LIST_FREE(d->free_host_cache_hash_obj, host_cache_data_t, item);
     if (d->self_econtext)
         execution_context_fini(&d->self_econtext);
     *engine = NULL;
@@ -1281,13 +1296,6 @@ static void progress_event_recv(execution_context_t *econtext)
 #endif
 }
 
-/**
- * @brief callback that servers (service processes acting as servers) on DPUs can
- * set (server->connected_cb) to have implicit management of caches, especially
- * when all the ranks of the group are on the local host. In such a situation,
- * it will be detected when the last ranks connects, the group cache therefore
- * completes and the cache is then sent back to local ranks.
- */
 void local_rank_connect_default_callback(void *data)
 {
     connected_peer_data_t *connected_peer;
@@ -1979,6 +1987,7 @@ void offload_engine_fini(offloading_engine_t **offload_engine)
     DYN_LIST_FREE((*offload_engine)->pool_pending_recv_group_add, pending_group_add_t, item);
     DYN_LIST_FREE((*offload_engine)->pool_pending_send_group_add, pending_send_group_add_t, item);
     DYN_LIST_FREE((*offload_engine)->pool_pending_recv_cache_entries, pending_recv_cache_entry_t, item);
+    DYN_LIST_FREE((*offload_engine)->free_sp_cache_hash_obj, sp_cache_data_t, item);
     DYN_ARRAY_FREE(&((*offload_engine)->dpus));
     DYN_ARRAY_FREE(&((*offload_engine)->service_procs));
 

@@ -528,6 +528,7 @@ dpu_offload_status_t get_dpu_config(offloading_engine_t *offload_engine, offload
 
     config_data->local_service_proc.hostname[1023] = '\0';
     gethostname(config_data->local_service_proc.hostname, 1023);
+    config_data->local_service_proc.host_uid = HASH_HOSTNAME(config_data->local_service_proc.hostname);
 
     config_data->list_dpus = getenv(LIST_DPUS_ENVVAR);
     CHECK_ERR_RETURN((config_data->list_dpus == NULL),

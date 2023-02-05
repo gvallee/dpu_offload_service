@@ -56,9 +56,19 @@
                 _gp_cache = GET_GROUP_CACHE((_cache), key);             \
                 assert(_gp_cache);                                      \
                 dyn_array_t *__da = NULL;                               \
+                /* avoid compile time warnings */                       \
                 __da = &(_gp_cache->ranks);                             \
-                if (__da)                                               \
-                    DYN_ARRAY_FREE(__da);                               \
+                DYN_ARRAY_FREE(__da);                                   \
+                __da = &(_gp_cache->hosts);                             \
+                DYN_ARRAY_FREE(__da);                                   \
+                if (_gp_cache->sp_array_initialized)                    \
+                    DYN_ARRAY_FREE(&(_gp_cache->sps));                  \
+                if (_gp_cache->host_array_initialized)                  \
+                    DYN_ARRAY_FREE(&(_gp_cache->hosts));                \
+                /* Free hash table(s) */                                \
+                GROUP_CACHE_HASHES_FINI((_cache)->engine, _gp_cache);   \
+                /* Free the bitset for SPs */                           \
+                GROUP_CACHE_BITSET_DESTROY(_gp_cache->sps_bitset);      \
             }                                                           \
         }) kh_destroy(group_hash_t, (_cache)->data);                    \
         DYN_LIST_FREE((_cache)->group_cache_pool, group_cache_t, item); \
