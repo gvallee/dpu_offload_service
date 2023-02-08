@@ -23,7 +23,7 @@ int main(int argc, char **argv)
     {
         fprintf(stderr, "Please give in order:\n");
         fprintf(stderr, "\t- the path to the configuration file to parse,\n");
-        fprintf(stderr, "\t- the host on which we want to simulate the parsing of the configuration (e.g., jupiter001.hpcadvisorycouncil.com\n");
+        fprintf(stderr, "\t- the host on which we want to simulate the parsing of the configuration (e.g., jupiter001.hpcadvisorycouncil.com)\n");
         return EXIT_FAILURE;
     }
 
@@ -68,6 +68,10 @@ int main(int argc, char **argv)
         }) fprintf(stdout, "\n");
     }
 #endif
+
+    // cfg.num_hosts needs to be set so cache lookups work. We should have at least
+    // one host, the current one.
+    assert(cfg.num_hosts > 0);
 
     fprintf(stderr, "%s: test succeeded\n", argv[0]);
     return EXIT_SUCCESS;
