@@ -1557,6 +1557,29 @@ bool parse_line_dpu_version_1(offloading_config_t *data, char *line)
     return rc;
 }
 
+static dpu_offload_status_t add_host_to_config(offloading_config_t *cfg, char *hostname)
+{
+    host_info_t *host_info = NULL;
+    khiter_t host_key;
+    int ret;
+    host_info = DYN_ARRAY_GET_ELT(&(cfg->hosts_config),
+                                  cfg->num_hosts,
+                                  host_info_t);
+    assert(host_info);
+    host_info->hostname = strdup(hostname); // FIXME: properly free
+    host_info->idx = cfg->num_hosts;
+    host_info->uid = HASH_HOSTNAME(hostname);
+
+    // Add the host to the lookup table
+    host_key = kh_put(host_info_hash_t,
+                      cfg->host_lookup_table,
+                      host_info->uid,
+                      &ret);
+    kh_value(cfg->host_lookup_table, host_key) = host_info;
+    cfg->num_hosts++;
+    return DO_SUCCESS;
+}
+
 /**
  * @brief Main function to parse the configuration file in the context of the host.
  * Format: <host name>,<dpu1_hostname:dpu_conn_addr:interdpu-port:rank-conn-port>,...
@@ -1565,6 +1588,9 @@ bool parse_line_version_1(char *target_hostname, offloading_config_t *data, char
 {
     int idx = 0;
     char *rest = line;
+    char *token = NULL;
+    dpu_offload_status_t rc;
+
     assert(target_hostname);
     assert(data);
     assert(line);
@@ -1572,30 +1598,23 @@ bool parse_line_version_1(char *target_hostname, offloading_config_t *data, char
     while (line[idx] == ' ')
         idx++;
 
-    char *token = strtok_r(rest, ",", &rest);
+    token = strtok_r(rest, ",", &rest);
+    // We add all the hostnames from the configuration file to the list of hosts
+    // so we have a global knownledge of all possible hosts. On the actual hosts,
+    // there is no way to know upfront which hosts will be involved in the job, the
+    // list of all the hosts will be used to get information at runtime about the
+    // hosts and the ranks running on them. On the service processes, we have the list
+    // of all the service processes involved in the job and we use that list to
+    // know precisely which hosts are involved in the job; so the list is less
+    // relevant in that context.
+    rc = add_host_to_config(data, token);
+    CHECK_ERR_RETURN((rc), DO_ERROR, "add_host_to_config() failed");
+
     DBG("Checking entry for %s", token);
     if (strncmp(token, target_hostname, strlen(token)) == 0)
     {
         // We found the hostname
-        host_info_t *host_info = NULL;
-        khiter_t host_key;
-        int ret;
-        host_info = DYN_ARRAY_GET_ELT(&(data->hosts_config),
-                                      data->num_hosts,
-                                      host_info_t);
-        assert(host_info);
-        host_info->hostname = target_hostname;
-        host_info->idx = data->num_hosts;
-        host_info->uid = HASH_HOSTNAME(target_hostname);
-
-        // Add the host to the lookup table
-        host_key = kh_put(host_info_hash_t,
-                          data->host_lookup_table,
-                          host_info->uid,
-                          &ret);
-        kh_value(data->host_lookup_table, host_key) = host_info;
-        data->num_hosts++;
-
+        
         // Next tokens are the local DPUs' data
         // We get the DPUs configuration one-by-one.
         token = strtok_r(rest, ",", &rest);
@@ -1773,11 +1792,7 @@ dpu_offload_status_t find_config_from_platform_configfile(char *filepath, char *
         if (line_is_comment(line))
             continue;
 
-        if (parse_line(hostname, line, data))
-        {
-            // We found the configuration for the hostname
-            break;
-        }
+        parse_line(hostname, line, data);
     }
 
     // The configuration is stored in the first element of dpus_configs
