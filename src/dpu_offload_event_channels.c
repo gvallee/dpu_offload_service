@@ -1467,100 +1467,14 @@ static dpu_offload_status_t handle_peer_cache_entries_recv(execution_context_t *
             // append the shadow DPU data to the data already local available (if any)
             for (n = 0; n < entries[idx].num_shadow_service_procs; n++)
             {
-                sp_cache_data_t *sp_data = NULL;
-                host_cache_data_t *host_data = NULL;
+                dpu_offload_status_t rc;
                 cache_entry->shadow_service_procs[cache_entry->num_shadow_service_procs + n] = entries[idx].shadow_service_procs[n];
-
-                // SPs have a unique ID, are all known, as well as the host associated to them.
-                // So when we receive a cache entry, we look the SP of the cache entry and update
-                // a SP lookup table so we can track which SPs are involved in the group.
-                // As mentioned, knowing which SPs are involed in the group also allows us to track
-                // which hosts are involved in the group. Note that it is difficult to directly
-                // track which hosts are involved because host are represented via a hash and
-                // it is therefore difficult to keep an ordered list of hosts that is consistent
-                // everywhere.
-
-                // Check if the SP is already in the group SP hash; if not, it means it is first
-                // time we learn about that SP in the group so we increment the number of SPs
-                // involved in the group
-                sp_data = GET_GROUP_SP_HASH_ENTRY(gp_cache, entries[idx].shadow_service_procs[n]);
-                if (sp_data == NULL)
-                {
-                    // SP is not in the hash, we start by updating some bookkeeping variables
-                    DBG("group cache does not have SP %" PRIu64 ", adding SP to hash for the group (0x%x)",
-                        entries[idx].shadow_service_procs[n], group_uid);
-                    gp_cache->n_sps++;
-                    // Add the SP to the hash using the global SP id as key
-                    DYN_LIST_GET(engine->free_sp_cache_hash_obj,
-                                 sp_cache_data_t,
-                                 item,
-                                 sp_data);
-                    RESET_SP_CACHE_DATA(sp_data);
-                    GROUP_CACHE_BITSET_CREATE(sp_data->ranks_bitset, group_size);
-                    sp_data->gid = entries[idx].shadow_service_procs[n];
-                    sp_data->n_ranks = 1;
-                    sp_data->gp_uid = gp_cache->group_uid;
-                    sp_data->host_uid = entries[idx].peer.host_info;
-                    ADD_GROUP_SP_HASH_ENTRY(gp_cache, sp_data);
-                    GROUP_CACHE_BITSET_SET(gp_cache->sps_bitset,
-                                           entries[idx].shadow_service_procs[n]);
-                }
-                else
-                {
-                    // The SP is already in the hash
-                    sp_data->n_ranks++;
-                    DBG("cache entry has SP %" PRIu64 ", updating SP hash for the group (0x%x), # of ranks = %ld",
-                        entries[idx].shadow_service_procs[n], group_uid, sp_data->n_ranks);
-                }
-                // Make the rank as associated to the SP
-                GROUP_CACHE_BITSET_SET(sp_data->ranks_bitset, group_rank);
-
-                // Same idea for the host
-                host_data = GET_GROUP_HOST_HASH_ENTRY(gp_cache, entries[idx].peer.host_info);
-                if (host_data == NULL)
-                {
-                    // The host is not in the hash yet
-                    uint64_t sp_gid = entries[idx].shadow_service_procs[n];
-                    host_info_t *host_info = NULL;
-                    DBG("group cache does not have host 0x%lx, adding host to hash for the group (0x%x)",
-                        entries[idx].peer.host_info, group_uid);
-                    gp_cache->n_hosts++;
-                    // Add the SP to the hash using the global SP id as key
-                    assert(engine->free_host_cache_hash_obj);
-                    DYN_LIST_GET(engine->free_host_cache_hash_obj,
-                                 host_cache_data_t,
-                                 item,
-                                 host_data);
-                    assert(host_data);
-                    RESET_HOST_CACHE_DATA(host_data);
-                    host_data->uid = entries[idx].peer.host_info;
-                    host_data->num_ranks = 1;
-                    host_data->num_sps = 1;
-                    GROUP_CACHE_BITSET_CREATE(host_data->sps_bitset, gp_cache->group_size);
-                    GROUP_CACHE_BITSET_SET(host_data->sps_bitset, sp_gid);
-                    GROUP_CACHE_BITSET_CREATE(host_data->ranks_bitset, gp_cache->group_size);
-                    ADD_GROUP_HOST_HASH_ENTRY(gp_cache, host_data);
-                    host_info = LOOKUP_HOST_CONFIG(engine, entries[idx].peer.host_info);
-                    assert(host_info);
-                    host_data->config_idx = host_info->idx;
-                    assert(gp_cache->hosts_bitset);
-                    GROUP_CACHE_BITSET_SET(gp_cache->hosts_bitset,
-                                           host_info->idx);
-                }
-                else
-                {
-                    // The host is already in the hash
-                    uint64_t sp_gid = entries[idx].shadow_service_procs[n];
-                    host_data->num_ranks++;
-                    if (!GROUP_CACHE_BITSET_TEST(host_data->sps_bitset, sp_gid))
-                    {
-                        // The SP is not known yet as being involved in the group
-                        host_data->num_sps++;
-                        GROUP_CACHE_BITSET_SET(host_data->sps_bitset, sp_gid);
-                    }
-                }
-                // Mark the rank as being part of the group and running on the host
-                GROUP_CACHE_BITSET_SET(host_data->ranks_bitset, group_rank);
+                rc = update_topology_data(engine,
+                                          gp_cache,
+                                          group_rank,
+                                          entries[idx].shadow_service_procs[n],
+                                          entries[idx].peer.host_info);
+                CHECK_ERR_RETURN((rc), DO_ERROR, "handle_cache_data() failed");
             }
             cache_entry->num_shadow_service_procs += entries[idx].num_shadow_service_procs;
             cache_entry->client_id = entries[idx].client_id;
@@ -1773,11 +1687,15 @@ static dpu_offload_status_t do_add_group_rank_recv_cb(execution_context_t *econt
     if (!is_in_cache(&(econtext->engine->procs_cache), rank_info->group_uid, rank_info->group_rank, rank_info->group_size))
     {
         peer_cache_entry_t *cache_entry = NULL;
-        execution_context_t *host_server = get_server_servicing_host(econtext->engine);
+        execution_context_t *host_server = NULL;
+        peer_info_t *client_info = NULL;
+        dpu_offload_status_t rc;
+        
+        host_server = get_server_servicing_host(econtext->engine);
         assert(host_server);
-        peer_info_t *client_info = DYN_ARRAY_GET_ELT(&(host_server->server->connected_clients.clients),
-                                                     client_id,
-                                                     peer_info_t);
+        client_info = DYN_ARRAY_GET_ELT(&(host_server->server->connected_clients.clients),
+                                        client_id,
+                                        peer_info_t);
         assert(client_info);
         cache_entry = GET_GROUP_RANK_CACHE_ENTRY(&(econtext->engine->procs_cache),
                                                  rank_info->group_uid,
@@ -1835,6 +1753,14 @@ static dpu_offload_status_t do_add_group_rank_recv_cb(execution_context_t *econt
                 rank_info->group_uid,
                 econtext->engine->config->local_service_proc.info.global_id);
         }
+
+        // Update the topology
+        rc = update_topology_data(econtext->engine,
+                                  gp_cache,
+                                  rank_info->group_rank,
+                                  econtext->engine->config->local_service_proc.info.global_id,
+                                  econtext->engine->config->local_service_proc.host_uid);
+        CHECK_ERR_RETURN((rc), DO_ERROR, "update_topology_data() failed");
     }
 
     GROUP_CACHE_EXCHANGE(econtext->engine, rank_info->group_uid, gp_cache->sp_ranks);

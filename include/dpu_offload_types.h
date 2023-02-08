@@ -2198,7 +2198,6 @@ typedef struct cache
         _rank_cache = &(_gp_cache->ranks);                                  \
         if (_gp_cache->initialized == false)                                \
         {                                                                   \
-            fprintf(stderr, "Initializing cache....\n");                    \
             /* Cache for the group is empty, lazy initialization */         \
             RESET_GROUP_CACHE((_cache)->engine, _gp_cache);                 \
             _gp_cache->initialized = true;                                  \

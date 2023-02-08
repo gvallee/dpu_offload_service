@@ -128,7 +128,7 @@ static inline dpu_offload_status_t oob_server_ucx_client_connection_step1(execut
 
     /* 1. Receive the address size */
     ucp_tag_t ucp_tag, ucp_tag_mask;
-    DBG("Posting recv - Tag: %d, scope_id: %d, econtext: %p, peer_id: %ld\n",
+    DBG("Posting recv - Tag: %d, scope_id: %d, econtext: %p, peer_id: %ld",
         econtext->server->conn_data.oob.tag,
         econtext->scope_id,
         econtext, client_info->id);
@@ -1362,10 +1362,12 @@ add_cache_entry_for_new_client(peer_info_t *client_info, execution_context_t *ct
         client_info->rank_data.group_rank != INVALID_RANK)
     {
         // Update the pointer to track cache entries, i.e., groups/ranks, for the peer
+        peer_cache_entry_t *cache_entry = NULL;
+        dpu_offload_status_t rc;
+
         DBG("Adding gp/rank 0x%x/%" PRId64 " to cache",
             client_info->rank_data.group_uid,
             client_info->rank_data.group_rank);
-        peer_cache_entry_t *cache_entry;
         cache_entry = GET_GROUP_RANK_CACHE_ENTRY(&(ctx->engine->procs_cache),
                                                  client_info->rank_data.group_uid,
                                                  client_info->rank_data.group_rank,
@@ -1414,6 +1416,14 @@ add_cache_entry_for_new_client(peer_info_t *client_info, execution_context_t *ct
         peer_cache_entry_t **cache_entries = (peer_cache_entry_t **)(client_info->cache_entries.base);
         assert(cache_entries);
         cache_entries[0] = cache_entry;
+
+        // Update the topology
+        rc = update_topology_data(ctx->engine,
+                                  gp_cache,
+                                  client_info->rank_data.group_rank,
+                                  ctx->engine->config->local_service_proc.info.global_id,
+                                  ctx->engine->config->local_service_proc.host_uid);
+        CHECK_ERR_RETURN((rc), DO_ERROR, "update_topology_data() failed");
     }
     return DO_SUCCESS;
 }

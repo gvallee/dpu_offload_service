@@ -1358,6 +1358,8 @@ bool parse_line_dpu_version_1(offloading_config_t *data, char *line)
     dpu_config_data_t *target_entry = NULL;
     remote_dpu_info_t **list_dpus = NULL;
     host_uid_t last_host = UNKNOWN_HOST;
+    char *local_host_name = NULL;
+    host_uid_t local_host_uid;
 
     assert(data);
     assert(data->offloading_engine);
@@ -1370,7 +1372,10 @@ bool parse_line_dpu_version_1(offloading_config_t *data, char *line)
 
     char *token = strtok_r(rest_line, ",", &rest_line);
 
-    // The host's name does not really matter here, moving to the service process(es) configuration
+    // Getting the local host's name
+    local_host_name = token;
+    local_host_uid = HASH_HOSTNAME(local_host_name);
+
     token = strtok_r(rest_line, ",", &rest_line);
     if (token == NULL)
         ERR_MSG("unable to parse: %s", line);
@@ -1405,7 +1410,7 @@ bool parse_line_dpu_version_1(offloading_config_t *data, char *line)
         {
             size_t sp_idx = 0;
             size_t d;
-            host_uid_t target_host;
+            host_uid_t target_host = 0;
 
             // Handle the host so we can know all the hosts that are involved
             target_host = HASH_HOSTNAME(target_entry->version_1.hostname);
@@ -1415,18 +1420,19 @@ bool parse_line_dpu_version_1(offloading_config_t *data, char *line)
                 host_info_t *host_info = NULL;
                 khiter_t host_key;
                 int ret;
+
                 host_info = DYN_ARRAY_GET_ELT(&(data->hosts_config),
                                               data->num_hosts,
                                               host_info_t);
                 assert(host_info);
                 host_info->hostname = target_entry->version_1.hostname;
                 host_info->idx = data->num_hosts;
-                host_info->uid = target_host;
+                host_info->uid = local_host_uid;
 
                 // Add the host to the lookup table
                 host_key = kh_put(host_info_hash_t,
                                   data->host_lookup_table,
-                                  target_host,
+                                  local_host_uid,
                                   &ret);
                 kh_value(data->host_lookup_table, host_key) = host_info;
                 data->num_hosts++;
@@ -1505,6 +1511,7 @@ bool parse_line_dpu_version_1(offloading_config_t *data, char *line)
                 //    connect to us.
                 // 2. Update the data of the local service processes, e.g., ports and so on.
                 // In debug mode, we make sure the local ID for the service proc is correct
+                data->local_service_proc.host_uid = local_host_uid;
                 if (data->local_service_proc.info.global_id == UINT64_MAX)
                 {
                     assert(data->local_service_proc.info.local_id == 0);
