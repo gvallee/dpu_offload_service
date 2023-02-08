@@ -1570,6 +1570,24 @@ bool parse_line_version_1(char *target_hostname, offloading_config_t *data, char
     if (strncmp(token, target_hostname, strlen(token)) == 0)
     {
         // We found the hostname
+        host_info_t *host_info = NULL;
+        khiter_t host_key;
+        int ret;
+        host_info = DYN_ARRAY_GET_ELT(&(data->hosts_config),
+                                      data->num_hosts,
+                                      host_info_t);
+        assert(host_info);
+        host_info->hostname = target_hostname;
+        host_info->idx = data->num_hosts;
+        host_info->uid = HASH_HOSTNAME(target_hostname);
+
+        // Add the host to the lookup table
+        host_key = kh_put(host_info_hash_t,
+                          data->host_lookup_table,
+                          host_info->uid,
+                          &ret);
+        kh_value(data->host_lookup_table, host_key) = host_info;
+        data->num_hosts++;
 
         // Next tokens are the local DPUs' data
         // We get the DPUs configuration one-by-one.
