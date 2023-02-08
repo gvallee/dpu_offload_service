@@ -299,4 +299,17 @@ dpu_offload_status_t get_nth_sp_by_group_host_idx(offloading_engine_t *engine,
  */
 bool group_cache_populated(offloading_engine_t *engine, group_uid_t gp_uid);
 
+/**
+ * @brief Handle data related to a new rank in a group and make sure the group cache's topology
+ * is properly updated.
+ * 
+ * @param[in] engine Offloading engine for the query
+ * @param[in] group_gp Target group cache
+ * @param[in] group_rank New rank to be added to the cache
+ * @param[in] sp_id Global identifier of the service process assigned to the new rank
+ * @param[in] host_uid Unique identifier of the host where the rank is running
+ */
+dpu_offload_status_t update_topology_data(offloading_engine_t *engine, group_cache_t *gp_cache, int64_t group_rank, uint64_t sp_gid, host_uid_t host_uid);
+
+
 #endif // DPU_OFFLOAD_GROUP_CACHE_H_

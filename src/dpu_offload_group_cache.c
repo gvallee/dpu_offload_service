@@ -433,6 +433,7 @@ populate_group_cache_lookup_table(offloading_engine_t *engine,
     assert(group_cache_populated(engine, gp_cache->group_uid));
 
     DBG("Creating the contiguous and ordered list of SPs involved in the group");
+    assert(gp_cache->n_sps);
     if (gp_cache->sp_array_initialized == false)
     {
         DYN_ARRAY_ALLOC(&(gp_cache->sps),
@@ -507,6 +508,106 @@ populate_group_cache_lookup_table(offloading_engine_t *engine,
             populate_host_sps(gp_cache, host_value);
         })
     }
+
+    return DO_SUCCESS;
+}
+
+dpu_offload_status_t
+update_topology_data(offloading_engine_t *engine, group_cache_t *gp_cache, int64_t group_rank, uint64_t sp_gid, host_uid_t host_uid)
+{
+
+    sp_cache_data_t *sp_data = NULL;
+    host_cache_data_t *host_data = NULL;
+
+    assert(engine);
+
+    // SPs have a unique ID, are all known, as well as the host associated to them.
+    // So when we receive a cache entry, we look the SP of the cache entry and update
+    // a SP lookup table so we can track which SPs are involved in the group.
+    // As mentioned, knowing which SPs are involed in the group also allows us to track
+    // which hosts are involved in the group. Note that it is difficult to directly
+    // track which hosts are involved because host are represented via a hash and
+    // it is therefore difficult to keep an ordered list of hosts that is consistent
+    // everywhere.
+
+    // Check if the SP is already in the group SP hash; if not, it means it is first
+    // time we learn about that SP in the group so we increment the number of SPs
+    // involved in the group
+    sp_data = GET_GROUP_SP_HASH_ENTRY(gp_cache, sp_gid);
+    if (sp_data == NULL)
+    {
+        // SP is not in the hash, we start by updating some bookkeeping variables
+        INFO_MSG("group cache does not have SP %" PRIu64 ", adding SP to hash for the group (0x%x)",
+            sp_gid, gp_cache->group_uid);
+        gp_cache->n_sps++;
+        // Add the SP to the hash using the global SP id as key
+        DYN_LIST_GET(engine->free_sp_cache_hash_obj,
+                     sp_cache_data_t,
+                     item,
+                     sp_data);
+        RESET_SP_CACHE_DATA(sp_data);
+        GROUP_CACHE_BITSET_CREATE(sp_data->ranks_bitset, gp_cache->group_size);
+        sp_data->gid = sp_gid;
+        sp_data->n_ranks = 1;
+        sp_data->gp_uid = gp_cache->group_uid;
+        sp_data->host_uid = host_uid;
+        ADD_GROUP_SP_HASH_ENTRY(gp_cache, sp_data);
+        GROUP_CACHE_BITSET_SET(gp_cache->sps_bitset, sp_gid);
+    }
+    else
+    {
+        // The SP is already in the hash
+        sp_data->n_ranks++;
+        INFO_MSG("cache entry has SP %" PRIu64 ", updating SP hash for the group (0x%x), # of ranks = %ld",
+            sp_gid, gp_cache->group_uid, sp_data->n_ranks);
+    }
+    // Make the rank as associated to the SP
+    GROUP_CACHE_BITSET_SET(sp_data->ranks_bitset, group_rank);
+
+    // Same idea for the host
+    host_data = GET_GROUP_HOST_HASH_ENTRY(gp_cache, host_uid);
+    if (host_data == NULL)
+    {
+        // The host is not in the hash yet
+        host_info_t *host_info = NULL;
+        DBG("group cache does not have host 0x%lx, adding host to hash for the group (0x%x)",
+            host_uid, gp_cache->group_uid);
+        gp_cache->n_hosts++;
+        // Add the SP to the hash using the global SP id as key
+        assert(engine->free_host_cache_hash_obj);
+        DYN_LIST_GET(engine->free_host_cache_hash_obj,
+                     host_cache_data_t,
+                    item,
+                    host_data);
+        assert(host_data);
+        RESET_HOST_CACHE_DATA(host_data);
+        host_data->uid = host_uid;
+        host_data->num_ranks = 1;
+        host_data->num_sps = 1;
+        GROUP_CACHE_BITSET_CREATE(host_data->sps_bitset, gp_cache->group_size);
+        GROUP_CACHE_BITSET_SET(host_data->sps_bitset, sp_gid);
+        GROUP_CACHE_BITSET_CREATE(host_data->ranks_bitset, gp_cache->group_size);
+        ADD_GROUP_HOST_HASH_ENTRY(gp_cache, host_data);
+        host_info = LOOKUP_HOST_CONFIG(engine, host_uid);
+        assert(host_info);
+        host_data->config_idx = host_info->idx;
+        assert(gp_cache->hosts_bitset);
+        GROUP_CACHE_BITSET_SET(gp_cache->hosts_bitset,
+                               host_info->idx);
+    }
+    else
+    {
+        // The host is already in the hash
+        host_data->num_ranks++;
+        if (!GROUP_CACHE_BITSET_TEST(host_data->sps_bitset, sp_gid))
+        {
+            // The SP is not known yet as being involved in the group
+            host_data->num_sps++;
+            GROUP_CACHE_BITSET_SET(host_data->sps_bitset, sp_gid);
+        }
+    }
+    // Mark the rank as being part of the group and running on the host
+    GROUP_CACHE_BITSET_SET(host_data->ranks_bitset, group_rank);
 
     return DO_SUCCESS;
 }
