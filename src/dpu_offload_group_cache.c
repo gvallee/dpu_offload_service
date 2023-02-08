@@ -537,7 +537,7 @@ update_topology_data(offloading_engine_t *engine, group_cache_t *gp_cache, int64
     if (sp_data == NULL)
     {
         // SP is not in the hash, we start by updating some bookkeeping variables
-        INFO_MSG("group cache does not have SP %" PRIu64 ", adding SP to hash for the group (0x%x)",
+        DBG("group cache does not have SP %" PRIu64 ", adding SP to hash for the group (0x%x)",
             sp_gid, gp_cache->group_uid);
         gp_cache->n_sps++;
         // Add the SP to the hash using the global SP id as key
@@ -558,7 +558,7 @@ update_topology_data(offloading_engine_t *engine, group_cache_t *gp_cache, int64
     {
         // The SP is already in the hash
         sp_data->n_ranks++;
-        INFO_MSG("cache entry has SP %" PRIu64 ", updating SP hash for the group (0x%x), # of ranks = %ld",
+        DBG("cache entry has SP %" PRIu64 ", updating SP hash for the group (0x%x), # of ranks = %ld",
             sp_gid, gp_cache->group_uid, sp_data->n_ranks);
     }
     // Make the rank as associated to the SP
