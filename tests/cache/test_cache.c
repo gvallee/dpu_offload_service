@@ -139,7 +139,8 @@ simulate_cache_entry_exchange(offloading_engine_t *engine)
         entries[i].ep = NULL;
         entries[i].num_shadow_service_procs = 1;
         entries[i].shadow_service_procs[0] = (host_idx * num_host_sps) + i % num_host_sps;
-        fprintf(stdout, "\trank %ld is assigned to SP %ld\n", i, entries[i].shadow_service_procs[0]);
+        fprintf(stdout, "\trank %ld on host 0x%lx is assigned to SP %ld\n",
+                i, host_uid, entries[i].shadow_service_procs[0]);
         entries[i].events_initialized = false;
     }
 
@@ -276,7 +277,7 @@ dpu_offload_status_t test_topo_api(offloading_engine_t *engine)
     uint64_t sp_id, target_sp_gp_guid = 0, sp_gp_lid, target_local_host_sp_id = 0;
     uint64_t target_gp_gp_lid = 0, global_group_sp_id;
     int64_t target_rank = 0;
-    size_t i, host_idx, num_sps, num_ranks, target_host_idx = 0, rank_idx, num_hosts;
+    size_t i, host_idx, num_sps, num_ranks, target_host_idx = 0, rank_idx, num_hosts, host;
     dyn_array_t *sps = NULL, *hosts = NULL, *ranks = NULL;
     dpu_offload_status_t rc;
     size_t expected_number_of_sps_per_host = NUM_FAKE_DPU_PER_HOST * NUM_FAKE_SP_PER_DPU;
@@ -465,28 +466,35 @@ dpu_offload_status_t test_topo_api(offloading_engine_t *engine)
                 (*ptr)->peer.proc_info.group_rank, (*ptr)->peer.proc_info.group_uid, (*ptr)->peer.host_info);
     }
 
-    rc = get_all_ranks_by_group_sp_lid(engine, gpuid, host_idx, target_gp_gp_lid, &ranks, &num_ranks);
-    if (rc)
+    for (host = 0; host < NUM_FAKE_HOSTS; host++)
     {
-        fprintf(stderr, "ERROR: get_all_ranks_by_group_sp_lid() failed\n");
-        return DO_ERROR;
-    }
-    fprintf(stdout, "-> Number of ranks associated to SP %ld on host with index %ld: %ld\n",
-            target_gp_gp_lid, host_idx, num_ranks);
-    if (num_ranks != NUM_FAKE_RANKS_PER_SP)
-    {
-        fprintf(stderr, "ERROR: number of ranks is %ld instead of %d\n", num_ranks, NUM_FAKE_RANKS_PER_SP);
-        return DO_ERROR;
-    }
-    fprintf(stdout, "-> Rank(s) data:\n");
-    for (i = 0; i < num_ranks; i++)
-    {
-        peer_cache_entry_t **ptr = NULL;
-        ptr = DYN_ARRAY_GET_ELT(ranks, i, peer_cache_entry_t *);
-        assert(ptr);
-        assert(*ptr);
-        fprintf(stderr, "Rank %" PRId64 ": group UID=0x%x; host UID: 0x%lx\n",
-                (*ptr)->peer.proc_info.group_rank, (*ptr)->peer.proc_info.group_uid, (*ptr)->peer.host_info);
+        for (i = 0; i < NUM_FAKE_SP_PER_DPU; i++)
+        {
+            size_t j;
+            rc = get_all_ranks_by_group_sp_lid(engine, gpuid, host, i, &ranks, &num_ranks);
+            if (rc)
+            {
+                fprintf(stderr, "ERROR: get_all_ranks_by_group_sp_lid() failed\n");
+                return DO_ERROR;
+            }
+            fprintf(stdout, "-> Number of ranks associated to SP %ld on host with index %ld: %ld\n",
+                    i, host, num_ranks);
+            if (num_ranks != NUM_FAKE_RANKS_PER_SP)
+            {
+                fprintf(stderr, "ERROR: number of ranks is %ld instead of %d\n", num_ranks, NUM_FAKE_RANKS_PER_SP);
+                return DO_ERROR;
+            }
+            fprintf(stdout, "-> Rank(s) data:\n");
+            for (j = 0; j < num_ranks; j++)
+            {
+                peer_cache_entry_t **ptr = NULL;
+                ptr = DYN_ARRAY_GET_ELT(ranks, j, peer_cache_entry_t *);
+                assert(ptr);
+                assert(*ptr);
+                fprintf(stderr, "Rank %" PRId64 ": group UID=0x%x; host UID: 0x%lx\n",
+                        (*ptr)->peer.proc_info.group_rank, (*ptr)->peer.proc_info.group_uid, (*ptr)->peer.host_info);
+            }
+        }
     }
 
     rc = get_nth_sp_by_group_host_idx(engine, gpuid, host_idx, 0, &global_group_sp_id);

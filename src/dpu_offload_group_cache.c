@@ -406,7 +406,7 @@ populate_host_sps(group_cache_t *gp_cache, host_cache_data_t *host_data)
     DYN_ARRAY_ALLOC(&(host_data->sps),
                     gp_cache->group_size,
                     sp_cache_data_t *);
-    while (i < host_data->num_sps)
+    while (idx < host_data->num_sps)
     {
         if (GROUP_CACHE_BITSET_TEST(host_data->sps_bitset, i))
         {
@@ -421,6 +421,7 @@ populate_host_sps(group_cache_t *gp_cache, host_cache_data_t *host_data)
         }
         i++;
     }
+    assert(idx == host_data->num_sps);
 }
 
 dpu_offload_status_t
