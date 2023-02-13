@@ -466,6 +466,19 @@ dpu_offload_status_t test_topo_api(offloading_engine_t *engine)
                 (*ptr)->peer.proc_info.group_rank, (*ptr)->peer.proc_info.group_uid, (*ptr)->peer.host_info);
     }
 
+    rc = get_rank_idx_by_group_sp_id(engine, gpuid, target_sp_gp_guid, 0, &rank_idx);
+    if (rc)
+    {
+        fprintf(stderr, "ERROR: get_rank_idx_by_group_sp_id() failed\n");
+        return DO_ERROR;
+    }
+    fprintf(stderr, "-> Index of rank 0 which is associated to SP %" PRIu64 " is %ld\n", target_sp_gp_guid, rank_idx);
+    if (rank_idx != 0)
+    {
+        fprintf(stderr, "ERROR: rank is reported at index %ld instead of 0\n", rank_idx);
+        return DO_ERROR;
+    }
+
     for (host = 0; host < NUM_FAKE_HOSTS; host++)
     {
         for (i = 0; i < NUM_FAKE_SP_PER_DPU; i++)

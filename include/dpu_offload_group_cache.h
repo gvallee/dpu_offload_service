@@ -165,7 +165,7 @@ dpu_offload_status_t get_rank_idx_by_group_host_idx(offloading_engine_t *engine,
  * @param sp_gp_gid Global group service process identifier (for example as returned by get_global_sp_id_by_group())
  * @param rank Rank in the communicator/group
  * @param rank_idx Index of the rank in the contiguous ordered array of ranks associated with the target service process
- * @return dpu_offload_status_t DO_ERROR if the rank is not associated to the service process or in case of an internat error.
+ * @return dpu_offload_status_t DO_ERROR if the rank is not associated to the service process or in case of an internat error. If the rank is not associated to the service process, the rank index is set to UINT32_MAX.
  */
 dpu_offload_status_t
 get_rank_idx_by_group_sp_id(offloading_engine_t *engine,
