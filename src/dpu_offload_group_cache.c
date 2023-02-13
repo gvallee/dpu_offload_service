@@ -244,6 +244,16 @@ get_rank_idx_by_group_host_idx(offloading_engine_t *engine,
 }
 
 dpu_offload_status_t
+get_rank_idx_by_group_sp_id(offloading_engine_t *engine,
+                            group_uid_t group_uid,
+                            uint64_t sp_gp_gid,
+                            int64_t rank,
+                            size_t *rank_idx)
+{
+    return DO_SUCCESS;
+}
+
+dpu_offload_status_t
 get_all_sps_by_group_host_idx(offloading_engine_t *engine,
                               group_uid_t group_uid,
                               size_t host_idx,
