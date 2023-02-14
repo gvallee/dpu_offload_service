@@ -266,7 +266,7 @@ get_rank_idx_by_group_sp_id(offloading_engine_t *engine,
     for (rank_index = 0; rank_index < sp_info->n_ranks; rank_index++)
     {
         peer_cache_entry_t **rank_info = NULL;
-        rank_info = DYN_ARRAY_GET_ELT(&(sp_info->ranks), rank_index, peer_cache_entry_t*);
+        rank_info = DYN_ARRAY_GET_ELT(&(sp_info->ranks), rank_index, peer_cache_entry_t *);
         assert(rank_info);
         if ((*rank_info)->peer.proc_info.group_rank == rank)
         {
@@ -399,12 +399,40 @@ get_nth_sp_by_group_host_idx(offloading_engine_t *engine,
     host_data = GET_GROUP_HOST_HASH_ENTRY(gp_cache, (*host_ptr)->uid);
     if (n >= host_data->num_sps)
         return DO_ERROR;
-    
+
     // Lookup the SP's data
     sp_data_ptr = DYN_ARRAY_GET_ELT(&(host_data->sps), n, sp_cache_data_t *);
     assert(sp_data_ptr);
     *global_group_sp_id = (*sp_data_ptr)->gid;
     return DO_SUCCESS;
+}
+
+dpu_offload_status_t get_sp_group_gid(offloading_engine_t *engine,
+                                      group_uid_t group_uid,
+                                      uint64_t sp_gid,
+                                      uint64_t *sp_gp_gid)
+{
+    group_cache_t *gp_cache = NULL;
+    size_t sp_gp_idx;
+
+    assert(engine);
+    gp_cache = GET_GROUP_CACHE(&(engine->procs_cache), group_uid);
+    assert(gp_cache);
+
+    for (sp_gp_idx = 0; sp_gp_idx < gp_cache->n_sps; sp_gp_idx++)
+    {
+        remote_service_proc_info_t **sp_data = NULL;
+        sp_data = DYN_ARRAY_GET_ELT(&(gp_cache->sps), sp_gp_idx, remote_service_proc_info_t *);
+        assert(sp_data);
+
+        if ((*sp_data)->service_proc.global_id == sp_gid)
+        {
+            *sp_gp_gid = sp_gp_idx;
+            return DO_SUCCESS;
+        }
+    }
+    *sp_gp_gid = UINT64_MAX;
+    return DO_ERROR;
 }
 
 static void
@@ -615,8 +643,8 @@ update_topology_data(offloading_engine_t *engine, group_cache_t *gp_cache, int64
         assert(engine->free_host_cache_hash_obj);
         DYN_LIST_GET(engine->free_host_cache_hash_obj,
                      host_cache_data_t,
-                    item,
-                    host_data);
+                     item,
+                     host_data);
         assert(host_data);
         RESET_HOST_CACHE_DATA(host_data);
         host_data->uid = host_uid;

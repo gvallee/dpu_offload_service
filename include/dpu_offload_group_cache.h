@@ -159,7 +159,7 @@ dpu_offload_status_t get_rank_idx_by_group_host_idx(offloading_engine_t *engine,
 
 /**
  * @brief Get the rank index of a given rank associated to a service process on a specific node, all within a group.
- * 
+ *
  * @param engine Associated offload engine
  * @param group_uid Target group identified by its unique group identifier
  * @param sp_gp_gid Global group service process identifier (for example as returned by get_global_sp_id_by_group())
@@ -167,12 +167,11 @@ dpu_offload_status_t get_rank_idx_by_group_host_idx(offloading_engine_t *engine,
  * @param rank_idx Index of the rank in the contiguous ordered array of ranks associated with the target service process
  * @return dpu_offload_status_t DO_ERROR if the rank is not associated to the service process or in case of an internat error. If the rank is not associated to the service process, the rank index is set to UINT32_MAX.
  */
-dpu_offload_status_t
-get_rank_idx_by_group_sp_id(offloading_engine_t *engine,
-                            group_uid_t group_uid,
-                            uint64_t sp_gp_gid,
-                            int64_t rank,
-                            size_t *rank_idx);
+dpu_offload_status_t get_rank_idx_by_group_sp_id(offloading_engine_t *engine,
+                                                 group_uid_t group_uid,
+                                                 uint64_t sp_gp_gid,
+                                                 int64_t rank,
+                                                 size_t *rank_idx);
 
 /**
  * @brief Get all the service processes involved in a group that are associated to a specific host.
@@ -188,7 +187,7 @@ get_rank_idx_by_group_sp_id(offloading_engine_t *engine,
  * @param[in,out] num_sps Number of service processes associated to the target host within the group;
  * 0 if no service process on the host is involved in the group.
  * @return dpu_offload_status_t
- * 
+ *
  * @code{.unparsed}
  *  // Get the data of the first SP involved in the group and associated to the first host
  *  dyn_array_t *sps = NULL;
@@ -216,7 +215,7 @@ dpu_offload_status_t get_all_sps_by_group_host_idx(offloading_engine_t *engine,
  * @param[in,out] num_hosts Number of hosts involed in the group. The returned value must strictly be greater than 0 since groups
  * are created only when a rank from the group triggers its creatiom, guaranteeing that all known groups must have a minimum of 1 rank.
  * @return dpu_offload_status_t
- * 
+ *
  * @code{.unparsed}
  *  // Get the data of the first host involved in the group
  *  dyn_array_t *hosts = NULL;
@@ -244,7 +243,7 @@ dpu_offload_status_t get_all_hosts_by_group(offloading_engine_t *engine,
  * 0 since the global group service identifier is assumed valid and therefore a strict minimum of one rank must be associated to the
  * service process (otherwise the global group service process would be invalid)
  * @return dpu_offload_status_t
- * 
+ *
  * @code{.unparsed}
  *  // Get the data of the first rank involved in the group and associated with the first SP in the group
  *  peer_cache_entry_t **rank_data = NULL;
@@ -274,7 +273,7 @@ dpu_offload_status_t get_all_ranks_by_group_sp_gid(offloading_engine_t *engine,
  * 0 since the global group service identifier is assumed valid and therefore a strict minimum of one rank must be associated to the
  * service process (otherwise the global group service process would be invalid)
  * @return dpu_offload_status_t
- * 
+ *
  * @code{.unparsed}
  *  // Get the list of ranks associated to the first SP on the first host that is involved in the group
  *  dyn_array_t *ranks = NULL;
@@ -307,10 +306,24 @@ dpu_offload_status_t get_nth_sp_by_group_host_idx(offloading_engine_t *engine,
                                                   uint64_t *global_group_sp_id);
 
 /**
+ * @brief Convert a global service process identifier to a group global identifier
+ * 
+ * @param[in] engine Associated offload engine
+ * @param[in] group_uid Target group identified by its unique group identifier
+ * @param[in] sp_gid Service process global identifier (set of startup time)
+ * @param[in,out] sp_gp_gid Global group identifier of the service process
+ * @return dpu_offload_status_t
+ */
+dpu_offload_status_t get_sp_group_gid(offloading_engine_t *engine,
+                                      group_uid_t group_uid,
+                                      uint64_t sp_gid,
+                                      uint64_t *sp_gp_gid);
+
+/**
  * @brief Checks whether a group's cache is fully populated
  *
- * @param engine Offloading engine for the query
- * @param gp_uid Target group's UID
+ * @param[in] engine Offloading engine for the query
+ * @param[in] gp_uid Target group's UID
  * @return true
  * @return false
  */
@@ -319,7 +332,7 @@ bool group_cache_populated(offloading_engine_t *engine, group_uid_t gp_uid);
 /**
  * @brief Handle data related to a new rank in a group and make sure the group cache's topology
  * is properly updated.
- * 
+ *
  * @param[in] engine Offloading engine for the query
  * @param[in] group_gp Target group cache
  * @param[in] group_rank New rank to be added to the cache
@@ -327,6 +340,5 @@ bool group_cache_populated(offloading_engine_t *engine, group_uid_t gp_uid);
  * @param[in] host_uid Unique identifier of the host where the rank is running
  */
 dpu_offload_status_t update_topology_data(offloading_engine_t *engine, group_cache_t *gp_cache, int64_t group_rank, uint64_t sp_gid, host_uid_t host_uid);
-
 
 #endif // DPU_OFFLOAD_GROUP_CACHE_H_
