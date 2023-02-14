@@ -27,10 +27,10 @@ bool check_array(dyn_array_t *a, uint64_t expected_size)
         return false;
     }
 
-    if (a->num_elts != expected_size)
+    if (a->capacity != expected_size)
     {
         fprintf(stderr, "Number of elements is %" PRIu64 " instead of the expected %" PRIu64 "\n",
-                a->num_elts, expected_size);
+                a->capacity, expected_size);
         return false;
     }
 
@@ -83,14 +83,14 @@ int test_dyn_list(int argc, char **argv)
         fprintf(stderr, "Mem chunk 0 is of size %ld instead of expected %ld\n", mem_chunk_ptr->size, sizeof(dummy_t));
         goto error_out;
     }
-    if (list_1->num_elts_alloc != 1)
+    if (list_1->allocation_size != 1)
     {
-        fprintf(stderr, "Number of elements for allocations is %ld instead of 1\n", list_1->num_elts_alloc);
+        fprintf(stderr, "Number of elements for allocations is %ld instead of 1\n", list_1->allocation_size);
         goto error_out;
     }
-    if (list_1->num_elts != 1)
+    if (list_1->capacity != 1)
     {
-        fprintf(stderr, "Number of elements is %ld instead of 1\n", list_1->num_elts);
+        fprintf(stderr, "Number of elements is %ld instead of 1\n", list_1->capacity);
         goto error_out;
     }
     if (SIMPLE_LIST_LENGTH(&(list_1->list)) != 1)
@@ -125,9 +125,9 @@ int test_dyn_list(int argc, char **argv)
         fprintf(stderr, "Mem chunk 0 is of size %ld instead of expected %ld\n", mem_chunk_ptr->size, sizeof(dummy_t));
         goto error_out;
     }
-    if (list_1->num_elts_alloc != 1)
+    if (list_1->allocation_size != 1)
     {
-        fprintf(stderr, "Number of elements for allocations is %ld instead of 1\n", list_1->num_elts_alloc);
+        fprintf(stderr, "Number of elements for allocations is %ld instead of 1\n", list_1->allocation_size);
         goto error_out;
     }
     if (!SIMPLE_LIST_IS_EMPTY(&(list_1->list)))
@@ -154,9 +154,9 @@ int test_dyn_list(int argc, char **argv)
         fprintf(stderr, "Mem chunk 0 is of size %ld instead of expected %ld\n", mem_chunk_ptr->size, sizeof(dummy_t));
         goto error_out;
     }
-    if (list_1->num_elts_alloc != 1)
+    if (list_1->allocation_size != 1)
     {
-        fprintf(stderr, "Number of elements for allocations is %ld instead of 1\n", list_1->num_elts_alloc);
+        fprintf(stderr, "Number of elements for allocations is %ld instead of 1\n", list_1->allocation_size);
         goto error_out;
     }
     if (SIMPLE_LIST_LENGTH(&(list_1->list)) != 1)
@@ -198,9 +198,9 @@ int test_dyn_list(int argc, char **argv)
                 goto error_out;
             }
         }
-        if (list_1->num_elts_alloc != 1)
+        if (list_1->allocation_size != 1)
         {
-            fprintf(stderr, "Number of elements for allocations is %ld instead of 1\n", list_1->num_elts_alloc);
+            fprintf(stderr, "Number of elements for allocations is %ld instead of 1\n", list_1->allocation_size);
             goto error_out;
         }
         if (!SIMPLE_LIST_IS_EMPTY(&(list_1->list)))
@@ -244,9 +244,9 @@ int test_dyn_list(int argc, char **argv)
                 goto error_out;
             }
         }
-        if (list_1->num_elts_alloc != 1)
+        if (list_1->allocation_size != 1)
         {
-            fprintf(stderr, "Number of elements for allocations is %ld instead of 1\n", list_1->num_elts_alloc);
+            fprintf(stderr, "Number of elements for allocations is %ld instead of 1\n", list_1->allocation_size);
             goto error_out;
         }
         if (SIMPLE_LIST_LENGTH(&(list_1->list)) != i + 1)

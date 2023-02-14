@@ -189,7 +189,8 @@ dpu_offload_status_t send_revoke_group_rank_request_through_num_ranks(execution_
 void local_rank_connect_default_callback(void *data);
 
 /**
- * @brief Get the local service process identifier from its global identifier
+ * @brief Get the local service process identifier from its global identifier. The local
+ * identifier is the one setup at initialization time, not a group-level identifier.
  * 
  * @param[in] engine Associated offload engine to use for the query
  * @param[in] global_sp_id Service process's global identifier
@@ -261,7 +262,8 @@ dpu_offload_status_t broadcast_group_cache(offloading_engine_t *engine, group_ui
 dpu_offload_status_t broadcast_group_cache_revoke(offloading_engine_t *engine, group_uid_t group_uid, uint64_t n_ranks);
 
 /**
- * @brief Get the service process ID by host rank object. That ID can then be used to look up the corresponding endpoint.
+ * @brief Get the global service process ID by host rank object. That ID can then be used to look up the corresponding endpoint.
+ * The global identifier is the identifier set a startup time; it is not a group-level identifier.
  *
  * @param[in] engine Offloading engine for the query
  * @param[in] gp_uid Target group's UID

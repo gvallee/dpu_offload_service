@@ -66,7 +66,7 @@ struct oob_msg
             _list_callbacks = (notification_callback_entry_t *)(_engine)->default_notifications->notification_callbacks.base;   \
             size_t _i;                                                                                                          \
             size_t _n = 0;                                                                                                      \
-            for (_i = 0; _i < (_engine)->default_notifications->notification_callbacks.num_elts; _i++)                          \
+            for (_i = 0; _i < (_engine)->default_notifications->notification_callbacks.capacity; _i++)                          \
             {                                                                                                                   \
                 if (_list_callbacks[_i].set)                                                                                    \
                 {                                                                                                               \
@@ -1412,7 +1412,7 @@ add_cache_entry_for_new_client(peer_info_t *client_info, execution_context_t *ct
                    client_info->peer_addr,
                    client_info->peer_addr_len);
         }
-        assert(client_info->cache_entries.num_elts > 0);
+        assert(client_info->cache_entries.capacity > 0);
         peer_cache_entry_t **cache_entries = (peer_cache_entry_t **)(client_info->cache_entries.base);
         assert(cache_entries);
         cache_entries[0] = cache_entry;
@@ -1435,7 +1435,7 @@ static void progress_server_econtext(execution_context_t *ctx)
         size_t i = 0; // Number of ongoing connections we already handled
         size_t idx = 0;
         // Find the clients that are currently connecting
-        while (i < ctx->server->connected_clients.num_ongoing_connections && idx < ctx->server->connected_clients.clients.num_elts)
+        while (i < ctx->server->connected_clients.num_ongoing_connections && idx < ctx->server->connected_clients.clients.capacity)
         {
             peer_info_t *client_info = DYN_ARRAY_GET_ELT(&(ctx->server->connected_clients.clients), idx, peer_info_t);
             assert(client_info);
@@ -2090,7 +2090,7 @@ void offload_engine_fini(offloading_engine_t **offload_engine)
                    {/* nothing special to do*/})
             kh_destroy(client_lookup_hash_t, (*offload_engine)->client_lookup_table);
 
-        for (i = 0; i < (*offload_engine)->free_pending_rdv_recv->num_elts; i++)
+        for (i = 0; i < (*offload_engine)->free_pending_rdv_recv->capacity; i++)
         {
             pending_am_rdv_recv_t *elt;
             DYN_LIST_GET((*offload_engine)->free_pending_rdv_recv, pending_am_rdv_recv_t, item, elt);
