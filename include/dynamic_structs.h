@@ -93,7 +93,7 @@ typedef struct simple_list
 typedef struct dyn_array
 {
     void *base;
-    size_t num_elts;
+    size_t capacity;
     size_t num_elts_alloc;
     size_t type_size;
     dyn_struct_elt_init_fn element_init_fn;
@@ -104,7 +104,7 @@ typedef struct dyn_array
     {                                                                                                           \
         assert(_da_alloc_num_elts_alloc);                                                                       \
         (_dyn_array_alloc)->num_elts_alloc = _da_alloc_num_elts_alloc;                                          \
-        (_dyn_array_alloc)->num_elts = _da_alloc_num_elts_alloc;                                                \
+        (_dyn_array_alloc)->capacity = _da_alloc_num_elts_alloc;                                                \
         (_dyn_array_alloc)->type_size = sizeof(_da_alloc_type);                                                 \
         (_dyn_array_alloc)->element_init_fn = NULL;                                                             \
         (_dyn_array_alloc)->base = malloc((_dyn_array_alloc)->num_elts_alloc * (_dyn_array_alloc)->type_size);  \
@@ -118,13 +118,13 @@ typedef struct dyn_array
         size_t _da_alloc_x;                                                        \
         assert(_num_elts_alloc);                                                   \
         (_dyn_array)->num_elts_alloc = _num_elts_alloc;                            \
-        (_dyn_array)->num_elts = _num_elts_alloc;                                  \
+        (_dyn_array)->capacity = _num_elts_alloc;                                  \
         (_dyn_array)->element_init_fn = _fn;                                       \
         (_dyn_array)->base = malloc(_num_elts_alloc * sizeof(_type));              \
         assert((_dyn_array)->base);                                                \
         memset((_dyn_array)->base, 0, _num_elts_alloc * sizeof(_type));            \
         _type *_da_alloc_a = (_type *)(_dyn_array)->base;                          \
-        for (_da_alloc_x = 0; _da_alloc_x < (_dyn_array)->num_elts; _da_alloc_x++) \
+        for (_da_alloc_x = 0; _da_alloc_x < (_dyn_array)->capacity; _da_alloc_x++) \
         {                                                                          \
             _fn(_da_alloc_a[_da_alloc_x]);                                         \
         }                                                                          \
@@ -133,7 +133,7 @@ typedef struct dyn_array
 #define DYN_ARRAY_FREE(_dyn_array)                \
     do                                            \
     {                                             \
-        if ((_dyn_array)->num_elts > 0)           \
+        if ((_dyn_array)->capacity > 0)           \
         {                                         \
             if ((_dyn_array)->base)               \
             {                                     \
@@ -142,7 +142,7 @@ typedef struct dyn_array
             }                                     \
             (_dyn_array)->base = NULL;            \
             (_dyn_array)->element_init_fn = NULL; \
-            (_dyn_array)->num_elts = 0;           \
+            (_dyn_array)->capacity = 0;           \
         }                                         \
     } while (0)
 
@@ -150,7 +150,7 @@ typedef struct dyn_array
     do                                                                                                  \
     {                                                                                                   \
         size_t _initial_num_elts, _new_num_elts;                                                        \
-        _initial_num_elts = _new_num_elts = (_dyn_array)->num_elts;                                     \
+        _initial_num_elts = _new_num_elts = (_dyn_array)->capacity;                                     \
         while (_new_num_elts * sizeof(_type) <= _size * sizeof(_type))                                  \
         {                                                                                               \
             _new_num_elts += (_dyn_array)->num_elts_alloc;                                              \
@@ -168,14 +168,14 @@ typedef struct dyn_array
                 (_dyn_array)->element_init_fn(&(_a[_initial_num_elts + _x]));                           \
             }                                                                                           \
         }                                                                                               \
-        (_dyn_array)->num_elts = _new_num_elts;                                                         \
+        (_dyn_array)->capacity = _new_num_elts;                                                         \
     } while (0)
 
 #define DYN_ARRAY_GET_ELT(_dyn_array, _idx, _type) ({ \
     assert(_dyn_array);                               \
-    assert((_dyn_array)->num_elts);                   \
+    assert((_dyn_array)->capacity);                   \
     _type *_elt = NULL;                               \
-    if ((_dyn_array)->num_elts <= _idx)               \
+    if ((_dyn_array)->capacity <= _idx)               \
     {                                                 \
         DYN_ARRAY_GROW(_dyn_array, _type, _idx);      \
     }                                                 \
@@ -188,7 +188,7 @@ typedef struct dyn_array
     do                                                   \
     {                                                    \
         assert(_dyn_array);                              \
-        if ((_dyn_array)->num_elts >= _idx)              \
+        if ((_dyn_array)->capacity >= _idx)              \
         {                                                \
             DYN_ARRAY_GROW(_dyn_array, _type, _idx);     \
         }                                                \
@@ -202,7 +202,7 @@ typedef struct dyn_array
 
 typedef struct dyn_list
 {
-    size_t num_elts;
+    size_t capacity;
     size_t num_elts_alloc;
     simple_list_t list;
     dyn_struct_elt_init_fn element_init_cb;
@@ -233,7 +233,7 @@ typedef struct dyn_list
                 }                                                                                                                \
                 SIMPLE_LIST_PREPEND(&((__dyn_list)->list), &(_e[_gdl_idx].__elt));                                               \
             }                                                                                                                    \
-            (__dyn_list)->num_elts += (__dyn_list)->num_elts_alloc;                                                              \
+            (__dyn_list)->capacity += (__dyn_list)->num_elts_alloc;                                                              \
         }                                                                                                                        \
         else                                                                                                                     \
         {                                                                                                                        \
@@ -269,7 +269,7 @@ typedef struct dyn_list
             }                                                                                                                    \
             assert(SIMPLE_LIST_LENGTH(&((__dyn_list)->list)) == (_initial_list_size + (__dyn_list)->num_elts_alloc));            \
             assert((((ptrdiff_t)_ptr + sizeof(__type)) - ((ptrdiff_t)_new_chunk_buf + _chunk_size)) == 0);                       \
-            (__dyn_list)->num_elts += (__dyn_list)->num_elts_alloc;                                                              \
+            (__dyn_list)->capacity += (__dyn_list)->num_elts_alloc;                                                              \
         }                                                                                                                        \
         else                                                                                                                     \
         {                                                                                                                        \
@@ -286,7 +286,7 @@ typedef struct dyn_list
         {                                                                                 \
             DYN_ARRAY_ALLOC(&((_dyn_list)->mem_chunks), DEFAULT_MEM_CHUNKS, mem_chunk_t); \
             (_dyn_list)->num_mem_chunks = 0;                                              \
-            (_dyn_list)->num_elts = 0;                                                    \
+            (_dyn_list)->capacity = 0;                                                    \
             (_dyn_list)->num_elts_alloc = _num_elts_alloc;                                \
             (_dyn_list)->element_init_cb = NULL;                                          \
             SIMPLE_LIST_INIT(&((_dyn_list)->list));                                       \
@@ -307,7 +307,7 @@ typedef struct dyn_list
         {                                                                                 \
             DYN_ARRAY_ALLOC(&((_dyn_list)->mem_chunks), DEFAULT_MEM_CHUNKS, mem_chunk_t); \
             (_dyn_list)->num_mem_chunks = 0;                                              \
-            (_dyn_list)->num_elts = 0;                                                    \
+            (_dyn_list)->capacity = 0;                                                    \
             (_dyn_list)->num_elts_alloc = _num_elts_alloc;                                \
             (_dyn_list)->element_init_cb = _cb;                                           \
             SIMPLE_LIST_INIT(&((_dyn_list)->list));                                       \
@@ -834,7 +834,7 @@ typedef struct
 typedef struct smart_array
 {
     void *base;
-    size_t num_elts;
+    size_t capacity;
     size_t num_elts_alloc;
     size_t elt_size;
     // Underlying smart chunk used to provide the buffer
@@ -846,7 +846,7 @@ typedef struct smart_array
     {                                                                                                                              \
         assert(_sa_alloc_num_elts_alloc);                                                                                          \
         (_smart_array_alloc)->num_elts_alloc = _sa_alloc_num_elts_alloc;                                                           \
-        (_smart_array_alloc)->num_elts = _sa_alloc_num_elts_alloc;                                                                 \
+        (_smart_array_alloc)->capacity = _sa_alloc_num_elts_alloc;                                                                 \
         (_smart_array_alloc)->elt_size = _sa_alloc_elt_sz;                                                                         \
         (_smart_array_alloc)->smart_chunk = SMART_BUFF_GET(_smart_buffer_sys,                                                      \
                                                            (_smart_array_alloc)->num_elts_alloc * (_smart_array_alloc)->elt_size); \
@@ -873,7 +873,7 @@ typedef struct smart_array
     do                                                                                                            \
     {                                                                                                             \
         size_t _initial_num_elts, _new_num_elts;                                                                  \
-        _initial_num_elts = _new_num_elts = (_dyn_array)->num_elts;                                               \
+        _initial_num_elts = _new_num_elts = (_dyn_array)->capacity;                                               \
         while (_new_num_elts * (_smart_array)->elt_size <= _requested_new_elts * (_smart_array)->elt_size)        \
         {                                                                                                         \
             _new_num_elts += (_smart_array)->num_elts_alloc;                                                      \
@@ -889,14 +889,14 @@ typedef struct smart_array
                           (_smart_array)->smart_chunk);                                                           \
         (_smart_array)->smart_chunk = _new_smart_chunk;                                                           \
         (_smart_array)->base = (_smart_array)->smart_chunk->base;                                                 \
-        (_smart_array)->num_elts = _new_num_elts;                                                                 \
+        (_smart_array)->capacity = _new_num_elts;                                                                 \
     } while (0)
 
 #define SMART_ARRAY_GET_ELT(_smart_buffer_sys, _sa_get, _sa_get_idx) ({                \
     assert(_sa_get);                                                                   \
-    assert((_sa_get)->num_elts);                                                       \
+    assert((_sa_get)->capacity);                                                       \
     void *_ptr = NULL;                                                                 \
-    if ((_sa_get)->num_elts <= (_sa_get_idx))                                          \
+    if ((_sa_get)->capacity <= (_sa_get_idx))                                          \
     {                                                                                  \
         SMART_ARRAY_GROW((_smart_buffer_sys), (_sa_get), (_sa_get_idx));               \
     }                                                                                  \
@@ -910,7 +910,7 @@ typedef struct smart_array
 
 typedef struct smart_list
 {
-    size_t num_elts;
+    size_t capacity;
     size_t num_elts_alloc;
     size_t elt_size;
     // Smart chunk used to store the object of the smart list itself
@@ -958,7 +958,7 @@ typedef struct smart_list
             assert(SIMPLE_LIST_LENGTH(&((__smart_list)->list)) ==                                          \
                    (_initial_list_size + (__smart_list)->num_elts_alloc));                                 \
             /* All the new elements are added to the list, update the number of elements in the list*/     \
-            (__smart_list)->num_elts += (__smart_list)->num_elts_alloc;                                    \
+            (__smart_list)->capacity += (__smart_list)->num_elts_alloc;                                    \
         }                                                                                                  \
         else                                                                                               \
         {                                                                                                  \
@@ -984,7 +984,7 @@ typedef struct smart_list
                               DEFAULT_MEM_CHUNKS,                                                 \
                               smart_chunk_t *);                                                   \
             (_dyn_list)->num_smart_chunks = 0;                                                    \
-            (_dyn_list)->num_elts = 0;                                                            \
+            (_dyn_list)->capacity = 0;                                                            \
             (_dyn_list)->num_elts_alloc = _num_elts_alloc;                                        \
             (_dyn_list)->element_init_cb = NULL;                                                  \
             SIMPLE_LIST_INIT(&((_dyn_list)->list));                                               \

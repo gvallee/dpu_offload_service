@@ -340,7 +340,7 @@ static ucs_status_t am_notification_msg_cb(void *arg, const void *header, size_t
         DBG("notification system not initialized (may be finalized), skipping...");
         return UCS_OK;
     }
-    assert(hdr->type < econtext->event_channels->notification_callbacks.num_elts);
+    assert(hdr->type < econtext->event_channels->notification_callbacks.capacity);
 
     void *ptr = data;
     DBG("Notification of type %" PRIu64 " received via eager message (data size: %ld), dispatching...", hdr->type, length);
@@ -558,7 +558,7 @@ dpu_offload_status_t engine_register_default_notification_handler(offloading_eng
 dpu_offload_status_t event_channel_deregister(dpu_offload_ev_sys_t *ev_sys, uint64_t type)
 {
     CHECK_ERR_RETURN((ev_sys == NULL), DO_ERROR, "undefined event system");
-    CHECK_ERR_RETURN((ev_sys->notification_callbacks.num_elts <= type), DO_ERROR, "type %" PRIu64 " is out of range", type);
+    CHECK_ERR_RETURN((ev_sys->notification_callbacks.capacity <= type), DO_ERROR, "type %" PRIu64 " is out of range", type);
 
     notification_callback_entry_t *list_callbacks = (notification_callback_entry_t *)ev_sys->notification_callbacks.base;
     notification_callback_entry_t *entry = &(list_callbacks[type]);
