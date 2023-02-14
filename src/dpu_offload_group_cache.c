@@ -244,6 +244,43 @@ get_rank_idx_by_group_host_idx(offloading_engine_t *engine,
 }
 
 dpu_offload_status_t
+get_rank_idx_by_group_sp_id(offloading_engine_t *engine,
+                            group_uid_t group_uid,
+                            uint64_t sp_gp_gid,
+                            int64_t rank,
+                            size_t *rank_idx)
+{
+    remote_service_proc_info_t **sp_data = NULL;
+    sp_cache_data_t *sp_info = NULL;
+    group_cache_t *gp_cache = NULL;
+    size_t rank_index;
+
+    assert(engine);
+    gp_cache = GET_GROUP_CACHE(&(engine->procs_cache), group_uid);
+    assert(gp_cache);
+    sp_data = DYN_ARRAY_GET_ELT(&(gp_cache->sps), sp_gp_gid, remote_service_proc_info_t *);
+    assert(sp_data);
+    sp_info = GET_GROUP_SP_HASH_ENTRY(gp_cache, (*sp_data)->service_proc.global_id);
+    assert(sp_info);
+
+    for (rank_index = 0; rank_index < sp_info->n_ranks; rank_index++)
+    {
+        peer_cache_entry_t **rank_info = NULL;
+        rank_info = DYN_ARRAY_GET_ELT(&(sp_info->ranks), rank_index, peer_cache_entry_t*);
+        assert(rank_info);
+        if ((*rank_info)->peer.proc_info.group_rank == rank)
+        {
+            *rank_idx = rank_index;
+            return DO_SUCCESS;
+        }
+    }
+
+    // We did not find the rank
+    *rank_idx = UINT32_MAX;
+    return DO_ERROR;
+}
+
+dpu_offload_status_t
 get_all_sps_by_group_host_idx(offloading_engine_t *engine,
                               group_uid_t group_uid,
                               size_t host_idx,

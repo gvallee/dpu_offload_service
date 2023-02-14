@@ -158,6 +158,23 @@ dpu_offload_status_t get_rank_idx_by_group_host_idx(offloading_engine_t *engine,
                                                     uint64_t *idx);
 
 /**
+ * @brief Get the rank index of a given rank associated to a service process on a specific node, all within a group.
+ * 
+ * @param engine Associated offload engine
+ * @param group_uid Target group identified by its unique group identifier
+ * @param sp_gp_gid Global group service process identifier (for example as returned by get_global_sp_id_by_group())
+ * @param rank Rank in the communicator/group
+ * @param rank_idx Index of the rank in the contiguous ordered array of ranks associated with the target service process
+ * @return dpu_offload_status_t DO_ERROR if the rank is not associated to the service process or in case of an internat error. If the rank is not associated to the service process, the rank index is set to UINT32_MAX.
+ */
+dpu_offload_status_t
+get_rank_idx_by_group_sp_id(offloading_engine_t *engine,
+                            group_uid_t group_uid,
+                            uint64_t sp_gp_gid,
+                            int64_t rank,
+                            size_t *rank_idx);
+
+/**
  * @brief Get all the service processes involved in a group that are associated to a specific host.
  * The host is identified via its index in the contiguous ordered list of hosts involed in the group.
  *
