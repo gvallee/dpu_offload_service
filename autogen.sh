@@ -1,4 +1,3 @@
-
 #!/bin/sh
 #
 # Copyright 2021 NVIDIA CORPORATIONS. All rights reserved.
