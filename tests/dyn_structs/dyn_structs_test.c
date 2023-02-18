@@ -41,17 +41,18 @@ int test_dyn_array(int argc, char **argv)
 {
     // Create a small array and request an element way behind the end
     // to see if the array was correctly grown
-    dyn_array_t array;
-    DYN_ARRAY_ALLOC(&array, 8, int);
-    check_array(&array, 8);
+    dyn_array_t array, *ptr = NULL;
+    ptr = &array;
+    DYN_ARRAY_ALLOC(ptr, 8, int);
+    check_array(ptr, 8);
 
-    int *dummy = DYN_ARRAY_GET_ELT(&array, 1024, int);
+    int *dummy = DYN_ARRAY_GET_ELT(ptr, 1024, int);
     if (dummy == NULL)
     {
         fprintf(stderr, "unable to get element 1024 from the array\n");
         goto error_out;
     }
-    check_array(&array, 1032);
+    check_array(ptr, 1032);
 
     fprintf(stderr, "\nDYN_ARRAY TEST SUCCESSFULLY COMPLETED\n\n");
     return EXIT_SUCCESS;
