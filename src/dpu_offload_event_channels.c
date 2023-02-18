@@ -129,7 +129,6 @@ dpu_offload_status_t get_associated_econtext(offloading_engine_t *engine, am_hea
         }
     }
 
-    assert(econtext);
     *econtext_out = econtext;
     return DO_SUCCESS;
 error_out:
