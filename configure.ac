@@ -181,5 +181,6 @@ AC_CONFIG_FILES([Makefile
                  tests/dyn_structs/Makefile
                  tests/config/Makefile
                  tests/comms/Makefile
+                 tests/ping_pong/Makefile
                  tests/telemetry/Makefile])
 AC_OUTPUT
