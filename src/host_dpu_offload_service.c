@@ -44,6 +44,8 @@ dpu_offload_status_t host_offload_dpu_discover(offload_config_t *cfg)
 {
     cfg->associated_bluefield = getenv(BLUEFIELD_NODE_NAME_ENVVAR);
     cfg->offload_config_file_path = getenv(OFFLOAD_CONFIG_FILE_PATH_ENVVAR);
+    if (cfg->offload_config_file_path == NULL)
+        cfg->offload_config_file_path = getenv(DPU_OFFLOAD_CONFIG_FILE_PATH_ENVVAR);
     return DPU_OFFLOAD_SUCCESS;
 }
 
