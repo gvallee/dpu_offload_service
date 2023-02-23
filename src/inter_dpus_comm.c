@@ -524,6 +524,8 @@ dpu_offload_status_t get_dpu_config(offloading_engine_t *offload_engine, offload
     if (config_data->config_file == NULL)
     {
         config_data->config_file = getenv(OFFLOAD_CONFIG_FILE_PATH_ENVVAR);
+        if (config_data->config_file == NULL)
+            config_data->config_file = getenv(DPU_OFFLOAD_CONFIG_FILE_PATH_ENVVAR);
     }
 
     config_data->local_service_proc.hostname[1023] = '\0';
