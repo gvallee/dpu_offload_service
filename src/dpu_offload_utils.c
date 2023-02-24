@@ -1856,7 +1856,7 @@ dpu_offload_status_t get_host_config(offloading_config_t *config_data)
     if (config_data->config_file == NULL)
     {
         config_data->config_file = getenv(OFFLOAD_CONFIG_FILE_PATH_ENVVAR);
-        if (config_dtaa->config_file == NULL)
+        if (config_data->config_file == NULL)
             config_data->config_file = getenv(DPU_OFFLOAD_CONFIG_FILE_PATH_ENVVAR);
     }
     hostname[1023] = '\0';
