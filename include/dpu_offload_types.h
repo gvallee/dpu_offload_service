@@ -2037,7 +2037,6 @@ typedef struct group_cache
         int _ret;                                                                        \
         group_cache_t *_new_group_cache;                                                 \
         khiter_t _newKey = kh_put(group_hash_t, (_cache)->data, (_gp_uid), &_ret);       \
-        assert(_newKey);                                                                 \
         DYN_LIST_GET((_cache)->group_cache_pool, group_cache_t, item, _new_group_cache); \
         assert(_new_group_cache);                                                        \
         INIT_GROUP_CACHE((_cache)->engine, _new_group_cache);                            \
