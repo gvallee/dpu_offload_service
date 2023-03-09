@@ -66,6 +66,7 @@ dpu_offload_status_t do_send_add_group_rank_request(execution_context_t *econtex
         cache_entry->peer.proc_info.group_rank = rank_info->group_rank;
         cache_entry->peer.proc_info.group_size = rank_info->group_size;
         cache_entry->peer.proc_info.n_local_ranks = rank_info->n_local_ranks;
+        cache_entry->peer.host_info = econtext->rank.host_info;
         cache_entry->num_shadow_service_procs++;
         cache_entry->set = true;
         gp_cache->num_local_entries++;
@@ -89,6 +90,11 @@ dpu_offload_status_t send_add_group_rank_request(execution_context_t *econtext, 
     // The rank info is always at the beginning of the payload that the caller prepared
     // All the ranks' data is supposed for the same group
     rank_info_t *rank_info = (rank_info_t *)ev->payload;
+    // Make sure the payload has all the required data
+    if (rank_info->host_info == UINT64_MAX)
+    {
+        rank_info->host_info = econtext->rank.host_info;
+    }
     gp_cache = GET_GROUP_CACHE(&(econtext->engine->procs_cache), rank_info->group_uid);
     assert(gp_cache);
     if (gp_cache->global_revoked == 0)
