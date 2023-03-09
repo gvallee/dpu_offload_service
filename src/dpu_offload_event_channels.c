@@ -1710,6 +1710,7 @@ static dpu_offload_status_t do_add_group_rank_recv_cb(execution_context_t *econt
         cache_entry->num_shadow_service_procs = 1;
         cache_entry->shadow_service_procs[0] = econtext->engine->config->local_service_proc.info.global_id;
         cache_entry->client_id = client_id;
+        cache_entry->peer.host_info = rank_info->host_info;
         cache_entry->set = true;
 
         if (gp_cache->group_uid == 0)
