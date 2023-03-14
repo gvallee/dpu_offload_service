@@ -53,23 +53,8 @@ dpu_offload_status_t do_send_add_group_rank_request(execution_context_t *econtex
     if (!is_in_cache(&(econtext->engine->procs_cache), rank_info->group_uid, rank_info->group_rank, rank_info->group_size))
     {
         // Before sending the data, update the local cache
-        peer_cache_entry_t *cache_entry = GET_GROUP_RANK_CACHE_ENTRY(&(econtext->engine->procs_cache),
-                                                                     rank_info->group_uid,
-                                                                     rank_info->group_rank,
-                                                                     rank_info->group_size);
-        group_cache_t *gp_cache = GET_GROUP_CACHE(&(econtext->engine->procs_cache), rank_info->group_uid);
-        assert(cache_entry);
-        assert(gp_cache);
-        assert(econtext->engine->config != NULL);
-        cache_entry->shadow_service_procs[cache_entry->num_shadow_service_procs] = econtext->engine->config->local_service_proc.info.global_id;
-        cache_entry->peer.proc_info.group_uid = rank_info->group_uid;
-        cache_entry->peer.proc_info.group_rank = rank_info->group_rank;
-        cache_entry->peer.proc_info.group_size = rank_info->group_size;
-        cache_entry->peer.proc_info.n_local_ranks = rank_info->n_local_ranks;
-        cache_entry->peer.host_info = econtext->rank.host_info;
-        cache_entry->num_shadow_service_procs++;
-        cache_entry->set = true;
-        gp_cache->num_local_entries++;
+        rc = host_add_local_rank_to_cache(econtext->engine, rank_info);
+        CHECK_ERR_RETURN((rc != DO_SUCCESS), DO_ERROR, "host_add_local_rank_to_cache() failed");
     }
 
     DBG("Sending request to add the group/rank");
@@ -1582,7 +1567,6 @@ static dpu_offload_status_t add_host_to_config(offloading_config_t *cfg, char *h
                       host_info->uid,
                       &ret);
     kh_value(cfg->host_lookup_table, host_key) = host_info;
-    cfg->num_hosts++;
     return DO_SUCCESS;
 }
 
@@ -1635,8 +1619,12 @@ bool parse_line_version_1(char *target_hostname, offloading_config_t *data, char
             CHECK_ERR_RETURN((rc == false), DO_ERROR, "parse_dpu_cfg() failed");
             data->num_dpus++;
             token = strtok_r(rest, ",", &rest);
+
+            // Track the number of DPUs per host
+            data->num_dpus_per_host++;
         }
         DBG("%ld DPU(s) is/are specified for %s", data->num_dpus, target_hostname);
+        data->host_index = data->num_hosts;
         return true;
     }
     return false;
@@ -1799,6 +1787,7 @@ dpu_offload_status_t find_config_from_platform_configfile(char *filepath, char *
             continue;
 
         parse_line(hostname, line, data);
+        data->num_hosts++;
     }
 
     // The configuration is stored in the first element of dpus_configs
@@ -1814,8 +1803,8 @@ dpu_offload_status_t find_config_from_platform_configfile(char *filepath, char *
     if (data->local_service_proc.info.dpu == UINT64_MAX)
     {
         // When parsing the configuration file, the number of DPUs stops increasing when we find the local DPU
-        // so the DPU ID is the number of DPUs - 1
-        data->local_service_proc.info.dpu = data->num_dpus - 1;
+        // so the local DPU ID is the number of DPUs - 1
+        data->local_service_proc.info.dpu = (data->num_dpus - 1) + (data->host_index * data->num_dpus_per_host);
     }
 
     rc = DO_SUCCESS;
@@ -1857,6 +1846,8 @@ dpu_offload_status_t get_host_config(offloading_config_t *config_data)
 {
     dpu_offload_status_t rc;
     char hostname[1024];
+
+    assert(config_data->num_hosts == 0);
 
     // If a configuration file is not set, we try to use the default one
     if (config_data->config_file == NULL)
@@ -1960,11 +1951,9 @@ dpu_offload_status_t get_local_service_proc_connect_info(offloading_config_t *cf
         cfg->num_service_procs = cfg->num_service_procs_per_dpu * cfg->num_service_procs_per_dpu;
     }
     init_params->num_sps = cfg->num_service_procs;
-    DBG("Service process connection info - port: %d, addr: %s, local_id: %" PRIu64 ", global_id: %" PRIu64,
+    DBG("Service process connection info - port: %d, addr: %s",
         init_params->conn_params->port,
-        init_params->conn_params->addr_str,
-        cfg->local_service_proc.info.local_id,
-        cfg->local_service_proc.info.global_id);
+        init_params->conn_params->addr_str);
     return DO_SUCCESS;
 }
 

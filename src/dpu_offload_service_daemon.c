@@ -1879,6 +1879,17 @@ execution_context_t *client_init(offloading_engine_t *offload_engine, init_param
         ctx->scope_id = init_params->scope_id;
         if (init_params->proc_info != NULL)
         {
+            if (init_params->proc_info->group_uid != INT_MAX && init_params->proc_info->host_info == UINT64_MAX)
+            {
+                // We are in the context of an actual rank and the host UID was not set by the caller,
+                // we set it for consistency and for future potential use
+                host_info_t *host_info = NULL;
+                host_info = DYN_ARRAY_GET_ELT(&(offload_engine->config->hosts_config),
+                                              offload_engine->config->host_index,
+                                              host_info_t);
+                assert(host_info);
+                init_params->proc_info->host_info = host_info->uid;
+            }
             COPY_RANK_INFO(init_params->proc_info, &(ctx->rank));
 
             // In the context of inter-SP connections and situations without groups,
@@ -1953,23 +1964,9 @@ execution_context_t *client_init(offloading_engine_t *offload_engine, init_param
         ctx->rank.group_rank != INVALID_RANK &&
         !is_in_cache(&(offload_engine->procs_cache), ctx->rank.group_uid, ctx->rank.group_rank, ctx->rank.group_size))
     {
-        peer_cache_entry_t *cache_entry = GET_GROUP_RANK_CACHE_ENTRY(&(offload_engine->procs_cache),
-                                                                     ctx->rank.group_uid,
-                                                                     ctx->rank.group_rank,
-                                                                     ctx->rank.group_size);
-        group_cache_t *gp_cache = GET_GROUP_CACHE(&(offload_engine->procs_cache), ctx->rank.group_uid);
-        assert(cache_entry);
-        assert(gp_cache);
-        assert(ctx->engine->config != NULL);
-        cache_entry->shadow_service_procs[cache_entry->num_shadow_service_procs] = ctx->engine->config->local_service_proc.info.global_id;
-        cache_entry->peer.proc_info.group_uid = ctx->rank.group_uid;
-        cache_entry->peer.proc_info.group_rank = ctx->rank.group_rank;
-        cache_entry->peer.proc_info.group_size = ctx->rank.group_size;
-        cache_entry->peer.proc_info.n_local_ranks = ctx->rank.n_local_ranks;
-        cache_entry->peer.host_info = ctx->rank.host_info;
-        cache_entry->num_shadow_service_procs++;
-        cache_entry->set = true;
-        gp_cache->num_local_entries++;
+        dpu_offload_state_t ret;
+        ret = host_add_local_rank_to_cache(offload_engine, &(ctx->rank));
+        CHECK_ERR_GOTO((ret != DO_SUCCESS), error_out, "host_add_local_rank_to_cache() failed");
     }
 
     return ctx;
@@ -1998,6 +1995,7 @@ void offload_engine_fini(offloading_engine_t **offload_engine)
     DYN_LIST_FREE((*offload_engine)->pool_pending_send_group_add, pending_send_group_add_t, item);
     DYN_LIST_FREE((*offload_engine)->pool_pending_recv_cache_entries, pending_recv_cache_entry_t, item);
     DYN_LIST_FREE((*offload_engine)->free_sp_cache_hash_obj, sp_cache_data_t, item);
+    DYN_LIST_FREE((*offload_engine)->free_host_cache_hash_obj, host_cache_data_t, item);
     DYN_ARRAY_FREE(&((*offload_engine)->dpus));
     DYN_ARRAY_FREE(&((*offload_engine)->service_procs));
 
