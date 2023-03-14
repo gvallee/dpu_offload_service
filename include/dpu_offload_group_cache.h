@@ -341,4 +341,13 @@ bool group_cache_populated(offloading_engine_t *engine, group_uid_t gp_uid);
  */
 dpu_offload_status_t update_topology_data(offloading_engine_t *engine, group_cache_t *gp_cache, int64_t group_rank, uint64_t sp_gid, host_uid_t host_uid);
 
+/**
+ * @brief Function that can be called on the host to add a local rank to the local cache.
+ * 
+ * @param[in] engine Offloading engine associated to the target cache
+ * @param[in] rank_info Data about the rank to add to the cache
+ * @return dpu_offload_status_t
+ */
+dpu_offload_status_t host_add_local_rank_to_cache(offloading_engine_t *engine, rank_info_t *rank_info);
+
 #endif // DPU_OFFLOAD_GROUP_CACHE_H_
