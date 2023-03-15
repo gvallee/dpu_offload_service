@@ -1689,12 +1689,15 @@ typedef struct sp_cache_data
     dyn_array_t ranks;
 } sp_cache_data_t;
 
-#define RESET_SP_CACHE_DATA(_sp_data) \
-    do                                \
-    {                                 \
-        (_sp_data)->n_ranks = 0;      \
-        (_sp_data)->gid = UINT64_MAX; \
-        (_sp_data)->gp_uid = 0;       \
+#define RESET_SP_CACHE_DATA(_sp_data)       \
+    do                                      \
+    {                                       \
+        (_sp_data)->n_ranks = 0;            \
+        (_sp_data)->gid = UINT64_MAX;       \
+        (_sp_data)->lid = UINT64_MAX;       \
+        (_sp_data)->host_uid = UINT64_MAX;  \
+        (_sp_data)->gp_uid = 0;             \
+        (_sp_data)->ranks_bitset = NULL;    \
     } while (0)
 
 // Keys for group_sps_hash_t are the SP's GID, i.e., uint64_t
