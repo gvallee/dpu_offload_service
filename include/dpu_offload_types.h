@@ -1909,7 +1909,7 @@ typedef struct group_cache
         }                                                               \
     } while (0)
 
-#define INIT_GROUP_CACHE(__e, __g)              \
+#define BASIC_INIT_GROUP_CACHE(__g)             \
     do                                          \
     {                                           \
         (__g)->initialized = false;             \
@@ -1929,6 +1929,18 @@ typedef struct group_cache
         (__g)->sp_array_initialized = false;    \
         (__g)->host_array_initialized = false;  \
         (__g)->lookup_tables_populated = false; \
+    } while(0)
+
+#define INIT_GROUP_CACHE(__g)                                                           \
+    do                                                                                  \
+    {                                                                                   \
+        BASIC_INIT_GROUP_CACHE((__g));                                                  \
+        DYN_ARRAY_ALLOC(&((__g)->ranks), 1024, peer_cache_entry_t);                     \
+        /* No need to allocate _new_group_cache->hosts, we handle it when we populte */ \
+        /* lookup tables in populate_group_cache_lookup_table() */                      \
+        (__g)->sps_hash = kh_init(group_sps_hash_t);                                    \
+        (__g)->hosts_hash = kh_init(group_hosts_hash_t);                                \
+        (__g)->initialized = true;                                                      \
     } while (0)
 
 #define RESET_GROUP_CACHE(__e, __g)          \
@@ -1939,7 +1951,7 @@ typedef struct group_cache
             DYN_ARRAY_FREE(&((__g)->sps));   \
         if ((__g)->host_array_initialized)   \
             DYN_ARRAY_FREE(&((__g)->hosts)); \
-        INIT_GROUP_CACHE(__e, __g);          \
+        BASIC_INIT_GROUP_CACHE((__g));       \
     } while (0)
 
 #define GET_GROUP_SP_HASH_ENTRY(_gp_cache, _sp_gid) ({                          \
@@ -2074,16 +2086,22 @@ typedef struct group_cache
     {                                                                                    \
         /* Group not in the cache, adding it */                                          \
         int _ret;                                                                        \
+        assert((_cache)->engine);                                                        \
+        assert((_cache)->engine->config);                                                \
+        assert((_cache)->engine->config->num_hosts > 0);                                 \
         group_cache_t *_new_group_cache;                                                 \
         khiter_t _newKey = kh_put(group_hash_t, (_cache)->data, (_gp_uid), &_ret);       \
         DYN_LIST_GET((_cache)->group_cache_pool, group_cache_t, item, _new_group_cache); \
         assert(_new_group_cache);                                                        \
-        INIT_GROUP_CACHE((_cache)->engine, _new_group_cache);                            \
-        DYN_ARRAY_ALLOC(&(_new_group_cache->ranks), 1024, peer_cache_entry_t);           \
-        /* No need to allocate _new_group_cache->hosts, we handle it when we populte */  \
-        /* lookup tables in populate_group_cache_lookup_table() */                       \
-        _new_group_cache->sps_hash = kh_init(group_sps_hash_t);                          \
-        _new_group_cache->hosts_hash = kh_init(group_hosts_hash_t);                      \
+        INIT_GROUP_CACHE(_new_group_cache);                                              \
+        _new_group_cache->group_uid = (_gp_uid);                                         \
+        /* We set the value for the first group when we add */                           \
+        /* the first rank to a cache. GET_GROUP_CACHE only made */                       \
+        /* sure we could use the structure */                                            \
+        /* The first group is MPI_COMM_WORLD or equivalent. */                           \
+        (_cache)->size++;                                                                \
+        if ((_cache)->size == 1)                                                         \
+            (_cache)->world_group = (_gp_uid);                                           \
         kh_value((_cache)->data, _newKey) = _new_group_cache;                            \
         _gp_cache = _new_group_cache;                                                    \
     }                                                                                    \
@@ -2091,6 +2109,7 @@ typedef struct group_cache
     {                                                                                    \
         /* Group is in the cache, just return a pointer */                               \
         _gp_cache = kh_value((_cache)->data, k);                                         \
+        assert(_gp_uid == _gp_cache->group_uid);                                         \
     }                                                                                    \
     _gp_cache;                                                                           \
 })
@@ -2235,34 +2254,17 @@ typedef struct cache
         _gp_cache = GET_GROUP_CACHE((_cache), _gp_uid);                     \
         assert(_gp_cache);                                                  \
         _rank_cache = &(_gp_cache->ranks);                                  \
-        if (_gp_cache->initialized == false)                                \
-        {                                                                   \
-            /* Cache for the group is empty, lazy initialization */         \
-            RESET_GROUP_CACHE((_cache)->engine, _gp_cache);                 \
-            _gp_cache->initialized = true;                                  \
-            if (_gp_size >= 0)                                              \
-                _gp_cache->group_size = _gp_size;                           \
-            (_cache)->size++;                                               \
-            /* We set the value for the first group when we add */          \
-            /* the first rank to a cache. GET_GROUP_CACHE only made */      \
-            /* sure we could use the structure */                           \
-            /* The first group is MPI_COMM_WORLD or equivalent. */          \
-            if ((_cache)->size == 1)                                        \
-                (_cache)->world_group = (_gp_uid);                          \
-            GROUP_CACHE_BITSET_CREATE(_gp_cache->sps_bitset, _gp_size);     \
-            assert((_cache)->engine);                                       \
-            assert((_cache)->engine->config);                               \
-            assert((_cache)->engine->config->num_hosts > 0);                \
-            GROUP_CACHE_BITSET_CREATE(_gp_cache->hosts_bitset,              \
-                                      (_cache)->engine->config->num_hosts); \
-        }                                                                   \
         if (_gp_cache->initialized &&                                       \
             _gp_cache->group_size <= 0 &&                                   \
             _gp_size >= 0)                                                  \
         {                                                                   \
             /* the cache was initialized without a group size */            \
-            /* but we now know it */                                        \
+            /* but we now know it now */                                    \
             _gp_cache->group_size = _gp_size;                               \
+            _gp_cache->group_size = _gp_size;                               \
+            GROUP_CACHE_BITSET_CREATE(_gp_cache->sps_bitset, _gp_size);     \
+            GROUP_CACHE_BITSET_CREATE(_gp_cache->hosts_bitset,              \
+                                      (_cache)->engine->config->num_hosts); \
         }                                                                   \
         _entry = DYN_ARRAY_GET_ELT(_rank_cache, _rank, peer_cache_entry_t); \
         _entry;                                                             \

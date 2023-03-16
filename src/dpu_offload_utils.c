@@ -610,6 +610,8 @@ dpu_offload_status_t send_gp_cache_to_host(execution_context_t *econtext, group_
             econtext,
             econtext->server->connected_clients.num_connected_clients,
             econtext->server->connected_clients.num_total_connected_clients);
+        assert(group_cache_populated(econtext->engine, group_uid));
+        assert(gp_cache->group_uid == group_uid);
         while (n < econtext->server->connected_clients.num_connected_clients)
         {
             dpu_offload_event_t *metaev;
