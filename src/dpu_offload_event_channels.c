@@ -212,6 +212,7 @@ static ucs_status_t am_notification_recv_rdv_msg(offloading_engine_t *engine, am
         // some processes may receive cache entries so late that termination has been already triggered,
         // usually when the process is not involved in the communicator.
         // In such a case, we just safely drop the message.
+        ENGINE_UNLOCK(econtext);
         return DO_SUCCESS;
     }
     DYN_LIST_GET(engine->free_pending_rdv_recv, pending_am_rdv_recv_t, item, pending_recv);
