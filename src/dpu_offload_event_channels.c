@@ -204,6 +204,16 @@ static ucs_status_t am_notification_recv_rdv_msg(offloading_engine_t *engine, am
     pending_am_rdv_recv_t *pending_recv;
     notification_callback_entry_t *entry;
     ENGINE_LOCK(econtext);
+    if (engine->free_pending_rdv_recv == NULL && hdr->type == AM_PEER_CACHE_ENTRIES_MSG_ID)
+    {
+        // We received a cache entry notification but we are in the finalization phase, i.e., the list
+        // of free pending RDV receive objects are not available.
+        // It can happen when the application is using many communicators of different sizes:
+        // some processes may receive cache entries so late that termination has been already triggered,
+        // usually when the process is not involved in the communicator.
+        // In such a case, we just safely drop the message.
+        return DO_SUCCESS;
+    }
     DYN_LIST_GET(engine->free_pending_rdv_recv, pending_am_rdv_recv_t, item, pending_recv);
     ENGINE_UNLOCK(econtext);
     RESET_PENDING_RDV_RECV(pending_recv);
