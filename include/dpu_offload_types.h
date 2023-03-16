@@ -1820,6 +1820,9 @@ typedef struct group_cache
     // Array with all the ranks in the group (type: peer_cache_entry_t)
     dyn_array_t ranks;
 
+    // Boolean to track if the dynamic array
+    bool rank_array_initialized;
+
     // Hash for all the hosts in the group. We use a hash so we can efficiently
     // track which hosts are used in a group as we receive cache entries.
     // The key is the host ID (64-bit hash of the hostname), the value the
@@ -1846,7 +1849,7 @@ typedef struct group_cache
     // Number of hosts involved in the group, i.e., the number of elements in the 'hosts' array
     size_t n_hosts;
 
-    // Boolean to track is the dynamic array 'hosts' has been initialized or not
+    // Boolean to track if the dynamic array 'hosts' has been initialized or not
     bool host_array_initialized;
 
     // Hash for all the SPs in the group. We use a hash so we can efficiently
@@ -1870,7 +1873,7 @@ typedef struct group_cache
     // involved in the group (type: remote_service_proc_info_t *).
     dyn_array_t sps;
 
-    // Boolean to track is the dynamic array 'sps' has been initialized or not
+    // Boolean to track if the dynamic array 'sps' has been initialized or not
     bool sp_array_initialized;
 
     // Number of SPs involved in the group, i.e., the number of elements in the 'sps' array.
@@ -1928,6 +1931,7 @@ typedef struct group_cache
         (__g)->hosts_bitset = NULL;             \
         (__g)->sp_array_initialized = false;    \
         (__g)->host_array_initialized = false;  \
+        (__g)->rank_array_initialized = false;  \
         (__g)->lookup_tables_populated = false; \
     } while(0)
 
@@ -1936,6 +1940,7 @@ typedef struct group_cache
     {                                                                                   \
         BASIC_INIT_GROUP_CACHE((__g));                                                  \
         DYN_ARRAY_ALLOC(&((__g)->ranks), 1024, peer_cache_entry_t);                     \
+        (__g)->rank_array_initialized = true;                                           \
         /* No need to allocate _new_group_cache->hosts, we handle it when we populte */ \
         /* lookup tables in populate_group_cache_lookup_table() */                      \
         (__g)->sps_hash = kh_init(group_sps_hash_t);                                    \
@@ -1951,6 +1956,8 @@ typedef struct group_cache
             DYN_ARRAY_FREE(&((__g)->sps));   \
         if ((__g)->host_array_initialized)   \
             DYN_ARRAY_FREE(&((__g)->hosts)); \
+        if ((__g)->rank_array_initialized)   \
+            DYN_ARRAY_FREE(&((__g)->ranks)); \
         BASIC_INIT_GROUP_CACHE((__g));       \
     } while (0)
 
@@ -2176,7 +2183,7 @@ typedef struct group_cache
     _c;                                                                        \
 })
 
-// Keys are group UIDs, i.e., int
+// Keys are group UIDs (group_uid_t), i.e., int
 KHASH_MAP_INIT_INT(group_hash_t, group_cache_t *);
 
 typedef struct cache
