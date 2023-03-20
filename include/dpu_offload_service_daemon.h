@@ -262,7 +262,8 @@ dpu_offload_status_t broadcast_group_cache(offloading_engine_t *engine, group_ui
 dpu_offload_status_t broadcast_group_cache_revoke(offloading_engine_t *engine, group_uid_t group_uid, uint64_t n_ranks);
 
 /**
- * @brief Get the global service process ID by host rank object. That ID can then be used to look up the corresponding endpoint.
+ * @brief Get the global service process ID (not the group service process global ID) that is associated with a specific rank in a group.
+ * The global ID can then be used to look up the corresponding endpoint, for example to issue a XGVMI operation.
  * The global identifier is the identifier set a startup time; it is not a group-level identifier.
  *
  * @param[in] engine Offloading engine for the query
