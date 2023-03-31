@@ -586,10 +586,6 @@ static dpu_offload_status_t send_local_rank_group_cache(execution_context_t *eco
         {
             QUEUE_SUBEVENT(metaev, e);
         }
-        else
-        {
-            WARN_MSG("Sending cache completed right away");
-        }
         count += n_entries_to_send;
     }
 
