@@ -1694,7 +1694,7 @@ dpu_offload_status_t find_dpu_config_from_platform_configfile(char *filepath, of
     // Read the entire file so we can go over the content quickly. Configure files are not expected to get huge
     FILE *file = fopen(filepath, "rb");
     if (file == NULL)
-        ERR_MSG("unable to open %s", filepath);
+        fprintf(stderr, "[ERROR] unable to open configuration file %s", filepath);
     assert(file);
     fseek(file, 0, SEEK_END);
     len = ftell(file);
@@ -1767,7 +1767,8 @@ dpu_offload_status_t find_config_from_platform_configfile(char *filepath, char *
 
     file = fopen(filepath, "r");
     if (file == NULL)
-        ERR_MSG("unable to open %s", filepath);
+        fprintf(stderr, "[ERROR] unable to open configuration file %s", filepath);
+    assert(file);
 
     while ((read = getline(&line, &len, file)) != -1)
     {
