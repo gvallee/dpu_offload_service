@@ -12,7 +12,16 @@
 
 // Forward declarations
 static dpu_offload_status_t do_populate_group_cache_lookup_table(offloading_engine_t *engine, group_cache_t *gp_cache);
+dpu_offload_status_t offload_engine_progress(offloading_engine_t *engine);
 
+#define PROGRESS_UNTIL_GROUP_CACHE_FULLY_POPULATED(__engine, __gp_uid)  \
+    do                                                                  \
+    {                                                                   \
+        while (!group_cache_populated((__engine), (__gp_uid)))          \
+        {                                                               \
+            offload_engine_progress((__engine));                        \
+        }                                                               \
+    } while (0)
 
 bool group_cache_populated(offloading_engine_t *engine, group_uid_t gp_uid)
 {
@@ -39,6 +48,7 @@ get_global_sp_id_by_group(offloading_engine_t *engine,
     if (!engine->on_dpu)
         return DO_ERROR;
 
+    PROGRESS_UNTIL_GROUP_CACHE_FULLY_POPULATED(engine, gp_uid);
     gp_cache = GET_GROUP_CACHE(&(engine->procs_cache), gp_uid);
     assert(gp_cache);
     for (i = 0; i < gp_cache->n_sps; i++)
@@ -70,6 +80,7 @@ get_local_sp_id_by_group(offloading_engine_t *engine,
     group_cache_t *gp_cache = NULL;
 
     assert(engine);
+    PROGRESS_UNTIL_GROUP_CACHE_FULLY_POPULATED(engine, gp_uid);
     gp_cache = GET_GROUP_CACHE(&(engine->procs_cache), gp_uid);
     assert(gp_cache);
 
@@ -103,6 +114,7 @@ get_host_idx_by_group(offloading_engine_t *engine,
     size_t i;
 
     assert(engine);
+    PROGRESS_UNTIL_GROUP_CACHE_FULLY_POPULATED(engine, group_uid);
     my_host_uid = engine->config->local_service_proc.host_uid;
     gp_cache = GET_GROUP_CACHE(&(engine->procs_cache), group_uid);
     assert(gp_cache);
@@ -147,6 +159,7 @@ get_num_sps_by_group_host_idx(offloading_engine_t *engine,
     group_cache_t *gp_cache = NULL;
 
     assert(engine);
+    PROGRESS_UNTIL_GROUP_CACHE_FULLY_POPULATED(engine, group_uid);
     gp_cache = GET_GROUP_CACHE(&(engine->procs_cache), group_uid);
     assert(gp_cache);
 
@@ -183,6 +196,7 @@ get_num_ranks_for_group_sp(offloading_engine_t *engine,
     group_cache_t *gp_cache = NULL;
 
     assert(engine);
+    PROGRESS_UNTIL_GROUP_CACHE_FULLY_POPULATED(engine, group_uid);
     gp_cache = GET_GROUP_CACHE(&(engine->procs_cache), group_uid);
     assert(gp_cache);
 
@@ -219,6 +233,7 @@ get_num_ranks_for_group_host_local_sp(offloading_engine_t *engine,
     sp_cache_data_t **sp_data_ptr = NULL;
 
     assert(engine);
+    PROGRESS_UNTIL_GROUP_CACHE_FULLY_POPULATED(engine, group_uid);
     gp_cache = GET_GROUP_CACHE(&(engine->procs_cache), group_uid);
     assert(gp_cache);
 
@@ -261,6 +276,7 @@ get_num_ranks_for_group_host_idx(offloading_engine_t *engine,
     host_cache_data_t *host_data = NULL;
 
     assert(engine);
+    PROGRESS_UNTIL_GROUP_CACHE_FULLY_POPULATED(engine, group_uid);
     gp_cache = GET_GROUP_CACHE(&(engine->procs_cache), group_uid);
     assert(gp_cache);
 
@@ -299,6 +315,7 @@ get_rank_idx_by_group_host_idx(offloading_engine_t *engine,
     size_t i, rank_index = 0;
 
     assert(engine);
+    PROGRESS_UNTIL_GROUP_CACHE_FULLY_POPULATED(engine, group_uid);
     gp_cache = GET_GROUP_CACHE(&(engine->procs_cache), group_uid);
     assert(gp_cache);
 
@@ -351,6 +368,7 @@ get_rank_idx_by_group_sp_id(offloading_engine_t *engine,
     size_t rank_index;
 
     assert(engine);
+    PROGRESS_UNTIL_GROUP_CACHE_FULLY_POPULATED(engine, group_uid);
     gp_cache = GET_GROUP_CACHE(&(engine->procs_cache), group_uid);
     assert(gp_cache);
 
@@ -400,6 +418,7 @@ get_all_sps_by_group_host_idx(offloading_engine_t *engine,
     host_cache_data_t *host_data = NULL;
 
     assert(engine);
+    PROGRESS_UNTIL_GROUP_CACHE_FULLY_POPULATED(engine, group_uid);
     gp_cache = GET_GROUP_CACHE(&(engine->procs_cache), group_uid);
     assert(gp_cache);
 
@@ -433,6 +452,7 @@ get_all_hosts_by_group(offloading_engine_t *engine,
     group_cache_t *gp_cache = NULL;
 
     assert(engine);
+    PROGRESS_UNTIL_GROUP_CACHE_FULLY_POPULATED(engine, group_uid);
     gp_cache = GET_GROUP_CACHE(&(engine->procs_cache), group_uid);
     assert(gp_cache);
 
@@ -465,6 +485,7 @@ get_all_ranks_by_group_sp_gid(offloading_engine_t *engine,
     sp_cache_data_t *sp_data = NULL;
 
     assert(engine);
+    PROGRESS_UNTIL_GROUP_CACHE_FULLY_POPULATED(engine, group_uid);
     gp_cache = GET_GROUP_CACHE(&(engine->procs_cache), group_uid);
     assert(gp_cache);
 
@@ -505,6 +526,7 @@ get_all_ranks_by_group_sp_lid(offloading_engine_t *engine,
     sp_cache_data_t **sp_data_ptr = NULL;
 
     assert(engine);
+    PROGRESS_UNTIL_GROUP_CACHE_FULLY_POPULATED(engine, group_uid);
     gp_cache = GET_GROUP_CACHE(&(engine->procs_cache), group_uid);
     assert(gp_cache);
 
@@ -547,6 +569,7 @@ get_nth_sp_by_group_host_idx(offloading_engine_t *engine,
     sp_cache_data_t **sp_data_ptr = NULL;
 
     assert(engine);
+    PROGRESS_UNTIL_GROUP_CACHE_FULLY_POPULATED(engine, group_uid);
     gp_cache = GET_GROUP_CACHE(&(engine->procs_cache), group_uid);
     assert(gp_cache);
 
@@ -587,6 +610,7 @@ dpu_offload_status_t get_sp_group_gid(offloading_engine_t *engine,
     size_t sp_gp_idx;
 
     assert(engine);
+    PROGRESS_UNTIL_GROUP_CACHE_FULLY_POPULATED(engine, group_uid);
     gp_cache = GET_GROUP_CACHE(&(engine->procs_cache), group_uid);
     assert(gp_cache);
 
