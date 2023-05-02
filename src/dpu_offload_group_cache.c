@@ -18,22 +18,6 @@ dpu_offload_status_t offload_engine_progress(offloading_engine_t *engine);
 dpu_offload_status_t do_send_cache_entry_request(execution_context_t *econtext, ucp_ep_h ep, uint64_t dest_id, rank_info_t *requested_peer, dpu_offload_event_t *ev);
 dpu_offload_status_t send_cache_entry_request(execution_context_t *econtext, ucp_ep_h ep, uint64_t dest_id, rank_info_t *requested_peer, dpu_offload_event_t **ev);
 
-#if 0
-#define PROGRESS_UNTIL_GROUP_CACHE_FULLY_POPULATED(__engine, __gp_uid)  \
-    do                                                                  \
-    {                                                                   \
-        fprintf(stderr, "[DBG] Waiting for cache 0x%x to be populated\n", __gp_uid);   \
-        group_cache_t *__gpcache = NULL;\
-        __gpcache = GET_GROUP_CACHE(&(engine->procs_cache), __gp_uid);\
-        assert(__gpcache);\
-        while (__gpcache->group_size == 0 || !group_cache_populated((__engine), (__gp_uid)))          \
-        {                                                               \
-            offload_engine_progress((__engine));                        \
-        }                                                               \
-        fprintf(stderr, "[DBG] Cache populated (size: %ld)\n", __gpcache->group_size);                     \
-    } while (0)
-#endif
-
 bool is_in_cache(cache_t *cache, group_uid_t gp_uid, int64_t rank_id, int64_t group_size)
 {
     peer_cache_entry_t *entry = GET_GROUP_RANK_CACHE_ENTRY(cache, gp_uid, rank_id, group_size);
@@ -93,9 +77,6 @@ get_global_sp_id_by_group(offloading_engine_t *engine,
     if (!engine->on_dpu)
         return DO_ERROR;
 
-    INFO_MSG("[DBG]");
-
-    //PROGRESS_UNTIL_GROUP_CACHE_FULLY_POPULATED(engine, gp_uid);
     gp_cache = GET_GROUP_CACHE(&(engine->procs_cache), gp_uid);
     assert(gp_cache);
     for (i = 0; i < gp_cache->n_sps; i++)
@@ -126,16 +107,11 @@ get_local_sp_id_by_group(offloading_engine_t *engine,
     sp_cache_data_t *sp_data = NULL;
     group_cache_t *gp_cache = NULL;
 
-    INFO_MSG("[DBG]");
-
     assert(engine);
-    //PROGRESS_UNTIL_GROUP_CACHE_FULLY_POPULATED(engine, gp_uid);
     gp_cache = GET_GROUP_CACHE(&(engine->procs_cache), gp_uid);
     assert(gp_cache);
 
-    // We still assume this function can only be called when the cache is fully populated
-    // but the lookup tables, when on the host, are not necessarily ready
-    if (!engine->on_dpu && !gp_cache->lookup_tables_populated)
+    if (!gp_cache->lookup_tables_populated)
     {
         dpu_offload_status_t rc;
         rc = do_populate_group_cache_lookup_table(engine, gp_cache);
@@ -162,17 +138,12 @@ get_host_idx_by_group(offloading_engine_t *engine,
     host_uid_t my_host_uid;
     size_t i;
 
-    INFO_MSG("[DBG]");
-
     assert(engine);
-    //PROGRESS_UNTIL_GROUP_CACHE_FULLY_POPULATED(engine, group_uid);
     my_host_uid = engine->config->local_service_proc.host_uid;
     gp_cache = GET_GROUP_CACHE(&(engine->procs_cache), group_uid);
     assert(gp_cache);
 
-    // We still assume this function can only be called when the cache is fully populated
-    // but the lookup tables, when on the host, are not necessarily ready
-    if (!engine->on_dpu && !gp_cache->lookup_tables_populated)
+    if (!gp_cache->lookup_tables_populated)
     {
         dpu_offload_status_t rc;
         rc = do_populate_group_cache_lookup_table(engine, gp_cache);
@@ -209,16 +180,11 @@ get_num_sps_by_group_host_idx(offloading_engine_t *engine,
     host_cache_data_t *host_data = NULL;
     group_cache_t *gp_cache = NULL;
 
-    INFO_MSG("[DBG]");
-
     assert(engine);
-    //PROGRESS_UNTIL_GROUP_CACHE_FULLY_POPULATED(engine, group_uid);
     gp_cache = GET_GROUP_CACHE(&(engine->procs_cache), group_uid);
     assert(gp_cache);
 
-    // We still assume this function can only be called when the cache is fully populated
-    // but the lookup tables, when on the host, are not necessarily ready
-    if (!engine->on_dpu && !gp_cache->lookup_tables_populated)
+    if (!gp_cache->lookup_tables_populated)
     {
         dpu_offload_status_t rc;
         rc = do_populate_group_cache_lookup_table(engine, gp_cache);
@@ -248,16 +214,11 @@ get_num_ranks_for_group_sp(offloading_engine_t *engine,
     sp_cache_data_t *sp_info = NULL;
     group_cache_t *gp_cache = NULL;
 
-    INFO_MSG("[DBG]");
-
     assert(engine);
-    //PROGRESS_UNTIL_GROUP_CACHE_FULLY_POPULATED(engine, group_uid);
     gp_cache = GET_GROUP_CACHE(&(engine->procs_cache), group_uid);
     assert(gp_cache);
 
-    // We still assume this function can only be called when the cache is fully populated
-    // but the lookup tables, when on the host, are not necessarily ready
-    if (!engine->on_dpu && !gp_cache->lookup_tables_populated)
+    if (!gp_cache->lookup_tables_populated)
     {
         dpu_offload_status_t rc;
         rc = do_populate_group_cache_lookup_table(engine, gp_cache);
@@ -287,16 +248,11 @@ get_num_ranks_for_group_host_local_sp(offloading_engine_t *engine,
     host_cache_data_t *host_data = NULL;
     sp_cache_data_t **sp_data_ptr = NULL;
 
-    INFO_MSG("[DBG]");
-
     assert(engine);
-    //PROGRESS_UNTIL_GROUP_CACHE_FULLY_POPULATED(engine, group_uid);
     gp_cache = GET_GROUP_CACHE(&(engine->procs_cache), group_uid);
     assert(gp_cache);
 
-    // We still assume this function can only be called when the cache is fully populated
-    // but the lookup tables, when on the host, are not necessarily ready
-    if (!engine->on_dpu && !gp_cache->lookup_tables_populated)
+    if (!gp_cache->lookup_tables_populated)
     {
         dpu_offload_status_t rc;
         rc = do_populate_group_cache_lookup_table(engine, gp_cache);
@@ -332,16 +288,11 @@ get_num_ranks_for_group_host_idx(offloading_engine_t *engine,
     group_cache_t *gp_cache = NULL;
     host_cache_data_t *host_data = NULL;
 
-    INFO_MSG("[DBG]");
-
     assert(engine);
-    //PROGRESS_UNTIL_GROUP_CACHE_FULLY_POPULATED(engine, group_uid);
     gp_cache = GET_GROUP_CACHE(&(engine->procs_cache), group_uid);
     assert(gp_cache);
 
-    // We still assume this function can only be called when the cache is fully populated
-    // but the lookup tables, when on the host, are not necessarily ready
-    if (!engine->on_dpu && !gp_cache->lookup_tables_populated)
+    if (!gp_cache->lookup_tables_populated)
     {
         dpu_offload_status_t rc;
         rc = do_populate_group_cache_lookup_table(engine, gp_cache);
@@ -373,16 +324,11 @@ get_rank_idx_by_group_host_idx(offloading_engine_t *engine,
     host_cache_data_t *host_data = NULL;
     size_t i, rank_index = 0;
 
-    INFO_MSG("[DBG]");
-
     assert(engine);
-    //PROGRESS_UNTIL_GROUP_CACHE_FULLY_POPULATED(engine, group_uid);
     gp_cache = GET_GROUP_CACHE(&(engine->procs_cache), group_uid);
     assert(gp_cache);
 
-    // We still assume this function can only be called when the cache is fully populated
-    // but the lookup tables, when on the host, are not necessarily ready
-    if (!engine->on_dpu && !gp_cache->lookup_tables_populated)
+    if (!gp_cache->lookup_tables_populated)
     {
         dpu_offload_status_t rc;
         rc = do_populate_group_cache_lookup_table(engine, gp_cache);
@@ -428,16 +374,11 @@ get_rank_idx_by_group_sp_id(offloading_engine_t *engine,
     group_cache_t *gp_cache = NULL;
     size_t rank_index;
 
-    INFO_MSG("[DBG]");
-
     assert(engine);
-    //PROGRESS_UNTIL_GROUP_CACHE_FULLY_POPULATED(engine, group_uid);
     gp_cache = GET_GROUP_CACHE(&(engine->procs_cache), group_uid);
     assert(gp_cache);
 
-    // We still assume this function can only be called when the cache is fully populated
-    // but the lookup tables, when on the host, are not necessarily ready
-    if (!engine->on_dpu && !gp_cache->lookup_tables_populated)
+    if (!gp_cache->lookup_tables_populated)
     {
         dpu_offload_status_t rc;
         rc = do_populate_group_cache_lookup_table(engine, gp_cache);
@@ -480,16 +421,11 @@ get_all_sps_by_group_host_idx(offloading_engine_t *engine,
     host_info_t **host_info_ptr = NULL;
     host_cache_data_t *host_data = NULL;
 
-    INFO_MSG("[DBG]");
-
     assert(engine);
-    //PROGRESS_UNTIL_GROUP_CACHE_FULLY_POPULATED(engine, group_uid);
     gp_cache = GET_GROUP_CACHE(&(engine->procs_cache), group_uid);
     assert(gp_cache);
 
-    // We still assume this function can only be called when the cache is fully populated
-    // but the lookup tables, when on the host, are not necessarily ready
-    if (!engine->on_dpu && !gp_cache->lookup_tables_populated)
+    if (!gp_cache->lookup_tables_populated)
     {
         dpu_offload_status_t rc;
         rc = do_populate_group_cache_lookup_table(engine, gp_cache);
@@ -517,15 +453,10 @@ get_all_hosts_by_group(offloading_engine_t *engine,
     group_cache_t *gp_cache = NULL;
 
     assert(engine);
-    //PROGRESS_UNTIL_GROUP_CACHE_FULLY_POPULATED(engine, group_uid);
     gp_cache = GET_GROUP_CACHE(&(engine->procs_cache), group_uid);
     assert(gp_cache);
 
-    INFO_MSG("[DBG]");
-
-    // We still assume this function can only be called when the cache is fully populated
-    // but the lookup tables, when on the host, are not necessarily ready
-    if (!engine->on_dpu && !gp_cache->lookup_tables_populated)
+    if (!gp_cache->lookup_tables_populated)
     {
         dpu_offload_status_t rc;
         rc = do_populate_group_cache_lookup_table(engine, gp_cache);
@@ -551,16 +482,11 @@ get_all_ranks_by_group_sp_gid(offloading_engine_t *engine,
     remote_service_proc_info_t **ptr = NULL;
     sp_cache_data_t *sp_data = NULL;
 
-    INFO_MSG("[DBG]");
-
     assert(engine);
-    //PROGRESS_UNTIL_GROUP_CACHE_FULLY_POPULATED(engine, group_uid);
     gp_cache = GET_GROUP_CACHE(&(engine->procs_cache), group_uid);
     assert(gp_cache);
 
-    // We still assume this function can only be called when the cache is fully populated
-    // but the lookup tables, when on the host, are not necessarily ready
-    if (!engine->on_dpu && !gp_cache->lookup_tables_populated)
+    if (!gp_cache->lookup_tables_populated)
     {
         dpu_offload_status_t rc;
         rc = do_populate_group_cache_lookup_table(engine, gp_cache);
@@ -594,16 +520,11 @@ get_all_ranks_by_group_sp_lid(offloading_engine_t *engine,
     host_cache_data_t *host_data = NULL;
     sp_cache_data_t **sp_data_ptr = NULL;
 
-    INFO_MSG("[DBG]");
-
     assert(engine);
-    //PROGRESS_UNTIL_GROUP_CACHE_FULLY_POPULATED(engine, group_uid);
     gp_cache = GET_GROUP_CACHE(&(engine->procs_cache), group_uid);
     assert(gp_cache);
 
-    // We still assume this function can only be called when the cache is fully populated
-    // but the lookup tables, when on the host, are not necessarily ready
-    if (!engine->on_dpu && !gp_cache->lookup_tables_populated)
+    if (!gp_cache->lookup_tables_populated)
     {
         dpu_offload_status_t rc;
         rc = do_populate_group_cache_lookup_table(engine, gp_cache);
@@ -639,16 +560,11 @@ get_nth_sp_by_group_host_idx(offloading_engine_t *engine,
     host_cache_data_t *host_data = NULL;
     sp_cache_data_t **sp_data_ptr = NULL;
 
-    INFO_MSG("[DBG]");
-
     assert(engine);
-    //PROGRESS_UNTIL_GROUP_CACHE_FULLY_POPULATED(engine, group_uid);
     gp_cache = GET_GROUP_CACHE(&(engine->procs_cache), group_uid);
     assert(gp_cache);
 
-    // We still assume this function can only be called when the cache is fully populated
-    // but the lookup tables, when on the host, are not necessarily ready
-    if (!engine->on_dpu && !gp_cache->lookup_tables_populated)
+    if (!gp_cache->lookup_tables_populated)
     {
         dpu_offload_status_t rc;
         rc = do_populate_group_cache_lookup_table(engine, gp_cache);
@@ -682,12 +598,7 @@ dpu_offload_status_t get_sp_group_gid(offloading_engine_t *engine,
     group_cache_t *gp_cache = NULL;
     size_t sp_gp_idx;
 
-    INFO_MSG("[DBG]");
-
     assert(engine);
-    //PROGRESS_UNTIL_GROUP_CACHE_FULLY_POPULATED(engine, group_uid);
-    INFO_MSG("[DBG] Getting SP group GID for group 0x%x and SP %ld\n",
-             group_uid, sp_gid);
     gp_cache = GET_GROUP_CACHE(&(engine->procs_cache), group_uid);
     assert(gp_cache);
 
@@ -713,7 +624,6 @@ dpu_offload_status_t get_sp_group_gid(offloading_engine_t *engine,
     for (sp_gp_idx = 0; sp_gp_idx < gp_cache->n_sps; sp_gp_idx++)
     {
         remote_service_proc_info_t **sp_data = NULL;
-        INFO_MSG("[DBG] CM sp_gp_idx: %ld, n_sps: %ld, capacity: %ld\n", sp_gp_idx, gp_cache->n_sps, (&(gp_cache->sps))->capacity);
         sp_data = DYN_ARRAY_GET_ELT(&(gp_cache->sps), sp_gp_idx, remote_service_proc_info_t *);
         assert(sp_data);
 
@@ -731,7 +641,6 @@ static void
 populate_sp_ranks(offloading_engine_t *engine, group_cache_t *gp_cache, sp_cache_data_t *sp_data)
 {
     size_t i = 0, idx = 0;
-    INFO_MSG("[DBG]");
     DYN_ARRAY_ALLOC(&(sp_data->ranks),
                     gp_cache->group_size,
                     peer_cache_entry_t *);
@@ -761,7 +670,6 @@ static void
 populate_host_sps(group_cache_t *gp_cache, host_cache_data_t *host_data)
 {
     size_t i = 0, idx = 0;
-    INFO_MSG("[DBG]");
     DYN_ARRAY_ALLOC(&(host_data->sps),
                     gp_cache->group_size,
                     sp_cache_data_t *);
@@ -788,7 +696,6 @@ do_populate_group_cache_lookup_table(offloading_engine_t *engine, group_cache_t 
 {
     size_t i, idx = 0;
 
-    INFO_MSG("[DBG]");
     assert(engine);
     assert(gp_cache);
 
@@ -799,7 +706,6 @@ do_populate_group_cache_lookup_table(offloading_engine_t *engine, group_cache_t 
     assert(gp_cache->n_sps);
     if (gp_cache->sp_array_initialized == false)
     {
-        INFO_MSG("[DBG] YAY!!!!\n");
         DYN_ARRAY_ALLOC(&(gp_cache->sps),
                         gp_cache->n_sps,
                         remote_service_proc_info_t *);
@@ -881,7 +787,6 @@ dpu_offload_status_t
 populate_group_cache_lookup_table(offloading_engine_t *engine,
                                   group_cache_t *gp_cache)
 {
-    INFO_MSG("[DBG]");
     assert(gp_cache);
     assert(group_cache_populated(engine, gp_cache->group_uid));
     return do_populate_group_cache_lookup_table(engine, gp_cache);
@@ -894,7 +799,6 @@ update_topology_data(offloading_engine_t *engine, group_cache_t *gp_cache, int64
     sp_cache_data_t *sp_data = NULL;
     host_cache_data_t *host_data = NULL;
 
-    INFO_MSG("[DBG]");
     assert(engine);
     assert(gp_cache);
 
@@ -996,7 +900,6 @@ dpu_offload_status_t
 host_add_local_rank_to_cache(offloading_engine_t *engine, rank_info_t *rank_info)
 {
     dpu_offload_state_t ret;
-    INFO_MSG("[DBG]");
     peer_cache_entry_t *cache_entry = GET_GROUP_RANK_CACHE_ENTRY(&(engine->procs_cache),
                                                                  rank_info->group_uid,
                                                                  rank_info->group_rank,
@@ -1184,12 +1087,10 @@ do_get_cache_entry_by_group_rank(offloading_engine_t *engine,
 
 dpu_offload_status_t get_cache_entry_by_group_rank(offloading_engine_t *engine, group_uid_t gp_uid, int64_t rank, int64_t sp_idx, request_compl_cb_t cb)
 {
-    //PROGRESS_UNTIL_GROUP_CACHE_FULLY_POPULATED(engine, gp_uid);
     return do_get_cache_entry_by_group_rank(engine, gp_uid, rank, sp_idx, cb, NULL, NULL);
 }
 
 dpu_offload_status_t get_sp_id_by_group_rank(offloading_engine_t *engine, group_uid_t gp_uid, int64_t rank, int64_t sp_idx, int64_t *sp_id, dpu_offload_event_t **ev)
 {
-    //PROGRESS_UNTIL_GROUP_CACHE_FULLY_POPULATED(engine, gp_uid);
     return do_get_cache_entry_by_group_rank(engine, gp_uid, rank, sp_idx, NULL, sp_id, ev);
 }
