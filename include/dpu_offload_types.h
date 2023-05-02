@@ -120,6 +120,53 @@ typedef enum
     _ep;                                                                                        \
 })
 
+
+/**
+ * @brief Translate the local SP ID received in the header of a notification to a global ID
+ *
+ * @param[in] __econtext Execution context on which we received the header
+ * @param[in] __local_id Local identifier from the header
+ * @return uint64_t Associated global identifier
+ */
+#define LOCAL_ID_TO_GLOBAL(__econtext, __local_id) ({                                       \
+    uint64_t _global_id = UINT64_MAX;                                                       \
+    switch ((__econtext)->type)                                                             \
+    {                                                                                       \
+    case CONTEXT_SERVER:                                                                    \
+    {                                                                                       \
+        peer_info_t *_c = NULL;                                                             \
+        _c = DYN_ARRAY_GET_ELT(&((__econtext)->server->connected_clients.clients),          \
+                               (__local_id),                                                \
+                               peer_info_t);                                                \
+        assert(_c);                                                                         \
+        _global_id = _c->rank_data.group_rank;                                              \
+        break;                                                                              \
+    }                                                                                       \
+    case CONTEXT_CLIENT:                                                                    \
+    {                                                                                       \
+        if ((__econtext)->engine->on_dpu)                                                   \
+            _global_id = (__local_id);                                                      \
+        else                                                                                \
+            _global_id = (__econtext)->client->server_global_id;                            \
+        break;                                                                              \
+    }                                                                                       \
+    case CONTEXT_SELF:                                                                      \
+    {                                                                                       \
+        if ((__econtext)->engine->on_dpu)                                                   \
+            _global_id = (__econtext)->engine->config->local_service_proc.info.global_id;   \
+        else                                                                                \
+            _global_id = 0; /* By default, for comm to self the ID is 0 */                  \
+        break;                                                                              \
+    }                                                                                       \
+    default:                                                                                \
+    {                                                                                       \
+        _global_id = UINT64_MAX;                                                            \
+        break;                                                                              \
+    }                                                                                       \
+    }                                                                                       \
+    _global_id;                                                                             \
+})
+
 // Todo: rename the structure, it is not limited to clients
 typedef struct dest_client
 {

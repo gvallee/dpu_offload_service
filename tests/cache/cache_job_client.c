@@ -8,6 +8,7 @@
 #include <unistd.h>
 
 #include "dpu_offload_service_daemon.h"
+#include "dpu_offload_group_cache.h"
 #include "test_cache_common.h"
 
 /*
@@ -89,10 +90,6 @@ int main(int argc, char **argv)
     fprintf(stderr, "INFO: connecting to DPU %s:%d\n", dpu_config[0].version_1.addr, *connect_port);
 
     group_uid_t guid = 42;
-    group_id_t gp_id = {
-        .id = 42,
-        .lead = 0,
-    };
     rank_info_t my_rank_info = {
         .group_uid = guid,
         .group_rank = my_rank,
@@ -139,7 +136,7 @@ int main(int argc, char **argv)
 
     fprintf(stdout, "\n***********\n");
     fprintf(stdout, "Cache data:\n");
-    display_group_cache(&(offload_engine->procs_cache), gp_id);
+    display_group_cache(&(offload_engine->procs_cache), guid);
     fprintf(stdout, "***********\n");
 
     int64_t target = (my_rank + 1) % group_size;

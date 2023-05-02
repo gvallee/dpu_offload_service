@@ -66,7 +66,7 @@ int main(int argc, char **argv)
         goto error_out;
     }
     
-    rc = send_cache(client, &(offload_engine->procs_cache), remote_ep, ev);
+    rc = send_cache(client, &(offload_engine->procs_cache), remote_ep, client->client->server_id, ev);
     if (rc != DO_SUCCESS)
     {
         fprintf(stderr, "send_cache() failed\n");
