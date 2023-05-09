@@ -465,6 +465,69 @@ dpu_offload_status_t get_cache_entry_by_group_rank(offloading_engine_t *engine, 
  */
 dpu_offload_status_t get_sp_id_by_group_rank(offloading_engine_t *engine, group_uid_t gp_uid, int64_t rank, int64_t sp_idx, int64_t *sp_id, dpu_offload_event_t **ev);
 
+/**
+ * @brief Get the group ranks on a host from the local cache
+ *
+ * @param[in] engine Offloading engine for the query
+ * @param[in] gp_uid Target group's UID
+ * @param[in] host_id Target host ID
+ * @param[in,out] n_ranks Pointer to the variable that will hold the number of ranks on the target host
+ * @param[in,out] ranks Pointer to the dynamic array of int64_t that will store all the ranks
+ * @return dpu_offload_status_t
+ */
+dpu_offload_status_t get_group_ranks_on_host(offloading_engine_t *engine,
+                                             group_uid_t gp_uid,
+                                             uint64_t host_id,
+                                             size_t *n_ranks,
+                                             dyn_array_t *ranks);
+
+/**
+ * @brief Get the list of all local SPs for a given rank in a group.
+ * Note that the function returns all the local SPs, including the SPs
+ * the rank may not be directly connected to.
+ *
+ * @param[in] engine Offloading engine for the query
+ * @param[in] gp_uid Target group's UID
+ * @param[in] rank Target rank in the group
+ * @param[in,out] n_sps Pointer to the variable that will hold the number of local SPs
+ * @param[in,out] sps Pointer to the dunamic array of uint64_t that will store all the service processes global ID
+ * @return dpu_offload_status_t
+ */
+dpu_offload_status_t get_group_rank_sps(offloading_engine_t *engine,
+                                        group_uid_t gp_uid,
+                                        uint64_t rank,
+                                        size_t *n_sps,
+                                        dyn_array_t *sps);
+
+/**
+ * @brief Get the local SPs for a given group. Can be used only is the context of SPs.
+ * This can be used to know how many and which local SPs are involved in a given group.
+ *
+ * @param[in] engine Offloading engine for the query
+ * @param[in] gp_uid Target group's UID
+ * @param[in,out] n_sps Pointer to the variable that will hold the number of local SPs
+ * @param[in,out] sps Pointer to the dunamic array of uint64_t that will store all the service processes global ID
+ * @return dpu_offload_status_t
+ */
+dpu_offload_status_t get_group_local_sps(offloading_engine_t *engine,
+                                         group_uid_t gp_uid,
+                                         size_t *n_sps,
+                                         dyn_array_t *sps);
+
+/**
+ * @brief Get the group rank host identifier from the local cache
+ *
+ * @param[in] engine Offloading engine for the query
+ * @param[in] gp_uid Target group's UID
+ * @param[in] rank Target rank in the group
+ * @param[out] host_id ID of the host where the rank is running (64-bit hash)
+ * @return dpu_offload_status_t
+ */
+dpu_offload_status_t get_group_rank_host(offloading_engine_t *engine,
+                                         group_uid_t gp_uid,
+                                         int64_t rank,
+                                         uint64_t *host_id);
+
 void display_group_cache(cache_t *cache, group_uid_t gp_uid);
 
 #endif // DPU_OFFLOAD_GROUP_CACHE_H_
