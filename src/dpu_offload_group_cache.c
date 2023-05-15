@@ -675,7 +675,6 @@ dpu_offload_status_t get_group_ranks_on_host(offloading_engine_t *engine,
         }
     }
     *n_ranks = num;
-    display_group_cache(&(engine->procs_cache), gp_uid);
     return DO_SUCCESS;
 }
 
