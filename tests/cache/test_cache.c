@@ -548,12 +548,7 @@ int main(int argc, char **argv)
 
     fprintf(stdout, "Populating cache...\n");
     POPULATE_CACHE(offload_engine, CACHE_POPULATION_GROUP_CACHE_ID);
-
-    group_id_t target_group = {
-        .lead = 41,
-        .id = CACHE_POPULATION_GROUP_CACHE_ID,
-    };
-    display_group_cache(&(offload_engine->procs_cache), target_group);
+    display_group_cache(&(offload_engine->procs_cache), CACHE_POPULATION_GROUP_CACHE_ID);
 
     fprintf(stdout, "Checking cache...\n");
     CHECK_CACHE(offload_engine, CACHE_POPULATION_GROUP_CACHE_ID);

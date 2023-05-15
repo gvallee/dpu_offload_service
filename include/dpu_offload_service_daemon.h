@@ -200,15 +200,6 @@ void local_rank_connect_default_callback(void *data);
 dpu_offload_status_t get_local_sp_id(offloading_engine_t *engine, uint64_t global_sp_id, uint64_t *local_sp_id);
 
 /**
- * @brief Translate the local SP ID received in the header of a notification to a global ID
- * 
- * @param[in] econtext Execution context on which we received the header
- * @param[in] local_id Local identifier from the header
- * @return uint64_t Associated global identifier
- */
-uint64_t LOCAL_ID_TO_GLOBAL(execution_context_t *econtext, uint64_t local_id);
-
-/**
  * @brief Send group cache to a specific destination, mainly used to send the cache back to the local ranks.
  *
  * @param econtext Execution context to use to send the message to the service process
@@ -231,7 +222,7 @@ dpu_offload_status_t send_gp_cache_to_host(execution_context_t *econtext, group_
  * @param meta_event Event used to track completion.
  * @return dpu_offload_status_t DO_SUCCESS for success; DO_ERROR if any error occurs
  */
-dpu_offload_status_t send_cache(execution_context_t *econtext, cache_t *cache, ucp_ep_h dest_ep, dpu_offload_event_t *meta_event);
+dpu_offload_status_t send_cache(execution_context_t *econtext, cache_t *cache, ucp_ep_h dest_ep, uint64_t dest_id, dpu_offload_event_t *meta_event);
 
 /**
  * @brief The function sends the cache entries for the local ranks of a group to all other DPUs
@@ -262,51 +253,6 @@ dpu_offload_status_t broadcast_group_cache(offloading_engine_t *engine, group_ui
 dpu_offload_status_t broadcast_group_cache_revoke(offloading_engine_t *engine, group_uid_t group_uid, uint64_t n_ranks);
 
 /**
- * @brief Get the global service process ID (not the group service process global ID) that is associated with a specific rank in a group.
- * The global ID can then be used to look up the corresponding endpoint, for example to issue a XGVMI operation.
- * The global identifier is the identifier set a startup time; it is not a group-level identifier.
- *
- * @param[in] engine Offloading engine for the query
- * @param[in] gp_uid Target group's UID
- * @param[in] rank Target rank in the group
- * @param[in] dpu_idx In case of multiple service processes per host, index of the target shadow service process for the group/rank
- * @param[out] dpu_id Resulting service process identifier
- * @param[out] ev Associated event. If NULL, the DPU identifier is available right away. If not, it is required to call the function again once the event has completed. The caller is in charge of returning the event after completion. The event cannot be added to any list since it is already put on a list.
- * @return dpu_offload_status_t
- */
-dpu_offload_status_t get_sp_id_by_group_rank(offloading_engine_t *engine, group_uid_t gp_uid, int64_t rank, int64_t sp_idx, int64_t *sp_id, dpu_offload_event_t **ev);
-
-/**
- * @brief Get the dpu ID by host rank object. That ID can then be used to look up the corresponding endpoint.
- *
- * @param[in] engine Offloading engine for the query
- * @param[in] gp_uid Target group's UID
- * @param[in] rank Target rank in the group
- * @param[in] sp_idx In case of multiple service processes per host, index of the target shadow service process for the group/rank
- * @param[out] cb Associated callback. If the event completes right away, the callback is still being invoked. The user is in charge of returning the object related to the request.
- * @return dpu_offload_status_t
- *
- * Example:
- *      - To issue the request for the first service process attached to the group/rank `gp_id` and `rank_id`
- *          get_cache_entry_by_group_rank(offload_engine, gp_id, rank_id, 0, my_completion_cb);
- *      - Completion callback example:
- *          void my_completion_cb(void *data)
- *          {
- *              assert(data);
- *              cache_entry_request_t *cache_entry_req = (cache_entry_request_t*)data;
- *              assert(cache_entry_req->offload_engine);
- *              offloading_engine_t *engine = (offloading_engine_t*)cache_entry_req->offload_engine;
- *              ucp_ep_h target_sp_ep = NULL;
- *              execution_context_t *target_sp_econtext = NULL;
- *              uint64_t notif_dest_id;
- *              get_sp_ep_by_id(engine, cache_entry_req->target_sp_idx, &target_sp_econtext, &target_sp_econtext, &notif_dest_id);
- *              assert(target_sp_ep == NULL);
- *              DYN_LIST_RETURN(engine->free_cache_entry_requests, cache_entry_req, item);
- *          }
- */
-dpu_offload_status_t get_cache_entry_by_group_rank(offloading_engine_t *engine, group_uid_t gp_uid, int64_t rank, int64_t sp_idx, request_compl_cb_t cb);
-
-/**
  * @brief Get the service process endpoint by ID object, i.e., the identifier returned by get_sp_id_by_host_rank
  *
  * @param[in] engine Offloading engine for the query
@@ -317,20 +263,6 @@ dpu_offload_status_t get_cache_entry_by_group_rank(offloading_engine_t *engine, 
  * @return dpu_offload_status_t
  */
 dpu_offload_status_t get_sp_ep_by_id(offloading_engine_t *engine, uint64_t sp_id, ucp_ep_h *sp_ep, execution_context_t **econtext_comm, uint64_t *comm_id);
-
-/**
- * @brief Get the group rank host identifier from the local cache
- *
- * @param[in] engine Offloading engine for the query
- * @param[in] gp_uid Target group's UID
- * @param[in] rank Target rank in the group
- * @param[out] host_id ID of the host where the rank is running (64-bit hash)
- * @return dpu_offload_status_t
- */
-dpu_offload_status_t get_group_rank_host(offloading_engine_t *engine,
-                                         group_uid_t gp_uid,
-                                         int64_t rank,
-                                         uint64_t *host_id);
 
 /**
  * @brief Checks whether two ranks of a same group are on the same host.
@@ -347,67 +279,6 @@ bool on_same_host(offloading_engine_t *engine,
                   int64_t rank1,
                   int64_t rank2);
 
-/**
- * @brief Get the group ranks on a host from the local cache
- * 
- * @param[in] engine Offloading engine for the query
- * @param[in] gp_uid Target group's UID
- * @param[in] host_id Target host ID
- * @param[in,out] n_ranks Pointer to the variable that will hold the number of ranks on the target host
- * @param[in,out] ranks Pointer to the dynamic array of int64_t that will store all the ranks
- * @return dpu_offload_status_t 
- */
-dpu_offload_status_t get_group_ranks_on_host(offloading_engine_t *engine,
-                                             group_uid_t gp_uid,
-                                             uint64_t host_id,
-                                             size_t *n_ranks,
-                                             dyn_array_t *ranks);
-
-/**
- * @brief Get the list of all local SPs for a given rank in a group.
- * Note that the function returns all the local SPs, including the SPs
- * the rank may not be directly connected to.
- * 
- * @param[in] engine Offloading engine for the query
- * @param[in] gp_uid Target group's UID
- * @param[in] rank Target rank in the group
- * @param[in,out] n_sps Pointer to the variable that will hold the number of local SPs
- * @param[in,out] sps Pointer to the dunamic array of uint64_t that will store all the service processes global ID
- * @return dpu_offload_status_t 
- */
-dpu_offload_status_t get_group_rank_sps(offloading_engine_t *engine,
-                                        group_uid_t gp_uid,
-                                        uint64_t rank,
-                                        size_t *n_sps,
-                                        dyn_array_t *sps);
-
-/**
- * @brief Get the local SPs for a given group. Can be used only is the context of SPs.
- * This can be used to know how many and which local SPs are involved in a given group.
- * 
- * @param[in] engine Offloading engine for the query
- * @param[in] gp_uid Target group's UID
- * @param[in,out] n_sps Pointer to the variable that will hold the number of local SPs
- * @param[in,out] sps Pointer to the dunamic array of uint64_t that will store all the service processes global ID
- * @return dpu_offload_status_t 
- */
-dpu_offload_status_t get_group_local_sps(offloading_engine_t *engine,
-                                         group_uid_t gp_uid,
-                                         size_t *n_sps,
-                                         dyn_array_t *sps);
-
-/**
- * @brief Checks whether a rank in a given group is in the cache.
- * 
- * @param cache Pointer to the target cache to query
- * @param gp_uid Target group's UID
- * @param rank_id Target rank in the group
- * @param group_size Group size (can be GROUP_SIZE_UNKNOWN)
- * @return true 
- * @return false 
- */
-bool is_in_cache(cache_t *cache, group_uid_t gp_uid, int64_t rank_id, int64_t group_size);
-
 execution_context_t *get_server_servicing_host(offloading_engine_t *engine);
 
 dpu_offload_status_t get_local_service_proc_connect_info(offloading_config_t *cfg, rank_info_t *rank_info, init_params_t *init_params);
@@ -423,7 +294,5 @@ dpu_offload_status_t forward_cache_entry_to_local_sps(offloading_engine_t *engin
     {                                                                       \
         (_init_params)->connected_cb = local_rank_connect_default_callback; \
     } while (0)
-
-void display_group_cache(cache_t *cache, group_id_t gp_id);
 
 #endif // DPU_OFFLOAD_SERVICE_DAEMON_H_
