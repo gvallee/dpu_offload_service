@@ -1061,8 +1061,37 @@ int event_channel_emit(dpu_offload_event_t **event, uint64_t type, ucp_ep_h dest
 
 void event_channels_fini(dpu_offload_ev_sys_t **ev_sys)
 {
+    pending_send_group_add_t *pending_send, *next_pending;
+
     if (ev_sys == NULL || *ev_sys == NULL)
         return;
+
+    // The econtext for the engine default notification system is set to NULL
+    if ((*ev_sys)->econtext != NULL)
+    {
+        // Purge pending send group add messages since they are now irrelevant.
+        // This happens when the app is creating short-lived sub-communicators that
+        // are not used for offloading and destroyed too quickly for revoke message
+        // to go through the entire system before the app termination.
+        ucs_list_for_each_safe(pending_send, next_pending, &((*ev_sys)->econtext->engine->pending_send_group_add_msgs), item)
+        {
+            if (pending_send->ev->event_system == (*ev_sys))
+            {
+                ucs_list_del(&(pending_send->item));
+                if (pending_send->ev->sub_events_initialized)
+                {
+                    dpu_offload_event_t *subev, *next_subev;
+                    ucs_list_for_each_safe (subev, next_subev, &(pending_send->ev->sub_events), item)
+                    {
+                        ucs_list_del(&(subev->item));
+                        event_return(&subev);
+                    }
+                }
+                event_return(&(pending_send->ev));
+                DYN_LIST_RETURN((*ev_sys)->econtext->engine->pool_pending_send_group_add, pending_send, item);
+            }
+        }
+    }
 
     if ((*ev_sys)->num_used_evs > 0)
     {
