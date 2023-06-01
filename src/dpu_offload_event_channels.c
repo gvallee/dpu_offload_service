@@ -317,8 +317,9 @@ static ucs_status_t am_notification_msg_cb(void *arg, const void *header, size_t
     assert(header_length == sizeof(am_header_t));
     offloading_engine_t *engine = (offloading_engine_t *)arg;
     am_header_t *hdr = (am_header_t *)header;
-    assert(hdr != NULL);
 
+    // We always try to receive the RDV message, even if the associated econtext is not
+    // there any more so we can keep UCX happy and avoid resource leaks.
     if (param->recv_attr & UCP_AM_RECV_ATTR_FLAG_RNDV)
     {
         // RDV message
@@ -335,15 +336,30 @@ static ucs_status_t am_notification_msg_cb(void *arg, const void *header, size_t
         return UCS_ERR_NO_MESSAGE;
     }
 
-    if (econtext == NULL && hdr->type == AM_REVOKE_GP_RANK_MSG_ID)
+    assert(hdr);
+    if (econtext == NULL)
     {
-        // The execution context is NULL (fully terminated) and we just
-        // received a group revoke message. It is not something that is
-        // unexpected: when the world group is revoked during finalization,
-        // the client may get terminated before we get the ACK (this notification).
-        // We can safely drop the notification
-        DBG("Safely dropping the group revoke notification since execution context is terminated");
-        return UCS_OK;
+        if (hdr->type == AM_REVOKE_GP_RANK_MSG_ID)
+        {
+            // The execution context is NULL (fully terminated) and we just
+            // received a group revoke message. It is not something that is
+            // unexpected: when the world group is revoked during finalization,
+            // the client may get terminated before we get the ACK (this notification).
+            // We can safely drop the notification
+            DBG("Safely dropping the group revoke notification since execution context is terminated");
+            return UCS_OK;
+        }
+        if (hdr->type == AM_PEER_CACHE_ENTRIES_MSG_ID)
+        {
+            // The execution context is NULL (fully terminated) and we just received
+            // a cache entry. It is nnot something that is unexpected: the creation of
+            // group is now totally asynchronous, meaning group can be created and cache
+            // entries sent around as the application is running. Meanwhile, the
+            // application is free to terminate, group revoke being a local operation.
+            // In such a case, we may receive a cache entry after the econtext terminated.
+            DBG("Safely dropping the cache entry notification since execution context is terminated");
+            return UCS_OK;
+        }
     }
     assert(econtext);
     if (econtext->event_channels == NULL)
