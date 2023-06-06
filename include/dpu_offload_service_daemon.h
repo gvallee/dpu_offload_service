@@ -264,21 +264,6 @@ dpu_offload_status_t broadcast_group_cache_revoke(offloading_engine_t *engine, g
  */
 dpu_offload_status_t get_sp_ep_by_id(offloading_engine_t *engine, uint64_t sp_id, ucp_ep_h *sp_ep, execution_context_t **econtext_comm, uint64_t *comm_id);
 
-/**
- * @brief Checks whether two ranks of a same group are on the same host.
- * 
- * @param[in] engine Offloading engine for the query
- * @param[in] gp_uid Target group's UID
- * @param[in] rank1 First rank to use for the comparison
- * @param[in] rank2 Second rank to use for the comparison
- * @return false if the two ranks are not on the same host or in the context of an error
- * @return true if the two ranks are on the same host
- */
-bool on_same_host(offloading_engine_t *engine,
-                  group_uid_t gp_uid,
-                  int64_t rank1,
-                  int64_t rank2);
-
 execution_context_t *get_server_servicing_host(offloading_engine_t *engine);
 
 dpu_offload_status_t get_local_service_proc_connect_info(offloading_config_t *cfg, rank_info_t *rank_info, init_params_t *init_params);

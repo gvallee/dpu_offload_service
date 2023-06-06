@@ -525,6 +525,21 @@ dpu_offload_status_t test_topo_api(offloading_engine_t *engine)
         return DO_ERROR;
     }
 
+    target_rank = 9;
+    rc = get_group_rank_sps(engine, gpuid, target_rank, &num_sps, sps);
+    if (rc != DO_SUCCESS)
+    {
+        fprintf(stderr, "ERROR: unable to get the list of SPs for rank %" PRId64 "\n", target_rank);
+        return DO_ERROR;
+    }
+    fprintf(stdout, "-> The host of rank %" PRId64 " has %ld associated SPs\n", target_rank, num_sps);
+    if (num_sps != expected_number_of_sps_per_host)
+    {
+        fprintf(stderr, "ERROR: The host of rank %" PRId64 " is reported has having %ld associated SPs instead of %ld\n",
+                target_rank, num_sps, expected_number_of_sps_per_host);
+        return DO_ERROR;
+    }
+
     return DO_SUCCESS;
 }
 
