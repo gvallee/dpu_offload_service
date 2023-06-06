@@ -282,6 +282,7 @@ dpu_offload_status_t test_topo_api(offloading_engine_t *engine)
     dpu_offload_status_t rc;
     size_t expected_number_of_sps_per_host = NUM_FAKE_DPU_PER_HOST * NUM_FAKE_SP_PER_DPU;
     size_t expected_number_of_ranks_per_host = NUM_FAKE_DPU_PER_HOST * NUM_FAKE_SP_PER_DPU * NUM_FAKE_RANKS_PER_SP;
+    bool ranks_associated_to_sp = false;
 
     assert(engine);
     fprintf(stdout, "Testing the topo API...\n");
@@ -526,7 +527,7 @@ dpu_offload_status_t test_topo_api(offloading_engine_t *engine)
     }
 
     target_rank = 9;
-    rc = get_group_rank_sps(engine, gpuid, target_rank, &num_sps, sps);
+    rc = get_group_rank_sps(engine, gpuid, target_rank, &num_sps, &sps);
     if (rc != DO_SUCCESS)
     {
         fprintf(stderr, "ERROR: unable to get the list of SPs for rank %" PRId64 "\n", target_rank);
@@ -537,6 +538,23 @@ dpu_offload_status_t test_topo_api(offloading_engine_t *engine)
     {
         fprintf(stderr, "ERROR: The host of rank %" PRId64 " is reported has having %ld associated SPs instead of %ld\n",
                 target_rank, num_sps, expected_number_of_sps_per_host);
+        return DO_ERROR;
+    }
+
+    // Rank 1 and 2 are not supposed to be associated to the same SP
+    fprintf(stdout, "-> testing on_same_sp()...\n");
+    ranks_associated_to_sp = on_same_sp(engine, gpuid, 1, 2);
+    if (ranks_associated_to_sp)
+    {
+        fprintf(stderr, "ERROR: rank 1 and 2 are reported as associated to the same SP\n");
+        return DO_ERROR;
+    }
+
+    // Rank 1 and 3 are supposed to be associated to the same SP
+    ranks_associated_to_sp = on_same_sp(engine, gpuid, 1, 3);
+    if (!ranks_associated_to_sp)
+    {
+        fprintf(stderr, "ERROR: rank1 and 2 are reported as not associated to the same SP\n");
         return DO_ERROR;
     }
 

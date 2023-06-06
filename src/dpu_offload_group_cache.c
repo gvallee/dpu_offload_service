@@ -765,7 +765,7 @@ dpu_offload_status_t get_group_rank_sps(offloading_engine_t *engine,
                                         group_uid_t gp_uid,
                                         uint64_t rank,
                                         size_t *n_sps,
-                                        dyn_array_t *sps)
+                                        dyn_array_t **sps)
 {
     dpu_offload_status_t rc;
     uint64_t host_id;
@@ -794,7 +794,7 @@ dpu_offload_status_t get_group_rank_sps(offloading_engine_t *engine,
     host_info = GET_GROUP_HOST_HASH_ENTRY(gp, host_id);
     assert(host_info);
     *n_sps = host_info->num_sps;
-    sps = &(host_info->sps);
+    *sps = &(host_info->sps);
     return DO_SUCCESS;
 }
 
@@ -1276,17 +1276,14 @@ bool on_same_host(offloading_engine_t *engine,
     return false;
 }
 
-#if 0
 bool on_same_sp(offloading_engine_t *engine,
                 group_uid_t gp_uid,
                 int64_t rank1,
                 int64_t rank2)
 {
-    dpu_offload_status_t rc;
-    size_t rank1_n_sps;
     size_t rank1_sp_idx;
-    dyn_array_t *rank1_sps = NULL;
     group_cache_t *gp_cache = NULL;
+    peer_cache_entry_t *rank1_data = NULL;
     assert(engine);
 
     // Get rank1's SPs data from the hash
@@ -1296,32 +1293,26 @@ bool on_same_sp(offloading_engine_t *engine,
     if (!gp_cache->lookup_tables_populated)
     {
         dpu_offload_status_t rc;
-        fprintf(stderr, "Cache not populated\n");
         rc = do_populate_group_cache_lookup_table(engine, gp_cache);
         if (rc != DO_SUCCESS)
         {
             ERR_MSG("ERROR: populate_group_cache_lookup_table() failed: %d\n", rc);
         }
     }
-    rc = get_group_rank_sps(engine, gp_uid, rank1, &rank1_n_sps, rank1_sps);
-    if (rc != DO_SUCCESS)
-        return false;
 
-    for (rank1_sp_idx = 0; rank1_sp_idx < rank1_n_sps; rank1_sp_idx++)
+    rank1_data = DYN_ARRAY_GET_ELT(&(gp_cache->ranks), rank1, peer_cache_entry_t);
+    assert(rank1_data);
+
+    for (rank1_sp_idx = 0; rank1_sp_idx < rank1_data->num_shadow_service_procs; rank1_sp_idx++)
     {
-        uint64_t *sp_gid;
         sp_cache_data_t *sp_info = NULL;
-        sp_gid = DYN_ARRAY_GET_ELT(rank1_sps, rank1_sp_idx, uint64);
-        assert(sp_info);
-
-        sp_info = GET_GROUP_SP_HASH_ENTRY(gp_cache, (*sp_gid));
+        sp_info = GET_GROUP_SP_HASH_ENTRY(gp_cache, rank1_data->shadow_service_procs[rank1_sp_idx]);
         assert(sp_info);
 
         // Check if rank2 is the bitset of the ranks associated to the service process
-        if (GROUP_CACHE_BITSET_TEST(&(sp_info->ranks_bitset), rank2))
+        if (GROUP_CACHE_BITSET_TEST(sp_info->ranks_bitset, rank2))
             return true;
     }
     
     return false;
 }
-#endif
