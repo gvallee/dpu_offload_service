@@ -463,7 +463,12 @@ dpu_offload_status_t get_cache_entry_by_group_rank(offloading_engine_t *engine, 
  * @param[out] ev Associated event. If NULL, the DPU identifier is available right away. If not, it is required to call the function again once the event has completed. The caller is in charge of returning the event after completion. The event cannot be added to any list since it is already put on a list.
  * @return dpu_offload_status_t
  */
-dpu_offload_status_t get_sp_id_by_group_rank(offloading_engine_t *engine, group_uid_t gp_uid, int64_t rank, int64_t sp_idx, int64_t *sp_id, dpu_offload_event_t **ev);
+dpu_offload_status_t get_sp_id_by_group_rank(offloading_engine_t *engine,
+                                             group_uid_t gp_uid,
+                                             int64_t rank,
+                                             int64_t sp_idx,
+                                             int64_t *sp_id,
+                                             dpu_offload_event_t **ev);
 
 /**
  * @brief Get the group ranks on a host from the local cache
@@ -490,14 +495,14 @@ dpu_offload_status_t get_group_ranks_on_host(offloading_engine_t *engine,
  * @param[in] gp_uid Target group's UID
  * @param[in] rank Target rank in the group
  * @param[in,out] n_sps Pointer to the variable that will hold the number of local SPs
- * @param[in,out] sps Pointer to the dunamic array of uint64_t that will store all the service processes global ID
+ * @param[in,out] sps Pointer to the dynamic array of uint64_t that will store all the service processes global ID
  * @return dpu_offload_status_t
  */
 dpu_offload_status_t get_group_rank_sps(offloading_engine_t *engine,
                                         group_uid_t gp_uid,
                                         uint64_t rank,
                                         size_t *n_sps,
-                                        dyn_array_t *sps);
+                                        dyn_array_t **sps);
 
 /**
  * @brief Get the local SPs for a given group. Can be used only is the context of SPs.
@@ -527,6 +532,36 @@ dpu_offload_status_t get_group_rank_host(offloading_engine_t *engine,
                                          group_uid_t gp_uid,
                                          int64_t rank,
                                          uint64_t *host_id);
+
+/**
+ * @brief Checks whether two ranks of a same group are on the same host.
+ * 
+ * @param[in] engine Offloading engine for the query
+ * @param[in] gp_uid Target group's UID
+ * @param[in] rank1 First rank to use for the comparison
+ * @param[in] rank2 Second rank to use for the comparison
+ * @return false if the two ranks are not on the same host or in the context of an error
+ * @return true if the two ranks are on the same host
+ */
+bool on_same_host(offloading_engine_t *engine,
+                  group_uid_t gp_uid,
+                  int64_t rank1,
+                  int64_t rank2);
+
+/**
+ * @brief Checks whether two ranks of a same group are associated to the same service process
+ * 
+ * @param[in] engine Offloading engine for the query
+ * @param[in] gp_uid Target group's UID
+ * @param[in] rank1 First rank to use for the comparison
+ * @param[in] rank2 Second rank to use for the comparison
+ * @return false if the two ranks are not associated to the same service process or in the context of an error
+ * @return true if the two ranks are associated to the same service process
+ */
+bool on_same_sp(offloading_engine_t *engine,
+                group_uid_t gp_uid,
+                int64_t rank1,
+                int64_t rank2);
 
 void display_group_cache(cache_t *cache, group_uid_t gp_uid);
 

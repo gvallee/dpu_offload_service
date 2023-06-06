@@ -772,25 +772,6 @@ dpu_offload_status_t broadcast_group_cache(offloading_engine_t *engine, group_ui
     return DO_SUCCESS;
 }
 
-bool on_same_host(offloading_engine_t *engine,
-                  group_uid_t gp_uid,
-                  int64_t rank1,
-                  int64_t rank2)
-{
-    uint64_t host1, host2;
-    dpu_offload_status_t rc;
-    assert(engine);
-    rc = get_group_rank_host(engine, gp_uid, rank1, &host1);
-    if (rc != DO_SUCCESS)
-        return false;
-    rc = get_group_rank_host(engine, gp_uid, rank2, &host2);
-    if (rc != DO_SUCCESS)
-        return false;
-    if (host1 == host2)
-        return true;
-    return false;
-}
-
 dpu_offload_status_t get_sp_ep_by_id(offloading_engine_t *engine, uint64_t sp_id, ucp_ep_h *sp_ep, execution_context_t **econtext_comm, uint64_t *comm_id)
 {
     CHECK_ERR_RETURN((engine == NULL), DO_ERROR, "engine is undefined");

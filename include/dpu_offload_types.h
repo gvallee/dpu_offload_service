@@ -1808,8 +1808,8 @@ typedef struct hosts_cache_data
     // involved in the group (type: sp_cache_data_t *)
     dyn_array_t sps;
 
-    // Bitset to track which ranks on the host are involved in thr group
-    group_cache_bitset_t *ranks_bitset; // FIXME write code for this
+    // Bitset to track which ranks on the host are involved in the group
+    group_cache_bitset_t *ranks_bitset;
 } host_cache_data_t;
 
 #define RESET_HOST_CACHE_DATA(_host_data)  \

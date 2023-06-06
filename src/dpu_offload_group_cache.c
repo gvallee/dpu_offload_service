@@ -118,6 +118,7 @@ get_local_sp_id_by_group(offloading_engine_t *engine,
         if (rc != DO_SUCCESS)
         {
             ERR_MSG("ERROR: populate_group_cache_lookup_table() failed: %d\n", rc);
+            return rc;
         }
     }
 
@@ -150,6 +151,7 @@ get_host_idx_by_group(offloading_engine_t *engine,
         if (rc != DO_SUCCESS)
         {
             ERR_MSG("ERROR: populate_group_cache_lookup_table() failed: %d\n", rc);
+            return rc;
         }
     }
 
@@ -191,6 +193,7 @@ get_num_sps_by_group_host_idx(offloading_engine_t *engine,
         if (rc != DO_SUCCESS)
         {
             ERR_MSG("ERROR: populate_group_cache_lookup_table() failed: %d\n", rc);
+            return rc;
         }
     }
 
@@ -225,6 +228,7 @@ get_num_ranks_for_group_sp(offloading_engine_t *engine,
         if (rc != DO_SUCCESS)
         {
             ERR_MSG("ERROR: populate_group_cache_lookup_table() failed: %d\n", rc);
+            return rc;
         }
     }
 
@@ -259,6 +263,7 @@ get_num_ranks_for_group_host_local_sp(offloading_engine_t *engine,
         if (rc != DO_SUCCESS)
         {
             ERR_MSG("ERROR: populate_group_cache_lookup_table() failed: %d\n", rc);
+            return rc;
         }
     }
 
@@ -299,6 +304,7 @@ get_num_ranks_for_group_host_idx(offloading_engine_t *engine,
         if (rc != DO_SUCCESS)
         {
             ERR_MSG("ERROR: populate_group_cache_lookup_table() failed: %d\n", rc);
+            return rc;
         }
     }
 
@@ -335,6 +341,7 @@ get_rank_idx_by_group_host_idx(offloading_engine_t *engine,
         if (rc != DO_SUCCESS)
         {
             ERR_MSG("ERROR: populate_group_cache_lookup_table() failed: %d\n", rc);
+            return rc;
         }
     }
 
@@ -385,6 +392,7 @@ get_rank_idx_by_group_sp_id(offloading_engine_t *engine,
         if (rc != DO_SUCCESS)
         {
             ERR_MSG("ERROR: populate_group_cache_lookup_table() failed: %d\n", rc);
+            return rc;
         }
     }
 
@@ -432,6 +440,7 @@ get_all_sps_by_group_host_idx(offloading_engine_t *engine,
         if (rc != DO_SUCCESS)
         {
             ERR_MSG("ERROR: populate_group_cache_lookup_table() failed: %d\n", rc);
+            return rc;
         }
     }
 
@@ -463,6 +472,7 @@ get_all_hosts_by_group(offloading_engine_t *engine,
         if (rc != DO_SUCCESS)
         {
             ERR_MSG("ERROR: populate_group_cache_lookup_table() failed: %d\n", rc);
+            return rc;
         }
     }
 
@@ -493,6 +503,7 @@ get_all_ranks_by_group_sp_gid(offloading_engine_t *engine,
         if (rc != DO_SUCCESS)
         {
             ERR_MSG("ERROR: populate_group_cache_lookup_table() failed: %d\n", rc);
+            return rc;
         }
     }
 
@@ -531,6 +542,7 @@ get_all_ranks_by_group_sp_lid(offloading_engine_t *engine,
         if (rc != DO_SUCCESS)
         {
             ERR_MSG("ERROR: populate_group_cache_lookup_table() failed: %d\n", rc);
+            return rc;
         }
     }
 
@@ -571,6 +583,7 @@ get_nth_sp_by_group_host_idx(offloading_engine_t *engine,
         if (rc != DO_SUCCESS)
         {
             ERR_MSG("ERROR: populate_group_cache_lookup_table() failed: %d\n", rc);
+            return rc;
         }
     }
 
@@ -609,6 +622,7 @@ dpu_offload_status_t get_sp_group_gid(offloading_engine_t *engine,
         if (rc != DO_SUCCESS)
         {
             ERR_MSG("ERROR: populate_group_cache_lookup_table() failed: %d\n", rc);
+            return rc;
         }
     }
 
@@ -658,6 +672,7 @@ dpu_offload_status_t get_group_ranks_on_host(offloading_engine_t *engine,
         if (rc != DO_SUCCESS)
         {
             ERR_MSG("ERROR: populate_group_cache_lookup_table() failed: %d\n", rc);
+            return rc;
         }
     }
 
@@ -701,6 +716,7 @@ dpu_offload_status_t get_group_local_sps(offloading_engine_t *engine,
         if (rc != DO_SUCCESS)
         {
             ERR_MSG("ERROR: populate_group_cache_lookup_table() failed: %d\n", rc);
+            return rc;
         }
     }
 
@@ -749,16 +765,12 @@ dpu_offload_status_t get_group_rank_sps(offloading_engine_t *engine,
                                         group_uid_t gp_uid,
                                         uint64_t rank,
                                         size_t *n_sps,
-                                        dyn_array_t *sps)
+                                        dyn_array_t **sps)
 {
     dpu_offload_status_t rc;
     uint64_t host_id;
     group_cache_t *gp = NULL;
-    size_t num = 0, i;
 
-    *n_sps = 0;
-    rc = get_group_rank_host(engine, gp_uid, rank, &host_id);
-    CHECK_ERR_RETURN((rc), DO_ERROR, "get_group_rank_host() failed");
     gp = GET_GROUP_CACHE(&(engine->procs_cache), gp_uid);
     assert(gp);
 
@@ -769,27 +781,20 @@ dpu_offload_status_t get_group_rank_sps(offloading_engine_t *engine,
         if (rc != DO_SUCCESS)
         {
             ERR_MSG("ERROR: populate_group_cache_lookup_table() failed: %d\n", rc);
+            return rc;
         }
     }
 
-    for (i = 0; i < gp->group_size; i++)
-    {
-        peer_cache_entry_t *peer;
-        peer = GET_GROUP_RANK_CACHE_ENTRY(&(engine->procs_cache), gp_uid, i, GROUP_SIZE_UNKNOWN);
-        if (peer->peer.host_info == host_id)
-        {
-            size_t sp_idx;
-            for (sp_idx = 0; sp_idx < peer->num_shadow_service_procs; sp_idx++)
-            {
-                uint64_t *sp_id_entry = NULL;
-                sp_id_entry = DYN_ARRAY_GET_ELT(sps, num, uint64_t);
-                assert(sp_id_entry);
-                *sp_id_entry = peer->shadow_service_procs[sp_idx];
-                num++;
-            }
-        }
-    }
-    *n_sps = num;
+    *n_sps = 0;
+    rc = get_group_rank_host(engine, gp_uid, rank, &host_id);
+    CHECK_ERR_RETURN((rc), DO_ERROR, "get_group_rank_host() failed");
+
+
+    host_cache_data_t *host_info = NULL;
+    host_info = GET_GROUP_HOST_HASH_ENTRY(gp, host_id);
+    assert(host_info);
+    *n_sps = host_info->num_sps;
+    *sps = &(host_info->sps);
     return DO_SUCCESS;
 }
 
@@ -1249,4 +1254,65 @@ dpu_offload_status_t get_cache_entry_by_group_rank(offloading_engine_t *engine, 
 dpu_offload_status_t get_sp_id_by_group_rank(offloading_engine_t *engine, group_uid_t gp_uid, int64_t rank, int64_t sp_idx, int64_t *sp_id, dpu_offload_event_t **ev)
 {
     return do_get_cache_entry_by_group_rank(engine, gp_uid, rank, sp_idx, NULL, sp_id, ev);
+}
+
+
+bool on_same_host(offloading_engine_t *engine,
+                  group_uid_t gp_uid,
+                  int64_t rank1,
+                  int64_t rank2)
+{
+    uint64_t host1, host2;
+    dpu_offload_status_t rc;
+    assert(engine);
+    rc = get_group_rank_host(engine, gp_uid, rank1, &host1);
+    if (rc != DO_SUCCESS)
+        return false;
+    rc = get_group_rank_host(engine, gp_uid, rank2, &host2);
+    if (rc != DO_SUCCESS)
+        return false;
+    if (host1 == host2)
+        return true;
+    return false;
+}
+
+bool on_same_sp(offloading_engine_t *engine,
+                group_uid_t gp_uid,
+                int64_t rank1,
+                int64_t rank2)
+{
+    size_t rank1_sp_idx;
+    group_cache_t *gp_cache = NULL;
+    peer_cache_entry_t *rank1_data = NULL;
+    assert(engine);
+
+    // Get rank1's SPs data from the hash
+    gp_cache = GET_GROUP_CACHE(&(engine->procs_cache), gp_uid);
+    assert(gp_cache);
+
+    if (!gp_cache->lookup_tables_populated)
+    {
+        dpu_offload_status_t rc;
+        rc = do_populate_group_cache_lookup_table(engine, gp_cache);
+        if (rc != DO_SUCCESS)
+        {
+            ERR_MSG("ERROR: populate_group_cache_lookup_table() failed: %d\n", rc);
+        }
+    }
+
+    rank1_data = DYN_ARRAY_GET_ELT(&(gp_cache->ranks), rank1, peer_cache_entry_t);
+    assert(rank1_data);
+
+    for (rank1_sp_idx = 0; rank1_sp_idx < rank1_data->num_shadow_service_procs; rank1_sp_idx++)
+    {
+        sp_cache_data_t *sp_info = NULL;
+        sp_info = GET_GROUP_SP_HASH_ENTRY(gp_cache, rank1_data->shadow_service_procs[rank1_sp_idx]);
+        assert(sp_info);
+
+        // Check if rank2 is the bitset of the ranks associated to the service process
+        if (GROUP_CACHE_BITSET_TEST(sp_info->ranks_bitset, rank2))
+            return true;
+    }
+    
+    return false;
 }
