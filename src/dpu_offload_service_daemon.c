@@ -1083,7 +1083,7 @@ dpu_offload_status_t offload_engine_init(offloading_engine_t **engine)
     DBG("execution context created (econtext: %p, scope_id: %d)", self_econtext, self_econtext->scope_id);
     d->self_econtext = self_econtext;
     rc = event_channels_init(self_econtext);
-    CHECK_ERR_GOTO((rc), error_out, "event_channel_init() failed");
+    CHECK_ERR_GOTO((rc), error_out, "event_channels_init() failed");
     CHECK_ERR_GOTO((self_econtext->event_channels == NULL), error_out, "event channel handle is undefined");
     self_econtext->event_channels->econtext = self_econtext;
     DBG("event channel %p successfully initialized (econtext: %p, scope_id: %d)",
@@ -1931,7 +1931,7 @@ execution_context_t *client_init(offloading_engine_t *offload_engine, init_param
     DBG("client context successfully initialized (econtext=%p)", ctx);
 
     rc = event_channels_init(ctx);
-    CHECK_ERR_GOTO((rc), error_out, "event_channel_init() failed");
+    CHECK_ERR_GOTO((rc), error_out, "event_channels_init() failed");
     CHECK_ERR_GOTO((ctx->event_channels == NULL), error_out, "event channel object is undefined");
     ctx->client->event_channels = ctx->event_channels;
     ctx->client->event_channels->econtext = (struct execution_context *)ctx;
@@ -2565,7 +2565,7 @@ execution_context_t *server_init(offloading_engine_t *offloading_engine, init_pa
     offloading_engine->num_servers++;
 
     rc = event_channels_init(execution_context);
-    CHECK_ERR_GOTO((rc), error_out, "event_channel_init() failed");
+    CHECK_ERR_GOTO((rc), error_out, "event_channels_init() failed");
     CHECK_ERR_GOTO((execution_context->event_channels == NULL), error_out, "event channel handle is undefined");
     DBG("event channel %p successfully initialized (econtext: %p, scope_id: %d)",
         execution_context->event_channels,
