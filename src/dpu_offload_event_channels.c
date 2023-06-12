@@ -1095,7 +1095,7 @@ void event_channels_fini(dpu_offload_ev_sys_t **ev_sys)
 
     if ((*ev_sys)->num_used_evs > 0)
     {
-        WARN_MSG("%ld events objects have not been returned", (*ev_sys)->num_used_evs);
+        WARN_MSG("%ld events objects have not been returned (event system %p)", (*ev_sys)->num_used_evs, (*ev_sys));
     }
 
 #if USE_AM_IMPLEM
