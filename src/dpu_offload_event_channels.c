@@ -1095,7 +1095,9 @@ void event_channels_fini(dpu_offload_ev_sys_t **ev_sys)
 
     if ((*ev_sys)->num_used_evs > 0)
     {
-        WARN_MSG("%ld events objects have not been returned (event system %p)", (*ev_sys)->num_used_evs, (*ev_sys));
+        WARN_MSG("%ld events objects have not been returned (event system %p; econtext: %p)",
+                 (*ev_sys)->num_used_evs, (*ev_sys), (*ev_sys)->econtext);
+        DISPLAY_ECONTEXT_ONGOING_EVTS((*ev_sys)->econtext);
     }
 
 #if USE_AM_IMPLEM
@@ -1209,8 +1211,9 @@ static dpu_offload_status_t do_event_return(dpu_offload_event_t *ev)
         return EVENT_INPROGRESS;
     }
 
+    // Note that the type can be equal to UINT64_MAX since it is perfectly okay
+    // to get a new event and return it without using it.
     assert(EVENT_HDR_TYPE(ev) > 0);
-    assert(EVENT_HDR_TYPE(ev) != UINT64_MAX);
 
     // If the event has a payload buffer that the library is managing, free that buffer
     if (ev->manage_payload_buf && ev->payload != NULL)
