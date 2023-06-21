@@ -114,11 +114,11 @@ int main(int argc, char **argv)
     }
     fprintf(stderr, "Connections between DPUs successfully initialized\n");
 
-    RESET_NOTIF_INFO(&(ev_info.pool));
-    ev_info.pool.mem_pool = mem_pool;
-    ev_info.pool.get_buf = mem_pool_buf_get;
-    ev_info.pool.return_buf = mem_pool_buf_return;
-    ev_info.pool.element_size = sizeof(my_struct_t);
+    RESET_NOTIF_INFO(&(ev_info.payload.buffer.pool));
+    ev_info.payload.buffer.pool.mem_pool = mem_pool;
+    ev_info.payload.buffer.pool.get_buf = mem_pool_buf_get;
+    ev_info.payload.buffer.pool.return_buf = mem_pool_buf_return;
+    ev_info.payload.buffer.pool.element_size = sizeof(my_struct_t);
     /* A bunch of notifications to self */
     for (n = 0; n < NUM_NOTIFS; n++)
     {

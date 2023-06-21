@@ -171,9 +171,9 @@ static bool event_posted(dpu_offload_event_t *ev)
         if (!event_completed((__ev)) && CAN_POST((__ev)->event_system) && !event_posted((__ev))) \
         {                                                                                        \
             int rc;                                                                              \
-            rc = do_am_send_event_msg((__ev));                                                   \
+            rc = do_am_send_event_buffer((__ev));                                                   \
             if (rc != EVENT_DONE && rc != EVENT_INPROGRESS)                                      \
-                ERR_MSG("do_am_send_event_msg() failed");                                        \
+                ERR_MSG("do_am_send_event_buffer() failed");                                        \
         }                                                                                        \
         /* Now check if it is completed */                                                       \
         if (event_completed((__ev)))                                                             \

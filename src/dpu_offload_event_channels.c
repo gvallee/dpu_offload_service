@@ -703,7 +703,42 @@ static void notif_payload_send_cb(void *request, ucs_status_t status, void *user
 
 #if USE_AM_IMPLEM
 uint64_t num_ev_sent = 0;
-int do_am_send_event_msg(dpu_offload_event_t *event)
+
+#define HANDLE_EVENT_REQ_UPON_SEND                                                  \
+    do                                                                              \
+    {                                                                               \
+        DBG("Event %p %" PRIu64 " successfully emitted",                            \
+            (event), EVENT_HDR_SEQ_NUM(event));                                     \
+        num_ev_sent++;                                                              \
+        if (UCS_PTR_IS_ERR(event->req))                                             \
+        {                                                                           \
+            ERR_MSG("ucp_am_send_nbx() failed");                                    \
+            return UCS_PTR_STATUS(event->req);                                      \
+        }                                                                           \
+                                                                                    \
+        if (event->req == NULL)                                                     \
+        {                                                                           \
+            event->ctx.complete = true;                                             \
+            return EVENT_DONE;                                                      \
+        }                                                                           \
+                                                                                    \
+        DBG("ucp_am_send_nbx() did not completed right away (ev %p %" PRIu64 ")",   \
+            event, EVENT_HDR_SEQ_NUM(event));                                       \
+        SYS_EVENT_LOCK(event->event_system);                                        \
+        event->event_system->posted_sends++;                                        \
+        SYS_EVENT_UNLOCK(event->event_system);                                      \
+        event->was_posted = true;                                                   \
+        return EVENT_INPROGRESS;                                                    \
+    } while (0)
+
+void notification_iovec_emit_cb(void *request, ucs_status_t status)
+{
+    assert(request);
+    assert(status == UCS_OK);
+    ucp_request_free(request);
+}
+
+int do_am_send_event_buffer(dpu_offload_event_t *event)
 {
     ucp_request_param_t params;
     params.op_attr_mask = UCP_OP_ATTR_FIELD_CALLBACK |
@@ -720,26 +755,19 @@ int do_am_send_event_msg(dpu_offload_event_t *event)
                                  event->payload,
                                  EVENT_HDR_PAYLOAD_SIZE(event),
                                  &params);
-    DBG("Event %p %" PRIu64 " successfully emitted", (event), EVENT_HDR_SEQ_NUM(event));
-    num_ev_sent++;
-    if (UCS_PTR_IS_ERR(event->req))
-    {
-        ERR_MSG("ucp_am_send_nbx() failed");
-        return UCS_PTR_STATUS(event->req);
-    }
+    HANDLE_EVENT_REQ_UPON_SEND;
+}
 
-    if (event->req == NULL)
-    {
-        event->ctx.complete = true;
-        return EVENT_DONE;
-    }
-
-    DBG("ucp_am_send_nbx() did not completed right away (ev %p %" PRIu64 ")", event, EVENT_HDR_SEQ_NUM(event));
-    SYS_EVENT_LOCK(event->event_system);
-    event->event_system->posted_sends++;
-    SYS_EVENT_UNLOCK(event->event_system);
-    event->was_posted = true;
-    return EVENT_INPROGRESS;
+int do_am_send_event_iovec(dpu_offload_event_t *event)
+{
+    event->req = ucp_am_send_nb(event->dest.ep,
+                                AM_IOVEC_EVENT_MSG_ID,
+                                event->iovec.ptr,
+                                event->iovec.count,
+                                event->iovec.datatype,
+                                notification_iovec_emit_cb,
+                                0);
+    HANDLE_EVENT_REQ_UPON_SEND;
 }
 
 int am_send_event_msg(dpu_offload_event_t **event)
@@ -747,7 +775,22 @@ int am_send_event_msg(dpu_offload_event_t **event)
     int rc;
     PREP_EVENT_FOR_EMIT(*event);
     (*event)->ctx.hdr.scope_id = (*event)->scope_id;
-    rc = do_am_send_event_msg(*event);
+
+    switch ((*event)->payload_type)
+    {
+    case EVENT_PAYLOAD_IS_BUFFER:
+        rc = do_am_send_event_buffer(*event);
+        break;
+
+    case EVENT_PAYLOAD_IS_IOVEC:
+        rc = do_am_send_event_iovec(*event);
+        break;
+    
+    default:
+        ERR_MSG("invalid payload type: %d\n", (*event)->payload_type);
+        return DO_ERROR;
+    }
+
     if ((rc == EVENT_DONE || rc == EVENT_INPROGRESS) && (*event)->req == NULL)
     {
         // No error
@@ -768,7 +811,7 @@ int am_send_event_msg(dpu_offload_event_t **event)
 
     return rc;
 }
-#else
+#else // USE_AM_IMPLEM
 int do_tag_send_event_msg(dpu_offload_event_t *event)
 {
     int rc = EVENT_INPROGRESS;
@@ -1153,34 +1196,47 @@ dpu_offload_status_t event_get(dpu_offload_ev_sys_t *ev_sys, dpu_offload_event_i
         if (info != NULL)
         {
             _ev->explicit_return = info->explicit_return;
+            _ev->payload_type = info->payload_type;
         }
+        else
+            _ev->payload_type = EVENT_PAYLOAD_IS_BUFFER;
 
-        if (info == NULL || (info->pool.mem_pool == NULL && info->payload_size == 0))
+        if (info == NULL || (info->payload.buffer.pool.mem_pool == NULL && info->payload.buffer.size == 0))
         {
             // The library does not need to do anything for the payload buffer
             goto out;
         }
 
-        // If we get here, it means that we need to manage a payload buffer for that event
-        _ev->manage_payload_buf = true;
-        EVENT_HDR_PAYLOAD_SIZE(_ev) = info->payload_size;
-        if (info != NULL && info->pool.mem_pool != NULL)
+        if (info->payload_type == EVENT_PAYLOAD_IS_BUFFER)
         {
-            assert(info->pool.get_buf);
-            void *payload_buf_from_pool = info->pool.get_buf(info->pool.mem_pool,
-                                                             info->pool.get_buf_args);
-            assert(payload_buf_from_pool);
-            _ev->payload = payload_buf_from_pool;
-            _ev->info.mem_pool = info->pool.mem_pool;
-            _ev->info.get_buf = info->pool.get_buf;
-            _ev->info.return_buf = info->pool.return_buf;
-            EVENT_HDR_PAYLOAD_SIZE(_ev) = info->pool.element_size;
+            // If we get here, it means that we need to manage a payload buffer for that event
+            _ev->manage_payload_buf = true;
+            EVENT_HDR_PAYLOAD_SIZE(_ev) = info->payload.buffer.size;
+            if (info != NULL && info->payload.buffer.pool.mem_pool != NULL)
+            {
+                assert(info->payload.buffer.pool.get_buf);
+                void *payload_buf_from_pool = info->payload.buffer.pool.get_buf(info->payload.buffer.pool.mem_pool,
+                                                                                info->payload.buffer.pool.get_buf_args);
+                assert(payload_buf_from_pool);
+                _ev->payload = payload_buf_from_pool;
+                _ev->info.mem_pool = info->payload.buffer.pool.mem_pool;
+                _ev->info.get_buf = info->payload.buffer.pool.get_buf;
+                _ev->info.return_buf = info->payload.buffer.pool.return_buf;
+                EVENT_HDR_PAYLOAD_SIZE(_ev) = info->payload.buffer.pool.element_size;
+            }
+            else
+            {
+                _ev->payload = DPU_OFFLOAD_MALLOC(info->payload.buffer.size);
+            }
+            assert(_ev->payload);
         }
         else
         {
-            _ev->payload = DPU_OFFLOAD_MALLOC(info->payload_size);
+            // The user requested to use an iovec
+            _ev->iovec.count = info->payload.iovec.count + 1; // +1 because we need space for the notification's header
+            _ev->iovec.ptr = (void *) malloc(_ev->iovec.count * sizeof(ucp_dt_iov_t));
+            assert(_ev->iovec.ptr);
         }
-        assert(_ev->payload);
     }
 
 out:
@@ -1216,27 +1272,48 @@ static dpu_offload_status_t do_event_return(dpu_offload_event_t *ev)
     assert(EVENT_HDR_TYPE(ev) > 0);
 
     // If the event has a payload buffer that the library is managing, free that buffer
-    if (ev->manage_payload_buf && ev->payload != NULL)
+    switch (ev->payload_type)
     {
-        if (ev->info.mem_pool == NULL)
+        case EVENT_PAYLOAD_IS_BUFFER:
         {
-            // Buffer is managed by the library
-            free(ev->payload);
-        }
-        else
-        {
-            // If a memory pool is specified by the return_buf() function pointer
-            // is NULL, it means the calling library will return the buffer to
-            // the pool, there is nothing to do.
-            if (ev->info.return_buf != NULL)
+            if (ev->manage_payload_buf && ev->payload != NULL)
             {
-                // Return the buffer to the pool from calling library
-                assert(ev->info.mem_pool);
-                ev->info.return_buf(ev->info.mem_pool, ev->payload);
+                if (ev->info.mem_pool == NULL)
+                {
+                    // Buffer is managed by the library
+                    free(ev->payload);
+                }
+                else
+                {
+                    // If a memory pool is specified by the return_buf() function pointer
+                    // is NULL, it means the calling library will return the buffer to
+                    // the pool, there is nothing to do.
+                    if (ev->info.return_buf != NULL)
+                    {
+                        // Return the buffer to the pool from calling library
+                        assert(ev->info.mem_pool);
+                        ev->info.return_buf(ev->info.mem_pool, ev->payload);
+                    }
+                }
+                ev->payload = NULL;
+                EVENT_HDR_PAYLOAD_SIZE(ev) = 0;
             }
+            break;
         }
-        ev->payload = NULL;
-        EVENT_HDR_PAYLOAD_SIZE(ev) = 0;
+        case EVENT_PAYLOAD_IS_IOVEC:
+        {
+            if (ev->iovec.ptr)
+            {
+                free(ev->iovec.ptr);
+                ev->iovec.ptr = NULL;
+            }
+            break;
+        }
+        default:
+        {
+            ERR_MSG("invalid payload type: %d", ev->payload_type);
+            return DO_ERROR;
+        }
     }
 
 #if !USE_AM_IMPLEM

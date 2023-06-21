@@ -201,7 +201,7 @@ int main(int argc, char **argv)
     {
         dpu_offload_event_t *self_ev;
         dpu_offload_event_info_t ev_info;
-        ev_info.payload_size = 1024;
+        ev_info.payload.buffer.size = 1024;
         rc = event_get(engine->self_econtext->event_channels, &ev_info, &self_ev);
         assert(self_ev);
         assert(rc == DO_SUCCESS);

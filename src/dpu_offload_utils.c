@@ -142,10 +142,10 @@ dpu_offload_status_t send_revoke_group_rank_request_through_rank_info(execution_
     assert(rank_info->group_uid != INT_MAX);
 
     RESET_EVENT_INFO(&ev_info);
-    ev_info.pool.element_size = sizeof(group_revoke_msg_t); // Size of the payload, not the type used to get element
-    ev_info.pool.get_buf = revoke_msg_get;
-    ev_info.pool.return_buf = revoke_msg_return;
-    ev_info.pool.mem_pool = econtext->engine->pool_group_revoke_msgs;
+    ev_info.payload.buffer.pool.element_size = sizeof(group_revoke_msg_t); // Size of the payload, not the type used to get element
+    ev_info.payload.buffer.pool.get_buf = revoke_msg_get;
+    ev_info.payload.buffer.pool.return_buf = revoke_msg_return;
+    ev_info.payload.buffer.pool.mem_pool = econtext->engine->pool_group_revoke_msgs;
 
     rc = event_get(econtext->event_channels, &ev_info, &ev);
     CHECK_ERR_RETURN((rc != DO_SUCCESS), DO_ERROR, "event_get() failed");
@@ -202,10 +202,10 @@ dpu_offload_status_t send_revoke_group_rank_request_through_num_ranks(execution_
     }
 
     RESET_EVENT_INFO(&ev_info);
-    ev_info.pool.element_size = sizeof(group_revoke_msg_t);
-    ev_info.pool.get_buf = revoke_msg_get;
-    ev_info.pool.return_buf = revoke_msg_return;
-    ev_info.pool.mem_pool = econtext->engine->pool_group_revoke_msgs;
+    ev_info.payload.buffer.pool.element_size = sizeof(group_revoke_msg_t);
+    ev_info.payload.buffer.pool.get_buf = revoke_msg_get;
+    ev_info.payload.buffer.pool.return_buf = revoke_msg_return;
+    ev_info.payload.buffer.pool.mem_pool = econtext->engine->pool_group_revoke_msgs;
 
     rc = event_get(econtext->event_channels, &ev_info, &ev);
     CHECK_ERR_RETURN((rc != DO_SUCCESS), DO_ERROR, "event_get() failed");
@@ -452,10 +452,10 @@ static dpu_offload_status_t send_local_revoke_rank_group_cache(execution_context
 
     // Get a revoke buffer for the message
     RESET_EVENT_INFO(&ev_info);
-    ev_info.pool.element_size = sizeof(group_revoke_msg_t);
-    ev_info.pool.get_buf = revoke_msg_get;
-    ev_info.pool.return_buf = revoke_msg_return;
-    ev_info.pool.mem_pool = econtext->engine->pool_group_revoke_msgs;
+    ev_info.payload.buffer.pool.element_size = sizeof(group_revoke_msg_t);
+    ev_info.payload.buffer.pool.get_buf = revoke_msg_get;
+    ev_info.payload.buffer.pool.return_buf = revoke_msg_return;
+    ev_info.payload.buffer.pool.mem_pool = econtext->engine->pool_group_revoke_msgs;
 
     // Send the notification and queue the sub-event
     rc = event_get(econtext->event_channels, &ev_info, &e);
