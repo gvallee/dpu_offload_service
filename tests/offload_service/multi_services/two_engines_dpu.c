@@ -25,7 +25,7 @@ int engine1_notif_cb(struct dpu_offload_ev_sys *ev_sys, execution_context_t *con
 
     // Send it back to client
     RESET_EVENT_INFO(&ev_info);
-    ev_info.payload_size = sizeof(int);
+    ev_info.payload.buffer.size = sizeof(int);
     rc = event_get(ev_sys, &ev_info, &ev);
     assert(rc == DO_SUCCESS);
     ptr = (int*)ev->payload;
@@ -56,7 +56,7 @@ int engine2_notif_cb(struct dpu_offload_ev_sys *ev_sys, execution_context_t *con
 
     // Send it back to client
     RESET_EVENT_INFO(&ev_info);
-    ev_info.payload_size = sizeof(int);
+    ev_info.payload.buffer.size = sizeof(int);
     rc = event_get(ev_sys, &ev_info, &ev);
     assert(rc == DO_SUCCESS);
     ptr = (int*)ev->payload;

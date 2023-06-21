@@ -355,7 +355,7 @@ static int pingpong_notification_cb(struct dpu_offload_ev_sys *ev_sys, execution
         // Send it back where it is coming from
         dpu_offload_event_t *cur_evt;
         dpu_offload_event_info_t evt_info = {0};
-        evt_info.payload_size = current_data_size;
+        evt_info.payload.buffer.size = current_data_size;
         fprintf(stderr, "Getting event to send notification back\n");
         dpu_offload_status_t _rc = event_get(econtext->event_channels, &evt_info, &cur_evt);
         if (_rc)
@@ -397,7 +397,7 @@ static bool pingpong_test_initiated = false;
         {                                                                                         \
             dpu_offload_event_t *cur_evt;                                                         \
             dpu_offload_event_info_t evt_info = {0};                                              \
-            evt_info.payload_size = current_data_size;                                            \
+            evt_info.payload.buffer.size = current_data_size;                                     \
             fprintf(stderr, "Getting event...\n");                                                \
             dpu_offload_status_t _rc = event_get(_econtext->event_channels, &evt_info, &cur_evt); \
             if (_rc)                                                                              \

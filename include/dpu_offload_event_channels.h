@@ -70,13 +70,30 @@
     } while (0)
 #endif
 
+#define EVENT_INFO_SET_IOVEC_COUNT(__ev_info, __cnt)        \
+    do                                                      \
+    {                                                       \
+        assert((__cnt) > 0);                                \
+        (__ev_info)->payload_type = EVENT_PAYLOAD_IS_IOVEC; \
+        (__ev_info)->payload.iovec.count = (__cnt);         \
+    } while(0)
+
+#define EVENT_GET_IOVEC(__ev) ({                                \
+        ucp_dt_iov_t *__iov = NULL;                             \
+        assert((__ev)->payload_type == EVENT_PAYLOAD_IS_IOVEC); \
+        assert((_ev)->iovec.count > 1);                         \
+        __iov = (ucp_dt_iov_t*)((__ev)->iovec.ptr);             \
+        __iov = __iov[1]; /* Hide the notification's header */  \
+        __iov;                                                  \
+    })
+
 static inline bool send_moderation_on()
 {
     return true;
 }
 
 #if USE_AM_IMPLEM
-int do_am_send_event_msg(dpu_offload_event_t *event);
+int do_am_send_event_buffer(dpu_offload_event_t *event);
 #else
 int do_tag_send_event_msg(dpu_offload_event_t *event);
 #endif
@@ -152,7 +169,7 @@ int event_channel_emit(dpu_offload_event_t **ev, uint64_t type, ucp_ep_h dest_ep
  * @param ctx User-defined context to help identify the context of the event upon local completion.
  * @param payload User-defined payload associated to the event.
  * @param payload_size Size of the user-defined payload.
- * @return result of UCS_PTR_STATUS in the context of errors during communications.
+ * @return Result of UCS_PTR_STATUS in the context of errors during communications.
  * @return DO_ERROR in case of an error during the library's handling of the event.
  * @return EVENT_DONE if the emittion completed right away, the library returns the event.
  * @return EVENT_INPROGRESS if emitting the event is still in progress (e.g., communication not completed). One can check on completion using event_completed().
@@ -172,6 +189,7 @@ int event_channel_emit(dpu_offload_event_t **ev, uint64_t type, ucp_ep_h dest_ep
  * @endcode
  */
 int event_channel_emit_with_payload(dpu_offload_event_t **ev, uint64_t type, ucp_ep_h dest_ep, uint64_t dest_id, void *ctx, void *payload, size_t payload_size);
+
 
 /**
  * @brief Get an event from a pool of event. Using a pool of events prevents dynamic allocations.

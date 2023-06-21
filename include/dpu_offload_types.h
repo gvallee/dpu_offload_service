@@ -1451,6 +1451,13 @@ typedef struct pending_peer_cache_entry
     uint64_t dpu_global_id;
 } pending_peer_cache_entry_t;
 
+
+typedef enum
+{
+    EVENT_PAYLOAD_IS_BUFFER = 0,
+    EVENT_PAYLOAD_IS_IOVEC,
+} dpu_offload_payload_type_t;
+
 /**
  * @brief dpu_offload_event_t represents an event, i.e., the implementation of a notification
  */
@@ -1495,8 +1502,18 @@ typedef struct dpu_offload_event
     // context is the user defined context of the event. Can be NULL.
     void *context;
 
-    // data is the payload associated to the event. Can be NULL.
-    void *data;
+    // Type of payload, e.g., standard contiguous buffer or iovec
+    dpu_offload_payload_type_t payload_type;
+    union {
+        // data is the payload associated to the event when sending in single buffer. Can be NULL.
+        void *data;
+        struct
+        {
+            int count;
+            void *ptr;
+            ucp_datatype_t datatype;
+        } iovec;
+    };
 
     // user_context is the user-defined context for the event. Can be NULL.
     void *user_context;
@@ -1633,22 +1650,48 @@ typedef struct dpu_offload_event
 
 typedef struct dpu_offload_event_info
 {
-    // Size of the payload that the library needs to be managing. If 0 not payload needs to be managed
-    size_t payload_size;
+    int payload_type;
+
+    struct {
+        struct {
+            // Size of the payload that the library needs to be managing. If 0 not payload needs to be managed
+            size_t size;
+
+            // Memory pool to use to get the buffer
+            notification_info_t pool;
+        } buffer;
+
+        struct {
+            int count;
+            //void *ptr;
+            //ucp_datatype_t datatype;
+        } iovec;
+    } payload;
 
     // Specify whether the user will explicitely return the event once done or not
     bool explicit_return;
-
-    notification_info_t pool;
 } dpu_offload_event_info_t;
 
-#define RESET_EVENT_INFO(__info)             \
-    do                                       \
-    {                                        \
-        (__info)->payload_size = 0;          \
-        (__info)->explicit_return = false;   \
-        RESET_NOTIF_INFO(&((__info)->pool)); \
+#if 0
+#define RESET_EVENT_INFO(__info)                            \
+    do                                                      \
+    {                                                       \
+        /* By default, for backward compatibility, all */   \
+        /* payloads are assumed to be standard buffers */   \
+        (__info)->payload_type = EVENT_PAYLOAD_IS_BUFFER;   \
+        (__info)->payload.buffer.size = 0;                  \
+        (__info)->payload.iovec.count = 0;                  \
+        (__info)->payload.iovec.ptr = NULL;                 \
+        (__info)->explicit_return = false;                  \
+        RESET_NOTIF_INFO(&((__info)->pool));                \
     } while (0)
+#else
+#define RESET_EVENT_INFO(__info)                                \
+    do                                                          \
+    {                                                           \
+        memset((__info), 0, sizeof(dpu_offload_event_info_t));  \
+    } while (0)
+#endif
 
 typedef enum
 {
@@ -3370,16 +3413,17 @@ typedef enum
     META_EVENT_TYPE = 32, // 32 to make it easier to see corruptions (dbg)
     AM_TERM_MSG_ID = 33,
     AM_EVENT_MSG_ID,
-    AM_EVENT_MSG_HDR_ID, // 35
+    AM_IOVEC_EVENT_MSG_ID, // 35
+    AM_EVENT_MSG_HDR_ID,
     AM_OP_START_MSG_ID,
     AM_OP_COMPLETION_MSG_ID,
     AM_XGVMI_ADD_MSG_ID,
-    AM_XGVMI_DEL_MSG_ID,
-    AM_PEER_CACHE_REQ_MSG_ID, // 40
+    AM_XGVMI_DEL_MSG_ID, // 40
+    AM_PEER_CACHE_REQ_MSG_ID,
     AM_PEER_CACHE_ENTRIES_MSG_ID,
     AM_PEER_CACHE_ENTRIES_REQUEST_MSG_ID,
-    AM_ADD_GP_RANK_MSG_ID,
-    AM_REVOKE_GP_RANK_MSG_ID, // 45
+    AM_ADD_GP_RANK_MSG_ID, // 45
+    AM_REVOKE_GP_RANK_MSG_ID,
     AM_TEST_MSG_ID,
     LAST_RESERVED_NOTIF_ID
 } am_id_t;
