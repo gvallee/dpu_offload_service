@@ -78,6 +78,22 @@ static int create_dummy_config(offloading_engine_t *engine)
     return 0;
 }
 
+static int destroy_dummy_config(offloading_engine_t *engine)
+{
+    size_t i;
+    for (i = 0; i < NUM_FAKE_HOSTS; i++)
+    {
+        host_info_t *host_info = NULL;
+        host_info = DYN_ARRAY_GET_ELT(&(engine->config->hosts_config), i, host_info_t);
+        if (host_info != NULL && host_info->hostname != NULL)
+        {
+            free (host_info->hostname);
+            host_info->hostname = NULL;
+        }
+    }
+    return 0;
+}
+
 /**
  * Function that generates a bunch of dummy cache entries that we
  * sent to self. It should properly populate the cache and let us
@@ -601,6 +617,12 @@ int main(int argc, char **argv)
         goto error_out;
     }
 
+    rc = destroy_dummy_config(offload_engine);
+    if (rc)
+    {
+        fprintf(stderr, "ERROR: unable to destroy dummy config\n");
+        goto error_out;
+    }
     free(offload_engine->config);
     offload_engine->config = NULL;
     offload_engine_fini(&offload_engine);
