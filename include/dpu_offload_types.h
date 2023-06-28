@@ -2823,6 +2823,7 @@ typedef struct pending_am_rdv_recv
         (_rdv_recv)->hdr = NULL;                \
         (_rdv_recv)->req = NULL;                \
         (_rdv_recv)->payload_size = 0;          \
+        (_rdv_recv)->buff_size = 0;             \
         (_rdv_recv)->desc = NULL;               \
         (_rdv_recv)->user_data = NULL;          \
         (_rdv_recv)->smart_chunk = NULL;        \
