@@ -581,6 +581,7 @@ int main(int argc, char **argv)
 {
     /* Initialize everything we need for the test */
     offloading_engine_t *offload_engine;
+    offloading_config_t *engine_config = NULL;
     dpu_offload_status_t rc = offload_engine_init(&offload_engine);
     if (rc || offload_engine == NULL)
     {
@@ -594,6 +595,8 @@ int main(int argc, char **argv)
         fprintf(stderr, "ERROR: create_dummy_config() failed");
         goto error_out;
     }
+    // Set a variable so we can track the config we just allocated and cleaning finalize everything
+    engine_config = offload_engine->config;
 
     fprintf(stdout, "Populating cache...\n");
     POPULATE_CACHE(offload_engine, CACHE_POPULATION_GROUP_CACHE_ID);
@@ -623,20 +626,21 @@ int main(int argc, char **argv)
         fprintf(stderr, "ERROR: unable to destroy dummy config\n");
         goto error_out;
     }
-    free(offload_engine->config);
-    offload_engine->config = NULL;
     offload_engine_fini(&offload_engine);
+    free(engine_config);
+    engine_config = NULL;
 
     fprintf(stdout, "%s: test successful\n", argv[0]);
     return EXIT_SUCCESS;
 
 error_out:
-    if (offload_engine->config)
-    {
-        free(offload_engine->config);
-        offload_engine->config = NULL;
-    }
     offload_engine_fini(&offload_engine);
+    if (engine_config)
+    {
+        free(engine_config);
+        engine_config = NULL;
+    }
+
     fprintf(stderr, "%s: test failed\n", argv[0]);
     return EXIT_FAILURE;
 }
