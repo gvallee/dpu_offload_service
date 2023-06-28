@@ -1769,14 +1769,11 @@ typedef struct host_info
 // Keys for host_info_hash_t are the host's UID, i.e., uint64_t
 KHASH_MAP_INIT_INT64(host_info_hash_t, host_info_t *);
 
-#define CONFIG_HOSTS_HASH_FINI(_cfg)                                 \
-    do                                                               \
-    {                                                                \
-        assert((_cfg)->host_lookup_table);                           \
-        if (kh_size((_cfg)->host_lookup_table) != 0)                 \
-        {                                                            \
-            kh_destroy(host_info_hash_t, (_cfg)->host_lookup_table); \
-        }                                                            \
+#define CONFIG_HOSTS_HASH_FINI(_cfg)                                \
+    do                                                              \
+    {                                                               \
+        assert((_cfg)->host_lookup_table);                          \
+        kh_destroy(host_info_hash_t, (_cfg)->host_lookup_table);    \
     } while (0)
 
 /**
@@ -3314,6 +3311,7 @@ typedef struct offloading_config
     } local_service_proc;
 } offloading_config_t;
 
+// The counter part to free the config data is in offload_config_free()
 #define INIT_DPU_CONFIG_DATA(_data)                                                                                 \
     do                                                                                                              \
     {                                                                                                               \
