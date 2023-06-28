@@ -1940,6 +1940,7 @@ typedef struct group_cache
         {                                                               \
             kh_foreach((_gp_cache)->sps_hash, __k, __sp_v, {            \
                 GROUP_CACHE_BITSET_DESTROY(__sp_v->ranks_bitset);       \
+                DYN_ARRAY_FREE(&(__sp_v->ranks));                       \
                 DYN_LIST_RETURN((_engine)->free_sp_cache_hash_obj,      \
                                 __sp_v,                                 \
                                 item);                                  \
@@ -1955,6 +1956,7 @@ typedef struct group_cache
             kh_foreach((_gp_cache)->hosts_hash, __k, __host_v, {        \
                 GROUP_CACHE_BITSET_DESTROY(__host_v->sps_bitset);       \
                 GROUP_CACHE_BITSET_DESTROY(__host_v->ranks_bitset);     \
+                DYN_ARRAY_FREE(&(__host_v->sps));                       \
                 DYN_LIST_RETURN((_engine)->free_host_cache_hash_obj,    \
                                 __host_v,                               \
                                 item);                                  \
