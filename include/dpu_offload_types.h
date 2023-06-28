@@ -1934,6 +1934,8 @@ typedef struct group_cache
         sp_cache_data_t *__sp_v = NULL;                                 \
         host_cache_data_t *__host_v = NULL;                             \
         assert((_gp_cache)->sps_hash);                                  \
+        /* safeguard around kh_foreach which proved picky and tend */   \
+        /* to segfault in some cases */                                 \
         if (kh_size((_gp_cache)->sps_hash) != 0)                        \
         {                                                               \
             kh_foreach((_gp_cache)->sps_hash, __k, __sp_v, {            \
@@ -1943,7 +1945,11 @@ typedef struct group_cache
                                 item);                                  \
             }) kh_destroy(group_sps_hash_t, (_gp_cache->sps_hash));     \
         }                                                               \
+        else                                                            \
+            kh_destroy(group_sps_hash_t, (_gp_cache->sps_hash));        \
         assert((_gp_cache)->hosts_hash);                                \
+        /* safeguard around kh_foreach which proved picky and tend */   \
+        /* to segfault in some cases */                                 \
         if (kh_size((_gp_cache)->hosts_hash) != 0)                      \
         {                                                               \
             kh_foreach((_gp_cache)->hosts_hash, __k, __host_v, {        \
@@ -1954,6 +1960,8 @@ typedef struct group_cache
                                 item);                                  \
             }) kh_destroy(group_hosts_hash_t, (_gp_cache->hosts_hash)); \
         }                                                               \
+        else                                                            \
+            kh_destroy(group_hosts_hash_t, (_gp_cache->hosts_hash));    \
     } while (0)
 
 #define BASIC_INIT_GROUP_CACHE(__g)             \
