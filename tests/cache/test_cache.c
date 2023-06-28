@@ -22,32 +22,32 @@ enum
 };
 
 #define NUM_FAKE_DPU_PER_HOST (1)
-#define NUM_FAKE_SP_PER_DPU (2)
-#define NUM_FAKE_HOSTS (2)
-#define NUM_FAKE_RANKS_PER_SP (8)
+#define NUM_FAKE_SP_PER_DPU (4)
+#define NUM_FAKE_HOSTS (32)
+#define NUM_FAKE_RANKS_PER_SP (16) // Must be >= 2
 #define FIRST_FAKE_HOST_UID (1234)
+
+// NUM_FAKE_SPS is the total number of dummy SPs that are being simulated
 #define NUM_FAKE_SPS (NUM_FAKE_HOSTS * NUM_FAKE_DPU_PER_HOST * NUM_FAKE_SP_PER_DPU)
 #define NUM_FAKE_CACHE_ENTRIES (NUM_FAKE_SPS * NUM_FAKE_RANKS_PER_SP)
+#define NUM_FAKE_RANKS_PER_HOST (NUM_FAKE_CACHE_ENTRIES / NUM_FAKE_HOSTS)
 
 extern dpu_offload_status_t register_default_notifications(dpu_offload_ev_sys_t *);
 
-// Based on 2 virtual hosts
-static host_uid_t get_host_uid(size_t i)
+
+// Based on NUM_FAKE_HOSTS virtual hosts
+static size_t get_host_idx(size_t rank)
+{
+    return rank / NUM_FAKE_RANKS_PER_HOST;
+}
+
+// Based on NUM_FAKE_HOSTS virtual hosts
+static host_uid_t get_host_uid(size_t rank)
 {
     host_uid_t host_id = FIRST_FAKE_HOST_UID;
-    if (i >= NUM_FAKE_CACHE_ENTRIES / 2)
-        host_id += 1;
-    return host_id;
+    size_t host_idx = get_host_idx(rank);
+    return host_id + host_idx;
 }
-
-// Based on 2 virtual hosts
-static size_t get_host_idx(size_t i)
-{
-    if (i < NUM_FAKE_CACHE_ENTRIES / 2)
-        return 0;
-    return 1;
-}
-
 // Create a dummy engine configuration
 static int create_dummy_config(offloading_engine_t *engine)
 {
@@ -102,7 +102,7 @@ static int destroy_dummy_config(offloading_engine_t *engine)
 dpu_offload_status_t
 simulate_cache_entry_exchange(offloading_engine_t *engine)
 {
-    size_t i;
+    size_t i, rank;
     peer_cache_entry_t entries[NUM_FAKE_CACHE_ENTRIES];
     group_cache_t *gp_cache = NULL;
     size_t num_hashed_sps = 0;
@@ -131,37 +131,39 @@ simulate_cache_entry_exchange(offloading_engine_t *engine)
         ptr->service_proc.global_id = i;
         ptr->service_proc.local_id = i % NUM_FAKE_SP_PER_DPU;
     }
-    engine->num_service_procs = 4;
+    engine->num_service_procs = NUM_FAKE_SPS;
     fprintf(stdout, "Number of fake SPs that are now setup: %ld\n", engine->num_service_procs);
 
     // Create the dummy cache entries
     fprintf(stdout, "Creating entries for %d fake ranks:\n", NUM_FAKE_CACHE_ENTRIES);
-    for (i = 0; i < NUM_FAKE_CACHE_ENTRIES; i++)
+    for (rank = 0; rank < NUM_FAKE_CACHE_ENTRIES; rank++)
     {
-        host_uid_t host_uid = get_host_uid(i);
-        size_t host_idx = get_host_idx(i);
+        host_uid_t host_uid = get_host_uid(rank);
+        size_t host_idx = get_host_idx(rank);
         size_t num_host_sps = NUM_FAKE_DPU_PER_HOST * NUM_FAKE_SP_PER_DPU;
-        entries[i].set = true;
-        entries[i].peer.proc_info.group_uid = DUMMY_CACHE_ENTRY_EXCHANGE_GROUP_UID;
-        entries[i].peer.proc_info.group_rank = i;
-        entries[i].peer.proc_info.group_size = NUM_FAKE_CACHE_ENTRIES;
-        entries[i].peer.proc_info.n_local_ranks = NUM_FAKE_RANKS_PER_SP;
-        entries[i].peer.proc_info.local_rank = NUM_FAKE_RANKS_PER_SP;
-        entries[i].peer.proc_info.host_info = host_uid;
-        entries[i].peer.host_info = host_uid;
-        entries[i].peer.addr_len = 8;
-        strcpy(entries[i].peer.addr, "deadbeef");
-        entries[i].client_id = 0;
-        entries[i].ep = NULL;
-        entries[i].num_shadow_service_procs = 1;
-        entries[i].shadow_service_procs[0] = (host_idx * num_host_sps) + i % num_host_sps;
+        entries[rank].set = true;
+        entries[rank].peer.proc_info.group_uid = DUMMY_CACHE_ENTRY_EXCHANGE_GROUP_UID;
+        entries[rank].peer.proc_info.group_rank = rank;
+        entries[rank].peer.proc_info.group_size = NUM_FAKE_CACHE_ENTRIES;
+        entries[rank].peer.proc_info.n_local_ranks = NUM_FAKE_RANKS_PER_SP;
+        entries[rank].peer.proc_info.local_rank = NUM_FAKE_RANKS_PER_SP;
+        entries[rank].peer.proc_info.host_info = host_uid;
+        entries[rank].peer.host_info = host_uid;
+        entries[rank].peer.addr_len = 8;
+        strcpy(entries[rank].peer.addr, "deadbeef");
+        entries[rank].client_id = 0;
+        entries[rank].ep = NULL;
+        entries[rank].num_shadow_service_procs = 1;
+        entries[rank].shadow_service_procs[0] = (host_idx * num_host_sps) + rank % num_host_sps;
         fprintf(stdout, "\trank %ld on host 0x%lx is assigned to SP %ld\n",
-                i, host_uid, entries[i].shadow_service_procs[0]);
-        entries[i].events_initialized = false;
+                rank, host_uid, entries[rank].shadow_service_procs[0]);
+        entries[rank].events_initialized = false;
     }
 
-    for (i = 0; i < NUM_FAKE_CACHE_ENTRIES; i++)
+    // We send one entry at a time so we can successfully track the mapping rank-SP
+    for (rank = 0; rank < NUM_FAKE_CACHE_ENTRIES; rank++)
     {
+        // We send all the cache entries at once
         dpu_offload_event_t *ev = NULL;
         rc = event_get(engine->self_econtext->event_channels, NULL, &ev);
         if (rc)
@@ -175,14 +177,16 @@ simulate_cache_entry_exchange(offloading_engine_t *engine)
                                              engine->self_ep,
                                              0, // dest_id does not matter since we send to ourselves
                                              NULL,
-                                             entries,
-                                             NUM_FAKE_CACHE_ENTRIES * sizeof(peer_cache_entry_t));
-        if (rc)
+                                             &entries[rank],
+                                             sizeof(peer_cache_entry_t));
+        if (rc != DO_SUCCESS)
         {
             fprintf(stderr, "ERROR: event_channel_emit_with_payload() failed\n");
             return DO_ERROR;
         }
     }
+
+    fprintf(stderr, "[DBG] l.%d\n", __LINE__);
 
     gp_cache = GET_GROUP_CACHE(&(engine->procs_cache), DUMMY_CACHE_ENTRY_EXCHANGE_GROUP_UID);
     num_hashed_sps = kh_size(gp_cache->sps_hash);
@@ -299,6 +303,7 @@ dpu_offload_status_t test_topo_api(offloading_engine_t *engine)
     size_t expected_number_of_sps_per_host = NUM_FAKE_DPU_PER_HOST * NUM_FAKE_SP_PER_DPU;
     size_t expected_number_of_ranks_per_host = NUM_FAKE_DPU_PER_HOST * NUM_FAKE_SP_PER_DPU * NUM_FAKE_RANKS_PER_SP;
     bool ranks_associated_to_sp = false;
+    int64_t rank1, rank2;
 
     assert(engine);
     fprintf(stdout, "Testing the topo API...\n");
@@ -557,20 +562,24 @@ dpu_offload_status_t test_topo_api(offloading_engine_t *engine)
         return DO_ERROR;
     }
 
-    // Rank 1 and 2 are not supposed to be associated to the same SP
+    // Find two ranks that are not supposed to be associated to the same SP and make sure the data is coherent
     fprintf(stdout, "-> testing on_same_sp()...\n");
-    ranks_associated_to_sp = on_same_sp(engine, gpuid, 1, 2);
+    rank1 = 0;
+    rank2 = 1; // We have at least 2 ranks per SP for rank 0 and 1 must not be on the same SP
+    ranks_associated_to_sp = on_same_sp(engine, gpuid, rank1, rank2);
     if (ranks_associated_to_sp)
     {
-        fprintf(stderr, "ERROR: rank 1 and 2 are reported as associated to the same SP\n");
+        fprintf(stderr, "ERROR: rank %" PRId64 " and %" PRId64 " are reported as associated to the same SP\n", rank1, rank2);
         return DO_ERROR;
     }
 
-    // Rank 1 and 3 are supposed to be associated to the same SP
-    ranks_associated_to_sp = on_same_sp(engine, gpuid, 1, 3);
+    // Find two ranks that are associated to the same SP and make sure the data is coherent
+    rank1 = 0;
+    rank2 = rank1 + NUM_FAKE_SP_PER_DPU * NUM_FAKE_DPU_PER_HOST; 
+    ranks_associated_to_sp = on_same_sp(engine, gpuid, rank1, rank2);
     if (!ranks_associated_to_sp)
     {
-        fprintf(stderr, "ERROR: rank1 and 2 are reported as not associated to the same SP\n");
+        fprintf(stderr, "ERROR: rank %" PRId64 " and %" PRId64 " are reported as not associated to the same SP\n", rank1, rank2);
         return DO_ERROR;
     }
 
@@ -599,11 +608,11 @@ int main(int argc, char **argv)
     engine_config = offload_engine->config;
 
     fprintf(stdout, "Populating cache...\n");
-    POPULATE_CACHE(offload_engine, CACHE_POPULATION_GROUP_CACHE_ID);
+    POPULATE_CACHE(offload_engine, CACHE_POPULATION_GROUP_CACHE_ID, NUM_FAKE_CACHE_ENTRIES);
     display_group_cache(&(offload_engine->procs_cache), CACHE_POPULATION_GROUP_CACHE_ID);
 
     fprintf(stdout, "Checking cache...\n");
-    CHECK_CACHE(offload_engine, CACHE_POPULATION_GROUP_CACHE_ID);
+    CHECK_CACHE(offload_engine, CACHE_POPULATION_GROUP_CACHE_ID, NUM_FAKE_CACHE_ENTRIES);
 
     fprintf(stdout, "Simulating cache entry exchanges between SPs...\n");
     rc = simulate_cache_entry_exchange(offload_engine);

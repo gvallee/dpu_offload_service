@@ -87,7 +87,7 @@ int main(int argc, char **argv)
         if (gp_cache->initialized)
         {
             peer_cache_entry_t *list_ranks = (peer_cache_entry_t *)gp_cache->ranks.base;
-            peer_data_t *target_peer = &(list_ranks[NUM_CACHE_ENTRIES - 1].peer);
+            peer_data_t *target_peer = &(list_ranks[DEFAULT_NUM_RANKS - 1].peer);
             if (IS_A_VALID_PEER_DATA(target_peer))
                 test_done = true;
         }
@@ -101,7 +101,7 @@ int main(int argc, char **argv)
     }
 
     /* Check we got all the expected data in the cache */
-    CHECK_CACHE(offload_engine, default_gp_uid);
+    CHECK_CACHE(offload_engine, default_gp_uid, DEFAULT_NUM_RANKS);
 
     event_return(&ev);
 
