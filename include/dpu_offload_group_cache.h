@@ -48,6 +48,8 @@
                 GROUP_CACHE_HASHES_FINI((_cache)->engine, _gp_cache);   \
                 /* Free the bitset for SPs */                           \
                 GROUP_CACHE_BITSET_DESTROY(_gp_cache->sps_bitset);      \
+                /* Free the bitset for Hosts */                         \
+                GROUP_CACHE_BITSET_DESTROY(_gp_cache->hosts_bitset);    \
             }                                                           \
         }) kh_destroy(group_hash_t, (_cache)->data);                    \
         DYN_LIST_FREE((_cache)->group_cache_pool, group_cache_t, item); \

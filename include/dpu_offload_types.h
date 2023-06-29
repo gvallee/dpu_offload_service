@@ -1769,14 +1769,11 @@ typedef struct host_info
 // Keys for host_info_hash_t are the host's UID, i.e., uint64_t
 KHASH_MAP_INIT_INT64(host_info_hash_t, host_info_t *);
 
-#define CONFIG_HOSTS_HASH_FINI(_cfg)                                 \
-    do                                                               \
-    {                                                                \
-        assert((_cfg)->host_lookup_table);                           \
-        if (kh_size((_cfg)->host_lookup_table) != 0)                 \
-        {                                                            \
-            kh_destroy(host_info_hash_t, (_cfg)->host_lookup_table); \
-        }                                                            \
+#define CONFIG_HOSTS_HASH_FINI(_cfg)                                \
+    do                                                              \
+    {                                                               \
+        assert((_cfg)->host_lookup_table);                          \
+        kh_destroy(host_info_hash_t, (_cfg)->host_lookup_table);    \
     } while (0)
 
 /**
@@ -1937,26 +1934,36 @@ typedef struct group_cache
         sp_cache_data_t *__sp_v = NULL;                                 \
         host_cache_data_t *__host_v = NULL;                             \
         assert((_gp_cache)->sps_hash);                                  \
+        /* safeguard around kh_foreach which proved picky and tend */   \
+        /* to segfault in some cases */                                 \
         if (kh_size((_gp_cache)->sps_hash) != 0)                        \
         {                                                               \
             kh_foreach((_gp_cache)->sps_hash, __k, __sp_v, {            \
                 GROUP_CACHE_BITSET_DESTROY(__sp_v->ranks_bitset);       \
+                DYN_ARRAY_FREE(&(__sp_v->ranks));                       \
                 DYN_LIST_RETURN((_engine)->free_sp_cache_hash_obj,      \
                                 __sp_v,                                 \
                                 item);                                  \
             }) kh_destroy(group_sps_hash_t, (_gp_cache->sps_hash));     \
         }                                                               \
+        else                                                            \
+            kh_destroy(group_sps_hash_t, (_gp_cache->sps_hash));        \
         assert((_gp_cache)->hosts_hash);                                \
+        /* safeguard around kh_foreach which proved picky and tend */   \
+        /* to segfault in some cases */                                 \
         if (kh_size((_gp_cache)->hosts_hash) != 0)                      \
         {                                                               \
             kh_foreach((_gp_cache)->hosts_hash, __k, __host_v, {        \
                 GROUP_CACHE_BITSET_DESTROY(__host_v->sps_bitset);       \
                 GROUP_CACHE_BITSET_DESTROY(__host_v->ranks_bitset);     \
+                DYN_ARRAY_FREE(&(__host_v->sps));                       \
                 DYN_LIST_RETURN((_engine)->free_host_cache_hash_obj,    \
                                 __host_v,                               \
                                 item);                                  \
             }) kh_destroy(group_hosts_hash_t, (_gp_cache->hosts_hash)); \
         }                                                               \
+        else                                                            \
+            kh_destroy(group_hosts_hash_t, (_gp_cache->hosts_hash));    \
     } while (0)
 
 #define BASIC_INIT_GROUP_CACHE(__g)             \
@@ -2823,6 +2830,7 @@ typedef struct pending_am_rdv_recv
         (_rdv_recv)->hdr = NULL;                \
         (_rdv_recv)->req = NULL;                \
         (_rdv_recv)->payload_size = 0;          \
+        (_rdv_recv)->buff_size = 0;             \
         (_rdv_recv)->desc = NULL;               \
         (_rdv_recv)->user_data = NULL;          \
         (_rdv_recv)->smart_chunk = NULL;        \
@@ -3313,6 +3321,7 @@ typedef struct offloading_config
     } local_service_proc;
 } offloading_config_t;
 
+// The counter part to free the config data is in offload_config_free()
 #define INIT_DPU_CONFIG_DATA(_data)                                                                                 \
     do                                                                                                              \
     {                                                                                                               \

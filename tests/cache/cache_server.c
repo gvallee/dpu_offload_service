@@ -41,7 +41,7 @@ int main(int argc, char **argv)
         ECONTEXT_UNLOCK(server);
     }
 
-    POPULATE_CACHE(offload_engine, default_gp_uid);
+    POPULATE_CACHE(offload_engine, default_gp_uid, DEFAULT_NUM_RANKS);
 
     peer_info_t *peer_info = DYN_ARRAY_GET_ELT(&(server->server->connected_clients.clients), 0UL, peer_info_t);
     assert(peer_info);

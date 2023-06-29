@@ -1507,7 +1507,7 @@ static dpu_offload_status_t handle_peer_cache_entries_recv(execution_context_t *
         }
 #endif
         assert(entries[idx].peer.proc_info.group_size == group_size);
-        DBG("Received a cache entry for rank:%ld, group:0x%x, group size:%ld, number of local rank: %ld from DPU %" PRId64 " (msg size=%ld, peer addr len=%ld)",
+        DBG("Received a cache entry for rank:%ld, group:0x%x, group size:%ld, number of local rank: %ld from SP %" PRId64 " (msg size=%ld, peer addr len=%ld)",
             group_rank, group_uid, group_size, entries[idx].peer.proc_info.n_local_ranks,
             sp_gid, data_len, entries[idx].peer.addr_len);
         if (!is_in_cache(cache, group_uid, group_rank, group_size))
