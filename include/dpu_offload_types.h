@@ -1805,19 +1805,23 @@ typedef struct hosts_cache_data
     // involved in the group (type: sp_cache_data_t *)
     dyn_array_t sps;
 
+    // Specifies whether the sps array has been initialized
+    bool sps_initialized;
+
     // Bitset to track which ranks on the host are involved in the group
     group_cache_bitset_t *ranks_bitset;
 } host_cache_data_t;
 
-#define RESET_HOST_CACHE_DATA(_host_data)  \
-    do                                     \
-    {                                      \
-        (_host_data)->uid = UINT64_MAX;    \
-        (_host_data)->num_sps = 0;         \
-        (_host_data)->num_ranks = 0;       \
-        (_host_data)->config_idx = 0;      \
-        (_host_data)->sps_bitset = NULL;   \
-        (_host_data)->ranks_bitset = NULL; \
+#define RESET_HOST_CACHE_DATA(_host_data)       \
+    do                                          \
+    {                                           \
+        (_host_data)->uid = UINT64_MAX;         \
+        (_host_data)->num_sps = 0;              \
+        (_host_data)->num_ranks = 0;            \
+        (_host_data)->config_idx = 0;           \
+        (_host_data)->sps_bitset = NULL;        \
+        (_host_data)->ranks_bitset = NULL;      \
+        (_host_data)->sps_initialized = false;  \
     } while (0)
 
 KHASH_MAP_INIT_INT64(group_hosts_hash_t, host_cache_data_t *);
@@ -1927,43 +1931,53 @@ typedef struct group_cache
     bool lookup_tables_populated;
 } group_cache_t;
 
-#define GROUP_CACHE_HASHES_FINI(_engine, _gp_cache)                     \
-    do                                                                  \
-    {                                                                   \
-        uint64_t __k;                                                   \
-        sp_cache_data_t *__sp_v = NULL;                                 \
-        host_cache_data_t *__host_v = NULL;                             \
-        assert((_gp_cache)->sps_hash);                                  \
-        /* safeguard around kh_foreach which proved picky and tend */   \
-        /* to segfault in some cases */                                 \
-        if (kh_size((_gp_cache)->sps_hash) != 0)                        \
-        {                                                               \
-            kh_foreach((_gp_cache)->sps_hash, __k, __sp_v, {            \
-                GROUP_CACHE_BITSET_DESTROY(__sp_v->ranks_bitset);       \
-                DYN_ARRAY_FREE(&(__sp_v->ranks));                       \
-                DYN_LIST_RETURN((_engine)->free_sp_cache_hash_obj,      \
-                                __sp_v,                                 \
-                                item);                                  \
-            }) kh_destroy(group_sps_hash_t, (_gp_cache->sps_hash));     \
-        }                                                               \
-        else                                                            \
-            kh_destroy(group_sps_hash_t, (_gp_cache->sps_hash));        \
-        assert((_gp_cache)->hosts_hash);                                \
-        /* safeguard around kh_foreach which proved picky and tend */   \
-        /* to segfault in some cases */                                 \
-        if (kh_size((_gp_cache)->hosts_hash) != 0)                      \
-        {                                                               \
-            kh_foreach((_gp_cache)->hosts_hash, __k, __host_v, {        \
-                GROUP_CACHE_BITSET_DESTROY(__host_v->sps_bitset);       \
-                GROUP_CACHE_BITSET_DESTROY(__host_v->ranks_bitset);     \
-                DYN_ARRAY_FREE(&(__host_v->sps));                       \
-                DYN_LIST_RETURN((_engine)->free_host_cache_hash_obj,    \
-                                __host_v,                               \
-                                item);                                  \
-            }) kh_destroy(group_hosts_hash_t, (_gp_cache->hosts_hash)); \
-        }                                                               \
-        else                                                            \
-            kh_destroy(group_hosts_hash_t, (_gp_cache->hosts_hash));    \
+#define GROUP_CACHE_HASHES_FINI(_engine, _gp_cache)                         \
+    do                                                                      \
+    {                                                                       \
+        uint64_t __k;                                                       \
+        sp_cache_data_t *__sp_v = NULL;                                     \
+        host_cache_data_t *__host_v = NULL;                                 \
+        assert((_gp_cache)->sps_hash);                                      \
+        /* safeguard around kh_foreach which proved picky and tend */       \
+        /* to segfault in some cases */                                     \
+        if ((_gp_cache)->sps_hash)                                          \
+        {                                                                   \
+            if (kh_size((_gp_cache)->sps_hash) != 0)                        \
+            {                                                               \
+                kh_foreach((_gp_cache)->sps_hash, __k, __sp_v, {            \
+                    GROUP_CACHE_BITSET_DESTROY(__sp_v->ranks_bitset);       \
+                    DYN_ARRAY_FREE(&(__sp_v->ranks));                       \
+                    DYN_LIST_RETURN((_engine)->free_sp_cache_hash_obj,      \
+                                    __sp_v,                                 \
+                                    item);                                  \
+                }) kh_destroy(group_sps_hash_t, (_gp_cache->sps_hash));     \
+            }                                                               \
+            else                                                            \
+                kh_destroy(group_sps_hash_t, (_gp_cache->sps_hash));        \
+        }                                                                   \
+        assert((_gp_cache)->hosts_hash);                                    \
+        /* safeguard around kh_foreach which proved picky and tend */       \
+        /* to segfault in some cases */                                     \
+        if ((_gp_cache)->hosts_hash)                                        \
+        {                                                                   \
+            if (kh_size((_gp_cache)->hosts_hash) != 0)                      \
+            {                                                               \
+                kh_foreach((_gp_cache)->hosts_hash, __k, __host_v, {        \
+                    GROUP_CACHE_BITSET_DESTROY(__host_v->sps_bitset);       \
+                    GROUP_CACHE_BITSET_DESTROY(__host_v->ranks_bitset);     \
+                    if (__host_v->sps_initialized)                          \
+                    {                                                       \
+                        DYN_ARRAY_FREE(&(__host_v->sps));                   \
+                        __host_v->sps_initialized = false;                  \
+                    }                                                       \
+                    DYN_LIST_RETURN((_engine)->free_host_cache_hash_obj,    \
+                                    __host_v,                               \
+                                    item);                                  \
+                }) kh_destroy(group_hosts_hash_t, (_gp_cache->hosts_hash)); \
+            }                                                               \
+            else                                                            \
+                kh_destroy(group_hosts_hash_t, (_gp_cache->hosts_hash));    \
+        }                                                                   \
     } while (0)
 
 #define BASIC_INIT_GROUP_CACHE(__g)             \

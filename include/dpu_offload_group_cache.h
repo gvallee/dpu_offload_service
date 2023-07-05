@@ -17,44 +17,52 @@
         DYN_LIST_ALLOC((_cache)->group_cache_pool, DEFAULT_NUM_GROUPS, group_cache_t, item); \
     } while (0)
 
-#define GROUPS_CACHE_FINI(_cache)                                       \
-    do                                                                  \
-    {                                                                   \
-        int key;                                                        \
-        group_cache_t *value = NULL;                                    \
-        kh_foreach((_cache)->data, key, value, {                        \
-            if (value != NULL)                                          \
-            {                                                           \
-                group_cache_t *_gp_cache = NULL;                        \
-                _gp_cache = GET_GROUP_CACHE((_cache), key);             \
-                assert(_gp_cache);                                      \
-                /* avoid compile time warnings */                       \
-                if (_gp_cache->rank_array_initialized)                  \
-                {                                                       \
-                    DYN_ARRAY_FREE(&(_gp_cache->ranks));                \
-                    _gp_cache->rank_array_initialized = false;          \
-                }                                                       \
-                if (_gp_cache->sp_array_initialized)                    \
-                {                                                       \
-                    DYN_ARRAY_FREE(&(_gp_cache->sps));                  \
-                    _gp_cache->sp_array_initialized = false;            \
-                }                                                       \
-                if (_gp_cache->host_array_initialized)                  \
-                {                                                       \
-                    DYN_ARRAY_FREE(&(_gp_cache->hosts));                \
-                    _gp_cache->host_array_initialized = false;          \
-                }                                                       \
-                /* Free hash table(s) */                                \
-                GROUP_CACHE_HASHES_FINI((_cache)->engine, _gp_cache);   \
-                /* Free the bitset for SPs */                           \
-                GROUP_CACHE_BITSET_DESTROY(_gp_cache->sps_bitset);      \
-                /* Free the bitset for Hosts */                         \
-                GROUP_CACHE_BITSET_DESTROY(_gp_cache->hosts_bitset);    \
-            }                                                           \
-        }) kh_destroy(group_hash_t, (_cache)->data);                    \
-        DYN_LIST_FREE((_cache)->group_cache_pool, group_cache_t, item); \
-        (_cache)->group_cache_pool = NULL;                              \
-        (_cache)->size = 0;                                             \
+#define GROUPS_CACHE_FINI(_cache)                                           \
+    do                                                                      \
+    {                                                                       \
+        int key;                                                            \
+        group_cache_t *value = NULL;                                        \
+        /* kh_foreach is a little picky so putting some safeguards */       \
+        assert((_cache)->data);                                             \
+        if (kh_size((_cache)->data) > 0)                                    \
+        {                                                                   \
+            kh_foreach((_cache)->data, key, value, {                        \
+                if (value != NULL)                                          \
+                {                                                           \
+                    group_cache_t *_gp_cache = NULL;                        \
+                    _gp_cache = GET_GROUP_CACHE((_cache), key);             \
+                    assert(_gp_cache);                                      \
+                    if (_gp_cache->rank_array_initialized)                  \
+                    {                                                       \
+                        DYN_ARRAY_FREE(&(_gp_cache->ranks));                \
+                        _gp_cache->rank_array_initialized = false;          \
+                    }                                                       \
+                    if (_gp_cache->sp_array_initialized)                    \
+                    {                                                       \
+                        DYN_ARRAY_FREE(&(_gp_cache->sps));                  \
+                        _gp_cache->sp_array_initialized = false;            \
+                    }                                                       \
+                    if (_gp_cache->host_array_initialized)                  \
+                    {                                                       \
+                        DYN_ARRAY_FREE(&(_gp_cache->hosts));                \
+                        _gp_cache->host_array_initialized = false;          \
+                    }                                                       \
+                    /* Free hash table(s) */                                \
+                    GROUP_CACHE_HASHES_FINI((_cache)->engine, _gp_cache);   \
+                    /* Free the bitset for SPs */                           \
+                    GROUP_CACHE_BITSET_DESTROY(_gp_cache->sps_bitset);      \
+                    /* Free the bitset for Hosts */                         \
+                    GROUP_CACHE_BITSET_DESTROY(_gp_cache->hosts_bitset);    \
+                }                                                           \
+            }) kh_destroy(group_hash_t, (_cache)->data);                    \
+        }                                                                   \
+        else                                                                \
+        {                                                                   \
+            kh_destroy(group_hash_t, (_cache)->data);                       \
+        }                                                                   \
+        DYN_LIST_FREE((_cache)->group_cache_pool, group_cache_t, item);     \
+        (_cache)->group_cache_pool = NULL;                                  \
+        (_cache)->size = 0;                                                 \
     } while (0)
 
 /* GROUP_CACHE_INIT initializes the cache for a given group */
