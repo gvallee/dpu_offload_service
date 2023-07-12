@@ -1626,15 +1626,11 @@ static dpu_offload_status_t peer_cache_entries_recv_cb(struct dpu_offload_ev_sys
     gp_cache = GET_GROUP_CACHE(&(econtext->engine->procs_cache), group_uid);
     assert(gp_cache);
 
-    // The group should not have any revoke or if there are revokes, all the ranks associated
-    // to the SP are expected to have revoked the group otherwise revoke messages should not
-    // have happened and therefore it should not be possible to get cache entries for a group
-    // for the same UID.
-    assert(gp_cache->local_revoked == 0 || gp_cache->local_revoked == gp_cache->sp_ranks);
+    // It is absolutely possible to receive cache entries for a group that has been locally revoked
     if (gp_cache->global_revoked > 0 && gp_cache->global_revoked < gp_cache->group_size)
     {
         // We are in the situation where we are still waiting for revoke messages from other
-        // SPs and allready receiving cache entries from other SPs that are ahead are already
+        // SPs and already receiving cache entries from other SPs that are ahead are already
         // in the process of repopulating a group with the same UID.
         // We therefore queue the cache entry; the queued cache entry will be handled once
         // the group is fully revoked.
