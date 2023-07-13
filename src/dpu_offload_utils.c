@@ -301,6 +301,7 @@ dpu_offload_status_t do_send_cache_entry(execution_context_t *econtext, ucp_ep_h
         cache_entry->peer.proc_info.group_uid,
         sizeof(peer_cache_entry_t),
         AM_PEER_CACHE_ENTRIES_MSG_ID);
+    assert(cache_entry->num_shadow_service_procs > 0);
     rc = event_channel_emit_with_payload(&ev,
                                          AM_PEER_CACHE_ENTRIES_MSG_ID,
                                          ep,
