@@ -30,7 +30,7 @@ bool group_cache_populated(offloading_engine_t *engine, group_uid_t gp_uid)
 {
     group_cache_t *gp_cache = GET_GROUP_CACHE(&(engine->procs_cache), gp_uid);
     assert(gp_cache);
-    if (gp_cache->global_revoked == 0 && gp_cache->group_size == gp_cache->num_local_entries)
+    if (gp_cache->revokes.global == 0 && gp_cache->group_size == gp_cache->num_local_entries)
     {
         DBG("Group cache for group 0x%x fully populated. num_local_entries = %" PRIu64 " group_size = %" PRIu64,
             gp_uid, gp_cache->num_local_entries, gp_cache->group_size);

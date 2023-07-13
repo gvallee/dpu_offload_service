@@ -1835,11 +1835,16 @@ typedef struct group_cache
     // Track whether or not a group cache has been fully initialized
     bool initialized;
 
-    // Track how many times a group cache has been globally revoked. When equal to the number of local ranks, the group is assumed to be fully revoked.
-    uint64_t global_revoked;
+    struct {
+        // Track how many times a group cache has been globally revoked. When equal to the number of local ranks, the group is assumed to be fully revoked.
+        uint64_t global;
 
-    // Track how many local rank revoked a specific group.
-    uint64_t local_revoked;
+        // Track how many local rank revoked a specific group.
+        uint64_t local;
+
+        // Track which ranks revoked the group
+        group_cache_bitset_t *ranks;
+    } revokes;
 
     // Used to track if group cache has been sent to the host once all the local ranks
     // showed up. Only used on DPUs.
@@ -1984,8 +1989,9 @@ typedef struct group_cache
     do                                          \
     {                                           \
         (__g)->initialized = false;             \
-        (__g)->global_revoked = 0;              \
-        (__g)->local_revoked = 0;               \
+        (__g)->revokes.global = 0;              \
+        (__g)->revokes.local = 0;               \
+        (__g)->revokes.ranks = NULL;            \
         (__g)->sent_to_host = false;            \
         (__g)->group_size = 0;                  \
         (__g)->group_uid = INT_MAX;             \
@@ -2014,19 +2020,25 @@ typedef struct group_cache
         (__g)->sps_hash = kh_init(group_sps_hash_t);                                    \
         (__g)->hosts_hash = kh_init(group_hosts_hash_t);                                \
         (__g)->initialized = true;                                                      \
+        /* revokes.ranks is initialized when the pazy group cache initialization */     \
     } while (0)
 
-#define RESET_GROUP_CACHE(__e, __g)          \
-    do                                       \
-    {                                        \
-        GROUP_CACHE_HASHES_FINI(__e, __g);   \
-        if ((__g)->sp_array_initialized)     \
-            DYN_ARRAY_FREE(&((__g)->sps));   \
-        if ((__g)->host_array_initialized)   \
-            DYN_ARRAY_FREE(&((__g)->hosts)); \
-        if ((__g)->rank_array_initialized)   \
-            DYN_ARRAY_FREE(&((__g)->ranks)); \
-        BASIC_INIT_GROUP_CACHE((__g));       \
+#define RESET_GROUP_CACHE(__e, __g)                             \
+    do                                                          \
+    {                                                           \
+        GROUP_CACHE_HASHES_FINI(__e, __g);                      \
+        if ((__g)->sp_array_initialized)                        \
+            DYN_ARRAY_FREE(&((__g)->sps));                      \
+        if ((__g)->host_array_initialized)                      \
+            DYN_ARRAY_FREE(&((__g)->hosts));                    \
+        if ((__g)->rank_array_initialized)                      \
+            DYN_ARRAY_FREE(&((__g)->ranks));                    \
+        if ((__g)->revokes.ranks)                               \
+        {                                                       \
+            GROUP_CACHE_BITSET_DESTROY((__g)->revokes.ranks);   \
+            ((__g)->revokes.ranks) = NULL;                      \
+        }                                                       \
+        BASIC_INIT_GROUP_CACHE((__g));                          \
     } while (0)
 
 #define GET_GROUP_SP_HASH_ENTRY(_gp_cache, _sp_gid) ({                          \
@@ -2349,6 +2361,8 @@ typedef struct cache
             GROUP_CACHE_BITSET_CREATE(_gp_cache->sps_bitset, _gp_size);     \
             GROUP_CACHE_BITSET_CREATE(_gp_cache->hosts_bitset,              \
                                       (_cache)->engine->config->num_hosts); \
+            GROUP_CACHE_BITSET_CREATE(_gp_cache->revokes.ranks,             \
+                                      _gp_cache->group_size);               \
         }                                                                   \
         _entry = DYN_ARRAY_GET_ELT(_rank_cache, _rank, peer_cache_entry_t); \
         _entry;                                                             \
@@ -2432,7 +2446,7 @@ typedef enum
 {
     GROUP_REVOKE_CONTEXT_UNKNOWN = 0,
     GROUP_REVOKE_THROUGH_RANK_INFO,
-    GROUP_REVOKE_THROUGH_NUM_RANKS,
+    GROUP_REVOKE_THROUGH_LIST_RANKS,
 } group_revoke_context_t;
 
 /**
@@ -2444,18 +2458,28 @@ typedef struct group_revoke_msg
     group_revoke_context_t type;
     union
     {
+        // The message specifies how many ranks revoked the group, used for instance between SPs and for the final step from SP to host
         struct
         {
-            // Number of ranks that revoked the group
-            uint64_t num;
+            // Number of ranks in the array of ranks
+            size_t num_ranks;
+
+            // Which rank the array starts with
+            size_t rank_start;
+
+            // List of ranks in the group that revoked the group, based on the group cache bitset. If the group has more
+            // than 1024 ranks, multiple messages must be used.
+            int ranks[1024];
 
             // Group that has been revoked
             group_uid_t gp_uid;
 
             // Signature of the group, i.e, hash of its layout
             int gp_signature;
-        } num_ranks;      // The message specifies how many ranks revoked the group, used for instance between SPs and for the final step from SP to host
-        rank_info_t info; // The message specifies which rank revoked the group (only one rank), used for instance from host to DPU when a group is being destroyed
+        } list_ranks;
+
+        // The message specifies which rank revoked the group (only one rank), used for instance from host to DPU when a group is being destroyed.
+        rank_info_t info;
     };
 } group_revoke_msg_t;
 
