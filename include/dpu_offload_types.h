@@ -2020,8 +2020,7 @@ typedef struct group_cache
         (__g)->sps_hash = kh_init(group_sps_hash_t);                                    \
         (__g)->hosts_hash = kh_init(group_hosts_hash_t);                                \
         (__g)->initialized = true;                                                      \
-        assert((__g)->group_size > 0);                                                  \
-        GROUP_CACHE_BITSET_CREATE((__g)->revokes.ranks, (__g)->group_size);             \
+        /* revokes.ranks is initialized when the pazy group cache initialization */     \
     } while (0)
 
 #define RESET_GROUP_CACHE(__e, __g)                             \
@@ -2362,6 +2361,8 @@ typedef struct cache
             GROUP_CACHE_BITSET_CREATE(_gp_cache->sps_bitset, _gp_size);     \
             GROUP_CACHE_BITSET_CREATE(_gp_cache->hosts_bitset,              \
                                       (_cache)->engine->config->num_hosts); \
+            GROUP_CACHE_BITSET_CREATE(_gp_cache->revokes.ranks,             \
+                                      _gp_cache->group_size);               \
         }                                                                   \
         _entry = DYN_ARRAY_GET_ELT(_rank_cache, _rank, peer_cache_entry_t); \
         _entry;                                                             \
