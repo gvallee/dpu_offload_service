@@ -216,9 +216,9 @@ dpu_offload_status_t send_gp_cache_to_host(execution_context_t *econtext, group_
  * @brief send_cache sends the content of the local endpoint cache to a specific remote endpoint.
  * This is a non-blocking operation.
  *
- * @param econtext Current execution context
- * @param cache Endpoint cache to be sent
- * @param dest_ep Endpoint destination
+ * @param econtext Current execution context.
+ * @param cache Endpoint cache to be sent.
+ * @param dest_ep Endpoint destination.
  * @param meta_event Event used to track completion.
  * @return dpu_offload_status_t DO_SUCCESS for success; DO_ERROR if any error occurs
  */
@@ -235,22 +235,21 @@ dpu_offload_status_t send_cache(execution_context_t *econtext, cache_t *cache, u
  * broadcast can be performed before trying to send the cache. In other words, the
  * broadcast is not initiated if all the DPUs are not locally connected.
  *
- * @param engine Current offloading engine
- * @param group_uid UID of the group to broadcast.
+ * @param engine Current offloading engine.
+ * @param group_cache Group cache to broadcast.
  * @return dpu_offload_status_t
  */
-dpu_offload_status_t broadcast_group_cache(offloading_engine_t *engine, group_uid_t group_uid);
+dpu_offload_status_t broadcast_group_cache(offloading_engine_t *engine, group_cache_t *group_cache);
 
 /**
  * @brief broadcast_group_cache_revoke broadcasts the notification that a group has been locally revoked, meaning that
  * all the ranks attached to the SP revoked the said group.
  *
- * @param engine Current offloading engine
- * @param group_uid UID of the group that has been revoked
- * @param n_ranks Number of ranks involved in the revoke
+ * @param engine Current offloading engine.
+ * @param group_cache Group cache for which the revoke message needs to be sent out
  * @return dpu_offload_status_t
  */
-dpu_offload_status_t broadcast_group_cache_revoke(offloading_engine_t *engine, group_uid_t group_uid, uint64_t n_ranks);
+dpu_offload_status_t broadcast_group_cache_revoke(offloading_engine_t *engine, group_cache_t *group_cache);
 
 /**
  * @brief Get the service process endpoint by ID object, i.e., the identifier returned by get_sp_id_by_host_rank

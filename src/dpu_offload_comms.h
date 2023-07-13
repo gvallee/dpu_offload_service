@@ -133,7 +133,7 @@
             if (__gp_cache->n_local_ranks > 0 && __gp_cache->n_local_ranks_populated == n_connecting_ranks)     \
             {                                                                                                   \
                 DBG("We now have a connection with all local ranks, we can broadcast the group cache at once"); \
-                broadcast_group_cache((_engine), (_gp_uid));                                                    \
+                broadcast_group_cache((_engine), __gp_cache);                                                   \
             }                                                                                                   \
         }                                                                                                       \
         else                                                                                                    \
@@ -143,7 +143,7 @@
             if (_n_local_ranks == __gp_cache->n_local_ranks_populated)                                          \
             {                                                                                                   \
                 DBG("We have the gp data for all local ranks, we can broadcast the group cache at once");       \
-                broadcast_group_cache((_engine), (_gp_uid));                                                    \
+                broadcast_group_cache((_engine), __gp_cache);                                                   \
             }                                                                                                   \
         }                                                                                                       \
                                                                                                                 \
@@ -152,7 +152,7 @@
         if (__gp_cache->n_local_ranks < 0)                                                                      \
         {                                                                                                       \
             DBG("We do not know how many ranks to locally expect for the group, broadcast by default");         \
-            broadcast_group_cache((_engine), (_gp_uid));                                                        \
+            broadcast_group_cache((_engine), __gp_cache);                                                       \
         }                                                                                                       \
     } while (0)
 

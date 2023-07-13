@@ -1589,7 +1589,9 @@ static dpu_offload_status_t handle_peer_cache_entries_recv(execution_context_t *
 
 /**
  * @brief receive handler for cache entry notifications. Note that a single notification
- * can hold multiple cache entries.
+ * can hold multiple cache entries. An SP also sends all the cache entries it holds at
+ * the time it initiates the send, i.e., the "local" ranks, as well as all the entries
+ * it may have received
  *
  * @param ev_sys Associated event channels/system
  * @param econtext Associated execution context
@@ -1627,7 +1629,7 @@ static dpu_offload_status_t peer_cache_entries_recv_cb(struct dpu_offload_ev_sys
     assert(gp_cache);
 
     // It is absolutely possible to receive cache entries for a group that has been locally revoked
-    if (gp_cache->global_revoked > 0 && gp_cache->global_revoked < gp_cache->group_size)
+    if (gp_cache->revokes.global > 0 && gp_cache->revokes.global < gp_cache->group_size)
     {
         // We are in the situation where we are still waiting for revoke messages from other
         // SPs and already receiving cache entries from other SPs that are ahead are already
@@ -1637,7 +1639,7 @@ static dpu_offload_status_t peer_cache_entries_recv_cb(struct dpu_offload_ev_sys
         pending_recv_cache_entry_t *pending_recv = NULL;
 
         DBG("Queuing cache entry for group 0x%x being revoked; local revokes: %ld out of %ld ranks (msg from %" PRIu64 ")",
-            gp_cache->group_uid, gp_cache->local_revoked, gp_cache->sp_ranks, sp_global_id);
+            gp_cache->group_uid, gp_cache->revokes.local, gp_cache->sp_ranks, sp_global_id);
         DYN_LIST_GET(engine->pool_pending_recv_cache_entries,
                      pending_recv_cache_entry_t,
                      item,
@@ -1732,7 +1734,7 @@ static dpu_offload_status_t do_add_group_rank_recv_cb(execution_context_t *econt
     group_cache_t *gp_cache = GET_GROUP_CACHE(&(econtext->engine->procs_cache), rank_info->group_uid);
     assert(gp_cache);
 
-    if (gp_cache->global_revoked > 0)
+    if (gp_cache->revokes.global > 0)
     {
         DBG("Queuing group add msg (UID: 0x%x)", gp_cache->group_uid);
         QUEUE_PENDING_GROUP_ADD_MSG(econtext, client_id, data, data_len);
@@ -1904,12 +1906,13 @@ static dpu_offload_status_t revoke_group_cache(offloading_engine_t *engine, grou
     return DO_SUCCESS;
 }
 
-static dpu_offload_status_t handle_revoke_group_rank_through_num_ranks(execution_context_t *econtext,
-                                                                       group_revoke_msg_t *revoke_msg)
+// Note: function invoked when we receive revokes from other SPs
+static dpu_offload_status_t handle_revoke_group_rank_through_list_ranks(execution_context_t *econtext,
+                                                                        group_revoke_msg_t *revoke_msg)
 {
     dpu_offload_status_t rc;
     group_cache_t *gp_cache = NULL;
-    gp_cache = GET_GROUP_CACHE(&(econtext->engine->procs_cache), revoke_msg->num_ranks.gp_uid);
+    gp_cache = GET_GROUP_CACHE(&(econtext->engine->procs_cache), revoke_msg->list_ranks.gp_uid);
     assert(gp_cache);
     if (econtext->engine->on_dpu)
     {
@@ -1917,32 +1920,51 @@ static dpu_offload_status_t handle_revoke_group_rank_through_num_ranks(execution
             gp_cache->n_local_ranks, gp_cache->n_local_ranks_populated,
             gp_cache->group_size);
 
+        // If the group cache is not fully populated yet, we delay the revoke.
+        // The delay allows us to make sure we can keep a consistent cache even when
+        // the same group UID is re-used.
+        // Similarily, if all the local ranks did not yet revoke the group, the revoke
+        // received from other SPs is delayed.
         if (!gp_cache->initialized ||
-            gp_cache->n_local_ranks == 0 ||
-            gp_cache->sp_ranks != gp_cache->local_revoked)
+            !group_cache_populated(econtext->engine, revoke_msg->list_ranks.gp_uid) ||
+            gp_cache->sp_ranks != gp_cache->revokes.local)
         {
             group_revoke_msg_obj_t *pending_msg = NULL;
 
             // Make the message persistent
             DBG("Queuing revoke msg from another SP (n_local_ranks: %ld, local_revoked: %ld, group ID: 0x%x, ranks for SP: %ld)",
-                gp_cache->n_local_ranks, gp_cache->local_revoked, revoke_msg->num_ranks.gp_uid, gp_cache->sp_ranks);
+                gp_cache->n_local_ranks, gp_cache->revokes.local, revoke_msg->list_ranks.gp_uid, gp_cache->sp_ranks);
             DYN_LIST_GET(econtext->engine->pool_group_revoke_msgs,
                          group_revoke_msg_obj_t,
                          item,
                          pending_msg);
-            pending_msg->msg.type = GROUP_REVOKE_THROUGH_NUM_RANKS;
-            pending_msg->msg.num_ranks.num = revoke_msg->num_ranks.num;
-            pending_msg->msg.num_ranks.gp_uid = revoke_msg->num_ranks.gp_uid;
+            pending_msg->msg.type = GROUP_REVOKE_THROUGH_LIST_RANKS;
+            pending_msg->msg.list_ranks.num_ranks = revoke_msg->list_ranks.num_ranks;
+            pending_msg->msg.list_ranks.gp_uid = revoke_msg->list_ranks.gp_uid;
+            pending_msg->msg.list_ranks.rank_start = revoke_msg->list_ranks.rank_start;
+            memcpy(pending_msg->msg.list_ranks.ranks, revoke_msg->list_ranks.ranks, revoke_msg->list_ranks.num_ranks * sizeof(int));
             // Queue the new pending message
             ucs_list_add_tail(&(econtext->engine->pending_group_revoke_msgs), &(pending_msg->item));
         }
         else
         {
             DBG("Handling the revoke message from another SP (UID: 0x%x)", gp_cache->group_uid);
-            gp_cache->global_revoked += revoke_msg->num_ranks.num;
-            if (gp_cache->global_revoked == gp_cache->group_size)
+            size_t new_revokes = 0;
+            size_t rank;
+            // Go through the list of ranks from the message that revoked the group
+            for (rank = 0; rank < revoke_msg->list_ranks.num_ranks; rank++)
             {
-                group_uid_t gpuid = revoke_msg->num_ranks.gp_uid;
+                if (GROUP_CACHE_BITSET_TEST(gp_cache->revokes.ranks, revoke_msg->list_ranks.rank_start + rank) == 0)
+                {
+                    GROUP_CACHE_BITSET_SET(gp_cache->revokes.ranks, revoke_msg->list_ranks.rank_start + rank);
+                    new_revokes++;
+                }
+            }
+
+            gp_cache->revokes.global += new_revokes;
+            if (gp_cache->revokes.global == gp_cache->group_size)
+            {
+                group_uid_t gpuid = revoke_msg->list_ranks.gp_uid;
                 size_t group_size = gp_cache->group_size; // Get the number of ranks involved in the revoke before resetting the group cache
                 revoke_group_cache(econtext->engine, gpuid);
                 DBG("Sending revoke message to ranks for group 0x%x (size=%ld)", gp_cache->group_uid, group_size);
@@ -1960,14 +1982,14 @@ static dpu_offload_status_t handle_revoke_group_rank_through_num_ranks(execution
         pending_send_group_add_t *pending_send, *next_pending;
 
         // We got a revoke message from our service process so the group is fully revoked, we can reset it
-        revoke_group_cache(econtext->engine, revoke_msg->num_ranks.gp_uid);
+        revoke_group_cache(econtext->engine, revoke_msg->list_ranks.gp_uid);
 
         // If some group add message are pending and corresponding to the group that was just revoked, we send them now
         ucs_list_for_each_safe(pending_send, next_pending, &(econtext->engine->pending_send_group_add_msgs), item)
         {
             rank_info_t *rank_info = (rank_info_t *)pending_send->ev->payload;
             assert(rank_info);
-            if (revoke_msg->num_ranks.gp_uid == rank_info->group_uid)
+            if (revoke_msg->list_ranks.gp_uid == rank_info->group_uid)
             {
                 ucs_list_del(&(pending_send->item));
                 rc = do_send_add_group_rank_request(pending_send->econtext,
@@ -1983,6 +2005,7 @@ static dpu_offload_status_t handle_revoke_group_rank_through_num_ranks(execution
     return DO_SUCCESS;
 }
 
+// Note: function invoked when a rank on a host sends a revoke message to its SP(s)
 static dpu_offload_status_t handle_revoke_group_rank_through_rank_info(execution_context_t *econtext, group_revoke_msg_t *revoke_msg)
 {
     dpu_offload_status_t rc;
@@ -2004,8 +2027,13 @@ static dpu_offload_status_t handle_revoke_group_rank_through_rank_info(execution
     assert(gp_cache->initialized);
     assert(gp_cache->n_local_ranks > 0);
     assert(gp_cache->n_local_ranks_populated > 0);
-    assert(gp_cache->global_revoked <= gp_cache->group_size);
-    assert(gp_cache->local_revoked <= gp_cache->n_local_ranks);
+    assert(gp_cache->revokes.global <= gp_cache->group_size);
+    assert(gp_cache->revokes.local <= gp_cache->n_local_ranks);
+    // A rank cannot revoke a group twice
+    assert(GROUP_CACHE_BITSET_TEST(gp_cache->revokes.ranks, revoke_msg->info.group_rank) == 0);
+
+    // Mark the rank has one that revoked the group
+    GROUP_CACHE_BITSET_SET(gp_cache->revokes.ranks, revoke_msg->info.group_rank);
 
     if (gp_cache->group_size != gp_cache->num_local_entries)
     {
@@ -2016,41 +2044,51 @@ static dpu_offload_status_t handle_revoke_group_rank_through_rank_info(execution
         assert(desc);
         desc->msg.type = GROUP_REVOKE_THROUGH_RANK_INFO;
         COPY_RANK_INFO(&(revoke_msg->info), &(desc->msg.info));
+        ucs_list_add_tail(&(econtext->engine->pending_group_revoke_msgs), &(desc->item));
     }
     else
     {
-        gp_cache->local_revoked++;
-        gp_cache->global_revoked++;
+        // The cache was fully populated so we just need to handle it
+        gp_cache->revokes.local++;
+        gp_cache->revokes.global++;
         DBG("Revoke recv'd from rank %ld for group 0x%x from local ranks, we now have %ld local and %ld global revokes",
-            revoke_msg->info.group_rank, revoke_msg->info.group_uid, gp_cache->local_revoked, gp_cache->global_revoked);
+            revoke_msg->info.group_rank, revoke_msg->info.group_uid, gp_cache->revokes.local, gp_cache->revokes.global);
 
-        if (gp_cache->local_revoked == gp_cache->sp_ranks)
+        assert(gp_cache->sp_ranks > 0);
+        assert(gp_cache->sp_ranks <= gp_cache->group_size);
+        if (gp_cache->revokes.local == gp_cache->sp_ranks)
         {
             group_revoke_msg_obj_t *pending_revoke_msg, *next_pending;
 
             // All the local ranks attached to this SP revoked this group, we now notify other SPs that the group
             // has been deleted here.
-            rc = broadcast_group_cache_revoke(econtext->engine, revoke_msg->info.group_uid, gp_cache->sp_ranks);
+            rc = broadcast_group_cache_revoke(econtext->engine, gp_cache);
             CHECK_ERR_RETURN((rc != DO_SUCCESS), DO_ERROR, "broadcast_group_cache_revoke() failed");
 
             // Handle the pending revoke messages we received from other SPs
             ucs_list_for_each_safe(pending_revoke_msg, next_pending, &(econtext->engine->pending_group_revoke_msgs), item)
             {
-                if (pending_revoke_msg->msg.num_ranks.gp_uid == revoke_msg->info.group_uid)
+                if (pending_revoke_msg->msg.list_ranks.gp_uid == revoke_msg->info.group_uid)
                 {
-                    DBG("Handling queued revoke message (group UID: 0x%x)", pending_revoke_msg->msg.num_ranks.gp_uid);
+                    size_t rank;
+                    DBG("Handling queued revoke message (group UID: 0x%x)", pending_revoke_msg->msg.list_ranks.gp_uid);
                     ucs_list_del(&(pending_revoke_msg->item));
                     // Make sure it is an applicable message, if not, drop.
                     // Note: with the group UID we have a unique
                     // way to identify group, regardless of asynchronous events and resuse of group ID
                     // (for example reuse of MPI communicator IDs).
-                    assert(pending_revoke_msg->msg.num_ranks.gp_uid != INT_MAX);
-                    gp_cache->global_revoked += pending_revoke_msg->msg.num_ranks.num;
+                    assert(pending_revoke_msg->msg.list_ranks.gp_uid != INT_MAX);
+                    gp_cache->revokes.global += pending_revoke_msg->msg.list_ranks.num_ranks;
+                    // Update the local list of ranks that revoked the group based on the data from the message
+                    for (rank = 0; rank < pending_revoke_msg->msg.list_ranks.num_ranks; rank++)
+                    {
+                        GROUP_CACHE_BITSET_SET(gp_cache->revokes.ranks, pending_revoke_msg->msg.list_ranks.rank_start + rank);
+                    }
                     DYN_LIST_RETURN(econtext->engine->pool_group_revoke_msgs, pending_revoke_msg, item);
                 }
             }
         }
-        if (gp_cache->global_revoked == gp_cache->group_size)
+        if (gp_cache->revokes.global == gp_cache->group_size)
         {
             DBG("Sending final revoke to ranks: %ld", gp_cache->group_size);
             rc = send_revoke_group_to_ranks(econtext->engine, revoke_msg->info.group_uid, gp_cache->group_size);
@@ -2093,12 +2131,12 @@ static dpu_offload_status_t revoke_group_rank_recv_cb(struct dpu_offload_ev_sys 
             assert(hdr->scope_id == SCOPE_HOST_DPU);
 #endif
         return handle_revoke_group_rank_through_rank_info(econtext, revoke_msg);
-    case GROUP_REVOKE_THROUGH_NUM_RANKS:
+    case GROUP_REVOKE_THROUGH_LIST_RANKS:
 #if !NDEBUG
         if (econtext->engine->on_dpu)
             assert(hdr->scope_id == SCOPE_INTER_SERVICE_PROCS);
 #endif
-        return handle_revoke_group_rank_through_num_ranks(econtext, revoke_msg);
+        return handle_revoke_group_rank_through_list_ranks(econtext, revoke_msg);
     default:
         ERR_MSG("unknown revoke message type (%d)", revoke_msg->type);
         return DO_ERROR;
