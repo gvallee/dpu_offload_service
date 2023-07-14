@@ -182,12 +182,12 @@ dpu_offload_status_t send_revoke_group_rank_request_through_rank_info(execution_
     return DO_SUCCESS;
 }
 
-dpu_offload_status_t send_revoke_group_rank_request_through_num_ranks(execution_context_t *econtext,
-                                                                      ucp_ep_h ep,
-                                                                      uint64_t dest_id,
-                                                                      group_uid_t gp_uid,
-                                                                      uint64_t num_ranks,
-                                                                      dpu_offload_event_t *meta_ev)
+dpu_offload_status_t send_revoke_group_rank_request_through_list_ranks(execution_context_t *econtext,
+                                                                       ucp_ep_h ep,
+                                                                       uint64_t dest_id,
+                                                                       group_uid_t gp_uid,
+                                                                       uint64_t num_ranks,
+                                                                       dpu_offload_event_t *meta_ev)
 {
     dpu_offload_status_t rc;
     dpu_offload_event_t *ev = NULL;
@@ -464,14 +464,21 @@ static dpu_offload_status_t send_local_revoke_rank_group_cache(execution_context
         CHECK_ERR_RETURN((rc), DO_ERROR, "event_get() failed");
         payload = (group_revoke_msg_t *)e->payload;
         payload->type = GROUP_REVOKE_THROUGH_LIST_RANKS;
-        // We can only send 1024 rank info at a time
 
-        if (remaining_sends > 1024)
+        // We can only send a maximum of 1024 rank info at a time.
+        // Figure out how many we are about to send.
+        if (remaining_sends < 1024)
             current_sends = remaining_sends;
         else
             current_sends = 1024;
+
         payload->list_ranks.num_ranks = current_sends;
         payload->list_ranks.rank_start = ranks_sent;
+        // The remote SP may not be involved in the group and may receive the
+        // revoke message before knowing anything about the group so we add
+        // the group size to be able to correctly track everything on the
+        // receiver side.
+        payload->list_ranks.group_size = gp_cache->group_size;
 
         for (relative_idx = 0; relative_idx < current_sends; relative_idx++)
         {
@@ -482,6 +489,7 @@ static dpu_offload_status_t send_local_revoke_rank_group_cache(execution_context
         }
         payload->list_ranks.gp_uid = gp_cache->group_uid;
         e->is_subevent = true;
+        DBG("Sending revoke data for ranks %ld - %ld (group_size: %ld)", ranks_sent, ranks_sent+current_sends, gp_cache->group_size);
 
         rc = event_channel_emit(&e, AM_REVOKE_GP_RANK_MSG_ID, dest_ep, dest_id, NULL);
         if (rc != EVENT_DONE && rc != EVENT_INPROGRESS)

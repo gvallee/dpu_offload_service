@@ -1701,8 +1701,8 @@ static dpu_offload_status_t send_revoke_group_to_ranks(offloading_engine_t *engi
         CHECK_ERR_RETURN((rc), DO_ERROR, "event_get() failed");
         assert(metaev);
         EVENT_HDR_TYPE(metaev) = META_EVENT_TYPE;
-        rc = send_revoke_group_rank_request_through_num_ranks(host_server, c->ep, c->id, gp_uid, num_ranks, metaev);
-        CHECK_ERR_RETURN((rc), DO_ERROR, "send_revoke_group_rank_request_through_num_ranks() failed");
+        rc = send_revoke_group_rank_request_through_list_ranks(host_server, c->ep, c->id, gp_uid, num_ranks, metaev);
+        CHECK_ERR_RETURN((rc), DO_ERROR, "send_revoke_group_rank_request_through_list_ranks() failed");
         if (!event_completed(metaev))
             QUEUE_EVENT(metaev);
         else
@@ -1914,6 +1914,14 @@ static dpu_offload_status_t handle_revoke_group_rank_through_list_ranks(executio
     group_cache_t *gp_cache = NULL;
     gp_cache = GET_GROUP_CACHE(&(econtext->engine->procs_cache), revoke_msg->list_ranks.gp_uid);
     assert(gp_cache);
+#if !NDEBUG
+    if (gp_cache->group_size == 0)
+    {
+        // It is possible that the group was not known if there is no rank from the group associated to the
+        // SP. We check that everything is consistent in that context.
+        assert(gp_cache->sp_ranks == 0);
+    }
+#endif // NDEBUG
     if (econtext->engine->on_dpu)
     {
         DBG("Revoke msg received, local data: n_local_ranks=%ld n_local_ranks_populated=%ld group_size=%ld",
@@ -1926,8 +1934,8 @@ static dpu_offload_status_t handle_revoke_group_rank_through_list_ranks(executio
         // Similarily, if all the local ranks did not yet revoke the group, the revoke
         // received from other SPs is delayed.
         if (!gp_cache->initialized ||
-            !group_cache_populated(econtext->engine, revoke_msg->list_ranks.gp_uid) ||
-            gp_cache->sp_ranks != gp_cache->revokes.local)
+            gp_cache->group_size != gp_cache->num_local_entries || /* Is the cache fully populated? Do not use group_cache_populated to ignore if group locally revoked */
+            gp_cache->sp_ranks != gp_cache->revokes.local) /* Did all local ranks revoke the group? */
         {
             group_revoke_msg_obj_t *pending_msg = NULL;
 
@@ -1942,6 +1950,7 @@ static dpu_offload_status_t handle_revoke_group_rank_through_list_ranks(executio
             pending_msg->msg.list_ranks.num_ranks = revoke_msg->list_ranks.num_ranks;
             pending_msg->msg.list_ranks.gp_uid = revoke_msg->list_ranks.gp_uid;
             pending_msg->msg.list_ranks.rank_start = revoke_msg->list_ranks.rank_start;
+            pending_msg->msg.list_ranks.group_size = revoke_msg->list_ranks.group_size;
             memcpy(pending_msg->msg.list_ranks.ranks, revoke_msg->list_ranks.ranks, revoke_msg->list_ranks.num_ranks * sizeof(int));
             // Queue the new pending message
             ucs_list_add_tail(&(econtext->engine->pending_group_revoke_msgs), &(pending_msg->item));
@@ -1951,9 +1960,19 @@ static dpu_offload_status_t handle_revoke_group_rank_through_list_ranks(executio
             DBG("Handling the revoke message from another SP (UID: 0x%x)", gp_cache->group_uid);
             size_t new_revokes = 0;
             size_t rank;
+            if (gp_cache->group_size == 0)
+            {
+                // First time we hear about the group and because of the lazy initialization,
+                // we need to initialize a few more things based on the revoke message's data.
+                gp_cache->group_size = revoke_msg->list_ranks.group_size;
+                GROUP_CACHE_BITSET_CREATE(gp_cache->revokes.ranks, gp_cache->group_size);
+            }
+            assert(gp_cache->revokes.ranks);
+
             // Go through the list of ranks from the message that revoked the group
             for (rank = 0; rank < revoke_msg->list_ranks.num_ranks; rank++)
             {
+                assert(revoke_msg->list_ranks.rank_start + rank <= gp_cache->group_size);
                 if (GROUP_CACHE_BITSET_TEST(gp_cache->revokes.ranks, revoke_msg->list_ranks.rank_start + rank) == 0)
                 {
                     GROUP_CACHE_BITSET_SET(gp_cache->revokes.ranks, revoke_msg->list_ranks.rank_start + rank);
@@ -2032,9 +2051,6 @@ static dpu_offload_status_t handle_revoke_group_rank_through_rank_info(execution
     // A rank cannot revoke a group twice
     assert(GROUP_CACHE_BITSET_TEST(gp_cache->revokes.ranks, revoke_msg->info.group_rank) == 0);
 
-    // Mark the rank has one that revoked the group
-    GROUP_CACHE_BITSET_SET(gp_cache->revokes.ranks, revoke_msg->info.group_rank);
-
     if (gp_cache->group_size != gp_cache->num_local_entries)
     {
         // Group cache is not fully populated yet, queuing the revoke request
@@ -2049,10 +2065,13 @@ static dpu_offload_status_t handle_revoke_group_rank_through_rank_info(execution
     else
     {
         // The cache was fully populated so we just need to handle it
+
+        // Mark the rank has one that revoked the group
+        GROUP_CACHE_BITSET_SET(gp_cache->revokes.ranks, revoke_msg->info.group_rank);
         gp_cache->revokes.local++;
         gp_cache->revokes.global++;
-        DBG("Revoke recv'd from rank %ld for group 0x%x from local ranks, we now have %ld local and %ld global revokes",
-            revoke_msg->info.group_rank, revoke_msg->info.group_uid, gp_cache->revokes.local, gp_cache->revokes.global);
+        DBG("Revoke recv'd from rank %ld for group 0x%x (size: %ld) from local ranks, we now have %ld local and %ld global revokes",
+            revoke_msg->info.group_rank, revoke_msg->info.group_uid, gp_cache->group_size, gp_cache->revokes.local, gp_cache->revokes.global);
 
         assert(gp_cache->sp_ranks > 0);
         assert(gp_cache->sp_ranks <= gp_cache->group_size);

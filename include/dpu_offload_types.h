@@ -2474,6 +2474,9 @@ typedef struct group_revoke_msg
             // Group that has been revoked
             group_uid_t gp_uid;
 
+            // Group size in case the receiver needs to perform a lazy initialization of the group (when the SP is not involved in the group)
+            size_t group_size;
+
             // Signature of the group, i.e, hash of its layout
             int gp_signature;
         } list_ranks;

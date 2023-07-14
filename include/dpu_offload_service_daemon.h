@@ -157,7 +157,7 @@ dpu_offload_status_t send_revoke_group_rank_request_through_rank_info(execution_
                                                                       dpu_offload_event_t *meta_ev);
 
 /**
- * @brief send_revoke_group_rank_request_through_num_ranks initiates the destruction/revokation of an existing group,
+ * @brief send_revoke_group_rank_request_through_list_ranks initiates the destruction/revokation of an existing group,
  * using a group id structure and the number of ranks that have revoked the group.
  * This is for instance used between service processes to notify that a group is now being revoked and how many rank revoked it.
  * The function is non-blocking.
@@ -172,12 +172,12 @@ dpu_offload_status_t send_revoke_group_rank_request_through_rank_info(execution_
  * @param meta_ev Optional meta-event to use to track completion of multiple sends (can be NULL)
  * @return dpu_offload_status_t
  */
-dpu_offload_status_t send_revoke_group_rank_request_through_num_ranks(execution_context_t *econtext,
-                                                                      ucp_ep_h ep,
-                                                                      uint64_t dest_id,
-                                                                      group_uid_t gp_uid,
-                                                                      uint64_t num_ranks,
-                                                                      dpu_offload_event_t *meta_ev);
+dpu_offload_status_t send_revoke_group_rank_request_through_list_ranks(execution_context_t *econtext,
+                                                                       ucp_ep_h ep,
+                                                                       uint64_t dest_id,
+                                                                       group_uid_t gp_uid,
+                                                                       uint64_t num_ranks,
+                                                                       dpu_offload_event_t *meta_ev);
 
 /**
  * @brief callback that servers (service processes acting as servers) on DPUs can
