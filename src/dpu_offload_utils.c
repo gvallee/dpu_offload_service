@@ -341,6 +341,32 @@ error_out:
     return DO_ERROR;
 }
 
+extern dpu_offload_status_t revoke_group_cache(offloading_engine_t *engine, group_uid_t gp_uid);
+extern dpu_offload_status_t send_revoke_group_to_ranks(offloading_engine_t *engine, group_uid_t gp_uid, uint64_t num_ranks);
+extern dpu_offload_status_t handle_pending_group_cache_add_msgs(offloading_engine_t *engine, group_uid_t gp_uid);
+void group_cache_send_to_local_ranks_cb(void *context)
+{
+    group_cache_t *gp_cache = NULL;
+    assert(context);
+    gp_cache = (group_cache_t*) context;
+    assert(gp_cache->engine);
+    gp_cache->sent_to_host = true;
+
+    // If meanwhile the group has been revoked, we handle it since it is now safe to do so
+    if (gp_cache->revokes.global == gp_cache->group_size)
+    {
+        dpu_offload_status_t rc;
+        offloading_engine_t *engine = (offloading_engine_t *)gp_cache->engine;
+        assert(gp_cache->group_size);
+        DBG("Sending revoke message to ranks for group 0x%x (size=%ld)", gp_cache->group_uid, gp_cache->group_size);
+        rc = send_revoke_group_to_ranks(engine, gp_cache->group_uid, gp_cache->group_size);
+        if (rc != DO_SUCCESS)
+        {
+            ERR_MSG("send_revoke_group_to_ranks() failed");
+        }
+    }
+}
+
 dpu_offload_status_t send_group_cache(execution_context_t *econtext, ucp_ep_h dest_ep, uint64_t dest_id, group_uid_t gp_uid, dpu_offload_event_t *metaev)
 {
     size_t i;
@@ -363,6 +389,7 @@ dpu_offload_status_t send_group_cache(execution_context_t *econtext, ucp_ep_h de
     {
         peer_cache_entry_t *cache_entry = GET_GROUP_RANK_CACHE_ENTRY(&(econtext->engine->procs_cache), gp_uid, i, gp_cache->group_size);
         assert(cache_entry->set == true);
+        assert(cache_entry->num_shadow_service_procs > 0);
     }
 #endif
 
@@ -371,6 +398,11 @@ dpu_offload_status_t send_group_cache(execution_context_t *econtext, ucp_ep_h de
     rc = event_get(econtext->event_channels, NULL, &e);
     CHECK_ERR_RETURN((rc), DO_ERROR, "event_get() failed");
     e->is_subevent = true;
+    if (metaev->ctx.completion_cb == NULL)
+    {
+        metaev->ctx.completion_cb = group_cache_send_to_local_ranks_cb;
+        metaev->ctx.completion_cb_ctx = gp_cache;
+    }
     DBG("Sending %ld cache entries to %ld, ev: %p (%ld), metaev: %ld\n",
         gp_cache->group_size, dest_id, e, e->seq_num, metaev->seq_num);
     rc = event_channel_emit_with_payload(&e, AM_PEER_CACHE_ENTRIES_MSG_ID, dest_ep, dest_id, NULL, first_entry, gp_cache->group_size * sizeof(peer_cache_entry_t));
@@ -589,6 +621,8 @@ dpu_offload_status_t send_gp_cache_to_host(execution_context_t *econtext, group_
     group_cache_t *gp_cache = GET_GROUP_CACHE(&(econtext->engine->procs_cache), group_uid);
     if (gp_cache->sent_to_host == false)
     {
+        dpu_offload_event_t *metaev;
+
         DBG("Cache is complete for group 0x%x, sending it to the local ranks (econtext: %p, number of connected clients: %ld, total: %ld)",
             group_uid,
             econtext,
@@ -596,9 +630,15 @@ dpu_offload_status_t send_gp_cache_to_host(execution_context_t *econtext, group_
             econtext->server->connected_clients.num_total_connected_clients);
         assert(group_cache_populated(econtext->engine, group_uid));
         assert(gp_cache->group_uid == group_uid);
+
+        rc = event_get(econtext->event_channels, NULL, &metaev);
+        CHECK_ERR_RETURN((rc), DO_ERROR, "event_get() failed");
+        assert(metaev);
+        assert(metaev->ctx.completion_cb == NULL);
+        EVENT_HDR_TYPE(metaev) = META_EVENT_TYPE;
+
         while (n < econtext->server->connected_clients.num_connected_clients)
         {
-            dpu_offload_event_t *metaev;
             peer_info_t *c = DYN_ARRAY_GET_ELT(&(econtext->server->connected_clients.clients),
                                                idx, peer_info_t);
             if (c == NULL)
@@ -607,20 +647,16 @@ dpu_offload_status_t send_gp_cache_to_host(execution_context_t *econtext, group_
                 continue;
             }
             DBG("Send cache to client #%ld (id: %" PRIu64 ")", idx, c->id);
-            rc = event_get(econtext->event_channels, NULL, &metaev);
-            CHECK_ERR_RETURN((rc), DO_ERROR, "event_get() failed");
-            assert(metaev);
-            EVENT_HDR_TYPE(metaev) = META_EVENT_TYPE;
             rc = send_group_cache(econtext, c->ep, c->id, group_uid, metaev);
             CHECK_ERR_RETURN((rc), DO_ERROR, "send_group_cache() failed");
-            if (!event_completed(metaev))
-                QUEUE_EVENT(metaev);
-            else
-                event_return(&metaev);
             n++;
             idx++;
         }
-        gp_cache->sent_to_host = true;
+
+        if (!event_completed(metaev))
+            QUEUE_EVENT(metaev);
+        else
+            event_return(&metaev);
 
         // Once the cache is sent to the host, we know it cannot change so we
         // populate the few lookup table.

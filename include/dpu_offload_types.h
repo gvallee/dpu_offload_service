@@ -1835,6 +1835,9 @@ typedef struct group_cache
     // Track whether or not a group cache has been fully initialized
     bool initialized;
 
+    // Engine the group cache is associated with
+    struct offloading_engine *engine;
+
     struct {
         // Track how many times a group cache has been globally revoked. When equal to the number of local ranks, the group is assumed to be fully revoked.
         uint64_t global;
@@ -1849,6 +1852,10 @@ typedef struct group_cache
     // Used to track if group cache has been sent to the host once all the local ranks
     // showed up. Only used on DPUs.
     bool sent_to_host;
+
+    // Used to track if the group cache revoke has been sent to the host once the entire group
+    // has been revoked by all group members. Only used on DPUs.
+    bool revoke_sent_to_host;
 
     // Number of ranks/processes in the group
     size_t group_size;
@@ -1989,10 +1996,12 @@ typedef struct group_cache
     do                                          \
     {                                           \
         (__g)->initialized = false;             \
+        (__g)->engine = NULL;                   \
         (__g)->revokes.global = 0;              \
         (__g)->revokes.local = 0;               \
         (__g)->revokes.ranks = NULL;            \
         (__g)->sent_to_host = false;            \
+        (__g)->revoke_sent_to_host = false;     \
         (__g)->group_size = 0;                  \
         (__g)->group_uid = INT_MAX;             \
         (__g)->num_local_entries = 0;           \
@@ -2181,6 +2190,7 @@ typedef struct group_cache
         DYN_LIST_GET((_cache)->group_cache_pool, group_cache_t, item, _new_group_cache); \
         assert(_new_group_cache);                                                        \
         INIT_GROUP_CACHE(_new_group_cache);                                              \
+        _new_group_cache->engine = (_cache)->engine;                                     \
         _new_group_cache->group_uid = (_gp_uid);                                         \
         /* We set the value for the first group when we add */                           \
         /* the first rank to a cache. GET_GROUP_CACHE only made */                       \
