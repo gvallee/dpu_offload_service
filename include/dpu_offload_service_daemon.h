@@ -243,7 +243,7 @@ dpu_offload_status_t broadcast_group_cache(offloading_engine_t *engine, group_ca
 
 /**
  * @brief broadcast_group_cache_revoke broadcasts the notification that a group has been locally revoked, meaning that
- * all the ranks attached to the SP revoked the said group.
+ * all the ranks attached to the SP revoked the said group. This broadcast is used between SPs.
  *
  * @param engine Current offloading engine.
  * @param group_cache Group cache for which the revoke message needs to be sent out
