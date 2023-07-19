@@ -360,7 +360,6 @@ void group_cache_send_to_local_ranks_cb(void *context)
     group_cache_t *gp_cache = NULL;
     assert(context);
     gp_cache = (group_cache_t*) context;
-    INFO_MSG("[DBG] should happen only once, group 0x%x", gp_cache->group_uid);
     if (gp_cache->engine == NULL)
         ERR_MSG("cache for group 0x%x has no engine", gp_cache->group_uid);
     assert(gp_cache->engine);
