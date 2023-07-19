@@ -81,6 +81,7 @@ dpu_offload_status_t send_add_group_rank_request(execution_context_t *econtext, 
     DBG("group being revoked global_revoked = %ld group_size = %ld", gp_cache->revokes.global, gp_cache->group_size);
 
     // The group is in the process of being deleted, we cannot add this right away, otherwise the local cache would be in a inconsistent state
+    // since we would not know when it is safe to reset the group cache data structure.
     DYN_LIST_GET(econtext->engine->pool_pending_send_group_add,
                  pending_send_group_add_t,
                  item,
@@ -128,6 +129,7 @@ dpu_offload_status_t send_revoke_group_rank_request_through_rank_info(execution_
                                                                       rank_info_t *rank_info,
                                                                       dpu_offload_event_t *meta_ev)
 {
+#if !CACHE_IS_PERSISTENT
     dpu_offload_status_t rc;
     dpu_offload_event_t *ev = NULL;
     group_revoke_msg_t *desc = NULL;
@@ -157,7 +159,7 @@ dpu_offload_status_t send_revoke_group_rank_request_through_rank_info(execution_
     if (meta_ev != NULL)
         ev->is_subevent = true;
 
-    DBG("Sending request to revoke the group/rank");
+    DBG("Sending request to revoke the group 0x%x (size: %ld, my rank: %ld)", rank_info->group_uid, rank_info->group_size, rank_info->group_rank);
     rc = event_channel_emit(&ev,
                             AM_REVOKE_GP_RANK_MSG_ID,
                             ep,
@@ -180,6 +182,11 @@ dpu_offload_status_t send_revoke_group_rank_request_through_rank_info(execution_
     }
 
     return DO_SUCCESS;
+#else
+    // The cache is persistent, given a UID, the group is guaranteed to be the same
+    // so no need to revoke the group.
+    return DO_SUCCESS;
+#endif
 }
 
 dpu_offload_status_t send_revoke_group_rank_request_through_list_ranks(execution_context_t *econtext,
@@ -193,6 +200,7 @@ dpu_offload_status_t send_revoke_group_rank_request_through_list_ranks(execution
     dpu_offload_event_t *ev = NULL;
     group_revoke_msg_t *desc = NULL;
     dpu_offload_event_info_t ev_info;
+    group_cache_t *gp_cache = NULL;
 
     // Check the validity of the group
     if (gp_uid == INT_MAX)
@@ -200,6 +208,9 @@ dpu_offload_status_t send_revoke_group_rank_request_through_list_ranks(execution
         ERR_MSG("Invalid group, unable to remove");
         return DO_ERROR;
     }
+
+    gp_cache = GET_GROUP_CACHE(&(econtext->engine->procs_cache), gp_uid);
+    assert(gp_cache);
 
     RESET_EVENT_INFO(&ev_info);
     ev_info.pool.element_size = sizeof(group_revoke_msg_t);
@@ -215,6 +226,8 @@ dpu_offload_status_t send_revoke_group_rank_request_through_list_ranks(execution
     desc->list_ranks.gp_uid = gp_uid;
     assert(num_ranks);
     desc->list_ranks.num_ranks = num_ranks;
+    desc->list_ranks.group_size = gp_cache->group_size;
+    assert(desc->list_ranks.group_size);
 
     if (meta_ev != NULL)
         ev->is_subevent = true;
@@ -341,6 +354,32 @@ error_out:
     return DO_ERROR;
 }
 
+extern dpu_offload_status_t send_revoke_group_to_ranks(offloading_engine_t *engine, group_uid_t gp_uid, uint64_t num_ranks);
+void group_cache_send_to_local_ranks_cb(void *context)
+{
+    group_cache_t *gp_cache = NULL;
+    assert(context);
+    gp_cache = (group_cache_t*) context;
+    if (gp_cache->engine == NULL)
+        ERR_MSG("cache for group 0x%x has no engine", gp_cache->group_uid);
+    assert(gp_cache->engine);
+    gp_cache->sent_to_host = true;
+
+    // If meanwhile the group has been revoked and the host not yet notified, we handle it since it is now safe to do so
+    if (gp_cache->revoke_send_to_host_posted == false && gp_cache->revokes.global == gp_cache->group_size)
+    {
+        dpu_offload_status_t rc;
+        offloading_engine_t *engine = (offloading_engine_t *)gp_cache->engine;
+        assert(gp_cache->group_size);
+        DBG("Sending revoke message to ranks for group 0x%x (size=%ld)", gp_cache->group_uid, gp_cache->group_size);
+        rc = send_revoke_group_to_ranks(engine, gp_cache->group_uid, gp_cache->group_size);
+        if (rc != DO_SUCCESS)
+        {
+            ERR_MSG("send_revoke_group_to_ranks() failed");
+        }
+    }
+}
+
 dpu_offload_status_t send_group_cache(execution_context_t *econtext, ucp_ep_h dest_ep, uint64_t dest_id, group_uid_t gp_uid, dpu_offload_event_t *metaev)
 {
     size_t i;
@@ -352,6 +391,7 @@ dpu_offload_status_t send_group_cache(execution_context_t *econtext, ucp_ep_h de
     assert(EVENT_HDR_TYPE(metaev) == META_EVENT_TYPE);
     gp_cache = GET_GROUP_CACHE(&(econtext->engine->procs_cache), gp_uid);
     assert(gp_cache);
+    assert(gp_cache->engine);
     if (!gp_cache->initialized)
         return DO_SUCCESS;
 
@@ -363,6 +403,7 @@ dpu_offload_status_t send_group_cache(execution_context_t *econtext, ucp_ep_h de
     {
         peer_cache_entry_t *cache_entry = GET_GROUP_RANK_CACHE_ENTRY(&(econtext->engine->procs_cache), gp_uid, i, gp_cache->group_size);
         assert(cache_entry->set == true);
+        assert(cache_entry->num_shadow_service_procs > 0);
     }
 #endif
 
@@ -478,6 +519,7 @@ static dpu_offload_status_t send_local_revoke_rank_group_cache(execution_context
         // revoke message before knowing anything about the group so we add
         // the group size to be able to correctly track everything on the
         // receiver side.
+        assert(gp_cache->group_size);
         payload->list_ranks.group_size = gp_cache->group_size;
 
         for (relative_idx = 0; relative_idx < current_sends; relative_idx++)
@@ -587,8 +629,12 @@ dpu_offload_status_t send_gp_cache_to_host(execution_context_t *econtext, group_
     size_t n = 0, idx = 0;
     dpu_offload_status_t rc;
     group_cache_t *gp_cache = GET_GROUP_CACHE(&(econtext->engine->procs_cache), group_uid);
+    assert(gp_cache);
+    assert(gp_cache->engine);
     if (gp_cache->sent_to_host == false)
     {
+        dpu_offload_event_t *metaev;
+
         DBG("Cache is complete for group 0x%x, sending it to the local ranks (econtext: %p, number of connected clients: %ld, total: %ld)",
             group_uid,
             econtext,
@@ -596,9 +642,17 @@ dpu_offload_status_t send_gp_cache_to_host(execution_context_t *econtext, group_
             econtext->server->connected_clients.num_total_connected_clients);
         assert(group_cache_populated(econtext->engine, group_uid));
         assert(gp_cache->group_uid == group_uid);
+
+        rc = event_get(econtext->event_channels, NULL, &metaev);
+        CHECK_ERR_RETURN((rc), DO_ERROR, "event_get() failed");
+        assert(metaev);
+        assert(metaev->ctx.completion_cb == NULL);
+        EVENT_HDR_TYPE(metaev) = META_EVENT_TYPE;
+        metaev->ctx.completion_cb = group_cache_send_to_local_ranks_cb;
+        metaev->ctx.completion_cb_ctx = gp_cache;
+
         while (n < econtext->server->connected_clients.num_connected_clients)
         {
-            dpu_offload_event_t *metaev;
             peer_info_t *c = DYN_ARRAY_GET_ELT(&(econtext->server->connected_clients.clients),
                                                idx, peer_info_t);
             if (c == NULL)
@@ -607,20 +661,16 @@ dpu_offload_status_t send_gp_cache_to_host(execution_context_t *econtext, group_
                 continue;
             }
             DBG("Send cache to client #%ld (id: %" PRIu64 ")", idx, c->id);
-            rc = event_get(econtext->event_channels, NULL, &metaev);
-            CHECK_ERR_RETURN((rc), DO_ERROR, "event_get() failed");
-            assert(metaev);
-            EVENT_HDR_TYPE(metaev) = META_EVENT_TYPE;
             rc = send_group_cache(econtext, c->ep, c->id, group_uid, metaev);
             CHECK_ERR_RETURN((rc), DO_ERROR, "send_group_cache() failed");
-            if (!event_completed(metaev))
-                QUEUE_EVENT(metaev);
-            else
-                event_return(&metaev);
             n++;
             idx++;
         }
-        gp_cache->sent_to_host = true;
+
+        if (!event_completed(metaev))
+            QUEUE_EVENT(metaev);
+        else
+            event_return(&metaev);
 
         // Once the cache is sent to the host, we know it cannot change so we
         // populate the few lookup table.
@@ -665,6 +715,7 @@ bool all_service_procs_connected(offloading_engine_t *engine)
     return (engine->num_service_procs == (engine->num_connected_service_procs + 1)); // Plus one because we do not connect to ourselves
 }
 
+// Note: used to exchange the cache between SPs
 dpu_offload_status_t broadcast_group_cache_revoke(offloading_engine_t *engine, group_cache_t *gp_cache)
 {
     size_t sp_gid;
@@ -723,6 +774,7 @@ dpu_offload_status_t broadcast_group_cache(offloading_engine_t *engine, group_ca
     size_t sp_gid;
     assert(engine);
     assert(group_cache);
+    assert(group_cache->engine);
     assert(group_cache->group_uid != INT_MAX);
 
     // Check whether all the service processes are connected, if not, do not do anything
