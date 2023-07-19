@@ -1886,8 +1886,9 @@ dpu_offload_status_t handle_pending_group_cache_add_msgs(offloading_engine_t *en
 }
 
 /**
- * @brief Actually revoke a group: all the element in the rank array are reset and the cache itself is also
+ * @brief Actually revoke a group: all the elements in the rank array are reset and the cache itself is also
  * reset.
+ * Can do used both on the hosts and DPUs.
  *
  * @param[in] engine Associated offloading engine
  * @param[in] gp_uid Unique ID of the group being revoked
@@ -1900,8 +1901,13 @@ dpu_offload_status_t revoke_group_cache(offloading_engine_t *engine, group_uid_t
     pending_recv_cache_entry_t *pending_cache_entry, *next_pending;
     group_cache_t *c = GET_GROUP_CACHE(&(engine->procs_cache), gp_uid);
     assert(c);
-    assert(c->sent_to_host == true);
-    assert(c->revoke_sent_to_host == true);
+#if !NDEBUG
+    if (engine->on_dpu)
+    {
+        assert(c->sent_to_host == true);
+        assert(c->revoke_sent_to_host == true);
+    }
+#endif
     DBG("Revoking group 0x%x", gp_uid);
     assert(c->group_size);
     for (i = 0; i < c->group_size; i++)
@@ -1945,7 +1951,8 @@ dpu_offload_status_t revoke_group_cache(offloading_engine_t *engine, group_uid_t
     return DO_SUCCESS;
 }
 
-// Note: function invoked when we receive revokes from other SPs
+// Note: function invoked when we receive revokes from other SPs or on the host when receiving the final
+// revoke message from the SP.
 static dpu_offload_status_t handle_revoke_group_rank_through_list_ranks(execution_context_t *econtext,
                                                                         group_revoke_msg_t *revoke_msg)
 {
@@ -1956,10 +1963,21 @@ static dpu_offload_status_t handle_revoke_group_rank_through_list_ranks(executio
 #if !NDEBUG
     if (gp_cache->group_size == 0)
     {
-        // It is possible that the group was not known if there is no rank from the group associated to the
-        // SP. We check that everything is consistent in that context.
-        assert(gp_cache->sp_ranks == 0);
-        assert(revoke_msg->list_ranks.group_size);
+        if (econtext->engine->on_dpu)
+        {
+            // It is possible that the group was not known if there is no rank from the group associated to the
+            // SP. We check that everything is consistent in that context.
+            assert(gp_cache->sp_ranks == 0);
+            assert(revoke_msg->list_ranks.group_size);
+        }
+        else
+        {
+            // On the host, the group size can be equal to 0 only if there is no rank locally
+            if (gp_cache->group_size == 0)
+            {
+                assert(gp_cache->n_local_ranks == 0);
+            }
+        }
         gp_cache->group_size = revoke_msg->list_ranks.group_size;
     }
 #endif // NDEBUG
@@ -2038,10 +2056,12 @@ static dpu_offload_status_t handle_revoke_group_rank_through_list_ranks(executio
     else
     {
         // On the host
-        pending_send_group_add_t *pending_send, *next_pending;
+        pending_send_group_add_t *pending_send = NULL, *next_pending = NULL;
+
+        DBG("Received final revoke for group 0x%x (size: %ld)", revoke_msg->list_ranks.gp_uid, revoke_msg->list_ranks.group_size);
+        assert(revoke_msg->list_ranks.group_size);
 
         // We got a revoke message from our service process so the group is fully revoked, we can reset it
-        assert(gp_cache->sent_to_host == true);
         rc = revoke_group_cache(econtext->engine, revoke_msg->list_ranks.gp_uid);
         CHECK_ERR_RETURN((rc != DO_SUCCESS), DO_ERROR, "revoke_group_cache() failed");
 

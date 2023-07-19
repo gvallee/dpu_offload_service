@@ -81,6 +81,7 @@ dpu_offload_status_t send_add_group_rank_request(execution_context_t *econtext, 
     DBG("group being revoked global_revoked = %ld group_size = %ld", gp_cache->revokes.global, gp_cache->group_size);
 
     // The group is in the process of being deleted, we cannot add this right away, otherwise the local cache would be in a inconsistent state
+    // since we would not know when it is safe to reset the group cache data structure.
     DYN_LIST_GET(econtext->engine->pool_pending_send_group_add,
                  pending_send_group_add_t,
                  item,
@@ -158,7 +159,7 @@ dpu_offload_status_t send_revoke_group_rank_request_through_rank_info(execution_
     if (meta_ev != NULL)
         ev->is_subevent = true;
 
-    DBG("Sending request to revoke the group/rank");
+    DBG("Sending request to revoke the group 0x%x (size: %ld, my rank: %ld)", rank_info->group_uid, rank_info->group_size, rank_info->group_rank);
     rc = event_channel_emit(&ev,
                             AM_REVOKE_GP_RANK_MSG_ID,
                             ep,
@@ -391,6 +392,7 @@ dpu_offload_status_t send_group_cache(execution_context_t *econtext, ucp_ep_h de
     assert(EVENT_HDR_TYPE(metaev) == META_EVENT_TYPE);
     gp_cache = GET_GROUP_CACHE(&(econtext->engine->procs_cache), gp_uid);
     assert(gp_cache);
+    assert(gp_cache->engine);
     if (!gp_cache->initialized)
         return DO_SUCCESS;
 
