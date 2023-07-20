@@ -1837,6 +1837,25 @@ typedef struct group_cache
     // Track whether or not a group cache has been fully initialized
     bool initialized;
 
+    // A set of elements that are not re-initialized when the group is being revoked.
+    // Used for instance to store information about revokes.
+    struct {
+        bool initialized;
+
+        // List of pending group revoke notifications (type: group_revoke_msg_t)
+        ucs_list_link_t pending_group_revoke_msgs;
+
+        // List of pending recvs group add notifications (type: pending_group_add_t)
+        ucs_list_link_t pending_group_add_msgs;
+
+        // List of pending send group add notification (type: pending_send_group_add_t)
+        ucs_list_link_t pending_send_group_add_msgs;
+
+        // pending_recv_cache_entries is the list of pending cache entries that needs
+        // to be processed once the associated group has been fully revoked (type: pending_recv_cache_entry_t).
+        ucs_list_link_t pending_recv_cache_entries;
+    } persistent;
+
     // Engine the group cache is associated with
     struct offloading_engine *engine;
 
@@ -2180,56 +2199,63 @@ typedef struct group_cache
  * to be used. It does not mean the group cache for the group is fully initialized. The
  * second part of the initialization is performed when a rank is added to the cache.
  */
-#define GET_GROUP_CACHE(_cache, _gp_uid) ({                                              \
-    group_cache_t *_gp_cache = NULL;                                                     \
-    assert((_cache)->data);                                                              \
-    khiter_t k = kh_get(group_hash_t, (_cache)->data, _gp_uid);                          \
-    if (k == kh_end((_cache)->data))                                                     \
-    {                                                                                    \
-        /* Group not in the cache, adding it */                                          \
-        int _ret;                                                                        \
-        assert((_cache)->engine);                                                        \
-        assert((_cache)->engine->config);                                                \
-        assert((_cache)->engine->config->num_hosts > 0);                                 \
-        group_cache_t *_new_group_cache;                                                 \
-        khiter_t _newKey = kh_put(group_hash_t, (_cache)->data, (_gp_uid), &_ret);       \
-        DYN_LIST_GET((_cache)->group_cache_pool, group_cache_t, item, _new_group_cache); \
-        assert(_new_group_cache);                                                        \
-        INIT_GROUP_CACHE(_new_group_cache);                                              \
-        _new_group_cache->engine = (_cache)->engine;                                     \
-        _new_group_cache->group_uid = (_gp_uid);                                         \
-        /* We set the value for the first group when we add */                           \
-        /* the first rank to a cache. GET_GROUP_CACHE only made */                       \
-        /* sure we could use the structure */                                            \
-        /* The first group is MPI_COMM_WORLD or equivalent. */                           \
-        (_cache)->size++;                                                                \
-        if ((_cache)->size == 1)                                                         \
-            (_cache)->world_group = (_gp_uid);                                           \
-        kh_value((_cache)->data, _newKey) = _new_group_cache;                            \
-        _gp_cache = _new_group_cache;                                                    \
-    }                                                                                    \
-    else                                                                                 \
-    {                                                                                    \
-        /* Group is in the cache, just return a pointer */                               \
-        _gp_cache = kh_value((_cache)->data, k);                                         \
-        if (_gp_cache->group_uid == INT_MAX)                                             \
-        {                                                                                \
-            /* The group cache is actually not initialized, most certainly because of */ \
-            /* a previous group revoke, which does not delete entries from hash */       \
-            /* tables but reset the group cache handle. In such a case, we */            \
-            /* re-initialize the group cache */                                          \
-            INIT_GROUP_CACHE(_gp_cache);                                                 \
-            _gp_cache->group_uid = _gp_uid;                                              \
-        }                                                                                \
-        if (_gp_cache->engine == NULL && _gp_cache->num_local_entries == 0)              \
-        {                                                                                \
-            /* This happens when the group has been revoked and reused */                \
-            _gp_cache->engine = (_cache)->engine;                                        \
-        }                                                                                \
-        assert(_gp_cache->engine != NULL);                                               \
-        assert(_gp_uid == _gp_cache->group_uid);                                         \
-    }                                                                                    \
-    _gp_cache;                                                                           \
+#define GET_GROUP_CACHE(_cache, _gp_uid) ({                                                 \
+    group_cache_t *_gp_cache = NULL;                                                        \
+    assert((_cache)->data);                                                                 \
+    khiter_t k = kh_get(group_hash_t, (_cache)->data, _gp_uid);                             \
+    if (k == kh_end((_cache)->data))                                                        \
+    {                                                                                       \
+        /* Group not in the cache, adding it */                                             \
+        int _ret;                                                                           \
+        assert((_cache)->engine);                                                           \
+        assert((_cache)->engine->config);                                                   \
+        assert((_cache)->engine->config->num_hosts > 0);                                    \
+        group_cache_t *_new_group_cache;                                                    \
+        khiter_t _newKey = kh_put(group_hash_t, (_cache)->data, (_gp_uid), &_ret);          \
+        DYN_LIST_GET((_cache)->group_cache_pool, group_cache_t, item, _new_group_cache);    \
+        assert(_new_group_cache);                                                           \
+        INIT_GROUP_CACHE(_new_group_cache);                                                 \
+        _new_group_cache->persistent.initialized = false;                                   \
+        _new_group_cache->engine = (_cache)->engine;                                        \
+        _new_group_cache->group_uid = (_gp_uid);                                            \
+        /* We set the value for the first group when we add */                              \
+        /* the first rank to a cache. GET_GROUP_CACHE only made */                          \
+        /* sure we could use the structure */                                               \
+        /* The first group is MPI_COMM_WORLD or equivalent. */                              \
+        (_cache)->size++;                                                                   \
+        if ((_cache)->size == 1)                                                            \
+            (_cache)->world_group = (_gp_uid);                                              \
+        kh_value((_cache)->data, _newKey) = _new_group_cache;                               \
+        ucs_list_head_init(&((_new_group_cache)->persistent.pending_group_revoke_msgs));    \
+        ucs_list_head_init(&((_new_group_cache)->persistent.pending_group_add_msgs));       \
+        ucs_list_head_init(&((_new_group_cache)->persistent.pending_send_group_add_msgs));  \
+        ucs_list_head_init(&((_new_group_cache)->persistent.pending_recv_cache_entries));   \
+        _new_group_cache->persistent.initialized = true;                                    \
+        _gp_cache = _new_group_cache;                                                       \
+    }                                                                                       \
+    else                                                                                    \
+    {                                                                                       \
+        /* Group is in the cache, just return a pointer */                                  \
+        _gp_cache = kh_value((_cache)->data, k);                                            \
+        if (_gp_cache->group_uid == INT_MAX)                                                \
+        {                                                                                   \
+            /* The group cache is actually not initialized, most certainly because of */    \
+            /* a previous group revoke, which does not delete entries from hash */          \
+            /* tables but reset the group cache handle. In such a case, we */               \
+            /* re-initialize the group cache */                                             \
+            INIT_GROUP_CACHE(_gp_cache);                                                    \
+            _gp_cache->group_uid = _gp_uid;                                                 \
+        }                                                                                   \
+        if (_gp_cache->engine == NULL && _gp_cache->num_local_entries == 0)                 \
+        {                                                                                   \
+            /* This happens when the group has been revoked and reused */                   \
+            _gp_cache->engine = (_cache)->engine;                                           \
+        }                                                                                   \
+        assert(_gp_cache->engine != NULL);                                                  \
+        assert(_gp_uid == _gp_cache->group_uid);                                            \
+        assert(_gp_cache->persistent.initialized == true);                                  \
+    }                                                                                       \
+    _gp_cache;                                                                              \
 })
 
 #define GET_GROUP_KEY(__gp) ({                          \
@@ -2526,7 +2552,7 @@ typedef struct pending_group_add
     ucs_list_link_t item;
 
     // Associated execution context
-    execution_context_t *econtext;
+    group_cache_t *group_cache;
 
     // Associated client identifier
     uint64_t client_id;
@@ -2541,7 +2567,7 @@ typedef struct pending_group_add
 #define RESET_PENDING_RECV_GROUP_ADD(_p) \
     do                                   \
     {                                    \
-        (_p)->econtext = NULL;           \
+        (_p)->group_cache = NULL;        \
         (_p)->client_id = UINT64_MAX;    \
         (_p)->data = NULL;               \
         (_p)->data_len = 0;              \
@@ -2685,19 +2711,6 @@ typedef struct offloading_engine
 
     // Pool of pool_pending_recv_cache_entries objects that are available to track received cache entries that cannot be handled right away because the group is not fully revoked yet
     dyn_list_t *pool_pending_recv_cache_entries;
-
-    // List of pending group revoke notifications (type: group_revoke_msg_t)
-    ucs_list_link_t pending_group_revoke_msgs;
-
-    // List of pending recvs group add notifications (type: pending_group_add_t)
-    ucs_list_link_t pending_group_add_msgs;
-
-    // List of pending send group add notification (type: pending_send_group_add_t)
-    ucs_list_link_t pending_send_group_add_msgs;
-
-    // pending_recv_cache_entries is the list of pending cache entries that needs
-    // to be processed once the associated group has been fully revoked (type: pending_recv_cache_entry_t).
-    ucs_list_link_t pending_recv_cache_entries;
 
     // Flag to specify if we are on the DPU or not
     bool on_dpu;
@@ -2851,10 +2864,6 @@ typedef struct offloading_engine
             _core_ret = -1;                                                                                                  \
             break;                                                                                                           \
         }                                                                                                                    \
-        ucs_list_head_init(&((_core_engine)->pending_group_revoke_msgs));                                                    \
-        ucs_list_head_init(&((_core_engine)->pending_group_add_msgs));                                                       \
-        ucs_list_head_init(&((_core_engine)->pending_send_group_add_msgs));                                                  \
-        ucs_list_head_init(&((_core_engine)->pending_recv_cache_entries));                                                   \
         (_core_engine)->on_dpu = false;                                                                                      \
         (_core_engine)->host_id = UINT64_MAX;                                                                                \
         /* Note that engine->dpus is a vector of remote_dpu_info_t pointers. */                                              \

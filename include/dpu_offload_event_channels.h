@@ -246,6 +246,6 @@ dpu_offload_status_t send_term_msg(execution_context_t *ctx, dest_client_t *dest
 // FIXME: those should not be there
 dpu_offload_status_t revoke_group_cache(offloading_engine_t *engine, group_uid_t gp_uid);
 dpu_offload_status_t send_revoke_group_to_ranks(offloading_engine_t *engine, group_uid_t gp_uid, uint64_t num_ranks);
-dpu_offload_status_t handle_pending_group_cache_add_msgs(offloading_engine_t *engine, group_uid_t gp_uid);
+dpu_offload_status_t handle_pending_group_cache_add_msgs(group_cache_t *group_cache);
 
 #endif // DPU_OFFLOAD_EVENT_CHANNELS_H_

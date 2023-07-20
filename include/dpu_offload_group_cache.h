@@ -17,6 +17,47 @@
         DYN_LIST_ALLOC((_cache)->group_cache_pool, DEFAULT_NUM_GROUPS, group_cache_t, item); \
     } while (0)
 
+#define GROUP_CACHE_TERMINATE_PENDING_MSGS(_gp_cache)                                   \
+    do                                                                                  \
+    {                                                                                   \
+        pending_send_group_add_t *_pending_send = NULL, *_next_pending = NULL;          \
+        /* Purge pending send group add messages since they are now irrelevant. */      \
+        /* This happens when the app is creating short-lived sub-communicators that */  \
+        /* are not used for offloading and destroyed too quickly for revoke message */  \
+        /* to go through the entire system before the app termination. */               \
+        ucs_list_for_each_safe(_pending_send, _next_pending,                            \
+                               &((_gp_cache)->persistent.pending_send_group_add_msgs),  \
+                               item)                                                    \
+        {                                                                               \
+            ucs_list_del(&(_pending_send->item));                                       \
+            if (_pending_send->ev != NULL)                                              \
+            {                                                                           \
+                if (_pending_send->ev->sub_events_initialized)                          \
+                {                                                                       \
+                    dpu_offload_event_t *_subev, *_next_subev;                          \
+                    ucs_list_for_each_safe (_subev, _next_subev,                        \
+                                            &(_pending_send->ev->sub_events), item)     \
+                    {                                                                   \
+                        ucs_list_del(&(_subev->item));                                  \
+                        event_return(&_subev);                                          \
+                    }                                                                   \
+                }                                                                       \
+                event_return(&(_pending_send->ev));                                     \
+                DYN_LIST_RETURN((_gp_cache)->engine->pool_pending_send_group_add,       \
+                                _pending_send,                                          \
+                                item);                                                  \
+            }                                                                           \
+        }                                                                               \
+    } while (0)
+
+#define GROUP_CACHE_TERMINATE_PERSISTENT_DATA(_gp_cache)    \
+    do                                                      \
+    {                                                       \
+        GROUP_CACHE_TERMINATE_PENDING_MSGS(_gp_cache);      \
+    } while (0)
+
+// Macro called during the termination of the engine to free all remaining
+// allocated data
 #define GROUPS_CACHE_FINI(_cache)                                           \
     do                                                                      \
     {                                                                       \
@@ -53,6 +94,8 @@
                     GROUP_CACHE_BITSET_DESTROY(_gp_cache->sps_bitset);      \
                     /* Free the bitset for Hosts */                         \
                     GROUP_CACHE_BITSET_DESTROY(_gp_cache->hosts_bitset);    \
+                    /* Free the persistent data of the group cache */       \
+                    GROUP_CACHE_TERMINATE_PERSISTENT_DATA(_gp_cache);       \
                 }                                                           \
             }) kh_destroy(group_hash_t, (_cache)->data);                    \
         }                                                                   \
