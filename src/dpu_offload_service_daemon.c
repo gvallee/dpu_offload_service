@@ -2593,7 +2593,7 @@ execution_context_t *server_init(offloading_engine_t *offloading_engine, init_pa
     ECONTEXT_LOCK(execution_context);
     dpu_offload_ev_sys_t *ev_sys = execution_context->event_channels;
     rc = register_default_notifications(ev_sys);
-    CHECK_ERR_GOTO((rc), error_out, "register_default_notfications() failed");
+    CHECK_ERR_GOTO((rc), error_out, "register_default_notifications() failed");
 
     ENGINE_LOCK(offloading_engine);
     ADD_DEFAULT_ENGINE_CALLBACKS(offloading_engine, execution_context);
