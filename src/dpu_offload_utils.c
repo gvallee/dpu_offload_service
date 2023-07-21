@@ -365,6 +365,8 @@ void group_cache_send_to_local_ranks_cb(void *context)
     assert(gp_cache->engine);
     gp_cache->sent_to_host = true;
 
+    HANDLE_PENDING_GROUP_REVOKE_MSGS_FROM_SPS(gp_cache);
+
     // If meanwhile the group has been revoked and the host not yet notified, we handle it since it is now safe to do so
     if (gp_cache->revoke_send_to_host_posted == false && gp_cache->revokes.global == gp_cache->group_size)
     {
@@ -597,7 +599,7 @@ static dpu_offload_status_t send_local_rank_group_cache(execution_context_t *eco
 
 #if !NDEBUG
         uint64_t sp_global_id = LOCAL_ID_TO_GLOBAL(econtext, dest_id);
-        DBG("Sending %ld cache entries to %ld (SP %" PRIu64 ") from entry %ld, ev: %p (%ld), metaev: %ld (msg size: %ld)\n",
+        DBG("Sending %ld cache entries to %ld (SP %" PRIu64 ") from entry %ld, ev: %p (%ld), metaev: %ld (msg size: %ld)",
             n_entries_to_send, dest_id, sp_global_id, idx_start, e, e->seq_num, metaev->seq_num, n_entries_to_send * sizeof(peer_cache_entry_t));
 #endif
         rc = event_channel_emit_with_payload(&e,

@@ -489,6 +489,9 @@ typedef struct peer_cache_entry
     // Is the entry set?
     bool set;
 
+    // comm_num is equal to the persistent.num value of the group_cache_t structure
+    uint64_t comm_num;
+
     // Peer data (group/rank)
     peer_data_t peer;
 
@@ -1842,6 +1845,11 @@ typedef struct group_cache
     struct {
         bool initialized;
 
+        // A group UID always represents the same exact communicator, num tracks how many times
+        // the group was globally created (number of time the communicator was created - and of
+        // course the communicator is being destroyed between each creation)
+        uint64_t num;
+
         // List of pending group revoke notifications (type: group_revoke_msg_t)
         ucs_list_link_t pending_group_revoke_msgs;
 
@@ -2231,6 +2239,7 @@ typedef struct group_cache
         ucs_list_head_init(&((_new_group_cache)->persistent.pending_send_group_add_msgs));  \
         ucs_list_head_init(&((_new_group_cache)->persistent.pending_recv_cache_entries));   \
         _new_group_cache->persistent.initialized = true;                                    \
+        _new_group_cache->persistent.num = 0;                                               \
         _gp_cache = _new_group_cache;                                                       \
     }                                                                                       \
     else                                                                                    \

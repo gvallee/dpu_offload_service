@@ -116,6 +116,44 @@
         DYN_ARRAY_ALLOC((dyn_array_t *)_gp_cache, 2048, peer_cache_entry_t); \
     } while (0)
 
+// Handles the pending revoke messages we received from other SPs
+#define HANDLE_PENDING_GROUP_REVOKE_MSGS_FROM_SPS(_gp_cache)                                    \
+    do                                                                                          \
+    {                                                                                           \
+        group_revoke_msg_obj_t *_pending_revoke_msg = NULL, *_next_pending = NULL;              \
+        ucs_list_for_each_safe(_pending_revoke_msg,                                             \
+                               _next_pending,                                                   \
+                               &((_gp_cache)->persistent.pending_group_revoke_msgs),            \
+                               item)                                                            \
+        {                                                                                       \
+            size_t _rank;                                                                       \
+            size_t _new_revokes = 0;                                                            \
+            DBG("Handling queued revoke message (group UID: 0x%x)",                             \
+                _pending_revoke_msg->msg.list_ranks.gp_uid);                                    \
+            ucs_list_del(&(_pending_revoke_msg->item));                                         \
+            /* Make sure it is an applicable message, if not, drop. */                          \
+            /* Note: with the group UID we have a unique */                                     \
+            /* way to identify group, regardless of asynchronous events and resuse */           \
+            /* of group ID (for example reuse of MPI communicator IDs). */                      \
+            assert(_pending_revoke_msg->msg.list_ranks.gp_uid != INT_MAX);                      \
+            /* Update the local list of ranks that revoked the group based on the data */       \
+            /* from the message */                                                              \
+            for (_rank = 0; _rank < _pending_revoke_msg->msg.list_ranks.num_ranks; _rank++)     \
+            {                                                                                   \
+                size_t _idx = _pending_revoke_msg->msg.list_ranks.rank_start + _rank;           \
+                if (GROUP_CACHE_BITSET_TEST((_gp_cache)->revokes.ranks, _idx) == 0)             \
+                {                                                                               \
+                    GROUP_CACHE_BITSET_SET((_gp_cache)->revokes.ranks, _idx);                   \
+                    _new_revokes++;                                                             \
+                }                                                                               \
+            }                                                                                   \
+            (_gp_cache)->revokes.global += _new_revokes;                                        \
+            DYN_LIST_RETURN((_gp_cache)->engine->pool_group_revoke_msgs,                        \
+                            _pending_revoke_msg,                                                \
+                            item);                                                              \
+        }                                                                                       \
+    } while (0)
+
 /**
  * @brief Checks whether a rank in a given group is in the cache.
  *
