@@ -406,7 +406,7 @@ dpu_offload_status_t send_group_cache(execution_context_t *econtext, ucp_ep_h de
         peer_cache_entry_t *cache_entry = GET_GROUP_RANK_CACHE_ENTRY(&(econtext->engine->procs_cache), gp_uid, i, gp_cache->group_size);
         assert(cache_entry->set == true);
         assert(cache_entry->num_shadow_service_procs > 0);
-        assert(cache_entry->comm_num);
+        assert(cache_entry->peer.proc_info.group_seq_num);
     }
 #endif
 

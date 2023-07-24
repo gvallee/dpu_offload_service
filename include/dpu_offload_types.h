@@ -494,9 +494,6 @@ typedef struct peer_cache_entry
     // Is the entry set?
     bool set;
 
-    // comm_num is equal to the persistent.num value of the group_cache_t structure
-    uint64_t comm_num;
-
     // Peer data (group/rank)
     peer_data_t peer;
 

@@ -1390,7 +1390,6 @@ add_cache_entry_for_new_client(peer_info_t *client_info, execution_context_t *ct
         COPY_RANK_INFO(&(client_info->rank_data), &(cache_entry->peer.proc_info));
         cache_entry->client_id = client_info->id;
         cache_entry->num_shadow_service_procs = 1;
-        cache_entry->comm_num = gp_cache->persistent.num;
         cache_entry->peer.host_info = client_info->rank_data.host_info;
         if (ctx->engine->on_dpu)
         {

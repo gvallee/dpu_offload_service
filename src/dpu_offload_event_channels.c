@@ -1488,18 +1488,18 @@ static dpu_offload_status_t handle_peer_cache_entries_recv(execution_context_t *
             size_t n;
 
             // Make sure the entry is for the "version" of the group that matches
-            assert(entries[idx].comm_num == gp_cache->persistent.num);
+            assert(entries[idx].peer.proc_info.group_seq_num);
+            assert(entries[idx].peer.proc_info.group_seq_num == gp_cache->persistent.num);
             if (gp_cache->group_uid == INT_MAX)
                 gp_cache->group_uid = group_uid;
             n_added++;
             gp_cache->num_local_entries++;
-            DBG("Adding rank %ld to group 0x%x (seq_num: %ld)", group_rank, gp_cache->group_uid, gp_cache->persistent.num);
+            DBG("Adding rank %ld to group 0x%x (seq_num: %ld/%ld)",
+                group_rank, gp_cache->group_uid, gp_cache->persistent.num, entries[idx].peer.proc_info.group_seq_num);
             cache_entry = GET_GROUP_RANK_CACHE_ENTRY(cache, group_uid, group_rank, group_size);
             cache_entry->set = true;
-            assert(gp_cache->persistent.num == entries[idx].comm_num);
             COPY_PEER_DATA(&(entries[idx].peer), &(cache_entry->peer));
             assert(entries[idx].num_shadow_service_procs > 0);
-            assert(entries[idx].comm_num);
             // append the shadow DPU data to the data already local available (if any)
             for (n = 0; n < entries[idx].num_shadow_service_procs; n++)
             {
@@ -1736,6 +1736,7 @@ static dpu_offload_status_t do_add_group_rank_recv_cb(offloading_engine_t *engin
     assert(data);
     assert(engine);
     rank_info = (rank_info_t *)data;
+    assert(rank_info->group_seq_num);
 
     execution_context_t *service_server = get_server_servicing_host(engine);
     assert(service_server);
