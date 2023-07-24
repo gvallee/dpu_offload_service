@@ -401,6 +401,9 @@ typedef struct rank_info
     int64_t local_rank;
 
     host_uid_t host_info;
+
+    // group_seq_num is the sequence number of the associated group (must be > 0 for valid groups)
+    uint64_t group_seq_num;
 } rank_info_t;
 
 #define RESET_RANK_INFO(_r)              \
@@ -412,6 +415,7 @@ typedef struct rank_info
         (_r)->n_local_ranks = 0;         \
         (_r)->local_rank = INVALID_RANK; \
         (_r)->host_info = UINT64_MAX;    \
+        (_r)->group_seq_num = 0;         \
     } while (0)
 
 #define COPY_RANK_INFO(__s, __d)                     \
@@ -423,6 +427,7 @@ typedef struct rank_info
         (__d)->n_local_ranks = (__s)->n_local_ranks; \
         (__d)->local_rank = (__s)->local_rank;       \
         (__d)->host_info = (__s)->host_info;         \
+        (__d)->group_seq_num = (__s)->group_seq_num; \
     } while (0)
 
 // fixme: long term, we do not want to have a limit on the length of the address
@@ -1847,7 +1852,8 @@ typedef struct group_cache
 
         // A group UID always represents the same exact communicator, num tracks how many times
         // the group was globally created (number of time the communicator was created - and of
-        // course the communicator is being destroyed between each creation)
+        // course the communicator is being destroyed between each creation).
+        // 0 means the group has not been created yet
         uint64_t num;
 
         // List of pending group revoke notifications (type: group_revoke_msg_t)

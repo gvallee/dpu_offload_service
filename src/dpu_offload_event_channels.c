@@ -1489,11 +1489,6 @@ static dpu_offload_status_t handle_peer_cache_entries_recv(execution_context_t *
 
             if (gp_cache->group_uid == INT_MAX)
                 gp_cache->group_uid = group_uid;
-            if (gp_cache->num_local_entries == 0)
-            {
-                // It is the first entry for the newly created group, increasing num
-                gp_cache->persistent.num++;
-            }
             n_added++;
             gp_cache->num_local_entries++;
             cache_entry = GET_GROUP_RANK_CACHE_ENTRY(cache, group_uid, group_rank, group_size);
@@ -1501,6 +1496,7 @@ static dpu_offload_status_t handle_peer_cache_entries_recv(execution_context_t *
             assert(gp_cache->persistent.num == entries[idx].comm_num);
             COPY_PEER_DATA(&(entries[idx].peer), &(cache_entry->peer));
             assert(entries[idx].num_shadow_service_procs > 0);
+            assert(entries[idx].comm_num);
             // append the shadow DPU data to the data already local available (if any)
             for (n = 0; n < entries[idx].num_shadow_service_procs; n++)
             {
@@ -1691,6 +1687,7 @@ dpu_offload_status_t send_revoke_group_to_ranks(offloading_engine_t *engine, gro
     assert(num_ranks);
     gp_cache = GET_GROUP_CACHE(&(engine->procs_cache), gp_uid);
     assert(gp_cache);
+    assert(gp_cache->revoke_send_to_host_posted == false);
 
     rc = event_get(host_server->event_channels, NULL, &metaev);
     CHECK_ERR_RETURN((rc), DO_ERROR, "event_get() failed");
@@ -1699,7 +1696,7 @@ dpu_offload_status_t send_revoke_group_to_ranks(offloading_engine_t *engine, gro
     metaev->ctx.completion_cb = revoke_send_to_host_cb;
     metaev->ctx.completion_cb_ctx = gp_cache;
 
-    DBG("Sending final revoke to local ranks (group UID: 0x%x, size: %ld)", gp_uid, gp_cache->group_size);
+    DBG("Sending final revoke to local ranks (group UID: 0x%x, size: %ld, group seq num: %ld)", gp_uid, gp_cache->group_size, gp_cache->persistent.num);
 
     while (n < host_server->server->connected_clients.num_connected_clients)
     {
@@ -1789,7 +1786,6 @@ static dpu_offload_status_t do_add_group_rank_recv_cb(offloading_engine_t *engin
                client_info->peer_addr,
                client_info->peer_addr_len);
         COPY_RANK_INFO(rank_info, &(cache_entry->peer.proc_info));
-        cache_entry->comm_num = gp_cache->persistent.num;
         cache_entry->num_shadow_service_procs = 1;
         cache_entry->shadow_service_procs[0] = engine->config->local_service_proc.info.global_id;
         cache_entry->client_id = client_id;

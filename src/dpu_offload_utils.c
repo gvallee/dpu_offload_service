@@ -406,6 +406,7 @@ dpu_offload_status_t send_group_cache(execution_context_t *econtext, ucp_ep_h de
         peer_cache_entry_t *cache_entry = GET_GROUP_RANK_CACHE_ENTRY(&(econtext->engine->procs_cache), gp_uid, i, gp_cache->group_size);
         assert(cache_entry->set == true);
         assert(cache_entry->num_shadow_service_procs > 0);
+        assert(cache_entry->comm_num);
     }
 #endif
 
@@ -637,8 +638,9 @@ dpu_offload_status_t send_gp_cache_to_host(execution_context_t *econtext, group_
     {
         dpu_offload_event_t *metaev;
 
-        DBG("Cache is complete for group 0x%x, sending it to the local ranks (econtext: %p, number of connected clients: %ld, total: %ld)",
+        DBG("Cache is complete for group 0x%x (seq_num: %ld), sending it to the local ranks (econtext: %p, number of connected clients: %ld, total: %ld)",
             group_uid,
+            gp_cache->persistent.num,
             econtext,
             econtext->server->connected_clients.num_connected_clients,
             econtext->server->connected_clients.num_total_connected_clients);
