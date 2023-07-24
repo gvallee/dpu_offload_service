@@ -638,8 +638,9 @@ dpu_offload_status_t send_gp_cache_to_host(execution_context_t *econtext, group_
     {
         dpu_offload_event_t *metaev;
 
-        DBG("Cache is complete for group 0x%x, sending it to the local ranks (econtext: %p, number of connected clients: %ld, total: %ld)",
+        DBG("Cache is complete for group 0x%x (seq_num: %ld), sending it to the local ranks (econtext: %p, number of connected clients: %ld, total: %ld)",
             group_uid,
+            gp_cache->persistent.num,
             econtext,
             econtext->server->connected_clients.num_connected_clients,
             econtext->server->connected_clients.num_total_connected_clients);

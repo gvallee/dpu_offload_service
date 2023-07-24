@@ -1364,10 +1364,24 @@ add_cache_entry_for_new_client(peer_info_t *client_info, execution_context_t *ct
         // Update the pointer to track cache entries, i.e., groups/ranks, for the peer
         peer_cache_entry_t *cache_entry = NULL;
         dpu_offload_status_t rc;
+        group_cache_t *gp_cache = NULL;
 
-        DBG("Adding gp/rank 0x%x/%" PRId64 " to cache",
+        gp_cache = GET_GROUP_CACHE(&(ctx->engine->procs_cache), client_info->rank_data.group_uid);
+        assert(gp_cache);
+
+        DBG("Adding gp/rank 0x%x/%" PRId64 " to cache for group 0x%x (group's seq_num: %ld)",
             client_info->rank_data.group_uid,
-            client_info->rank_data.group_rank);
+            client_info->rank_data.group_rank,
+            gp_cache->group_uid,
+            gp_cache->persistent.num);
+
+        // Since the client just connected, it is by definition the first group, i.e.,
+        // MPI_COMM_WORLD in the context of MPI.
+        assert(gp_cache->persistent.num == 0);
+        // Since this happens in the context of the client bootstrapping and therefore
+        // for the first group, we explicitely set the group's sequence number to 1.
+        gp_cache->persistent.num = 1;
+
         cache_entry = GET_GROUP_RANK_CACHE_ENTRY(&(ctx->engine->procs_cache),
                                                  client_info->rank_data.group_uid,
                                                  client_info->rank_data.group_rank,
@@ -1376,6 +1390,7 @@ add_cache_entry_for_new_client(peer_info_t *client_info, execution_context_t *ct
         COPY_RANK_INFO(&(client_info->rank_data), &(cache_entry->peer.proc_info));
         cache_entry->client_id = client_info->id;
         cache_entry->num_shadow_service_procs = 1;
+        cache_entry->comm_num = gp_cache->persistent.num;
         cache_entry->peer.host_info = client_info->rank_data.host_info;
         if (ctx->engine->on_dpu)
         {
@@ -1388,12 +1403,6 @@ add_cache_entry_for_new_client(peer_info_t *client_info, execution_context_t *ct
         assert(cache_entry->ep == NULL);
         cache_entry->set = true;
 
-        group_cache_t *gp_cache = GET_GROUP_CACHE(&(ctx->engine->procs_cache), client_info->rank_data.group_uid);
-        if (cache_entry == NULL)
-        {
-            ERR_MSG("undefined cache entry");
-            return DO_ERROR;
-        }
         if (gp_cache->n_local_ranks <= 0 && client_info->rank_data.n_local_ranks >= 0)
         {
             DBG("Setting the number of local ranks for the group 0x%x (%" PRId64 ")",
