@@ -700,7 +700,7 @@ static void oob_send_cb(void *request, ucs_status_t status, void *ctx)
 }
 #endif
 
-static void ucx_client_boostrap_send_cb(void *request, ucs_status_t status, void *user_data)
+static void ucx_client_bootstrap_send_cb(void *request, ucs_status_t status, void *user_data)
 {
     am_req_t *ctx = (am_req_t *)user_data;
     ctx->complete = 1;
@@ -717,7 +717,7 @@ static dpu_offload_status_t client_ucx_boostrap_step3(execution_context_t *econt
     send_param.op_attr_mask = UCP_OP_ATTR_FIELD_CALLBACK |
                               UCP_OP_ATTR_FIELD_DATATYPE |
                               UCP_OP_ATTR_FIELD_USER_DATA;
-    send_param.cb.send = ucx_client_boostrap_send_cb;
+    send_param.cb.send = ucx_client_bootstrap_send_cb;
     send_param.datatype = ucp_dt_make_contig(1);
     send_param.user_data = &(econtext->client->bootstrapping.rank_ctx);
     DBG("Tag: %d; scope_id: %d", econtext->client->conn_data.oob.tag, econtext->scope_id);
@@ -754,7 +754,7 @@ static dpu_offload_state_t client_ucx_bootstrap_step2(execution_context_t *econt
     send_param.op_attr_mask = UCP_OP_ATTR_FIELD_CALLBACK |
                               UCP_OP_ATTR_FIELD_DATATYPE |
                               UCP_OP_ATTR_FIELD_USER_DATA;
-    send_param.cb.send = ucx_client_boostrap_send_cb;
+    send_param.cb.send = ucx_client_bootstrap_send_cb;
     send_param.datatype = ucp_dt_make_contig(1);
     send_param.user_data = &(econtext->client->bootstrapping.addr_ctx);
     DBG("Tag: %d; scope_id: %d\n", econtext->client->conn_data.oob.tag, econtext->scope_id);
@@ -805,7 +805,7 @@ static dpu_offload_status_t client_ucx_bootstrap_step1(execution_context_t *econ
     send_param.op_attr_mask = UCP_OP_ATTR_FIELD_CALLBACK |
                               UCP_OP_ATTR_FIELD_DATATYPE |
                               UCP_OP_ATTR_FIELD_USER_DATA;
-    send_param.cb.send = ucx_client_boostrap_send_cb;
+    send_param.cb.send = ucx_client_bootstrap_send_cb;
     send_param.datatype = ucp_dt_make_contig(1);
     send_param.user_data = &(econtext->client->bootstrapping.addr_size_ctx);
 

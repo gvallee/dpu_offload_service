@@ -1487,6 +1487,8 @@ static dpu_offload_status_t handle_peer_cache_entries_recv(execution_context_t *
             peer_cache_entry_t *cache_entry = NULL;
             size_t n;
 
+            // Make sure the entry is for the "version" of the group that matches
+            assert(entries[idx].comm_num == gp_cache->persistent.num);
             if (gp_cache->group_uid == INT_MAX)
                 gp_cache->group_uid = group_uid;
             if (gp_cache->num_local_entries == 0)
@@ -1496,6 +1498,7 @@ static dpu_offload_status_t handle_peer_cache_entries_recv(execution_context_t *
             }
             n_added++;
             gp_cache->num_local_entries++;
+            DBG("Adding rank %ld to group 0x%x (seq_num: %ld)", group_rank, gp_cache->group_uid, gp_cache->persistent.num);
             cache_entry = GET_GROUP_RANK_CACHE_ENTRY(cache, group_uid, group_rank, group_size);
             cache_entry->set = true;
             assert(gp_cache->persistent.num == entries[idx].comm_num);
@@ -1602,9 +1605,9 @@ static dpu_offload_status_t peer_cache_entries_recv_cb(struct dpu_offload_ev_sys
     entries = (peer_cache_entry_t *)data;
     group_uid = entries[0].peer.proc_info.group_uid;
     group_size = entries[0].peer.proc_info.group_size;
-    DBG("Receive cache entry for group 0x%x from SP %" PRIu64 ", ev: %" PRIu64, group_uid, sp_global_id, hdr->event_id);
     gp_cache = GET_GROUP_CACHE(&(econtext->engine->procs_cache), group_uid);
     assert(gp_cache);
+    DBG("Receive cache entry for group 0x%x from SP %" PRIu64 ", ev: %" PRIu64, group_uid, sp_global_id, hdr->event_id);
 
     // It is absolutely possible to receive cache entries for a group that has been locally revoked
     if (gp_cache->revokes.global > 0 && gp_cache->revokes.global < gp_cache->group_size)
