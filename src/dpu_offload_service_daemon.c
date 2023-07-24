@@ -711,8 +711,8 @@ static dpu_offload_status_t client_ucx_boostrap_step3(execution_context_t *econt
     ECONTEXT_LOCK(econtext);
     DBG("Sent addr to server");
     // We send our "rank", i.e., unique application ID
-    DBG("Sending my group/rank info (0x%x/%" PRId64 "), len=%ld",
-        econtext->rank.group_uid, econtext->rank.group_rank, sizeof(econtext->rank));
+    DBG("Sending my group/rank info (0x%x/%" PRId64 ", group seq num: %ld), len=%ld",
+        econtext->rank.group_uid, econtext->rank.group_rank, econtext->rank.group_seq_num, sizeof(econtext->rank));
     ucp_request_param_t send_param = {0};
     send_param.op_attr_mask = UCP_OP_ATTR_FIELD_CALLBACK |
                               UCP_OP_ATTR_FIELD_DATATYPE |
@@ -1973,8 +1973,14 @@ execution_context_t *client_init(offloading_engine_t *offload_engine, init_param
         !is_in_cache(&(offload_engine->procs_cache), ctx->rank.group_uid, ctx->rank.group_rank, ctx->rank.group_size))
     {
         dpu_offload_state_t ret;
+        group_cache_t *gp_cache = NULL;
+        assert(offload_engine->procs_cache.world_group == ctx->rank.group_uid);
+        gp_cache = GET_GROUP_CACHE(&(offload_engine->procs_cache), ctx->rank.group_uid);
+        assert(gp_cache);
+        assert(gp_cache->persistent.num == 0); // The group is not in use yet so its seq num should be 0
+        ctx->rank.group_seq_num = gp_cache->persistent.num = 1; // Now we mark it as in use so the seq num is set to 1
         ret = host_add_local_rank_to_cache(offload_engine, &(ctx->rank));
-        CHECK_ERR_GOTO((ret != DO_SUCCESS), error_out, "host_add_local_rank_to_cache() failed");
+        CHECK_ERR_GOTO((ret != DO_SUCCESS), error_out, "host_add_local_rank_to_cache() failed (rc: %d)", ret);
     }
 
     return ctx;

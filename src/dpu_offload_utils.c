@@ -38,8 +38,20 @@ const char *config_file_version_token = "Format version:";
 dpu_offload_status_t do_send_add_group_rank_request(execution_context_t *econtext, ucp_ep_h ep, uint64_t dest_id, dpu_offload_event_t *ev)
 {
     dpu_offload_status_t rc;
+    group_cache_t *gp_cache = NULL;
     // The rank info is always at the beginning of the payload that the caller prepared
     rank_info_t *rank_info = (rank_info_t *)ev->payload;
+
+    gp_cache = GET_GROUP_CACHE(&(econtext->engine->procs_cache), rank_info->group_uid);
+    assert(gp_cache);
+    if (gp_cache->num_local_entries == 0)
+    {
+        // First time a rank is added to the group (e.g., after a revoke) so
+        // we increase the group's sequence number
+        gp_cache->persistent.num++;
+    }
+    rank_info->group_seq_num = gp_cache->persistent.num;
+
     // We add ourselves to the local EP cache as shadow service process
     if (!is_in_cache(&(econtext->engine->procs_cache), rank_info->group_uid, rank_info->group_rank, rank_info->group_size))
     {
