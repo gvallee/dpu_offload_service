@@ -1489,7 +1489,13 @@ static dpu_offload_status_t handle_peer_cache_entries_recv(execution_context_t *
 
             // Make sure the entry is for the "version" of the group that matches
             assert(entries[idx].peer.proc_info.group_seq_num);
+            if (gp_cache->num_local_entries == 0)
+            {
+                // New "version" of the group
+                gp_cache->persistent.num++;
+            }
             assert(entries[idx].peer.proc_info.group_seq_num == gp_cache->persistent.num);
+
             if (gp_cache->group_uid == INT_MAX)
                 gp_cache->group_uid = group_uid;
             n_added++;
@@ -1500,6 +1506,7 @@ static dpu_offload_status_t handle_peer_cache_entries_recv(execution_context_t *
             cache_entry->set = true;
             COPY_PEER_DATA(&(entries[idx].peer), &(cache_entry->peer));
             assert(entries[idx].num_shadow_service_procs > 0);
+            assert(cache_entry->peer.proc_info.group_seq_num);
             // append the shadow DPU data to the data already local available (if any)
             for (n = 0; n < entries[idx].num_shadow_service_procs; n++)
             {
@@ -1988,8 +1995,8 @@ static dpu_offload_status_t handle_revoke_group_rank_through_list_ranks(executio
             group_revoke_msg_obj_t *pending_msg = NULL;
 
             // Make the message persistent
-            DBG("Queuing revoke msg from another SP (n_local_ranks: %ld, local_revoked: %ld, group ID: 0x%x, ranks for SP: %ld)",
-                gp_cache->n_local_ranks, gp_cache->revokes.local, revoke_msg->list_ranks.gp_uid, gp_cache->sp_ranks);
+            DBG("Queuing revoke msg from another SP (group seq num: %ld, n_local_ranks: %ld, local_revoked: %ld, group ID: 0x%x, ranks for SP: %ld)",
+                gp_cache->persistent.num, gp_cache->n_local_ranks, gp_cache->revokes.local, revoke_msg->list_ranks.gp_uid, gp_cache->sp_ranks);
             DYN_LIST_GET(econtext->engine->pool_group_revoke_msgs,
                          group_revoke_msg_obj_t,
                          item,
@@ -2115,8 +2122,6 @@ static dpu_offload_status_t handle_revoke_group_rank_through_rank_info(execution
     }
     else
     {
-        // The cache was fully populated so we just need to handle it
-
         // Mark the rank has one that revoked the group
         GROUP_CACHE_BITSET_SET(gp_cache->revokes.ranks, revoke_msg->info.group_rank);
         gp_cache->revokes.local++;
