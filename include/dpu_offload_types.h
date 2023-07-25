@@ -1877,7 +1877,7 @@ typedef struct group_cache
         // Track how many local rank revoked a specific group.
         uint64_t local;
 
-        // Track which ranks revoked the group
+        // Track which ranks revoked the group. Based on a lazy initialization.
         group_cache_bitset_t *ranks;
     } revokes;
 
@@ -2065,7 +2065,7 @@ typedef struct group_cache
         (__g)->sps_hash = kh_init(group_sps_hash_t);                                    \
         (__g)->hosts_hash = kh_init(group_hosts_hash_t);                                \
         (__g)->initialized = true;                                                      \
-        /* revokes.ranks is initialized when the pazy group cache initialization */     \
+        /* revokes.ranks is initialized during the lazy group cache initialization */     \
     } while (0)
 
 #define RESET_GROUP_CACHE(__e, __g)                             \

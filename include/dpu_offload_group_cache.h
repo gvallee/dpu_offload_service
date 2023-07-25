@@ -186,6 +186,7 @@
     do                                                                                          \
     {                                                                                           \
         group_revoke_msg_obj_t *_pending_revoke_msg = NULL, *_next_pending = NULL;              \
+        assert(_gp_cache);                                                                      \
         ucs_list_for_each_safe(_pending_revoke_msg,                                             \
                                _next_pending,                                                   \
                                &((_gp_cache)->persistent.pending_group_revoke_msgs),            \
@@ -203,9 +204,17 @@
             assert(_pending_revoke_msg->msg.list_ranks.gp_uid != INT_MAX);                      \
             /* Update the local list of ranks that revoked the group based on the data */       \
             /* from the message */                                                              \
+            if (gp_cache->revokes.ranks == NULL)                                                \
+            {                                                                                   \
+                /* This bitset always has a lazy initialization, like a group cache */          \
+                assert((_gp_cache)->group_size != 0);                                           \
+                GROUP_CACHE_BITSET_CREATE((_gp_cache)->revokes.ranks, (_gp_cache)->group_size); \
+            }                                                                                   \
+            assert((_gp_cache)->revokes.ranks);                                                 \
             for (_rank = 0; _rank < _pending_revoke_msg->msg.list_ranks.num_ranks; _rank++)     \
             {                                                                                   \
                 size_t _idx = _pending_revoke_msg->msg.list_ranks.rank_start + _rank;           \
+                DBG("Marking rank %ld has revoking the group", _idx);                           \
                 if (GROUP_CACHE_BITSET_TEST((_gp_cache)->revokes.ranks, _idx) == 0)             \
                 {                                                                               \
                     GROUP_CACHE_BITSET_SET((_gp_cache)->revokes.ranks, _idx);                   \
