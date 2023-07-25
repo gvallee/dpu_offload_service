@@ -147,6 +147,10 @@ dpu_offload_status_t send_revoke_group_rank_request_through_rank_info(execution_
     group_revoke_msg_t *desc = NULL;
     dpu_offload_event_info_t ev_info;
 
+    assert(rank_info);
+    assert(econtext);
+    assert(econtext->engine);
+
     // Check the validity of the group
     if (rank_info->group_rank == INVALID_RANK)
     {
@@ -154,6 +158,18 @@ dpu_offload_status_t send_revoke_group_rank_request_through_rank_info(execution_
         return DO_ERROR;
     }
     assert(rank_info->group_uid != INT_MAX);
+
+    if (rank_info->group_uid == econtext->engine->procs_cache.world_group)
+    {
+        // If we are in the context of the first group, i.e., COMM_WORLD when
+        // using MPI, we donot send the revoke message since it is right before
+        // shutting everything down. Note that it is totally safe since revokes
+        // are only supported to free resources when a group is freed and avoid
+        // as much as possible running out of resources on the DPU. Not revoking
+        // the group here does not prevent total cleanup when the infrastructure
+        // shuts down.
+        return DO_SUCCESS;
+    }
 
     RESET_EVENT_INFO(&ev_info);
     ev_info.pool.element_size = sizeof(group_revoke_msg_t); // Size of the payload, not the type used to get element
