@@ -108,32 +108,50 @@ dpu_offload_status_t send_add_group_rank_request(execution_context_t *econtext, 
     return DO_SUCCESS;
 }
 
-/**
- * @brief revoke_msg_return returns a revoke message to a pool. The function can be used for messages both on the host or DPUs.
- *
- * @param pool
- * @param buf
- */
-static void revoke_msg_return(void *pool, void *buf)
+static void revoke_msg_from_rank_return(void *pool, void *buf)
 {
     dyn_list_t *dlist = NULL;
-    group_revoke_msg_obj_t *desc = NULL;
+    group_revoke_msg_from_rank_t *msg = NULL;
     assert(pool);
+    assert(buf);
     dlist = (dyn_list_t *)pool;
-    desc = (group_revoke_msg_obj_t *)((ptrdiff_t)buf - sizeof(ucs_list_link_t));
-    DYN_LIST_RETURN(dlist, desc, item);
+    msg = (group_revoke_msg_from_rank_t *) buf;
+    DYN_LIST_RETURN(dlist, msg, item);
 }
 
-static void *revoke_msg_get(void *pool, void *args)
+static void *revoke_msg_from_rank_get(void *pool, void *args)
 {
-    group_revoke_msg_obj_t *elt = NULL;
     dyn_list_t *dlist = NULL;
+    group_revoke_msg_from_rank_t *msg = NULL;
     assert(pool);
     dlist = (dyn_list_t *)pool;
-    DYN_LIST_GET(dlist, group_revoke_msg_obj_t, item, elt);
-    assert(elt);
-    return &(elt->msg);
+    DYN_LIST_GET(dlist, group_revoke_msg_from_rank_t, item, msg);
+    assert(msg);
+    return msg;
 }
+
+static void revoke_msg_from_sp_return(void *pool, void *buf)
+{
+    dyn_list_t *dlist = NULL;
+    group_revoke_msg_from_sp_t *msg = NULL;
+    assert(pool);
+    assert(buf);
+    dlist = (dyn_list_t *)pool;
+    msg = (group_revoke_msg_from_sp_t *) buf;
+    DYN_LIST_RETURN(dlist, msg, item);
+}
+
+static void *revoke_msg_from_sp_get(void *pool, void *args)
+{
+    dyn_list_t *dlist = NULL;
+    group_revoke_msg_from_sp_t *msg = NULL;
+    assert(pool);
+    dlist = (dyn_list_t *)pool;
+    DYN_LIST_GET(dlist, group_revoke_msg_from_sp_t, item, msg);
+    assert(msg);
+    return msg;
+}
+
 
 dpu_offload_status_t send_revoke_group_rank_request_through_rank_info(execution_context_t *econtext,
                                                                       ucp_ep_h ep,
@@ -144,7 +162,7 @@ dpu_offload_status_t send_revoke_group_rank_request_through_rank_info(execution_
 #if !CACHE_IS_PERSISTENT
     dpu_offload_status_t rc;
     dpu_offload_event_t *ev = NULL;
-    group_revoke_msg_t *desc = NULL;
+    group_revoke_msg_from_rank_t *desc = NULL;
     dpu_offload_event_info_t ev_info;
 
     assert(rank_info);
@@ -172,17 +190,16 @@ dpu_offload_status_t send_revoke_group_rank_request_through_rank_info(execution_
     }
 
     RESET_EVENT_INFO(&ev_info);
-    ev_info.pool.element_size = sizeof(group_revoke_msg_t); // Size of the payload, not the type used to get element
-    ev_info.pool.get_buf = revoke_msg_get;
-    ev_info.pool.return_buf = revoke_msg_return;
-    ev_info.pool.mem_pool = econtext->engine->pool_group_revoke_msgs;
+    ev_info.pool.element_size = sizeof(group_revoke_msg_from_rank_t); // Size of the payload, not the type used to get element
+    ev_info.pool.get_buf = revoke_msg_from_rank_get;
+    ev_info.pool.return_buf = revoke_msg_from_rank_return;
+    ev_info.pool.mem_pool = econtext->engine->pool_group_revoke_msgs_from_ranks;
 
     rc = event_get(econtext->event_channels, &ev_info, &ev);
     CHECK_ERR_RETURN((rc != DO_SUCCESS), DO_ERROR, "event_get() failed");
     assert(ev);
     desc = (group_revoke_msg_t *)ev->payload;
-    desc->type = GROUP_REVOKE_THROUGH_RANK_INFO;
-    COPY_RANK_INFO(rank_info, &(desc->info));
+    COPY_RANK_INFO(rank_info, &(desc->rank_info));
 
     if (meta_ev != NULL)
         ev->is_subevent = true;
@@ -226,7 +243,7 @@ dpu_offload_status_t send_revoke_group_rank_request_through_list_ranks(execution
 {
     dpu_offload_status_t rc;
     dpu_offload_event_t *ev = NULL;
-    group_revoke_msg_t *desc = NULL;
+    group_revoke_msg_from_sp_t *desc = NULL;
     dpu_offload_event_info_t ev_info;
     group_cache_t *gp_cache = NULL;
 
@@ -241,28 +258,27 @@ dpu_offload_status_t send_revoke_group_rank_request_through_list_ranks(execution
     assert(gp_cache);
 
     RESET_EVENT_INFO(&ev_info);
-    ev_info.pool.element_size = sizeof(group_revoke_msg_t);
-    ev_info.pool.get_buf = revoke_msg_get;
-    ev_info.pool.return_buf = revoke_msg_return;
-    ev_info.pool.mem_pool = econtext->engine->pool_group_revoke_msgs;
+    ev_info.pool.element_size = sizeof(group_revoke_msg_from_sp_t);
+    ev_info.pool.get_buf = revoke_msg_from_sp_get;
+    ev_info.pool.return_buf = revoke_msg_from_sp_return;
+    ev_info.pool.mem_pool = econtext->engine->pool_group_revoke_msgs_from_sps;
 
     rc = event_get(econtext->event_channels, &ev_info, &ev);
     CHECK_ERR_RETURN((rc != DO_SUCCESS), DO_ERROR, "event_get() failed");
     assert(ev);
-    desc = (group_revoke_msg_t *)ev->payload;
-    desc->type = GROUP_REVOKE_THROUGH_LIST_RANKS;
-    desc->list_ranks.gp_uid = gp_uid;
+    desc = (group_revoke_msg_from_sp_t *)ev->payload;
+    desc->gp_uid = gp_uid;
     assert(num_ranks);
-    desc->list_ranks.num_ranks = num_ranks;
-    desc->list_ranks.group_size = gp_cache->group_size;
-    assert(desc->list_ranks.group_size);
+    desc->num_ranks = num_ranks;
+    desc->group_size = gp_cache->group_size;
+    assert(desc->group_size);
 
     if (meta_ev != NULL)
         ev->is_subevent = true;
 
     DBG("Sending request to revoke the group/rank");
     rc = event_channel_emit(&ev,
-                            AM_REVOKE_GP_RANK_MSG_ID,
+                            AM_REVOKE_GP_SP_MSG_ID,
                             ep,
                             dest_id,
                             NULL);
@@ -499,6 +515,7 @@ bool find_range_local_ranks(execution_context_t *econtext, group_uid_t gp_uid, i
     return true;
 }
 
+// send_local_revoke_rank_group_cache is used to send revoke via group_revoke_msg_from_sp_t messages
 static dpu_offload_status_t send_local_revoke_rank_group_cache(execution_context_t *econtext,
                                                                ucp_ep_h dest_ep,
                                                                uint64_t dest_id,
@@ -507,7 +524,7 @@ static dpu_offload_status_t send_local_revoke_rank_group_cache(execution_context
 {
     int rc;
     dpu_offload_event_t *e = NULL;
-    group_revoke_msg_t *payload = NULL;
+    group_revoke_msg_from_sp_t *payload = NULL;
     dpu_offload_event_info_t ev_info;
     size_t ranks_sent = 0, current_sends = 0, remaining_sends = 0;
 
@@ -526,16 +543,15 @@ static dpu_offload_status_t send_local_revoke_rank_group_cache(execution_context
         size_t relative_idx;
         // Get a revoke buffer for the message
         RESET_EVENT_INFO(&ev_info);
-        ev_info.pool.element_size = sizeof(group_revoke_msg_t);
-        ev_info.pool.get_buf = revoke_msg_get;
-        ev_info.pool.return_buf = revoke_msg_return;
-        ev_info.pool.mem_pool = econtext->engine->pool_group_revoke_msgs;
+        ev_info.pool.element_size = sizeof(group_revoke_msg_from_sp_t);
+        ev_info.pool.get_buf = revoke_msg_from_sp_get;
+        ev_info.pool.return_buf = revoke_msg_from_sp_return;
+        ev_info.pool.mem_pool = econtext->engine->pool_group_revoke_msgs_from_sps;
 
         // Send the notification and queue the sub-event
         rc = event_get(econtext->event_channels, &ev_info, &e);
         CHECK_ERR_RETURN((rc), DO_ERROR, "event_get() failed");
-        payload = (group_revoke_msg_t *)e->payload;
-        payload->type = GROUP_REVOKE_THROUGH_LIST_RANKS;
+        payload = (group_revoke_msg_from_sp_t *)e->payload;
 
         // We can only send a maximum of 1024 rank info at a time.
         // Figure out how many we are about to send.
@@ -544,23 +560,23 @@ static dpu_offload_status_t send_local_revoke_rank_group_cache(execution_context
         else
             current_sends = 1024;
 
-        payload->list_ranks.num_ranks = current_sends;
-        payload->list_ranks.rank_start = ranks_sent;
+        payload->num_ranks = current_sends;
+        payload->rank_start = ranks_sent;
         // The remote SP may not be involved in the group and may receive the
         // revoke message before knowing anything about the group so we add
         // the group size to be able to correctly track everything on the
         // receiver side.
         assert(gp_cache->group_size);
-        payload->list_ranks.group_size = gp_cache->group_size;
+        payload->group_size = gp_cache->group_size;
 
         for (relative_idx = 0; relative_idx < current_sends; relative_idx++)
         {
-            if (GROUP_CACHE_BITSET_TEST(gp_cache->revokes.ranks, payload->list_ranks.rank_start + relative_idx))
-                payload->list_ranks.ranks[ranks_sent + relative_idx] = 1;
+            if (GROUP_CACHE_BITSET_TEST(gp_cache->revokes.ranks, payload->rank_start + relative_idx))
+                payload->ranks[ranks_sent + relative_idx] = 1;
             else
-                payload->list_ranks.ranks[ranks_sent + relative_idx] = 0;
+                payload->ranks[ranks_sent + relative_idx] = 0;
         }
-        payload->list_ranks.gp_uid = gp_cache->group_uid;
+        payload->gp_uid = gp_cache->group_uid;
         e->is_subevent = true;
         DBG("Sending revoke data for ranks %ld - %ld (group_size: %ld)", ranks_sent, ranks_sent+current_sends, gp_cache->group_size);
 
