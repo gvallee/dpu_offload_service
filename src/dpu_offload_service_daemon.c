@@ -1376,11 +1376,13 @@ add_cache_entry_for_new_client(peer_info_t *client_info, execution_context_t *ct
             gp_cache->persistent.num);
 
         // Since the client just connected, it is by definition the first group, i.e.,
-        // MPI_COMM_WORLD in the context of MPI.
-        assert(gp_cache->persistent.num == 0);
+        // MPI_COMM_WORLD in the context of MPI. So the group is either not know yet (num == 0) 
+        // or known because one rank or more joined (num == 1)
+        assert(gp_cache->persistent.num == 0 || gp_cache->persistent.num == 1);
         // Since this happens in the context of the client bootstrapping and therefore
         // for the first group, we explicitely set the group's sequence number to 1.
-        gp_cache->persistent.num = 1;
+        if (gp_cache->persistent.num == 0)
+            gp_cache->persistent.num = 1;
 
         cache_entry = GET_GROUP_RANK_CACHE_ENTRY(&(ctx->engine->procs_cache),
                                                  client_info->rank_data.group_uid,
