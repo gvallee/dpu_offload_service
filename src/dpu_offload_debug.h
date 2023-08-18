@@ -153,4 +153,39 @@ extern debug_config_t dbg_cfg;
     } while (0)
 #endif
 
+typedef struct {
+    long int total_mem_used;
+    long int resident;
+    long int shared;
+    long int text;
+    long int lib;
+    long int data;
+    long int dt;
+} statm_data_t;
+
+#define GET_PROC_MEM_USAGE() ({ \
+        statm_data_t _result;\
+        long int _res = -1; \
+        const char* _path = "/proc/self/statm"; \
+        FILE *__f = fopen(_path,"r"); \
+        if(__f != NULL) \
+        { \
+            int rc = fscanf(__f,"%ld %ld %ld %ld %ld %ld %ld", \
+                            &(_result.total_mem_used), \
+                            &(_result.resident), \
+                            &(_result.shared), \
+                            &(_result.text), \
+                            &(_result.lib), \
+                            &(_result.data), \
+                            &(_result.dt)); \
+            if (rc != 7) \
+                fprintf(stderr, "ERROR: unable to read %s\n", _path); \
+            fclose(__f);\
+            _res = _result.total_mem_used; \
+        }\
+        else \
+            fprintf(stderr, "[ERR] unable to open %s\n", _path); \
+        _res; \
+    })
+
 #endif // _DPU_OFFLOAD_DEBUG_H

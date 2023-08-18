@@ -1070,6 +1070,12 @@ host_add_local_rank_to_cache(offloading_engine_t *engine, rank_info_t *rank_info
     assert(cache_entry);
     assert(gp_cache);
     assert(engine->config != NULL);
+    if (gp_cache->num_local_entries == 0)
+    {
+        // This is the first known rank for the group of the first group, set the group's sequence number to 1
+        assert(rank_info->group_seq_num);
+        gp_cache->persistent.num = rank_info->group_seq_num;
+    }
     cache_entry->shadow_service_procs[cache_entry->num_shadow_service_procs] = engine->config->local_service_proc.info.global_id;
     cache_entry->peer.proc_info.group_uid = rank_info->group_uid;
     cache_entry->peer.proc_info.group_rank = rank_info->group_rank;

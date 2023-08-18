@@ -489,7 +489,7 @@ dpu_offload_status_t inter_dpus_connect_mgr(offloading_engine_t *engine, offload
     if (cfg->num_connecting_service_procs > 0)
     {
         // Some service processes will be connecting to us so we start a new server.
-        DBG("Starting server to let other service processess connect to us (init_params=%p, conn_params=%p)...",
+        DBG("Starting server to let other service processes connect to us (init_params=%p, conn_params=%p)...",
             &(cfg->local_service_proc.inter_service_procs_init_params),
             &(cfg->local_service_proc.inter_service_procs_init_params.conn_params));
         cfg->local_service_proc.inter_service_procs_init_params.connected_cb = client_service_proc_connected;

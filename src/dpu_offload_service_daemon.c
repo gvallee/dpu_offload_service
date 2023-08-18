@@ -700,7 +700,7 @@ static void oob_send_cb(void *request, ucs_status_t status, void *ctx)
 }
 #endif
 
-static void ucx_client_boostrap_send_cb(void *request, ucs_status_t status, void *user_data)
+static void ucx_client_bootstrap_send_cb(void *request, ucs_status_t status, void *user_data)
 {
     am_req_t *ctx = (am_req_t *)user_data;
     ctx->complete = 1;
@@ -711,13 +711,13 @@ static dpu_offload_status_t client_ucx_boostrap_step3(execution_context_t *econt
     ECONTEXT_LOCK(econtext);
     DBG("Sent addr to server");
     // We send our "rank", i.e., unique application ID
-    DBG("Sending my group/rank info (0x%x/%" PRId64 "), len=%ld",
-        econtext->rank.group_uid, econtext->rank.group_rank, sizeof(econtext->rank));
+    DBG("Sending my group/rank info (0x%x/%" PRId64 ", group seq num: %ld), len=%ld",
+        econtext->rank.group_uid, econtext->rank.group_rank, econtext->rank.group_seq_num, sizeof(econtext->rank));
     ucp_request_param_t send_param = {0};
     send_param.op_attr_mask = UCP_OP_ATTR_FIELD_CALLBACK |
                               UCP_OP_ATTR_FIELD_DATATYPE |
                               UCP_OP_ATTR_FIELD_USER_DATA;
-    send_param.cb.send = ucx_client_boostrap_send_cb;
+    send_param.cb.send = ucx_client_bootstrap_send_cb;
     send_param.datatype = ucp_dt_make_contig(1);
     send_param.user_data = &(econtext->client->bootstrapping.rank_ctx);
     DBG("Tag: %d; scope_id: %d", econtext->client->conn_data.oob.tag, econtext->scope_id);
@@ -754,7 +754,7 @@ static dpu_offload_state_t client_ucx_bootstrap_step2(execution_context_t *econt
     send_param.op_attr_mask = UCP_OP_ATTR_FIELD_CALLBACK |
                               UCP_OP_ATTR_FIELD_DATATYPE |
                               UCP_OP_ATTR_FIELD_USER_DATA;
-    send_param.cb.send = ucx_client_boostrap_send_cb;
+    send_param.cb.send = ucx_client_bootstrap_send_cb;
     send_param.datatype = ucp_dt_make_contig(1);
     send_param.user_data = &(econtext->client->bootstrapping.addr_ctx);
     DBG("Tag: %d; scope_id: %d\n", econtext->client->conn_data.oob.tag, econtext->scope_id);
@@ -805,7 +805,7 @@ static dpu_offload_status_t client_ucx_bootstrap_step1(execution_context_t *econ
     send_param.op_attr_mask = UCP_OP_ATTR_FIELD_CALLBACK |
                               UCP_OP_ATTR_FIELD_DATATYPE |
                               UCP_OP_ATTR_FIELD_USER_DATA;
-    send_param.cb.send = ucx_client_boostrap_send_cb;
+    send_param.cb.send = ucx_client_bootstrap_send_cb;
     send_param.datatype = ucp_dt_make_contig(1);
     send_param.user_data = &(econtext->client->bootstrapping.addr_size_ctx);
 
@@ -1364,10 +1364,26 @@ add_cache_entry_for_new_client(peer_info_t *client_info, execution_context_t *ct
         // Update the pointer to track cache entries, i.e., groups/ranks, for the peer
         peer_cache_entry_t *cache_entry = NULL;
         dpu_offload_status_t rc;
+        group_cache_t *gp_cache = NULL;
 
-        DBG("Adding gp/rank 0x%x/%" PRId64 " to cache",
+        gp_cache = GET_GROUP_CACHE(&(ctx->engine->procs_cache), client_info->rank_data.group_uid);
+        assert(gp_cache);
+
+        DBG("Adding gp/rank 0x%x/%" PRId64 " to cache for group 0x%x (group's seq_num: %ld)",
             client_info->rank_data.group_uid,
-            client_info->rank_data.group_rank);
+            client_info->rank_data.group_rank,
+            gp_cache->group_uid,
+            gp_cache->persistent.num);
+
+        // Since the client just connected, it is by definition the first group, i.e.,
+        // MPI_COMM_WORLD in the context of MPI. So the group is either not know yet (num == 0) 
+        // or known because one rank or more joined (num == 1)
+        assert(gp_cache->persistent.num == 0 || gp_cache->persistent.num == 1);
+        // Since this happens in the context of the client bootstrapping and therefore
+        // for the first group, we explicitely set the group's sequence number to 1.
+        if (gp_cache->persistent.num == 0)
+            gp_cache->persistent.num = 1;
+
         cache_entry = GET_GROUP_RANK_CACHE_ENTRY(&(ctx->engine->procs_cache),
                                                  client_info->rank_data.group_uid,
                                                  client_info->rank_data.group_rank,
@@ -1388,12 +1404,6 @@ add_cache_entry_for_new_client(peer_info_t *client_info, execution_context_t *ct
         assert(cache_entry->ep == NULL);
         cache_entry->set = true;
 
-        group_cache_t *gp_cache = GET_GROUP_CACHE(&(ctx->engine->procs_cache), client_info->rank_data.group_uid);
-        if (cache_entry == NULL)
-        {
-            ERR_MSG("undefined cache entry");
-            return DO_ERROR;
-        }
         if (gp_cache->n_local_ranks <= 0 && client_info->rank_data.n_local_ranks >= 0)
         {
             DBG("Setting the number of local ranks for the group 0x%x (%" PRId64 ")",
@@ -1965,8 +1975,14 @@ execution_context_t *client_init(offloading_engine_t *offload_engine, init_param
         !is_in_cache(&(offload_engine->procs_cache), ctx->rank.group_uid, ctx->rank.group_rank, ctx->rank.group_size))
     {
         dpu_offload_state_t ret;
+        group_cache_t *gp_cache = NULL;
+        assert(offload_engine->procs_cache.world_group == ctx->rank.group_uid);
+        gp_cache = GET_GROUP_CACHE(&(offload_engine->procs_cache), ctx->rank.group_uid);
+        assert(gp_cache);
+        assert(gp_cache->persistent.num == 0); // The group is not in use yet so its seq num should be 0
+        ctx->rank.group_seq_num = gp_cache->persistent.num = 1; // Now we mark it as in use so the seq num is set to 1
         ret = host_add_local_rank_to_cache(offload_engine, &(ctx->rank));
-        CHECK_ERR_GOTO((ret != DO_SUCCESS), error_out, "host_add_local_rank_to_cache() failed");
+        CHECK_ERR_GOTO((ret != DO_SUCCESS), error_out, "host_add_local_rank_to_cache() failed (rc: %d)", ret);
     }
 
     return ctx;
@@ -1990,7 +2006,8 @@ void offload_engine_fini(offloading_engine_t **offload_engine)
     DYN_LIST_FREE((*offload_engine)->free_cache_entry_requests, cache_entry_request_t, item);
     DYN_LIST_FREE((*offload_engine)->pool_conn_params, conn_params_t, item);
     DYN_LIST_FREE((*offload_engine)->pool_remote_dpu_info, remote_dpu_info_t, item);
-    DYN_LIST_FREE((*offload_engine)->pool_group_revoke_msgs, group_revoke_msg_obj_t, item);
+    DYN_LIST_FREE((*offload_engine)->pool_group_revoke_msgs_from_sps, group_revoke_msg_from_sp_t, item);
+    DYN_LIST_FREE((*offload_engine)->pool_group_revoke_msgs_from_ranks, group_revoke_msg_from_rank_t, item);
     DYN_LIST_FREE((*offload_engine)->pool_pending_recv_group_add, pending_group_add_t, item);
     DYN_LIST_FREE((*offload_engine)->pool_pending_send_group_add, pending_send_group_add_t, item);
     DYN_LIST_FREE((*offload_engine)->pool_pending_recv_cache_entries, pending_recv_cache_entry_t, item);
@@ -2593,7 +2610,7 @@ execution_context_t *server_init(offloading_engine_t *offloading_engine, init_pa
     ECONTEXT_LOCK(execution_context);
     dpu_offload_ev_sys_t *ev_sys = execution_context->event_channels;
     rc = register_default_notifications(ev_sys);
-    CHECK_ERR_GOTO((rc), error_out, "register_default_notfications() failed");
+    CHECK_ERR_GOTO((rc), error_out, "register_default_notifications() failed");
 
     ENGINE_LOCK(offloading_engine);
     ADD_DEFAULT_ENGINE_CALLBACKS(offloading_engine, execution_context);
