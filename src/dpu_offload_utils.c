@@ -580,7 +580,7 @@ static dpu_offload_status_t send_local_revoke_rank_group_cache(execution_context
         e->is_subevent = true;
         DBG("Sending revoke data for ranks %ld - %ld (group_size: %ld)", ranks_sent, ranks_sent+current_sends, gp_cache->group_size);
 
-        rc = event_channel_emit(&e, AM_REVOKE_GP_RANK_MSG_ID, dest_ep, dest_id, NULL);
+        rc = event_channel_emit(&e, AM_REVOKE_GP_SP_MSG_ID, dest_ep, dest_id, NULL);
         if (rc != EVENT_DONE && rc != EVENT_INPROGRESS)
         {
             ERR_MSG("event_channel_emit_with_payload() failed");
@@ -678,6 +678,7 @@ dpu_offload_status_t send_gp_cache_to_host(execution_context_t *econtext, group_
     group_cache_t *gp_cache = GET_GROUP_CACHE(&(econtext->engine->procs_cache), group_uid);
     assert(gp_cache);
     assert(gp_cache->engine);
+    assert(gp_cache->n_sps);
     if (gp_cache->sent_to_host == false)
     {
         dpu_offload_event_t *metaev;
@@ -715,11 +716,6 @@ dpu_offload_status_t send_gp_cache_to_host(execution_context_t *econtext, group_
             idx++;
         }
 
-        if (!event_completed(metaev))
-            QUEUE_EVENT(metaev);
-        else
-            event_return(&metaev);
-
         // Once the cache is sent to the host, we know it cannot change so we
         // populate the few lookup table.
         // Note that we pre-emptively create the cache on the SPs, it might not
@@ -727,6 +723,14 @@ dpu_offload_status_t send_gp_cache_to_host(execution_context_t *econtext, group_
         // manner.
         rc = populate_group_cache_lookup_table(econtext->engine, gp_cache);
         CHECK_ERR_RETURN((rc), DO_ERROR, "populate_group_cache_lookup_table() failed");
+
+        // We check for completion only after populating the topology because in some
+        // corner cases (e.g., the SP not being involved in the group at all), completion
+        // may lead to the group being revoked.
+        if (!event_completed(metaev))
+            QUEUE_EVENT(metaev);
+        else
+            event_return(&metaev);
     }
     else
         DBG("cache aleady sent to host");
