@@ -198,7 +198,7 @@ dpu_offload_status_t send_revoke_group_rank_request_through_rank_info(execution_
     rc = event_get(econtext->event_channels, &ev_info, &ev);
     CHECK_ERR_RETURN((rc != DO_SUCCESS), DO_ERROR, "event_get() failed");
     assert(ev);
-    desc = (group_revoke_msg_t *)ev->payload;
+    desc = (group_revoke_msg_from_rank_t *)ev->payload;
     COPY_RANK_INFO(rank_info, &(desc->rank_info));
 
     if (meta_ev != NULL)
