@@ -414,6 +414,7 @@ void client_service_proc_connected(void *data)
 
     // Increase the number of connected service proc
     connected_peer->econtext->engine->num_connected_service_procs++;
+    DBG("we now have %ld connections with other service processes", connected_peer->econtext->engine->num_connected_service_procs);
 
     // Not needed for now, when ranks are all connected to the local DPU(s), the caches
     // are automatically exchanged using broadcast_group_cache()
