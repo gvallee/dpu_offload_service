@@ -186,8 +186,6 @@ simulate_cache_entry_exchange(offloading_engine_t *engine)
         }
     }
 
-    fprintf(stderr, "[DBG] l.%d\n", __LINE__);
-
     gp_cache = GET_GROUP_CACHE(&(engine->procs_cache), DUMMY_CACHE_ENTRY_EXCHANGE_GROUP_UID);
     num_hashed_sps = kh_size(gp_cache->sps_hash);
     if (num_hashed_sps != NUM_FAKE_SPS)
