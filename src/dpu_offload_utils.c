@@ -568,6 +568,7 @@ static dpu_offload_status_t send_local_revoke_rank_group_cache(execution_context
         // receiver side.
         assert(gp_cache->group_size);
         payload->group_size = gp_cache->group_size;
+        payload->gp_seq_num = gp_cache->persistent.num;
 
         for (relative_idx = 0; relative_idx < current_sends; relative_idx++)
         {

@@ -2005,6 +2005,7 @@ static dpu_offload_status_t handle_revoke_group_rank_through_list_ranks(executio
             pending_msg->gp_uid = revoke_msg->gp_uid;
             pending_msg->rank_start = revoke_msg->rank_start;
             pending_msg->group_size = revoke_msg->group_size;
+            pending_msg->gp_seq_num = revoke_msg->gp_seq_num;
             memcpy(pending_msg->ranks, revoke_msg->ranks, revoke_msg->num_ranks * sizeof(int));
             // Queue the new pending message
             ucs_list_add_tail(&(gp_cache->persistent.pending_group_revoke_msgs_from_sps), &(pending_msg->item));

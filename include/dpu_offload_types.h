@@ -33,7 +33,7 @@ _EXTERN_C_BEGIN
 // Enable/disable the buddy buffer system
 #define BUDDY_BUFFER_SYS_ENABLE (0)
 
-#define CACHE_IS_PERSISTENT (1)
+#define CACHE_IS_PERSISTENT (0)
 
 typedef enum
 {
@@ -2531,6 +2531,8 @@ typedef struct group_revoke_from_sps_msg
 
     // Signature of the group, i.e, hash of its layout
     int gp_signature;
+
+    uint64_t gp_seq_num;
 } group_revoke_msg_from_sp_t;
 
 typedef struct group_revoke_from_rank_msg

@@ -217,6 +217,8 @@
             /* way to identify group, regardless of asynchronous events and resuse */           \
             /* of group ID (for example reuse of MPI communicator IDs). */                      \
             assert(_pending_revoke_msg->gp_uid != INT_MAX);                                     \
+                                                                                                \
+            assert(_pending_revoke_msg->gp_seq_num == (_gp_cache)->persistent.num);             \
             /* Update the local list of ranks that revoked the group based on the data */       \
             /* from the message */                                                              \
             if (gp_cache->revokes.ranks == NULL)                                                \
