@@ -231,9 +231,10 @@
             for (_rank = 0; _rank < _pending_revoke_msg->num_ranks; _rank++)                    \
             {                                                                                   \
                 size_t _idx = _pending_revoke_msg->rank_start + _rank;                          \
-                DBG("Marking rank %ld has revoking the group", _idx);                           \
                 if (GROUP_CACHE_BITSET_TEST((_gp_cache)->revokes.ranks, _idx) == 0)             \
                 {                                                                               \
+                    DBG("Marking rank %ld has revoking the group (seq num: %ld)",               \
+                        _idx, _pending_revoke_msg->gp_seq_num);                                 \
                     GROUP_CACHE_BITSET_SET((_gp_cache)->revokes.ranks, _idx);                   \
                     _new_revokes++;                                                             \
                 }                                                                               \

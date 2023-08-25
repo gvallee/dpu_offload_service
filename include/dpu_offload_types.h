@@ -1853,6 +1853,20 @@ typedef struct group_cache
         // 0 means the group has not been created yet
         uint64_t num;
 
+        // Used to track if group cache has been sent to the host once all the local ranks
+        // showed up. Only used on DPUs.
+        // The value is the group sequence number for which it was sent.
+        uint64_t sent_to_host;
+
+        // Used to track if the sends require to notify the host of a revoked has been posted (but not necessarily completed)
+        // The value is the group sequence number for which it was sent.
+        uint64_t revoke_send_to_host_posted;
+
+        // Used to track if the group cache revoke has been sent to the host (all the sends completed) once the entire group
+        // has been revoked by all group members. Only used on DPUs.
+        // The value is the group sequence number for which it was sent.
+        uint64_t revoke_sent_to_host;
+
         // List of pending group revoke notifications from remote SPs (type: group_revoke_msg_from_sp_t)
         ucs_list_link_t pending_group_revoke_msgs_from_sps;
 
@@ -1884,16 +1898,6 @@ typedef struct group_cache
         group_cache_bitset_t *ranks;
     } revokes;
 
-    // Used to track if group cache has been sent to the host once all the local ranks
-    // showed up. Only used on DPUs.
-    bool sent_to_host;
-
-    // Used to track if the sends require to notify the host of a revoked has been posted (but not necessarily completed)
-    bool revoke_send_to_host_posted;
-
-    // Used to track if the group cache revoke has been sent to the host (all the sends completed) once the entire group
-    // has been revoked by all group members. Only used on DPUs.
-    bool revoke_sent_to_host;
 
     // Number of ranks/processes in the group
     size_t group_size;
@@ -2038,9 +2042,6 @@ typedef struct group_cache
         (__g)->revokes.global = 0;                  \
         (__g)->revokes.local = 0;                   \
         (__g)->revokes.ranks = NULL;                \
-        (__g)->sent_to_host = false;                \
-        (__g)->revoke_send_to_host_posted = false;  \
-        (__g)->revoke_sent_to_host = false;         \
         (__g)->group_size = 0;                      \
         (__g)->group_uid = INT_MAX;                 \
         (__g)->num_local_entries = 0;               \
@@ -2247,6 +2248,9 @@ typedef struct group_cache
         ucs_list_head_init(&((_new_group_cache)->persistent.pending_recv_cache_entries));           \
         _new_group_cache->persistent.initialized = true;                                            \
         _new_group_cache->persistent.num = 0;                                                       \
+        _new_group_cache->persistent.sent_to_host = _new_group_cache->persistent.num;               \
+        _new_group_cache->persistent.revoke_send_to_host_posted = _new_group_cache->persistent.num; \
+        _new_group_cache->persistent.revoke_sent_to_host = _new_group_cache->persistent.num;        \
         _gp_cache = _new_group_cache;                                                               \
     }                                                                                               \
     else                                                                                            \
