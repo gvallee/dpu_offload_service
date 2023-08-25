@@ -293,11 +293,6 @@ dpu_offload_status_t send_revoke_group_rank_request_through_list_ranks(execution
         QUEUE_SUBEVENT(meta_ev, ev);
     }
 
-    if (meta_ev != NULL && !meta_ev->sub_events_initialized)
-    {
-        // No sub-event, we complete the meta event right away
-        COMPLETE_EVENT(meta_ev);
-    }
     return DO_SUCCESS;
 }
 
@@ -411,12 +406,13 @@ void group_cache_send_to_local_ranks_cb(void *context)
     if (gp_cache->engine == NULL)
         ERR_MSG("cache for group 0x%x has no engine", gp_cache->group_uid);
     assert(gp_cache->engine);
-    gp_cache->sent_to_host = true;
+    gp_cache->persistent.sent_to_host = gp_cache->persistent.num;
 
     HANDLE_PENDING_GROUP_REVOKE_MSGS_FROM_SPS(gp_cache);
 
     // If meanwhile the group has been revoked and the host not yet notified, we handle it since it is now safe to do so
-    if (gp_cache->revoke_send_to_host_posted == false && gp_cache->revokes.global == gp_cache->group_size)
+    if (gp_cache->persistent.revoke_send_to_host_posted < gp_cache->persistent.num &&
+        gp_cache->revokes.global == gp_cache->group_size)
     {
         dpu_offload_status_t rc;
         offloading_engine_t *engine = (offloading_engine_t *)gp_cache->engine;
@@ -684,7 +680,7 @@ dpu_offload_status_t send_gp_cache_to_host(execution_context_t *econtext, group_
     assert(gp_cache);
     assert(gp_cache->engine);
     assert(gp_cache->n_sps);
-    if (gp_cache->sent_to_host == false)
+    if (gp_cache->persistent.sent_to_host < gp_cache->persistent.num)
     {
         dpu_offload_event_t *metaev;
 
