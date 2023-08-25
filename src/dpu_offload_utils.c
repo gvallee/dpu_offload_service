@@ -164,6 +164,7 @@ dpu_offload_status_t send_revoke_group_rank_request_through_rank_info(execution_
     dpu_offload_event_t *ev = NULL;
     group_revoke_msg_from_rank_t *desc = NULL;
     dpu_offload_event_info_t ev_info;
+    group_cache_t *gp_cache = NULL;
 
     assert(rank_info);
     assert(econtext);
@@ -189,6 +190,9 @@ dpu_offload_status_t send_revoke_group_rank_request_through_rank_info(execution_
         return DO_SUCCESS;
     }
 
+    gp_cache = GET_GROUP_CACHE(&(econtext->engine->procs_cache), rank_info->group_uid);
+    assert(gp_cache);
+
     RESET_EVENT_INFO(&ev_info);
     ev_info.pool.element_size = sizeof(group_revoke_msg_from_rank_t); // Size of the payload, not the type used to get element
     ev_info.pool.get_buf = revoke_msg_from_rank_get;
@@ -200,11 +204,13 @@ dpu_offload_status_t send_revoke_group_rank_request_through_rank_info(execution_
     assert(ev);
     desc = (group_revoke_msg_from_rank_t *)ev->payload;
     COPY_RANK_INFO(rank_info, &(desc->rank_info));
+    desc->rank_info.group_seq_num = gp_cache->persistent.num;
 
     if (meta_ev != NULL)
         ev->is_subevent = true;
 
-    DBG("Sending request to revoke the group 0x%x (size: %ld, my rank: %ld)", rank_info->group_uid, rank_info->group_size, rank_info->group_rank);
+    DBG("Sending request to revoke the group 0x%x (size: %ld, my rank: %ld, group seq num: %ld)",
+        rank_info->group_uid, rank_info->group_size, rank_info->group_rank, desc->rank_info.group_seq_num);
     rc = event_channel_emit(&ev,
                             AM_REVOKE_GP_RANK_MSG_ID,
                             ep,
@@ -220,8 +226,6 @@ dpu_offload_status_t send_revoke_group_rank_request_through_rank_info(execution_
     // If on the host, we locally mark the group as being revoked
     if (!econtext->engine->on_dpu)
     {
-        group_cache_t *gp_cache = NULL;
-        gp_cache = GET_GROUP_CACHE(&(econtext->engine->procs_cache), rank_info->group_uid);
         gp_cache->revokes.local++;
         gp_cache->revokes.global++;
     }
