@@ -275,6 +275,7 @@ dpu_offload_status_t send_revoke_group_rank_request_through_list_ranks(execution
     assert(num_ranks);
     desc->num_ranks = num_ranks;
     desc->group_size = gp_cache->group_size;
+    desc->gp_seq_num = gp_cache->persistent.num;
     assert(desc->group_size);
 
     if (meta_ev != NULL)
