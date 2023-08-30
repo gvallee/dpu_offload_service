@@ -1741,17 +1741,21 @@ typedef struct sp_cache_data
 
     // Contiguous & ordered list of ranks associated with the SP (type: peer_cache_entry_t *)
     dyn_array_t ranks;
+
+    // Specifies whether the ranks array has been initialized
+    bool ranks_initialized;
 } sp_cache_data_t;
 
-#define RESET_SP_CACHE_DATA(_sp_data)       \
-    do                                      \
-    {                                       \
-        (_sp_data)->n_ranks = 0;            \
-        (_sp_data)->gid = UINT64_MAX;       \
-        (_sp_data)->lid = UINT64_MAX;       \
-        (_sp_data)->host_uid = UINT64_MAX;  \
-        (_sp_data)->gp_uid = 0;             \
-        (_sp_data)->ranks_bitset = NULL;    \
+#define RESET_SP_CACHE_DATA(_sp_data)           \
+    do                                          \
+    {                                           \
+        (_sp_data)->n_ranks = 0;                \
+        (_sp_data)->gid = UINT64_MAX;           \
+        (_sp_data)->lid = UINT64_MAX;           \
+        (_sp_data)->host_uid = UINT64_MAX;      \
+        (_sp_data)->gp_uid = 0;                 \
+        (_sp_data)->ranks_bitset = NULL;        \
+        (_sp_data)->ranks_initialized = false;  \
     } while (0)
 
 // Keys for group_sps_hash_t are the SP's GID, i.e., uint64_t
@@ -1996,7 +2000,11 @@ typedef struct group_cache
             {                                                               \
                 kh_foreach((_gp_cache)->sps_hash, __k, __sp_v, {            \
                     GROUP_CACHE_BITSET_DESTROY(__sp_v->ranks_bitset);       \
-                    DYN_ARRAY_FREE(&(__sp_v->ranks));                       \
+                    if (__sp_v->ranks_initialized)                          \
+                    {                                                       \
+                        DYN_ARRAY_FREE(&(__sp_v->ranks));                   \
+                        __sp_v->ranks_initialized = false;                  \
+                    }                                                       \
                     DYN_LIST_RETURN((_engine)->free_sp_cache_hash_obj,      \
                                     __sp_v,                                 \
                                     item);                                  \
