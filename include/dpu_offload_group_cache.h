@@ -5,6 +5,7 @@
 //
 
 #ifndef DPU_OFFLOAD_GROUP_CACHE_H_
+#define DPU_OFFLOAD_GROUP_CACHE_H_
 
 #define GROUP_SIZE_UNKNOWN (-1)
 

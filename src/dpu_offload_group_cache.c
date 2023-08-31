@@ -805,6 +805,7 @@ populate_sp_ranks(offloading_engine_t *engine, group_cache_t *gp_cache, sp_cache
     DYN_ARRAY_ALLOC(&(sp_data->ranks),
                     gp_cache->group_size,
                     peer_cache_entry_t *);
+    sp_data->ranks_initialized = true;
     assert(sp_data->n_ranks);
     while (idx < sp_data->n_ranks)
     {
