@@ -2077,27 +2077,35 @@ static dpu_offload_status_t handle_revoke_group_rank_through_list_ranks(executio
         // On the host
         pending_send_group_add_t *pending_send = NULL, *next_pending = NULL;
 
-        DBG("Received final revoke for group 0x%x (size: %ld)", revoke_msg->gp_uid, revoke_msg->group_size);
+        DBG("Received final revoke for group 0x%x (size: %ld, seq num: %ld)",
+            revoke_msg->gp_uid, revoke_msg->group_size, revoke_msg->gp_seq_num);
         assert(revoke_msg->group_size);
+        assert(revoke_msg->gp_seq_num == gp_cache->persistent.num);
 
         // We got a revoke message from our service process so the group is fully revoked, we can reset it
         rc = revoke_group_cache(econtext->engine, revoke_msg->gp_uid);
         CHECK_ERR_RETURN((rc != DO_SUCCESS), DO_ERROR, "revoke_group_cache() failed");
 
         // If some group add message are pending and corresponding to the group that was just revoked, we send them now
-        ucs_list_for_each_safe(pending_send, next_pending, &(gp_cache->persistent.pending_send_group_add_msgs), item)
+        if (!ucs_list_is_empty(&(gp_cache->persistent.pending_send_group_add_msgs)))
         {
-            rank_info_t *rank_info = (rank_info_t *)pending_send->ev->payload;
-            assert(rank_info);
-            if (revoke_msg->gp_uid == rank_info->group_uid)
+            ucs_list_for_each_safe(pending_send, next_pending, &(gp_cache->persistent.pending_send_group_add_msgs), item)
             {
-                ucs_list_del(&(pending_send->item));
-                rc = do_send_add_group_rank_request(pending_send->econtext,
-                                                    pending_send->dest_ep,
-                                                    pending_send->dest_id,
-                                                    pending_send->ev);
-                CHECK_ERR_RETURN((rc != DO_SUCCESS), DO_ERROR, "do_send_add_group_rank_request() failed");
-                DYN_LIST_RETURN(econtext->engine->pool_pending_send_group_add, pending_send, item);
+                rank_info_t *rank_info = (rank_info_t *)pending_send->ev->payload;
+                assert(rank_info);
+                if (revoke_msg->gp_uid == rank_info->group_uid)
+                {
+                    ucs_list_del(&(pending_send->item));
+                    rc = do_send_add_group_rank_request(pending_send->econtext,
+                                                        pending_send->dest_ep,
+                                                        pending_send->dest_id,
+                                                        pending_send->ev);
+                    CHECK_ERR_RETURN((rc != DO_SUCCESS), DO_ERROR, "do_send_add_group_rank_request() failed");
+                    DYN_LIST_RETURN(econtext->engine->pool_pending_send_group_add, pending_send, item);
+
+                    // WARNING!!! only one group add per group/communicator at a time.
+                    break;
+                }
             }
         }
     }

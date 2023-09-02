@@ -60,7 +60,7 @@ dpu_offload_status_t do_send_add_group_rank_request(execution_context_t *econtex
         CHECK_ERR_RETURN((rc != DO_SUCCESS), DO_ERROR, "host_add_local_rank_to_cache() failed");
     }
 
-    DBG("Sending request to add the group/rank");
+    DBG("Sending request to add the group/rank (group seq num: %ld)", rank_info->group_seq_num);
     rc = event_channel_emit(&ev,
                             AM_ADD_GP_RANK_MSG_ID,
                             ep,
@@ -90,7 +90,8 @@ dpu_offload_status_t send_add_group_rank_request(execution_context_t *econtext, 
         return do_send_add_group_rank_request(econtext, ep, dest_id, ev);
     }
 
-    DBG("group being revoked global_revoked = %ld group_size = %ld", gp_cache->revokes.global, gp_cache->group_size);
+    DBG("group being revoked global_revoked = %ld group_size = %ld seq num = %ld",
+        gp_cache->revokes.global, gp_cache->group_size, gp_cache->persistent.num);
 
     // The group is in the process of being deleted, we cannot add this right away, otherwise the local cache would be in a inconsistent state
     // since we would not know when it is safe to reset the group cache data structure.
