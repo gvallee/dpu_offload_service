@@ -164,64 +164,70 @@ static bool event_posted(dpu_offload_event_t *ev)
     return false;
 }
 
-#define PROGRESS_EVENT_SEND(__ev)                                                                \
-    do                                                                                           \
-    {                                                                                            \
-        /* if we can post more events and the event is not posted yet, try to send it. */        \
-        if (!event_completed((__ev)) && CAN_POST((__ev)->event_system) && !event_posted((__ev))) \
-        {                                                                                        \
-            int rc;                                                                              \
-            rc = do_am_send_event_msg((__ev));                                                   \
-            if (rc != EVENT_DONE && rc != EVENT_INPROGRESS)                                      \
-                ERR_MSG("do_am_send_event_msg() failed");                                        \
-        }                                                                                        \
-        /* Now check if it is completed */                                                       \
-        if (event_completed((__ev)))                                                             \
-        {                                                                                        \
-            if ((__ev)->is_ongoing_event && (__ev)->is_subevent)                                 \
-                ERR_MSG("sub-event %p %ld also on the ongoing list", (__ev), (__ev)->seq_num);   \
-            ucs_list_del(&((__ev)->item));                                                       \
-            if ((__ev)->is_ongoing_event)                                                        \
-                (__ev)->is_ongoing_event = false;                                                \
-            if ((__ev)->is_subevent)                                                             \
-                (__ev)->is_subevent = false;                                                     \
-            if ((__ev)->was_posted)                                                              \
-            {                                                                                    \
-                (__ev)->event_system->posted_sends--;                                            \
-                (__ev)->was_posted = false;                                                      \
-            }                                                                                    \
-            event_return(&(__ev));                                                               \
-        }                                                                                        \
+#define PROGRESS_EVENT_SEND(__ev)                                                               \
+    do                                                                                          \
+    {                                                                                           \
+        /* if we can post more events and the event is not posted yet, try to send it. */       \
+        /* Note: always make sure event_completed is invoked only once to */                    \
+        /* avoid any potential issue when dealing with hierarchies of events. */                \
+        bool __event_completed = event_completed((__ev));                                       \
+        if (!__event_completed && CAN_POST((__ev)->event_system) && !event_posted((__ev)))      \
+        {                                                                                       \
+            int rc;                                                                             \
+            rc = do_am_send_event_msg((__ev));                                                  \
+            if (rc != EVENT_DONE && rc != EVENT_INPROGRESS)                                     \
+                ERR_MSG("do_am_send_event_msg() failed");                                       \
+        }                                                                                       \
+        /* Now check if it is completed */                                                      \
+        if (__event_completed)                                                                  \
+        {                                                                                       \
+            if ((__ev)->is_ongoing_event && (__ev)->is_subevent)                                \
+                ERR_MSG("sub-event %p %ld also on the ongoing list", (__ev), (__ev)->seq_num);  \
+            ucs_list_del(&((__ev)->item));                                                      \
+            if ((__ev)->is_ongoing_event)                                                       \
+                (__ev)->is_ongoing_event = false;                                               \
+            if ((__ev)->is_subevent)                                                            \
+                (__ev)->is_subevent = false;                                                    \
+            if ((__ev)->was_posted)                                                             \
+            {                                                                                   \
+                (__ev)->event_system->posted_sends--;                                           \
+                (__ev)->was_posted = false;                                                     \
+            }                                                                                   \
+            event_return(&(__ev));                                                              \
+        }                                                                                       \
     } while (0)
 #else
-#define PROGRESS_EVENT_SEND(__ev)                                                                \
-    do                                                                                           \
-    {                                                                                            \
-        /* if we can post more events and the event is not posted yet, try to send it. */        \
-        if (!event_completed((__ev)) && CAN_POST((__ev)->event_system) && !event_posted((__ev))) \
-        {                                                                                        \
-            int rc;                                                                              \
-            rc = do_tag_send_event_msg((__ev));                                                  \
-            if (rc != EVENT_DONE && rc != EVENT_INPROGRESS)                                      \
-                ERR_MSG("do_tag_send_event_msg() failed");                                       \
-        }                                                                                        \
-        /* Now check if it is completed */                                                       \
-        if (event_completed((__ev)))                                                             \
-        {                                                                                        \
-            if ((__ev)->is_ongoing_event && (__ev)->is_subevent)                                 \
-                ERR_MSG("sub-event %p %ld also on the ongoing list", (__ev), (__ev)->seq_num);   \
-            ucs_list_del(&((__ev)->item));                                                       \
-            if ((__ev)->is_ongoing_event)                                                        \
-                (__ev)->is_ongoing_event = false;                                                \
-            if ((__ev)->is_subevent)                                                             \
-                (__ev)->is_subevent = false;                                                     \
-            if ((__ev)->was_posted)                                                              \
-            {                                                                                    \
-                (__ev)->event_system->posted_sends--;                                            \
-                (__ev)->was_posted = false;                                                      \
-            }                                                                                    \
-            event_return(&(__ev));                                                               \
-        }                                                                                        \
+#define PROGRESS_EVENT_SEND(__ev)                                                               \
+    do                                                                                          \
+    {                                                                                           \
+        /* if we can post more events and the event is not posted yet, try to send it. */       \
+        /* Note: always make sure event_completed is invoked only once to */                    \
+        /* avoid any potential issue when dealing with hierarchies of events. */                \
+        bool __event_completed = event_completed((__ev));                                       \
+        if (!__event_completed && CAN_POST((__ev)->event_system) && !event_posted((__ev)))      \
+        {                                                                                       \
+            int rc;                                                                             \
+            rc = do_tag_send_event_msg((__ev));                                                 \
+            if (rc != EVENT_DONE && rc != EVENT_INPROGRESS)                                     \
+                ERR_MSG("do_tag_send_event_msg() failed");                                      \
+        }                                                                                       \
+        /* Now check if it is completed */                                                      \
+        if (__event_completed)                                                                  \
+        {                                                                                       \
+            if ((__ev)->is_ongoing_event && (__ev)->is_subevent)                                \
+                ERR_MSG("sub-event %p %ld also on the ongoing list", (__ev), (__ev)->seq_num);  \
+            ucs_list_del(&((__ev)->item));                                                      \
+            if ((__ev)->is_ongoing_event)                                                       \
+                (__ev)->is_ongoing_event = false;                                               \
+            if ((__ev)->is_subevent)                                                            \
+                (__ev)->is_subevent = false;                                                    \
+            if ((__ev)->was_posted)                                                             \
+            {                                                                                   \
+                (__ev)->event_system->posted_sends--;                                           \
+                (__ev)->was_posted = false;                                                     \
+            }                                                                                   \
+            event_return(&(__ev));                                                              \
+        }                                                                                       \
     } while (0)
 
 static bool event_posted(dpu_offload_event_t *ev)
@@ -264,15 +270,10 @@ static void progress_econtext_sends(execution_context_t *ctx)
         if (EVENT_HDR_TYPE(ev) == META_EVENT_TYPE)
         {
             assert(ev->sub_events_initialized);
-            // if the event is meta-event, we need to check the sub-events
-            dpu_offload_event_t *subev, *next_subev;
-            ucs_list_for_each_safe(subev, next_subev, (&(ev->sub_events)), item)
-            {
-                PROGRESS_EVENT_SEND(subev);
-            }
-
-            // Finally check if the meta-event is now completed
-            if (event_completed(ev))
+            // Note: always make sure event_completed is invoked only once to
+            // avoid any potential issue when dealing with hierarchies of events.
+            bool completed = event_completed(ev);
+            if (completed)
             {
                 assert(ev->is_ongoing_event);
                 ucs_list_del(&(ev->item));

@@ -52,8 +52,14 @@
         (__ev)->ctx.complete = true;                                  \
         if ((__ev)->ctx.completion_cb != NULL)                        \
         {                                                             \
-            (__ev)->ctx.completion_cb((__ev)->ctx.completion_cb_ctx); \
+            /* Reset the ev's callback before invoking it so we */    \
+            /* can enforce a callback to be called only once and */   \
+            /* prevent function re-entering issues during complex */  \
+            /* completions */                                         \
+            request_compl_cb_t _cb = (__ev)->ctx.completion_cb;       \
             (__ev)->ctx.completion_cb = NULL;                         \
+            _cb((__ev)->ctx.completion_cb_ctx);                       \
+            (__ev)->ctx.completion_cb_ctx = NULL;                     \
         }                                                             \
     } while (0)
 #else
@@ -229,7 +235,7 @@ dpu_offload_status_t event_get(dpu_offload_ev_sys_t *ev_sys, dpu_offload_event_i
 dpu_offload_status_t event_return(dpu_offload_event_t **ev);
 
 /**
- * @brief event_completed is a helper function to check whether an event is completed
+ * @brief event_completed is a helper function to check whether an event is completed.
  * The function is aware of sub-events. If all the sub-events are completed and the
  * request of the event is NULL, the event is reported as completed. If the event has a
  * completion callback setup, the callback is invoked.
