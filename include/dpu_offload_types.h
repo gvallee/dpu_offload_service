@@ -33,7 +33,7 @@ _EXTERN_C_BEGIN
 // Enable/disable the buddy buffer system
 #define BUDDY_BUFFER_SYS_ENABLE (0)
 
-#define CACHE_IS_PERSISTENT (0)
+#define CACHE_IS_PERSISTENT (1)
 
 typedef enum
 {
