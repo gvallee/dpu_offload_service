@@ -109,27 +109,27 @@
     do                                                                                              \
     {                                                                                               \
         GROUP_CACHE_TERMINATE_PENDING_MSGS(_gp_cache);                                              \
-        if (ucs_list_length(&(_gp_cache)->persistent.pending_group_revoke_msgs_from_sps) != 0)      \
+        if (!ucs_list_is_empty(&(_gp_cache)->persistent.pending_group_revoke_msgs_from_sps))        \
         {                                                                                           \
             WARN_MSG("pending_group_revoke_msgs_from_sps for group 0x%x is NOT empty",              \
                      (_gp_cache)->group_uid);                                                       \
         }                                                                                           \
-        if (ucs_list_length(&(_gp_cache)->persistent.pending_group_revoke_msgs_from_ranks) != 0)    \
+        if (!ucs_list_is_empty(&(_gp_cache)->persistent.pending_group_revoke_msgs_from_ranks))      \
         {                                                                                           \
             WARN_MSG("pending_group_revoke_msgs_from_ranks for group 0x%x is NOT empty",            \
                      (_gp_cache)->group_uid);                                                       \
         }                                                                                           \
-        if (ucs_list_length(&(_gp_cache)->persistent.pending_group_add_msgs) != 0)                  \
+        if (!ucs_list_is_empty(&(_gp_cache)->persistent.pending_group_add_msgs))                    \
         {                                                                                           \
             WARN_MSG("pending_group_add_msgs for group 0x%x is NOT empty",                          \
                      (_gp_cache)->group_uid);                                                       \
         }                                                                                           \
-        if (ucs_list_length(&(_gp_cache)->persistent.pending_send_group_add_msgs) != 0)             \
+        if (!ucs_list_is_empty(&(_gp_cache)->persistent.pending_send_group_add_msgs))               \
         {                                                                                           \
             WARN_MSG("pending_send_group_add_msgs for group 0x%x is NOT empty",                     \
                      (_gp_cache)->group_uid);                                                       \
         }                                                                                           \
-        if (ucs_list_length(&(_gp_cache)->persistent.pending_recv_cache_entries) != 0)              \
+        if (!ucs_list_is_empty(&(_gp_cache)->persistent.pending_recv_cache_entries))                \
         {                                                                                           \
             WARN_MSG("pending_recv_cache_entries for group 0x%x is NOT empty",                      \
                      (_gp_cache)->group_uid);                                                       \
@@ -197,19 +197,50 @@
         DYN_ARRAY_ALLOC((dyn_array_t *)_gp_cache, 2048, peer_cache_entry_t); \
     } while (0)
 
+// Handles the pending cache entries we received from other SPs
+#define HANDLE_PENDING_CACHE_ENTRIES(_gp_cache)                                                         \
+    do                                                                                                  \
+    {                                                                                                   \
+        int _rc;                                                                                        \
+        pending_recv_cache_entry_t *_pending_cache_entry = NULL, *_next_pending = NULL;                 \
+        DBG("Handling pending cache entries for group 0x%x (seq num: %ld)",                             \
+            (_gp_cache)->group_uid, (_gp_cache)->persistent.num);                                       \
+        ucs_list_for_each_safe(_pending_cache_entry,                                                    \
+                               _next_pending,                                                           \
+                               &((_gp_cache)->persistent.pending_recv_cache_entries),                   \
+                               item)                                                                    \
+        {                                                                                               \
+            ucs_list_del(&(_pending_cache_entry->item));                                                \
+            _rc = handle_peer_cache_entries_recv(_pending_cache_entry->econtext,                        \
+                                                 _pending_cache_entry->sp_gid,                          \
+                                                 _pending_cache_entry->payload,                         \
+                                                 _pending_cache_entry->payload_size);                   \
+            CHECK_ERR_RETURN((_rc != DO_SUCCESS), DO_ERROR, "handle_peer_cache_entries_recv() failed"); \
+            if (_pending_cache_entry->payload)                                                          \
+            {                                                                                           \
+                free(_pending_cache_entry->payload);                                                    \
+                _pending_cache_entry->payload = NULL;                                                   \
+            }                                                                                           \
+            DYN_LIST_RETURN((_gp_cache)->engine->pool_pending_recv_cache_entries,                       \
+                            _pending_cache_entry,                                                       \
+                            item);                                                                      \
+        }                                                                                               \
+    } while (0)
+
 // Handles the pending revoke messages we received from other SPs
-#define HANDLE_PENDING_GROUP_REVOKE_MSGS_FROM_SPS(_gp_cache)                                    \
+#define HANDLE_PENDING_GROUP_REVOKE_MSGS_FROM_SPS(_gp_cache, _total_new_revokes)                \
     do                                                                                          \
     {                                                                                           \
         group_revoke_msg_from_sp_t *_pending_revoke_msg = NULL, *_next_pending = NULL;          \
         assert(_gp_cache);                                                                      \
+        _total_new_revokes = 0;                                                                 \
         ucs_list_for_each_safe(_pending_revoke_msg,                                             \
                                _next_pending,                                                   \
                                &((_gp_cache)->persistent.pending_group_revoke_msgs_from_sps),   \
                                item)                                                            \
         {                                                                                       \
             size_t _rank;                                                                       \
-            size_t _new_revokes = 0;                                                            \
+            size_t _new_revokes;                                                                \
             DBG("Handling queued revoke message (group UID: 0x%x)",                             \
                 _pending_revoke_msg->gp_uid);                                                   \
             ucs_list_del(&(_pending_revoke_msg->item));                                         \
@@ -218,6 +249,7 @@
             /* way to identify group, regardless of asynchronous events and resuse */           \
             /* of group ID (for example reuse of MPI communicator IDs). */                      \
             assert(_pending_revoke_msg->gp_uid != INT_MAX);                                     \
+            assert(_pending_revoke_msg->gp_seq_num == (_gp_cache)->persistent.num);             \
             /* Update the local list of ranks that revoked the group based on the data */       \
             /* from the message */                                                              \
             if (gp_cache->revokes.ranks == NULL)                                                \
@@ -227,17 +259,21 @@
                 GROUP_CACHE_BITSET_CREATE((_gp_cache)->revokes.ranks, (_gp_cache)->group_size); \
             }                                                                                   \
             assert((_gp_cache)->revokes.ranks);                                                 \
+            _new_revokes = 0;                                                                   \
             for (_rank = 0; _rank < _pending_revoke_msg->num_ranks; _rank++)                    \
             {                                                                                   \
                 size_t _idx = _pending_revoke_msg->rank_start + _rank;                          \
-                DBG("Marking rank %ld has revoking the group", _idx);                           \
-                if (GROUP_CACHE_BITSET_TEST((_gp_cache)->revokes.ranks, _idx) == 0)             \
+                if (_pending_revoke_msg->ranks[_rank] == 1 &&                                   \
+                    !GROUP_CACHE_BITSET_TEST((_gp_cache)->revokes.ranks, _idx))                 \
                 {                                                                               \
+                    DBG("Marking rank %ld has revoking the group (seq num: %ld)",               \
+                        _idx, _pending_revoke_msg->gp_seq_num);                                 \
                     GROUP_CACHE_BITSET_SET((_gp_cache)->revokes.ranks, _idx);                   \
                     _new_revokes++;                                                             \
                 }                                                                               \
             }                                                                                   \
             (_gp_cache)->revokes.global += _new_revokes;                                        \
+            _total_new_revokes += _new_revokes;                                                 \
             DYN_LIST_RETURN((_gp_cache)->engine->pool_group_revoke_msgs_from_sps,               \
                             _pending_revoke_msg,                                                \
                             item);                                                              \

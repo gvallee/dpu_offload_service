@@ -1684,7 +1684,7 @@ typedef char group_cache_bitset_t;
 // Clear a given bit in a bitset
 #define GROUP_CACHE_BITSET_CLEAR(_bitset, _bit) ((_bitset)[GROUP_CACHE_BITSET_SLOT(_bit)] &= ~GROUP_CACHE_BITSET_MASK(_bit))
 
-// Test if a bit in the bitset is set
+// Test if a bit in the bitset is set; returns 0 if the bit is not set, non-zero otherwise.
 #define GROUP_CACHE_BITSET_TEST(_bitset, _bitset_idx) ((_bitset)[GROUP_CACHE_BITSET_SLOT(_bitset_idx)] & GROUP_CACHE_BITSET_MASK(_bitset_idx))
 
 // Return the number of slots required to implement a bitset of a given size
@@ -1857,6 +1857,20 @@ typedef struct group_cache
         // 0 means the group has not been created yet
         uint64_t num;
 
+        // Used to track if group cache has been sent to the host once all the local ranks
+        // showed up. Only used on DPUs.
+        // The value is the group sequence number for which it was sent.
+        uint64_t sent_to_host;
+
+        // Used to track if the sends require to notify the host of a revoked has been posted (but not necessarily completed)
+        // The value is the group sequence number for which it was sent.
+        uint64_t revoke_send_to_host_posted;
+
+        // Used to track if the group cache revoke has been sent to the host (all the sends completed) once the entire group
+        // has been revoked by all group members. Only used on DPUs.
+        // The value is the group sequence number for which it was sent.
+        uint64_t revoke_sent_to_host;
+
         // List of pending group revoke notifications from remote SPs (type: group_revoke_msg_from_sp_t)
         ucs_list_link_t pending_group_revoke_msgs_from_sps;
 
@@ -1888,16 +1902,6 @@ typedef struct group_cache
         group_cache_bitset_t *ranks;
     } revokes;
 
-    // Used to track if group cache has been sent to the host once all the local ranks
-    // showed up. Only used on DPUs.
-    bool sent_to_host;
-
-    // Used to track if the sends require to notify the host of a revoked has been posted (but not necessarily completed)
-    bool revoke_send_to_host_posted;
-
-    // Used to track if the group cache revoke has been sent to the host (all the sends completed) once the entire group
-    // has been revoked by all group members. Only used on DPUs.
-    bool revoke_sent_to_host;
 
     // Number of ranks/processes in the group
     size_t group_size;
@@ -2046,9 +2050,6 @@ typedef struct group_cache
         (__g)->revokes.global = 0;                  \
         (__g)->revokes.local = 0;                   \
         (__g)->revokes.ranks = NULL;                \
-        (__g)->sent_to_host = false;                \
-        (__g)->revoke_send_to_host_posted = false;  \
-        (__g)->revoke_sent_to_host = false;         \
         (__g)->group_size = 0;                      \
         (__g)->group_uid = INT_MAX;                 \
         (__g)->num_local_entries = 0;               \
@@ -2076,7 +2077,7 @@ typedef struct group_cache
         (__g)->sps_hash = kh_init(group_sps_hash_t);                                    \
         (__g)->hosts_hash = kh_init(group_hosts_hash_t);                                \
         (__g)->initialized = true;                                                      \
-        /* revokes.ranks is initialized during the lazy group cache initialization */     \
+        /* revokes.ranks is initialized during the lazy group cache initialization */   \
     } while (0)
 
 #define RESET_GROUP_CACHE(__e, __g)                             \
@@ -2255,6 +2256,9 @@ typedef struct group_cache
         ucs_list_head_init(&((_new_group_cache)->persistent.pending_recv_cache_entries));           \
         _new_group_cache->persistent.initialized = true;                                            \
         _new_group_cache->persistent.num = 0;                                                       \
+        _new_group_cache->persistent.sent_to_host = _new_group_cache->persistent.num;               \
+        _new_group_cache->persistent.revoke_send_to_host_posted = _new_group_cache->persistent.num; \
+        _new_group_cache->persistent.revoke_sent_to_host = _new_group_cache->persistent.num;        \
         _gp_cache = _new_group_cache;                                                               \
     }                                                                                               \
     else                                                                                            \
@@ -2539,6 +2543,8 @@ typedef struct group_revoke_from_sps_msg
 
     // Signature of the group, i.e, hash of its layout
     int gp_signature;
+
+    uint64_t gp_seq_num;
 } group_revoke_msg_from_sp_t;
 
 typedef struct group_revoke_from_rank_msg

@@ -50,7 +50,7 @@ void display_group_cache(cache_t *cache, group_uid_t gp_uid)
     fprintf(stderr, "-> n_local_rank: %ld\n", gp_cache->n_local_ranks);
     fprintf(stderr, "-> n_local_ranks_populated: %ld\n", gp_cache->n_local_ranks_populated);
     fprintf(stderr, "-> num_local_entries: %ld\n", gp_cache->num_local_entries);
-    fprintf(stderr, "-> sent_to_host: %d\n\n", gp_cache->sent_to_host);
+    fprintf(stderr, "-> sent_to_host (seq num): %ld\n\n", gp_cache->persistent.sent_to_host);
 
     while (i < gp_cache->group_size)
     {
