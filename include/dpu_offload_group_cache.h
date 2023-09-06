@@ -389,7 +389,7 @@ dpu_offload_status_t get_num_ranks_for_group_sp(offloading_engine_t *engine,
                                                 size_t *num_ranks);
 
 /**
- * @brief Get the number of ranks running assigned to a specific service process that
+ * @brief Get the number of running ranks assigned to a specific service process that
  * is identifier through its local group identifier (local host service process identifier)
  * and the host index from the contiguous ordered array of hosts.
  *
@@ -426,7 +426,7 @@ dpu_offload_status_t get_num_ranks_for_group_host_idx(offloading_engine_t *engin
                                                       size_t *num_ranks);
 
 /**
- * @brief Get the index associated to a rank for the contiguous, sorted array of ranks running on the target host.
+ * @brief Get the index associated to a rank from the contiguous, sorted array of ranks running on the target host.
  * The host is identified by its index in the contiguous ordered array of hosts involved in the group.
  *
  * @param[in] engine Associated offload engine
@@ -499,7 +499,7 @@ dpu_offload_status_t get_all_sps_by_group_host_idx(offloading_engine_t *engine,
  * The caller must not free the array at any point since it is an internal array directly exposed to users. It is freed when
  * the group cache is being freed. The array is composed of pointers of pointer of host_info_t structures.
  * @param[in,out] num_hosts Number of hosts involed in the group. The returned value must strictly be greater than 0 since groups
- * are created only when a rank from the group triggers its creatiom, guaranteeing that all known groups must have a minimum of 1 rank.
+ * are created only when a rank from the group triggers its creation, guaranteeing that all known groups must have a minimum of 1 rank.
  * @return dpu_offload_status_t
  *
  * @code{.unparsed}
