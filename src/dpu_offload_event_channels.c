@@ -535,6 +535,16 @@ dpu_offload_status_t event_channel_register(dpu_offload_ev_sys_t *ev_sys, uint64
     return DO_SUCCESS;
 }
 
+dpu_offload_status_t mimosa_internal_event_register(offloading_engine_t *engine, uint64_t type, notification_cb cb)
+{
+    return event_channel_register(engine->self_econtext->event_channels, type, cb, NULL);
+}
+
+dpu_offload_status_t mimosa_internal_event_deregister(offloading_engine_t *engine, uint64_t type)
+{
+    return event_channel_deregister(engine->self_econtext->event_channels, type);
+}
+
 dpu_offload_status_t engine_update_default_notification_handler(offloading_engine_t *engine, uint64_t type, notification_info_t *info)
 {
     if (info == NULL)
@@ -1968,6 +1978,7 @@ dpu_offload_status_t handle_pending_group_cache_add_msgs(group_cache_t *group_ca
 dpu_offload_status_t revoke_group_cache(offloading_engine_t *engine, group_uid_t gp_uid)
 {
     size_t i;
+    notification_callback_entry_t *cb = NULL;
     group_cache_t *c = GET_GROUP_CACHE(&(engine->procs_cache), gp_uid);
     assert(c);
 #if !NDEBUG
@@ -1998,6 +2009,19 @@ dpu_offload_status_t revoke_group_cache(offloading_engine_t *engine, group_uid_t
     RESET_GROUP_CACHE(engine, c);
     assert(c->revokes.local == 0);
     assert(c->revokes.global == 0);
+
+    // We invoke the handler for the internal MIMOSA group revoke event when one is registered
+    cb = get_notif_callback_entry(engine->self_econtext->event_channels, MIMOSA_GROUP_REVOKE_EVENT_ID);
+    if (cb != NULL && cb->cb != NULL)
+    {
+        int rc;
+        assert(engine->self_econtext);
+        rc = cb->cb(engine->self_econtext->event_channels, engine->self_econtext, NULL, 0, c, sizeof(group_cache_t));
+        if (rc != DO_SUCCESS)
+        {
+            ERR_MSG("callback for event of type %d failed (rc: %d)", MIMOSA_GROUP_REVOKE_EVENT_ID, rc);
+        }
+    }
 
     // Handle potential pending receives of cache entries
     HANDLE_PENDING_CACHE_ENTRIES(c);

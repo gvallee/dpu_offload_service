@@ -110,6 +110,29 @@ dpu_offload_status_t event_channel_update(dpu_offload_ev_sys_t *ev_sys, uint64_t
 
 dpu_offload_status_t event_channel_deregister(dpu_offload_ev_sys_t *ev_sys, uint64_t type);
 
+/**
+ * @brief Register a handler for one of MIMOSA's internal event. As a reminder, an internal event
+ * cannot be used in the context of emits. In other words, internal events are used to let the
+ * caller be notified of specific internal MIMOSA's state change, e.g., a group being revoked.
+ * Only one callback can be registered, meaning only the first registeration succeeds and any
+ * other registeration will fail.
+ *
+ * @param[in] engine Associated engine.
+ * @param[in] type Identifier of the internal MIMOSA event.
+ * @param[in] cb Callback to register.
+ * @return dpu_offload_status_t
+ */
+dpu_offload_status_t mimosa_internal_event_register(offloading_engine_t *engine, uint64_t type, notification_cb cb);
+
+/**
+ * @brief Deregister a handler for one of MIMOSA's internal event.
+ *
+ * @param engine Associated engine.
+ * @param type Identifier of the internal MIMOSA event.
+ * @return dpu_offload_status_t
+ */
+dpu_offload_status_t mimosa_internal_event_deregister(offloading_engine_t *engine, uint64_t type);
+
 void *get_notif_buf(dpu_offload_ev_sys_t *ev_sys, uint64_t type);
 
 notification_callback_entry_t *get_notif_callback_entry(dpu_offload_ev_sys_t *ev_sys, uint64_t type);

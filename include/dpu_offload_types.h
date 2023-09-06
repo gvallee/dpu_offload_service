@@ -3471,6 +3471,7 @@ dpu_offload_status_t find_config_from_platform_configfile(char *, char *, offloa
 
 typedef enum
 {
+    /* notification IDs usuable with emits */
     META_EVENT_TYPE = 32, // 32 to make it easier to see corruptions (dbg)
     AM_TERM_MSG_ID = 33,
     AM_EVENT_MSG_ID,
@@ -3486,7 +3487,11 @@ typedef enum
     AM_REVOKE_GP_RANK_MSG_ID,
     AM_REVOKE_GP_SP_MSG_ID,  // 45
     AM_TEST_MSG_ID,
-    LAST_RESERVED_NOTIF_ID
+    LAST_RESERVED_NOTIF_ID,
+
+    /* Internal emit-independent events */
+    MIMOSA_GROUP_REVOKE_EVENT_ID,
+    MIMOSA_LAST_INTERNAL_EVENT_ID
 } am_id_t;
 
 _EXTERN_C_END
