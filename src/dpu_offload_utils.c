@@ -161,7 +161,6 @@ dpu_offload_status_t send_revoke_group_rank_request_through_rank_info(execution_
                                                                       rank_info_t *rank_info,
                                                                       dpu_offload_event_t *meta_ev)
 {
-#if !CACHE_IS_PERSISTENT
     dpu_offload_status_t rc;
     dpu_offload_event_t *ev = NULL;
     group_revoke_msg_from_rank_t *desc = NULL;
@@ -171,6 +170,13 @@ dpu_offload_status_t send_revoke_group_rank_request_through_rank_info(execution_
     assert(rank_info);
     assert(econtext);
     assert(econtext->engine);
+
+    if (econtext->engine->settings.persistent_endpoint_cache)
+    {
+        // The cache is persistent, given a UID, the group is guaranteed to be the same
+        // so no need to revoke the group.
+        return DO_SUCCESS;
+    }
 
     // Check the validity of the group
     if (rank_info->group_rank == INVALID_RANK)
@@ -233,11 +239,6 @@ dpu_offload_status_t send_revoke_group_rank_request_through_rank_info(execution_
     }
 
     return DO_SUCCESS;
-#else
-    // The cache is persistent, given a UID, the group is guaranteed to be the same
-    // so no need to revoke the group.
-    return DO_SUCCESS;
-#endif
 }
 
 dpu_offload_status_t send_revoke_group_rank_request_through_list_ranks(execution_context_t *econtext,
@@ -1601,11 +1602,15 @@ error_out:
     return rc;
 }
 
-dpu_offload_status_t get_env_config(conn_params_t *params)
+dpu_offload_status_t get_env_config(offloading_engine_t *engine, conn_params_t *params)
 {
     char *server_port_envvar = getenv(SERVER_PORT_ENVVAR);
     char *server_addr = getenv(SERVER_IP_ADDR_ENVVAR);
     int port = -1;
+    char *persistent_cache_envvar = getenv(MIMOSA_PERSISTENT_CACHE);
+
+    assert(engine);
+    assert(params);
 
     CHECK_ERR_RETURN((!server_addr), DO_ERROR,
                      "Invalid server address, please make sure the environment variable %s or %s is correctly set",
@@ -1622,6 +1627,12 @@ dpu_offload_status_t get_env_config(conn_params_t *params)
     params->addr_str = server_addr;
     params->port_str = server_port_envvar;
     params->port = port;
+
+    engine->settings.persistent_endpoint_cache = CACHE_IS_PERSISTENT;
+    if (persistent_cache_envvar != NULL)
+    {
+        engine->settings.persistent_endpoint_cache = atoi(persistent_cache_envvar);
+    }
 
     return DO_SUCCESS;
 }

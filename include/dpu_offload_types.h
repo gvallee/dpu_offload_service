@@ -2661,6 +2661,7 @@ typedef struct offloading_engine
     {
         bool buddy_buffer_system_enabled;
         bool ucx_am_backend_enabled;
+        bool persistent_endpoint_cache;
     } settings;
 
     /* client here is used to track the bootstrapping as a client. */
