@@ -480,7 +480,7 @@ typedef struct peer_data
         assert((_src)->addr_len < MAX_ADDR_LEN);                    \
         (_dst)->addr_len = (_src)->addr_len;                        \
         if ((_src)->addr_len > 0)                                   \
-            strncpy((_dst)->addr, (_src)->addr, (_src)->addr_len);  \
+            memcpy((_dst)->addr, (_src)->addr, (_src)->addr_len);   \
     } while (0)
 
 typedef struct shadow_service_proc_info
