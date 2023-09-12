@@ -1604,6 +1604,54 @@ static dpu_offload_status_t handle_peer_cache_entries_recv(execution_context_t *
 }
 
 /**
+ * @brief A little cleverness is required to know if a group is ready to add new cache entries or not.
+ * For a sub-communicator, a group is not ready when we receive cache entries while the cache has been revoked.
+ * Practically, it happens in two different situations, the group's sequence number, i.e., its version,
+ * does not match the one in the cache entry that we just received. In that case, the received cache entries
+ * are queued. When the group is successfully globally revoked, we process pending received cache entries.
+ * This also means that the first communicator is a special case since it is never revoked, while we may
+ * receive cache entries from other SPs. In such a case, the group's sequence number is equal to zero (not
+ * yet initialized) and of course does not match the one from the received message.
+ */
+static dpu_offload_status_t is_group_ready(group_cache_t *gp_cache, uint64_t recvd_seq_num, bool *group_ready)
+{
+    assert(gp_cache);
+    assert(group_ready);
+
+    *group_ready = true;
+    if (gp_cache->persistent.num > 0)
+    {
+        /* Sub-communicator */
+
+        // It is absolutely possible to receive cache entries for a group that has been locally revoked.
+        // It is also not possible to handle cache entries if the group's sequence number does not match,
+        // meaning we are late compared to other SPs which already handle a newer instantiation of a group.
+        if (gp_cache->persistent.num == recvd_seq_num + 1 && gp_cache->num_local_entries == 0)
+        {
+            // First time we know about this version of the group, we can deal with the entries.
+            // handle_peer_cache_entries_recv will update the group's sequence number, a.k.a., version.
+            *group_ready = false;
+        }
+        else if (gp_cache->persistent.num != recvd_seq_num)
+        {
+            // Different sequence number than the current one for the group.
+            *group_ready = false;
+        }
+    }
+#if !NDEBUG
+    else
+    {
+        if (gp_cache->persistent.num != recvd_seq_num)
+        {
+            // If this is the first communicator, if the seq number mismatched, the local cache MUST be empty
+            assert(gp_cache->n_local_ranks_populated == 0);
+        }
+    }
+#endif
+    return DO_SUCCESS;
+}
+
+/**
  * @brief receive handler for cache entry notifications. Note that a single notification
  * can hold multiple cache entries. An SP also sends all the cache entries it holds at
  * the time it initiates the send, i.e., the "local" ranks, as well as all the entries
@@ -1652,20 +1700,9 @@ static dpu_offload_status_t peer_cache_entries_recv_cb(struct dpu_offload_ev_sys
 
     assert(entries[0].peer.proc_info.group_seq_num >= gp_cache->persistent.num);
 
-    // It is absolutely possible to receive cache entries for a group that has been locally revoked.
-    // It is also not possible to handle cache entries is the group's sequence number does not match,
-    // meaning we are late compared to other SPs which already handle a newer instantiation of a group.
-    if (gp_cache->persistent.num == entries[0].peer.proc_info.group_seq_num + 1 && gp_cache->num_local_entries == 0)
-    {
-        // First time we know about this version of the group, we can deal with the entries.
-        // handle_peer_cache_entries_recv will update the group's sequence number, a.k.a., version.
-        group_ready = false;
-    }
-    else if (gp_cache->persistent.num != entries[0].peer.proc_info.group_seq_num)
-    {
-        // Different sequence number than the current one for the group.
-        group_ready = false;
-    }
+    rc = is_group_ready(gp_cache, entries[0].peer.proc_info.group_seq_num, &group_ready);
+    CHECK_ERR_RETURN((rc != DO_SUCCESS), DO_ERROR, "is_group_ready() failed");
+
 
     if (gp_cache->revokes.global > 0 || !group_ready)
     {
