@@ -101,7 +101,7 @@ struct oob_msg
         }                                                                                                                       \
     } while (0)
 
-extern dpu_offload_status_t get_env_config(conn_params_t *params);
+extern dpu_offload_status_t get_env_config(offloading_engine_t *engine, conn_params_t *params);
 
 static void oob_recv_addr_handler_2(void *request, ucs_status_t status, const ucp_tag_recv_info_t *tag_info, void *user_data)
 {
@@ -595,7 +595,7 @@ dpu_offload_status_t client_init_context(execution_context_t *econtext, init_par
     // If the connection parameters were not passed in, we get everything using environment variables
     if (init_params == NULL || init_params->conn_params == NULL)
     {
-        rc = get_env_config(&(econtext->client->conn_params));
+        rc = get_env_config(econtext->engine, &(econtext->client->conn_params));
         CHECK_ERR_RETURN((rc), DO_ERROR, "get_env_config() failed");
     }
     else
@@ -2460,7 +2460,7 @@ dpu_offload_status_t server_init_context(execution_context_t *econtext, init_par
     if (init_params == NULL || init_params->conn_params == NULL)
     {
         DBG("no initialization parameters specified, try to gather parameters from environment...");
-        ret = get_env_config(&(econtext->server->conn_params));
+        ret = get_env_config(econtext->engine, &(econtext->server->conn_params));
         CHECK_ERR_RETURN((ret), DO_ERROR, "get_env_config() failed");
     }
     else

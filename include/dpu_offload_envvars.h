@@ -49,6 +49,12 @@
  */
 #define DPU_OFFLOAD_SERVICE_PROCESSES_PER_DPU_ENVVAR "DPU_OFFLOAD_SERVICE_PROCESSES_PER_DPU"
 
+/**
+ * @brief Environment variable defining whether the endpoint cache used by the topology feature is
+ * persistent.
+ */
+#define MIMOSA_PERSISTENT_CACHE "MIMOSA_PERSISTENT_CACHE"
+
 #define DPU_OFFLOAD_DBG_VERBOSE "DPU_OFFLOAD_DBG_VERBOSE"
 
 #endif // DPU_OFFLOAD_ENVVARS_H
