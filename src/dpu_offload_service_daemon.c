@@ -1021,9 +1021,11 @@ static void init_pending_am_rdv_recv_t(void *ptr)
     RESET_PENDING_RDV_RECV(elt);
 }
 
+extern dpu_offload_status_t engine_get_env_config(offloading_engine_t *engine);
 dpu_offload_status_t offload_engine_init(offloading_engine_t **engine)
 {
     int ret;
+    dpu_offload_status_t rc;
     offloading_engine_t *d = DPU_OFFLOAD_MALLOC(sizeof(offloading_engine_t));
     CHECK_ERR_GOTO((d == NULL), error_out, "Unable to allocate resources");
     RESET_ENGINE(d, ret);
@@ -1046,6 +1048,9 @@ dpu_offload_status_t offload_engine_init(offloading_engine_t **engine)
 #else
     d->settings.ucx_am_backend_enabled = false;
 #endif // USE_AM_IMPLEM
+
+    rc = engine_get_env_config(d);
+    CHECK_ERR_GOTO((rc != DO_SUCCESS), error_out, "engine_get_env_config() failed");
 
     if (d->settings.buddy_buffer_system_enabled)
         SMART_BUFFS_INIT(&(d->smart_buffer_sys), NULL);
@@ -1071,7 +1076,7 @@ dpu_offload_status_t offload_engine_init(offloading_engine_t **engine)
                    item);
     d->procs_cache.engine = d;
 
-    dpu_offload_status_t rc = ev_channels_init(&(d->default_notifications));
+    rc = ev_channels_init(&(d->default_notifications));
     CHECK_ERR_GOTO((rc), error_out, "ev_channels_init() failed");
 
     /* INITIALIZE THE SELF EXECUTION CONTEXT */
