@@ -174,7 +174,8 @@ dpu_offload_status_t send_revoke_group_rank_request_through_rank_info(execution_
     if (econtext->engine->settings.persistent_endpoint_cache)
     {
         // The cache is persistent, given a UID, the group is guaranteed to be the same
-        // so no need to revoke the group.
+        // so no need to send the revoke message to our SP(s), this is strictly a local
+        // operation.
         return DO_SUCCESS;
     }
 
@@ -401,99 +402,6 @@ error_out:
     return DO_ERROR;
 }
 
-extern dpu_offload_status_t send_revoke_group_to_ranks(offloading_engine_t *engine, group_uid_t gp_uid, uint64_t num_ranks);
-void group_cache_send_to_local_ranks_cb(void *context)
-{
-    group_cache_t *gp_cache = NULL;
-    size_t new_revokes = 0;
-
-    assert(context);
-    gp_cache = (group_cache_t*) context;
-    assert(gp_cache->engine);
-    assert(gp_cache->revokes.global <= gp_cache->group_size);
-    gp_cache->persistent.sent_to_host = gp_cache->persistent.num;
-
-    DBG("Handling potential pending revoke messages (seq num: %ld, global revokes: %ld)",
-        gp_cache->persistent.num, gp_cache->revokes.global);
-    HANDLE_PENDING_GROUP_REVOKE_MSGS_FROM_SPS(gp_cache, new_revokes);
-    assert(gp_cache->revokes.global <= gp_cache->group_size);
-    DBG("%ld new revokes (seq num: %ld, revoke to ranks posted: %ld, global revokes: %ld)",
-        new_revokes,
-        gp_cache->persistent.num,
-        gp_cache->persistent.revoke_send_to_host_posted,
-        gp_cache->revokes.global);
-
-    // If meanwhile the group has been revoked and the host not yet notified, we handle it since it is now safe to do so
-    if (new_revokes > 0 &&
-        gp_cache->persistent.revoke_send_to_host_posted < gp_cache->persistent.num &&
-        gp_cache->revokes.global == gp_cache->group_size)
-    {
-        dpu_offload_status_t rc;
-        offloading_engine_t *engine = (offloading_engine_t *)gp_cache->engine;
-        assert(gp_cache->group_size);
-        DBG("Sending revoke message to ranks for group 0x%x (size=%ld)", gp_cache->group_uid, gp_cache->group_size);
-        rc = send_revoke_group_to_ranks(engine, gp_cache->group_uid, gp_cache->group_size);
-        if (rc != DO_SUCCESS)
-        {
-            ERR_MSG("send_revoke_group_to_ranks() failed");
-        }
-
-    }
-    assert(gp_cache->revokes.global <= gp_cache->group_size);
-}
-
-dpu_offload_status_t send_group_cache(execution_context_t *econtext, ucp_ep_h dest_ep, uint64_t dest_id, group_uid_t gp_uid, dpu_offload_event_t *metaev)
-{
-    size_t i;
-    int rc;
-    group_cache_t *gp_cache;
-    assert(econtext);
-    assert(econtext->engine);
-    assert(metaev);
-    assert(EVENT_HDR_TYPE(metaev) == META_EVENT_TYPE);
-    gp_cache = GET_GROUP_CACHE(&(econtext->engine->procs_cache), gp_uid);
-    assert(gp_cache);
-    assert(gp_cache->engine);
-    if (!gp_cache->initialized)
-        return DO_SUCCESS;
-
-    assert(gp_cache->group_size > 0);
-
-    // The entire group is supposed to be ready, starting at rank 0
-#if !NDEBUG
-    for (i = 0; i < gp_cache->group_size; i++)
-    {
-        peer_cache_entry_t *cache_entry = GET_GROUP_RANK_CACHE_ENTRY(&(econtext->engine->procs_cache), gp_uid, i, gp_cache->group_size);
-        assert(cache_entry->set == true);
-        assert(cache_entry->num_shadow_service_procs > 0);
-        assert(cache_entry->peer.proc_info.group_seq_num);
-    }
-#endif
-
-    dpu_offload_event_t *e;
-    peer_cache_entry_t *first_entry = GET_GROUP_RANK_CACHE_ENTRY(&(econtext->engine->procs_cache), gp_uid, 0, gp_cache->group_size);
-    rc = event_get(econtext->event_channels, NULL, &e);
-    CHECK_ERR_RETURN((rc), DO_ERROR, "event_get() failed");
-    e->is_subevent = true;
-    DBG("Sending %ld cache entries to %ld, ev: %p (%ld), metaev: %ld\n",
-        gp_cache->group_size, dest_id, e, e->seq_num, metaev->seq_num);
-    rc = event_channel_emit_with_payload(&e, AM_PEER_CACHE_ENTRIES_MSG_ID, dest_ep, dest_id, NULL, first_entry, gp_cache->group_size * sizeof(peer_cache_entry_t));
-    if (rc != EVENT_DONE && rc != EVENT_INPROGRESS)
-    {
-        ERR_MSG("event_channel_emit_with_payload() failed");
-        return DO_ERROR;
-    }
-    if (e != NULL)
-    {
-        QUEUE_SUBEVENT(metaev, e);
-    }
-    else
-    {
-        WARN_MSG("Sending cache completed right away");
-    }
-    return DO_SUCCESS;
-}
-
 bool find_range_local_ranks(execution_context_t *econtext, group_uid_t gp_uid, int64_t gp_size, size_t start_idx, size_t total_count, size_t cur_count, size_t *range_start, size_t *num, size_t *cur_idx)
 {
     size_t count = 0;
@@ -696,73 +604,7 @@ static dpu_offload_status_t send_local_rank_group_cache(execution_context_t *eco
     return DO_SUCCESS;
 }
 
-dpu_offload_status_t send_gp_cache_to_host(execution_context_t *econtext, group_uid_t group_uid)
-{
-    assert(econtext->type == CONTEXT_SERVER);
-    assert(econtext->scope_id == SCOPE_HOST_DPU);
-    size_t n = 0, idx = 0;
-    dpu_offload_status_t rc;
-    group_cache_t *gp_cache = GET_GROUP_CACHE(&(econtext->engine->procs_cache), group_uid);
-    assert(gp_cache);
-    assert(gp_cache->engine);
-    assert(gp_cache->n_sps);
-    if (gp_cache->persistent.sent_to_host < gp_cache->persistent.num)
-    {
-        dpu_offload_event_t *metaev;
 
-        DBG("Cache is complete for group 0x%x (seq_num: %ld), sending it to the local ranks (econtext: %p, number of connected clients: %ld, total: %ld)",
-            group_uid,
-            gp_cache->persistent.num,
-            econtext,
-            econtext->server->connected_clients.num_connected_clients,
-            econtext->server->connected_clients.num_total_connected_clients);
-        assert(group_cache_populated(econtext->engine, group_uid));
-        assert(gp_cache->group_uid == group_uid);
-
-        rc = event_get(econtext->event_channels, NULL, &metaev);
-        CHECK_ERR_RETURN((rc), DO_ERROR, "event_get() failed");
-        assert(metaev);
-        assert(metaev->ctx.completion_cb == NULL);
-        EVENT_HDR_TYPE(metaev) = META_EVENT_TYPE;
-        metaev->ctx.completion_cb = group_cache_send_to_local_ranks_cb;
-        metaev->ctx.completion_cb_ctx = gp_cache;
-
-        while (n < econtext->server->connected_clients.num_connected_clients)
-        {
-            peer_info_t *c = DYN_ARRAY_GET_ELT(&(econtext->server->connected_clients.clients),
-                                               idx, peer_info_t);
-            if (c == NULL)
-            {
-                idx++;
-                continue;
-            }
-            DBG("Send cache to client #%ld (id: %" PRIu64 ")", idx, c->id);
-            rc = send_group_cache(econtext, c->ep, c->id, group_uid, metaev);
-            CHECK_ERR_RETURN((rc), DO_ERROR, "send_group_cache() failed");
-            n++;
-            idx++;
-        }
-
-        // Once the cache is sent to the host, we know it cannot change so we
-        // populate the few lookup table.
-        // Note that we pre-emptively create the cache on the SPs, it might not
-        // be the case on the host where these tables may be populated in a lazy
-        // manner.
-        rc = populate_group_cache_lookup_table(econtext->engine, gp_cache);
-        CHECK_ERR_RETURN((rc), DO_ERROR, "populate_group_cache_lookup_table() failed");
-
-        // We check for completion only after populating the topology because in some
-        // corner cases (e.g., the SP not being involved in the group at all), completion
-        // may lead to the group being revoked.
-        if (!event_completed(metaev))
-            QUEUE_EVENT(metaev);
-        else
-            event_return(&metaev);
-    }
-    else
-        DBG("cache aleady sent to host");
-    return DO_SUCCESS;
-}
 
 dpu_offload_status_t send_cache(execution_context_t *econtext, cache_t *cache, ucp_ep_h dest_ep, uint64_t dest_id, dpu_offload_event_t *metaevt)
 {
@@ -1607,7 +1449,6 @@ dpu_offload_status_t get_env_config(offloading_engine_t *engine, conn_params_t *
     char *server_port_envvar = getenv(SERVER_PORT_ENVVAR);
     char *server_addr = getenv(SERVER_IP_ADDR_ENVVAR);
     int port = -1;
-    char *persistent_cache_envvar = getenv(MIMOSA_PERSISTENT_CACHE);
 
     assert(engine);
     assert(params);
@@ -1628,12 +1469,17 @@ dpu_offload_status_t get_env_config(offloading_engine_t *engine, conn_params_t *
     params->port_str = server_port_envvar;
     params->port = port;
 
+    return DO_SUCCESS;
+}
+
+dpu_offload_status_t engine_get_env_config(offloading_engine_t *engine)
+{
+    char *persistent_cache_envvar = getenv(MIMOSA_PERSISTENT_CACHE);
     engine->settings.persistent_endpoint_cache = CACHE_IS_PERSISTENT;
     if (persistent_cache_envvar != NULL)
     {
         engine->settings.persistent_endpoint_cache = atoi(persistent_cache_envvar);
     }
-
     return DO_SUCCESS;
 }
 

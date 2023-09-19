@@ -7,6 +7,8 @@
 #ifndef DPU_OFFLOAD_GROUP_CACHE_H_
 #define DPU_OFFLOAD_GROUP_CACHE_H_
 
+extern execution_context_t *get_server_servicing_host(offloading_engine_t *engine);
+
 #define GROUP_SIZE_UNKNOWN (-1)
 
 /* GROUPS_CACHE_INIT initializes the cache that holds information about all the groups */
@@ -781,5 +783,9 @@ bool on_same_sp(offloading_engine_t *engine,
                 int64_t rank2);
 
 void display_group_cache(cache_t *cache, group_uid_t gp_uid);
+
+dpu_offload_status_t handle_peer_cache_entries_recv(execution_context_t *econtext, uint64_t sp_gid, void *data, size_t data_len);
+
+dpu_offload_status_t revoke_group_cache(offloading_engine_t *engine, group_uid_t gp_uid);
 
 #endif // DPU_OFFLOAD_GROUP_CACHE_H_
