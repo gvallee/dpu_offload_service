@@ -45,6 +45,7 @@ int main(int argc, char **argv)
         smart_chunk_t *sc = SMART_BUFF_GET(&smart_buffer_system, bucket->min_size + 1);
         assert(sc);
         fprintf(stdout, "\t-> Successfully got a smart buffer of size %ld\n", bucket->min_size + 1);
+        assert(sc->seq_num == 0); // We should always get the very first smart chunk from the bucket
         SMART_BUFF_RETURN(&smart_buffer_system, bucket->min_size + 1, sc);
         assert(sc == NULL);
         fprintf(stderr, "\t\t-> now successfully returned\n");
@@ -55,14 +56,26 @@ int main(int argc, char **argv)
     ucs_list_head_init(&buffers);
     size_t queried_size = 1;
     void *addr = NULL;
+    uint64_t smart_chunk_seq_num = UINT64_MAX;
     for (i = 0; i < SMART_BUFF_NUM_GETS; i++)
     {
         smart_chunk_t *sc = SMART_BUFF_GET(&smart_buffer_system, queried_size);
         assert(sc);
         if (addr == NULL)
+        {
+            // Address of the first buffers that we will use as a reference since we expect to get
+            // buffers in sequence from the bucket
             addr = sc->base;
+            assert(sc->seq_num == 0);
+            smart_chunk_seq_num = (sc->seq_num);
+        }
         else
+        {
+            // We expect to get smart chunks following the original order from the bucket.
+            assert(sc->seq_num == smart_chunk_seq_num + 1);
+            smart_chunk_seq_num = sc->seq_num;
             assert(sc->base == (void *)((ptrdiff_t)addr + (i * sc->bucket->max_size)));
+        }
         ucs_list_add_tail(&buffers, &(sc->super));
     }
     while (!ucs_list_is_empty(&buffers))

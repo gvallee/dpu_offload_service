@@ -57,6 +57,13 @@ typedef struct simple_list
         (_sl_append)->length++;                                     \
     } while (0)
 
+#define SIMPLE_LIST_APPEND(_sl_append, _sl_elt)                     \
+    do                                                              \
+    {                                                               \
+        ucs_list_add_tail(&((_sl_append)->internal_list), _sl_elt); \
+        (_sl_append)->length++;                                     \
+    } while (0)
+
 #define SIMPLE_LIST_DEL(__sl_del, _sl_item) \
     do                                      \
     {                                       \
@@ -394,6 +401,8 @@ typedef struct
 {
     ucs_list_link_t super;
 
+    uint64_t seq_num;
+
     // Pointer to the bucket the chunk belongs to
     struct smart_bucket *bucket;
 
@@ -416,14 +425,15 @@ typedef struct
     bool in_use;
 } smart_chunk_t;
 
-#define RESET_SMART_CHUNK(__sc)      \
-    do                               \
-    {                                \
-        (__sc)->parent_chunk = NULL; \
-        (__sc)->prev = NULL;         \
-        (__sc)->base = NULL;         \
-        (__sc)->size = 0;            \
-        (__sc)->in_use = false;      \
+#define RESET_SMART_CHUNK(__sc)             \
+    do                                      \
+    {                                       \
+        (__sc)->parent_chunk = NULL;        \
+        (__sc)->prev = NULL;                \
+        (__sc)->base = NULL;                \
+        (__sc)->size = 0;                   \
+        (__sc)->in_use = false;             \
+        (__sc)->seq_num = UINT64_MAX;       \
     } while (0)
 
 typedef struct smart_bucket
@@ -439,18 +449,22 @@ typedef struct smart_bucket
     // Maximum buffer size in the bucket
     uint64_t max_size;
 
+    // Sequence number
+    uint64_t smart_chunks_seq_num;
+
     // Pool of smart chunks in the bucket, ready to be used (type: smart_chunk_t)
     simple_list_t pool;
 } smart_bucket_t;
 
-#define RESET_SMART_BUCKET(__sb)           \
-    do                                     \
-    {                                      \
-        (__sb)->sys = NULL;                \
-        (__sb)->initial_size = 0;          \
-        (__sb)->min_size = 0;              \
-        (__sb)->max_size = 0;              \
-        SIMPLE_LIST_INIT(&((__sb)->pool)); \
+#define RESET_SMART_BUCKET(__sb)            \
+    do                                      \
+    {                                       \
+        (__sb)->sys = NULL;                 \
+        (__sb)->initial_size = 0;           \
+        (__sb)->min_size = 0;               \
+        (__sb)->max_size = 0;               \
+        SIMPLE_LIST_INIT(&((__sb)->pool));  \
+        (__sb)->smart_chunks_seq_num = 0;   \
     } while (0)
 
 typedef struct smart_buffers
@@ -508,7 +522,8 @@ typedef struct
                          super,                                                   \
                          _new_smart_chunk);                                       \
             assert(_new_smart_chunk);                                             \
-            RESET_SMART_CHUNK(_new_smart_chunk);                                  \
+            RESET_SMART_CHUNK(_new_smart_chunk, chunk_seq_num);                   \
+            XXX                                                      \
             if (__first_chunk == NULL)                                            \
                 __first_chunk = _new_smart_chunk;                                 \
             _new_smart_chunk->base = _base_ptr;                                   \
@@ -612,7 +627,9 @@ typedef struct
             _smart_chunk->base = __sb_sc_mem_ptr;                                                                                       \
             _smart_chunk->size = _smart_bucket_to_populate->max_size;                                                                   \
             _smart_chunk->bucket = (struct smart_bucket *)_smart_bucket_to_populate;                                                    \
-            SIMPLE_LIST_PREPEND(&((_smart_bucket_to_populate)->pool), &(_smart_chunk->super));                                          \
+            SIMPLE_LIST_APPEND(&((_smart_bucket_to_populate)->pool), &(_smart_chunk->super));                                           \
+            _smart_chunk->seq_num = (_smart_bucket_to_populate)->smart_chunks_seq_num;                                                  \
+            (_smart_bucket_to_populate)->smart_chunks_seq_num++;                                                                        \
             __num_chunks++;                                                                                                             \
         }                                                                                                                               \
     } while (0)
@@ -750,7 +767,7 @@ typedef struct
                 RESET_SMART_CHUNK(_smart_chunk);                                                          \
                 _smart_chunk->base = _mem_ptr;                                                            \
                 _smart_chunk->size = __new_bucket->max_size;                                              \
-                SIMPLE_LIST_PREPEND(&(__new_bucket->pool), &(_smart_chunk->super));                       \
+                SIMPLE_LIST_APPEND(&(__new_bucket->pool), &(_smart_chunk->super));                       \
                 __n++;                                                                                    \
             }                                                                                             \
             __new_bucket->initial_size = __n;                                                             \
