@@ -323,10 +323,20 @@ dpu_offload_status_t handle_peer_cache_entries_recv(execution_context_t *econtex
 
             DBG("Cache now has %ld local entries and group size is %ld", gp_cache->num_local_entries, gp_cache->group_size);
 
-#if !NDEBUG
             if (gp_cache->num_local_entries == gp_cache->group_size)
+            {
                 DBG("Group cache is now complete");
-#endif
+                if (!econtext->engine->on_dpu)
+                {
+                    dpu_offload_status_t rc;
+
+                    // We are on the host, if the cache is fully populated, this is a safe time to populate the
+                    // group cache's lookup tables
+                    INFO_MSG("[DBG] populating the group cache's lookup tables (group 0x%x)", gp_cache->group_uid);
+                    rc = populate_group_cache_lookup_table(econtext->engine, gp_cache);
+                    CHECK_ERR_RETURN((rc), DO_ERROR, "populate_group_cache_lookup_table() failed");
+                }
+            }
         }
         cur_size += sizeof(peer_cache_entry_t);
         idx++;
@@ -356,6 +366,7 @@ dpu_offload_status_t handle_peer_cache_entries_recv(execution_context_t *econtex
                 gp_cache->group_uid, gp_cache->group_uid, gp_cache->group_size, gp_cache->num_local_entries);
         }
     }
+
     return DO_SUCCESS;
 }
 
