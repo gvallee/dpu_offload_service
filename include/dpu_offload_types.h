@@ -31,7 +31,7 @@ _EXTERN_C_BEGIN
 #define OFFLOADING_MT_ENABLE (0)
 
 // Enable/disable the buddy buffer system
-#define BUDDY_BUFFER_SYS_ENABLE (1)
+#define BUDDY_BUFFER_SYS_ENABLE (0)
 
 #define CACHE_IS_PERSISTENT (1)
 
