@@ -2665,6 +2665,7 @@ typedef struct offloading_engine
         bool persistent_endpoint_cache;
     } settings;
 
+    bool host_dpu_data_initialized;
     union
     {
         struct
@@ -2683,7 +2684,6 @@ typedef struct offloading_engine
         {
             // Struct for elements that are specific to engines running on DPUs
         } dpu;
-        
     };
     
 
@@ -2807,9 +2807,16 @@ typedef struct offloading_engine
     khash_t(client_lookup_hash_t) * client_lookup_table;
 } offloading_engine_t;
 
+#define RESET_HOST_ENGINE(_engine)                  \
+    do                                              \
+    {                                               \
+        (_engine)->host.total_num_sps = UINT64_MAX; \
+    } while (0)
+
 #define RESET_CORE_ENGINE_STRUCT(_core_engine, _core_ret)                                                                    \
     do                                                                                                                       \
     {                                                                                                                        \
+        (_core_engine)->host_dpu_data_initialized = false;                                                                   \
         (_core_engine)->done = false;                                                                                        \
         (_core_engine)->config = NULL;                                                                                       \
         (_core_engine)->client = NULL;                                                                                       \

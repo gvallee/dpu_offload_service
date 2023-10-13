@@ -264,7 +264,15 @@ dpu_offload_status_t broadcast_group_cache_revoke(offloading_engine_t *engine, g
 dpu_offload_status_t get_sp_ep_by_id(offloading_engine_t *engine, uint64_t sp_id, ucp_ep_h *sp_ep, execution_context_t **econtext_comm, uint64_t *comm_id);
 
 execution_context_t *get_server_servicing_host(offloading_engine_t *engine);
-
+/**
+ * @brief Get the local service proc connect info object. Used by processes running on hosts
+ * to get information about the local service process to connect to for bootstrapping.
+ * 
+ * @param cfg[in] Configuration of the offloading
+ * @param rank_info[in] Information about the local process, i.e., rank
+ * @param init_params[in,out] Initialization parameters
+ * @return dpu_offload_status_t 
+ */
 dpu_offload_status_t get_local_service_proc_connect_info(offloading_config_t *cfg, rank_info_t *rank_info, init_params_t *init_params);
 
 dpu_offload_status_t get_num_connecting_ranks(uint64_t num_service_procs_per_dpu, int64_t n_local_ranks, uint64_t sp_lid, uint64_t *n_ranks);

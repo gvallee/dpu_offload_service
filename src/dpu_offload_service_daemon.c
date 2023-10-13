@@ -1883,10 +1883,18 @@ static void execution_context_fini(execution_context_t **ctx)
  */
 execution_context_t *client_init(offloading_engine_t *offload_engine, init_params_t *init_params)
 {
+    execution_context_t *ctx = NULL;
+
     CHECK_ERR_GOTO((offload_engine == NULL), error_out, "Undefined handle");
     CHECK_ERR_GOTO((offload_engine->client != NULL), error_out, "offload engine already initialized as a client");
 
-    execution_context_t *ctx;
+    // When calling this function, we know we can check whether we are
+    // on a host or a DPU. If the process is running on a host, it is
+    // therefore safe to initialize the engine's elements that are specific to
+    // running on hosts.
+    if (!offload_engine->on_dpu && !offload_engine->host_dpu_data_initialized)
+        RESET_HOST_ENGINE(offload_engine);
+
     int rc = execution_context_init(offload_engine, CONTEXT_CLIENT, &ctx);
     CHECK_ERR_GOTO((rc != 0 || ctx == NULL), error_out, "execution_context_init() failed");
     if (init_params != NULL)

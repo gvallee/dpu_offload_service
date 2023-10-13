@@ -2203,6 +2203,10 @@ static dpu_offload_status_t sp_data_recv_cb(struct dpu_offload_ev_sys *ev_sys, e
     assert(data);
     assert(!ev_sys->econtext->engine->on_dpu);
 
+    // If we already have the data, do nothing.
+    if (econtext->engine->host.total_num_sps != UINT64_MAX)
+        return DO_SUCCESS;
+
     // Figure out the required capacity based on the amount of received data
     num_sps = data_len / sizeof(remote_service_proc_info_t);
     DYN_ARRAY_ALLOC(&(econtext->engine->service_procs), DEFAULT_NUM_SERVICE_PROCS, remote_service_proc_info_t);
