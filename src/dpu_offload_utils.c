@@ -301,22 +301,33 @@ dpu_offload_status_t send_revoke_group_rank_request_through_list_ranks(execution
     return DO_SUCCESS;
 }
 
-/********************************************/
-/* FUNCTIONS RELATED TO THE ENDPOINT CACHES */
-/* TODO: move to dpu_offload_group_cache.c  */
-/********************************************/
-
 dpu_offload_status_t get_local_sp_id(offloading_engine_t *engine, uint64_t global_sp_id, uint64_t *local_sp_id)
 {
     remote_service_proc_info_t *sp_info = NULL;
     *local_sp_id = UINT64_MAX;
     assert(engine);
-    sp_info = DYN_ARRAY_GET_ELT(&(engine->service_procs), global_sp_id, remote_service_proc_info_t);
+    if (engine->on_dpu)
+    {
+        sp_info = DYN_ARRAY_GET_ELT(GET_ENGINE_LIST_SERVICE_PROCS(engine),
+                                    global_sp_id,
+                                    remote_service_proc_info_t);
+    }
+    else
+    {
+        sp_info = DYN_ARRAY_GET_ELT(&(engine->host.associated_sps),
+                                    global_sp_id,
+                                    remote_service_proc_info_t);
+    }
     if (sp_info == NULL)
         return DO_ERROR;
     *local_sp_id = sp_info->service_proc.local_id;
     return DO_SUCCESS;
 }
+
+/********************************************/
+/* FUNCTIONS RELATED TO THE ENDPOINT CACHES */
+/* TODO: move to dpu_offload_group_cache.c  */
+/********************************************/
 
 dpu_offload_status_t do_send_cache_entry_request(execution_context_t *econtext, ucp_ep_h ep, uint64_t dest_id, rank_info_t *requested_peer, dpu_offload_event_t *ev)
 {
@@ -664,7 +675,7 @@ dpu_offload_status_t broadcast_group_cache_revoke(offloading_engine_t *engine, g
         ucp_ep_h dest_ep;
         uint64_t dest_id = sp_gid;
         remote_service_proc_info_t *sp;
-        sp = DYN_ARRAY_GET_ELT(&(engine->service_procs), sp_gid, remote_service_proc_info_t);
+        sp = DYN_ARRAY_GET_ELT(GET_ENGINE_LIST_SERVICE_PROCS(engine), sp_gid, remote_service_proc_info_t);
         assert(sp);
 
         // Do not send to self
@@ -729,7 +740,7 @@ dpu_offload_status_t broadcast_group_cache(offloading_engine_t *engine, group_ca
             // Meta-event to be used to track all that needs to happen
             dpu_offload_event_t *ev = NULL;
 
-            sp = DYN_ARRAY_GET_ELT(&(engine->service_procs), sp_gid, remote_service_proc_info_t);
+            sp = DYN_ARRAY_GET_ELT(GET_ENGINE_LIST_SERVICE_PROCS(engine), sp_gid, remote_service_proc_info_t);
             assert(sp);
 
             // Do not send to self
@@ -787,17 +798,19 @@ dpu_offload_status_t broadcast_group_cache(offloading_engine_t *engine, group_ca
 
 dpu_offload_status_t send_sp_data_to_host(offloading_engine_t *engine, execution_context_t *econtext, ucp_ep_h host_ep, uint64_t host_dest_id)
 {
+#if 0
     dpu_offload_event_t *ev = NULL;
     dpu_offload_status_t rc;
     size_t payload_size = 0;
 
     assert(engine);
+    assert(engine->on_dpu);
     assert(econtext);
 
     rc = event_get(econtext->event_channels, NULL, &ev);
     CHECK_ERR_RETURN((rc), DO_ERROR, "event_get() failed");
 
-    payload_size = engine->num_service_procs * engine->service_procs.type_size;
+    payload_size = engine->num_service_procs * engine->dpu.service_procs.type_size;
     rc = event_channel_emit_with_payload(&ev,
                                          AM_SP_DATA_MSG_ID,
                                          host_ep,
@@ -806,7 +819,7 @@ dpu_offload_status_t send_sp_data_to_host(offloading_engine_t *engine, execution
                                          engine->service_procs.base,
                                          payload_size);
     CHECK_ERR_RETURN((rc != EVENT_DONE && rc != EVENT_INPROGRESS), DO_ERROR, "event_channel_emit_with_payload() failed");
-
+#endif
     return DO_SUCCESS;
 }
 
@@ -818,7 +831,15 @@ dpu_offload_status_t get_sp_ep_by_id(offloading_engine_t *engine, uint64_t sp_id
                      "request service process #%ld but only %ld service processes are known",
                      sp_id, engine->num_service_procs);
     remote_service_proc_info_t *sp;
-    sp = DYN_ARRAY_GET_ELT(&(engine->service_procs), sp_id, remote_service_proc_info_t);
+
+    if (engine->on_dpu)
+    {
+        sp = DYN_ARRAY_GET_ELT(GET_ENGINE_LIST_SERVICE_PROCS(engine), sp_id, remote_service_proc_info_t);
+    }
+    else
+    {
+        sp = DYN_ARRAY_GET_ELT(&(engine->host.associated_sps), sp_id, remote_service_proc_info_t);
+    }
     if (sp == NULL)
     {
         *sp_ep = NULL;
@@ -871,16 +892,26 @@ dpu_offload_status_t get_sp_ep_by_id(offloading_engine_t *engine, uint64_t sp_id
 
 dpu_offload_status_t get_remote_sp_ep_by_id(offloading_engine_t *engine, uint64_t sp_id, ucp_ep_h *sp_ep)
 {
+#if 0
     remote_service_proc_info_t *sp = NULL;
 
     assert(engine);
-    assert(!engine->on_dpu);
     assert(engine->host.total_num_sps != UINT64_MAX);
     CHECK_ERR_RETURN((engine == NULL), DO_ERROR, "engine is undefined");
-    CHECK_ERR_RETURN((sp_id >= engine->host.total_num_sps),
-                     DO_ERROR,
-                     "request service process #%ld but only %ld service processes are known",
-                     sp_id, engine->host.total_num_sps);
+    if (engine->on_dpu)
+    {
+        CHECK_ERR_RETURN((sp_id >= engine->num_service_procs),
+                         DO_ERROR,
+                         "request service process #%ld but only %ld service processes are known",
+                         sp_id, engine->num_service_procs);
+    }
+    else
+    {
+        CHECK_ERR_RETURN((sp_id >= engine->host.total_num_sps),
+                         DO_ERROR,
+                         "request service process #%ld but only %ld service processes are known",
+                         sp_id, engine->host.total_num_sps);
+    }
 
     *sp_ep = NULL;
     sp = DYN_ARRAY_GET_ELT(&(engine->service_procs), sp_id, remote_service_proc_info_t);
@@ -905,7 +936,7 @@ dpu_offload_status_t get_remote_sp_ep_by_id(offloading_engine_t *engine, uint64_
     }
     else
         *sp_ep = sp->ep;
-
+#endif
     return DO_SUCCESS;
 }
 
@@ -1244,7 +1275,7 @@ bool parse_line_dpu_version_1(offloading_config_t *data, char *line)
                 data->local_service_proc.host_conn_params.port = *host_port;
                 data->local_service_proc.host_conn_params.addr_str = target_entry->version_1.addr;
                 assert(data->local_service_proc.info.dpu <= data->offloading_engine->num_dpus);
-                sp = DYN_ARRAY_GET_ELT(&(data->offloading_engine->service_procs), data->local_service_proc.info.global_id, remote_service_proc_info_t);
+                sp = DYN_ARRAY_GET_ELT(GET_ENGINE_LIST_SERVICE_PROCS(data->offloading_engine), data->local_service_proc.info.global_id, remote_service_proc_info_t);
                 assert(sp);
                 sp->ep = data->offloading_engine->self_ep;
                 // data->local_dpu.id is already set while parsing the list of DPUs to use for the job

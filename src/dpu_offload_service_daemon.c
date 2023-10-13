@@ -873,10 +873,19 @@ error_out:
     return DO_ERROR;
 }
 
-dpu_offload_status_t finalize_connection_to_remote_service_proc(offloading_engine_t *offload_engine, remote_service_proc_info_t *remote_sp, execution_context_t *client)
+/**
+ * @brief Function invoked in the context of an SP when another SP gets fully connected
+ * 
+ * @param offload_engine Associated offload engine
+ * @param remote_sp Data about the remote SP
+ * @param client Client execution context used during the connection
+ * @return dpu_offload_status_t 
+ */
+static dpu_offload_status_t
+finalize_connection_to_remote_service_proc(offloading_engine_t *offload_engine, remote_service_proc_info_t *remote_sp, execution_context_t *client)
 {
     ENGINE_LOCK(offload_engine);
-    remote_service_proc_info_t *sp = DYN_ARRAY_GET_ELT(&(offload_engine->service_procs),
+    remote_service_proc_info_t *sp = DYN_ARRAY_GET_ELT(&(offload_engine->dpu.service_procs),
                                                        remote_sp->idx,
                                                        remote_service_proc_info_t);
     assert(sp);
@@ -976,7 +985,7 @@ dpu_offload_status_t offload_engine_progress(offloading_engine_t *engine)
         for (i = 0; i < engine->num_service_procs; i++)
         {
             remote_service_proc_info_t *sp;
-            sp = DYN_ARRAY_GET_ELT(&(engine->service_procs), i, remote_service_proc_info_t);
+            sp = DYN_ARRAY_GET_ELT(&(engine->dpu.service_procs), i, remote_service_proc_info_t);
             assert(sp);
             if (sp == NULL)
                 continue;
@@ -1535,7 +1544,7 @@ static void progress_server_econtext(execution_context_t *ctx)
                     if (ECONTEXT_ON_DPU(ctx) && ctx->scope_id == SCOPE_INTER_SERVICE_PROCS)
                     {
                         size_t service_proc = client_info->rank_data.group_rank;
-                        remote_service_proc_info_t *sp = DYN_ARRAY_GET_ELT(&(ctx->engine->service_procs),
+                        remote_service_proc_info_t *sp = DYN_ARRAY_GET_ELT(&(ctx->engine->dpu.service_procs),
                                                                            service_proc,
                                                                            remote_service_proc_info_t);
                         assert(sp);
@@ -2027,7 +2036,10 @@ void offload_engine_fini(offloading_engine_t **offload_engine)
     DYN_LIST_FREE((*offload_engine)->free_sp_cache_hash_obj, sp_cache_data_t, item);
     DYN_LIST_FREE((*offload_engine)->free_host_cache_hash_obj, host_cache_data_t, item);
     DYN_ARRAY_FREE(&((*offload_engine)->dpus));
-    DYN_ARRAY_FREE(&((*offload_engine)->service_procs));
+    if ((*offload_engine)->on_dpu)
+    {
+        DYN_ARRAY_FREE(&((*offload_engine)->dpu.service_procs));
+    }
 
     assert((*offload_engine)->self_econtext);
 #if !USE_AM_IMPLEM

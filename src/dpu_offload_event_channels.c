@@ -1460,7 +1460,7 @@ static dpu_offload_status_t peer_cache_entries_request_recv_cb(struct dpu_offloa
         {
             dpu_offload_status_t rc;
             dpu_offload_event_t *req_fwd_ev;
-            remote_service_proc_info_t **list_sps = (remote_service_proc_info_t **)econtext->engine->service_procs.base;
+            remote_service_proc_info_t **list_sps = (remote_service_proc_info_t **)econtext->engine->dpu.service_procs.base;
             rc = send_cache_entry_request(econtext, list_sps[i]->ep, rank_info, &req_fwd_ev);
             CHECK_ERR_RETURN((rc), DO_ERROR, "send_cache_entry_request() failed");
             return DO_SUCCESS;
@@ -2196,6 +2196,7 @@ static dpu_offload_status_t add_group_rank_recv_cb(struct dpu_offload_ev_sys *ev
 
 static dpu_offload_status_t sp_data_recv_cb(struct dpu_offload_ev_sys *ev_sys, execution_context_t *econtext, am_header_t *hdr, size_t hdr_size, void *data, size_t data_len)
 {
+#if 0
     size_t num_sps = 0, sp_id;
 
     assert(econtext);
@@ -2222,6 +2223,7 @@ static dpu_offload_status_t sp_data_recv_cb(struct dpu_offload_ev_sys *ev_sys, e
         sp->ep = NULL;
     }
     econtext->engine->host.total_num_sps = num_sps;
+#endif
     return DO_SUCCESS;
 }
 

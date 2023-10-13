@@ -105,9 +105,9 @@ void cache_entry_cb(void *data)
     fprintf(stderr, "l.%d - Successfully retrieved endpoint (%p)\n", __LINE__, target_sp_ep);
     fprintf(stderr, "-> lookup succeeded (l.%d)\n", __LINE__);
     dpu_offload_event_t *end_test_cb_ev;
-    remote_service_proc_info_t *sp0 = DYN_ARRAY_GET_ELT(&(engine->service_procs), 0, remote_service_proc_info_t);
+    remote_service_proc_info_t *sp0 = DYN_ARRAY_GET_ELT(GET_ENGINE_LIST_SERVICE_PROCS(engine), 0, remote_service_proc_info_t);
     assert(sp0);
-    remote_service_proc_info_t *sp1 = DYN_ARRAY_GET_ELT(&(engine->service_procs), 1, remote_service_proc_info_t);
+    remote_service_proc_info_t *sp1 = DYN_ARRAY_GET_ELT(GET_ENGINE_LIST_SERVICE_PROCS(engine), 1, remote_service_proc_info_t);
     assert(sp1);
     execution_context_t *target_sp_econtext = sp0->econtext;
     assert(target_sp_econtext);
@@ -361,9 +361,13 @@ int main(int argc, char **argv)
         /* Service Process #1 */
         group_uid_t group;
         remote_service_proc_info_t *sp0;
-        sp = DYN_ARRAY_GET_ELT(&(offload_engine->service_procs), config_data.local_service_proc.info.global_id, remote_service_proc_info_t);
+        sp = DYN_ARRAY_GET_ELT(GET_ENGINE_LIST_SERVICE_PROCS(offload_engine),
+                               config_data.local_service_proc.info.global_id,
+                               remote_service_proc_info_t);
         assert(sp);
-        sp0 = DYN_ARRAY_GET_ELT(&(offload_engine->service_procs), 0, remote_service_proc_info_t);
+        sp0 = DYN_ARRAY_GET_ELT(GET_ENGINE_LIST_SERVICE_PROCS(offload_engine),
+                                0,
+                                remote_service_proc_info_t);
         assert(sp0);
 
         group = 42;
@@ -467,12 +471,12 @@ int main(int argc, char **argv)
 
         // We need to make sure we have the connection to service process #1
         remote_service_proc_info_t *sp1_config;
-        sp1_config = DYN_ARRAY_GET_ELT(&(offload_engine->service_procs), 1, remote_service_proc_info_t);
+        sp1_config = DYN_ARRAY_GET_ELT(GET_ENGINE_LIST_SERVICE_PROCS(offload_engine), 1, remote_service_proc_info_t);
         fprintf(stderr, "Waiting to be connected to service process #1\n");
         do
         {
             ENGINE_LOCK(offload_engine);
-            sp1_config = DYN_ARRAY_GET_ELT(&(offload_engine->service_procs), 1, remote_service_proc_info_t);
+            sp1_config = DYN_ARRAY_GET_ELT(GET_ENGINE_LIST_SERVICE_PROCS(offload_engine), 1, remote_service_proc_info_t);
             ENGINE_UNLOCK(offload_engine);
             offload_engine_progress(offload_engine);
         } while (sp1_config == NULL || sp1_config->econtext == NULL);

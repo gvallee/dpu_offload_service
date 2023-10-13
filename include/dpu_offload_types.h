@@ -2679,10 +2679,20 @@ typedef struct offloading_engine
             // These elements allows us to store the number of SPs after receiving
             // the data.
             size_t total_num_sps;
+
+            size_t num_associated_sps;
+
+            dyn_array_t associated_sps;
         } host;
         struct 
         {
             // Struct for elements that are specific to engines running on DPUs
+
+            // service_procs is a vector of remote_service_proc_info_t structures
+            // used on the DPUs to easily track all the remote services processes
+            // that we will have a connection to.
+            // This is at the moment not used on the host. Type: remote_service_proc_info_t
+            dyn_array_t service_procs;
         } dpu;
     };
     
@@ -2761,12 +2771,6 @@ typedef struct offloading_engine
     // to easily track all the DPUs used in the current configuration.
     // This is at the moment not used on the host. Type: remote_dpu_info_t*
     dyn_array_t dpus;
-
-    // service_procs is a vector of remote_service_proc_info_t structures
-    // used on the DPUs to easily track all the remote services processes
-    // that we will have a connection to.
-    // This is at the moment not used on the host. Type: remote_service_proc_info_t
-    dyn_array_t service_procs;
 
     // Number of DPUs defined in dpus
     size_t num_dpus;
@@ -2922,7 +2926,6 @@ typedef struct offloading_engine
         /* Note that engine->dpus is a vector of remote_dpu_info_t pointers. */                                              \
         /* The actual object are from pool_remote_dpu_info */                                                                \
         DYN_ARRAY_ALLOC(&((_core_engine)->dpus), 32, remote_dpu_info_t *);                                                   \
-        DYN_ARRAY_ALLOC(&((_core_engine)->service_procs), DEFAULT_NUM_SERVICE_PROCS, remote_service_proc_info_t);            \
         (_core_engine)->num_dpus = 0;                                                                                        \
         (_core_engine)->num_service_procs = 0;                                                                               \
         (_core_engine)->num_connected_service_procs = 0;                                                                     \
@@ -3149,73 +3152,118 @@ typedef struct pending_notification
     _list;                                                  \
 })
 
-#define ECONTEXT_FOR_SERVICE_PROC_COMMUNICATION(_engine, _service_proc_idx) ({ \
-    execution_context_t *_e = NULL;                                            \
-    remote_service_proc_info_t *_sp;                                           \
-    _sp = DYN_ARRAY_GET_ELT(&((_engine)->service_procs),                       \
-                            _service_proc_idx,                                 \
-                            remote_service_proc_info_t);                       \
-    if (_sp != NULL)                                                           \
-    {                                                                          \
-        _e = _sp->econtext;                                                    \
-    }                                                                          \
-    _e;                                                                        \
+#define ECONTEXT_FOR_SERVICE_PROC_COMMUNICATION(_engine, _service_proc_idx) ({  \
+    execution_context_t *_e = NULL;                                             \
+    remote_service_proc_info_t *_sp;                                            \
+    assert((_engine)->on_dpu);                                                  \
+    _sp = DYN_ARRAY_GET_ELT(GET_ENGINE_LIST_SERVICE_PROCS((_engine)),           \
+                            _service_proc_idx,                                  \
+                            remote_service_proc_info_t);                        \
+    if (_sp != NULL)                                                            \
+    {                                                                           \
+        _e = _sp->econtext;                                                     \
+    }                                                                           \
+    _e;                                                                         \
 })
 
-#define GET_REMOTE_SERVICE_PROC_ECONTEXT(_engine, _service_proc_idx) ({                \
-    execution_context_t *_e = NULL;                                                    \
-    if ((_service_proc_idx) <= (_engine)->num_connected_service_procs)                 \
-    {                                                                                  \
-        remote_service_proc_info_t *_sp;                                               \
-        _sp = DYN_ARRAY_GET_ELT(&((_engine)->service_procs),                           \
-                                _service_proc_idx,                                     \
-                                remote_service_proc_info_t);                           \
-        if (_sp->econtext == NULL &&                                                   \
-            _service_proc_idx == (_engine)->config->local_service_proc.info.global_id) \
-        {                                                                              \
-            _sp->econtext = (_engine)->self_econtext;                                  \
-        }                                                                              \
-        if (_sp->econtext != NULL)                                                     \
-        {                                                                              \
-            _e = _sp->econtext;                                                        \
-        }                                                                              \
-    }                                                                                  \
-    _e;                                                                                \
+#define GET_REMOTE_SERVICE_PROC_ECONTEXT(_engine, _service_proc_idx) ({                 \
+    execution_context_t *_e = NULL;                                                     \
+    if ((_service_proc_idx) <= (_engine)->num_connected_service_procs)                  \
+    {                                                                                   \
+        remote_service_proc_info_t *_sp;                                                \
+        if ((_engine)->on_dpu)                                                          \
+        {                                                                               \
+            _sp = DYN_ARRAY_GET_ELT(GET_ENGINE_LIST_SERVICE_PROCS((_engine)),           \
+                                    _service_proc_idx,                                  \
+                                    remote_service_proc_info_t);                        \
+        }                                                                               \
+        else                                                                            \
+        {                                                                               \
+            _sp = DYN_ARRAY_GET_ELT(&((_engine)->host.associated_sps),                  \
+                                    _service_proc_idx,                                  \
+                                    remote_service_proc_info_t);                        \
+        }                                                                               \
+        if (_sp->econtext == NULL &&                                                    \
+            _service_proc_idx == (_engine)->config->local_service_proc.info.global_id)  \
+        {                                                                               \
+            _sp->econtext = (_engine)->self_econtext;                                   \
+        }                                                                               \
+        if (_sp->econtext != NULL)                                                      \
+        {                                                                               \
+            _e = _sp->econtext;                                                         \
+        }                                                                               \
+    }                                                                                   \
+    _e;                                                                                 \
 })
 
-#define GET_REMOTE_SERVICE_PROC_EP(_engine, _idx) ({                       \
-    ucp_ep_h __ep = NULL;                                                  \
-    if (_idx <= (_engine)->num_connected_service_procs)                    \
-    {                                                                      \
-        remote_service_proc_info_t *_sp;                                   \
-        _sp = DYN_ARRAY_GET_ELT(&((_engine)->service_procs),               \
-                                _idx,                                      \
-                                remote_service_proc_info_t);               \
-        assert(_sp);                                                       \
-        if (_sp->ep != NULL)                                               \
-        {                                                                  \
-            __ep = _sp->ep;                                                \
-        }                                                                  \
-        else                                                               \
-        {                                                                  \
-            if (_sp->peer_addr != NULL)                                    \
-            {                                                              \
-                /* Generate the endpoint with the data we have */          \
-                ucp_ep_params_t _ep_params;                                \
-                _ep_params.field_mask = UCP_EP_PARAM_FIELD_REMOTE_ADDRESS; \
-                _ep_params.address = _sp->peer_addr;                       \
-                ucs_status_t status = ucp_ep_create((_engine)->ucp_worker, \
-                                                    &_ep_params,           \
-                                                    &(_sp->ep));           \
-                CHECK_ERR_RETURN((status != UCS_OK), DO_ERROR,             \
-                                 "ucp_ep_create() failed: %s",             \
-                                 ucs_status_string(status));               \
-                assert(_sp->ep);                                           \
-                __ep = _sp->ep;                                            \
-            }                                                              \
-        }                                                                  \
-    }                                                                      \
-    __ep;                                                                  \
+#define CREATE_SP_EP_FROM_SP_INFO(_engine, _sp_info)                    \
+    do                                                                  \
+    {                                                                   \
+        if ((_sp_info)->peer_addr != NULL)                              \
+        {                                                               \
+            /* Generate the endpoint with the data we have */           \
+            ucp_ep_params_t _ep_params;                                 \
+            _ep_params.field_mask = UCP_EP_PARAM_FIELD_REMOTE_ADDRESS;  \
+            _ep_params.address = (_sp_info)->peer_addr;                 \
+            ucs_status_t status = ucp_ep_create((_engine)->ucp_worker,  \
+                                                &_ep_params,            \
+                                                &((_sp_info)->ep));     \
+            CHECK_ERR_RETURN((status != UCS_OK), DO_ERROR,              \
+                                "ucp_ep_create() failed: %s",           \
+                                ucs_status_string(status));             \
+            assert((_sp_info)->ep);                                     \
+        }                                                               \
+    } while (0)
+
+#define GET_REMOTE_SERVICE_PROC_EP_FROM_SP(_engine, _idx) ({                \
+    ucp_ep_h __ep = NULL;                                                   \
+    assert((_engine)->on_dpu);                                              \
+    if (_idx <= (_engine)->num_connected_service_procs)                     \
+    {                                                                       \
+        remote_service_proc_info_t *_sp = NULL;                             \
+        _sp = DYN_ARRAY_GET_ELT(GET_ENGINE_LIST_SERVICE_PROCS((_engine)),   \
+                                (_idx),                                     \
+                                remote_service_proc_info_t);                \
+        assert(_sp);                                                        \
+        if (_sp->ep == NULL)                                                \
+        {                                                                   \
+            CREATE_SP_EP_FROM_SP_INFO((_engine), _sp);                      \
+        }                                                                   \
+        __ep = _sp->ep;                                                     \
+    }                                                                       \
+    __ep;                                                                   \
+})
+
+#define GET_ASSOCIATED_SERVICE_PROC(_engine, _idx) ({               \
+    ucp_ep_h __ep = NULL;                                           \
+    assert((_engine)->on_dpu);                                      \
+    if (_idx <= (_engine)->host.num_associated_sps)                 \
+    {                                                               \
+        remote_service_proc_info_t *_sp = NULL;                     \
+        _sp = DYN_ARRAY_GET_ELT(&((_engine)->host.associated_sps),  \
+                                (_idx),                             \
+                                remote_service_proc_info_t);        \
+        assert(_sp);                                                \
+        if (_sp->ep == NULL)                                        \
+        {                                                           \
+            CREATE_SP_EP_FROM_SP_INFO((_engine), _sp);              \
+        }                                                           \
+        __ep = _sp->ep;                                             \
+    }                                                               \
+    __ep;                                                           \
+})
+
+#define GET_REMOTE_SERVICE_PROC_EP(_engine, _idx) ({                    \
+    ucp_ep_h _ep = NULL;                                                \
+    if ((_engine->on_dpu))                                              \
+    {                                                                   \
+        _ep = GET_REMOTE_SERVICE_PROC_EP_FROM_SP((_engine), (_idx));    \
+    }                                                                   \
+    else                                                                \
+    {                                                                   \
+        _ep = GET_ASSOCIATED_SERVICE_PROC((_engine), (_idx));           \
+    }                                                                   \
+    _ep;                                                                \
 })
 
 typedef enum

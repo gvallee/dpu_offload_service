@@ -1253,7 +1253,10 @@ do_populate_group_cache_lookup_table(offloading_engine_t *engine, group_cache_t 
         if (GROUP_CACHE_BITSET_TEST(gp_cache->sps_bitset, idx))
         {
             remote_service_proc_info_t *sp_data = NULL, **ptr = NULL;
-            sp_data = DYN_ARRAY_GET_ELT(&(engine->service_procs),
+
+            // FIXME: make sure it can work on the hosts
+            assert(engine->on_dpu);
+            sp_data = DYN_ARRAY_GET_ELT(GET_ENGINE_LIST_SERVICE_PROCS(engine),
                                         idx,
                                         remote_service_proc_info_t);
             assert(sp_data);
@@ -1573,7 +1576,7 @@ do_get_cache_entry_by_group_rank(offloading_engine_t *engine,
         for (i = 0; i < engine->num_service_procs; i++)
         {
             remote_service_proc_info_t *sp;
-            sp = DYN_ARRAY_GET_ELT(&(engine->service_procs), i, remote_service_proc_info_t);
+            sp = DYN_ARRAY_GET_ELT(GET_ENGINE_LIST_SERVICE_PROCS(engine), i, remote_service_proc_info_t);
             assert(sp);
             if (sp != NULL && sp->ep != NULL && sp->init_params.conn_params != NULL)
             {

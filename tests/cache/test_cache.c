@@ -123,7 +123,7 @@ simulate_cache_entry_exchange(offloading_engine_t *engine)
     for (i = 0; i < NUM_FAKE_SPS; i++)
     {
         remote_service_proc_info_t *ptr = NULL;
-        ptr = DYN_ARRAY_GET_ELT(&(engine->service_procs),
+        ptr = DYN_ARRAY_GET_ELT(GET_ENGINE_LIST_SERVICE_PROCS(engine),
                                 i,
                                 remote_service_proc_info_t);
         ptr->offload_engine = engine;
