@@ -2196,7 +2196,7 @@ static dpu_offload_status_t add_group_rank_recv_cb(struct dpu_offload_ev_sys *ev
 
 static dpu_offload_status_t sp_data_recv_cb(struct dpu_offload_ev_sys *ev_sys, execution_context_t *econtext, am_header_t *hdr, size_t hdr_size, void *data, size_t data_len)
 {
-    //size_t num_sps = 0;
+    size_t num_sps = 0;
 
     assert(econtext);
     assert(econtext->engine);
@@ -2204,10 +2204,10 @@ static dpu_offload_status_t sp_data_recv_cb(struct dpu_offload_ev_sys *ev_sys, e
     assert(!ev_sys->econtext->engine->on_dpu);
 
     // Figure out the required capacity based on the amount of received data
-    //num_sps = data_len / sizeof(remote_service_proc_info_t);
+    num_sps = data_len / sizeof(remote_service_proc_info_t);
     DYN_ARRAY_ALLOC(&(econtext->engine->service_procs), DEFAULT_NUM_SERVICE_PROCS, remote_service_proc_info_t);
     memcpy(econtext->engine->service_procs.base, data, data_len);
-    //econtext->engine->num_service_procs = num_sps;
+    econtext->engine->host.total_num_sps = num_sps;
     return DO_SUCCESS;
 }
 

@@ -2665,6 +2665,28 @@ typedef struct offloading_engine
         bool persistent_endpoint_cache;
     } settings;
 
+    union
+    {
+        struct
+        {
+            // Struct for elements that are specific to engines running on hosts
+
+            // The hosts do not know by default about all the SPs that are being used,
+            // during bootstrapping, only the associated SP(s) are known. However,
+            // SPs will send data about all the SPs while dealing with the first group
+            // cache, i.e., the group cache for world.
+            // These elements allows us to store the number of SPs after receiving
+            // the data.
+            size_t total_num_sps;
+        } host;
+        struct 
+        {
+            // Struct for elements that are specific to engines running on DPUs
+        } dpu;
+        
+    };
+    
+
     /* client here is used to track the bootstrapping as a client. */
     /* it can only be at most one (the offload engine bootstraps only once */
     /* for both host process and the DPU daemon) */

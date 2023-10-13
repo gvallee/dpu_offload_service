@@ -201,9 +201,16 @@ dpu_offload_status_t send_gp_cache_to_host(execution_context_t *econtext, group_
                 continue;
             }
 
-            // TOOD: we do not need to send the data every single time, only one time
-            rc = send_sp_data_to_host(econtext->engine, econtext, c->ep, c->id);
-            CHECK_ERR_RETURN((rc), DO_ERROR, "sendd_sp_data_to_host() failed");
+            if (gp_cache->group_uid == econtext->engine->procs_cache.world_group)
+            {
+                // If we are dealing with the world group, we know now that we know
+                // about all the SPs involved in the job so we send the SPs' data
+                // to the local ranks so we can propagate the data as soon as it is
+                // all available. Note that at bootstrapping time, hosts only know
+                // about their associated SPs, not all SPs.
+                rc = send_sp_data_to_host(econtext->engine, econtext, c->ep, c->id);
+                CHECK_ERR_RETURN((rc), DO_ERROR, "sendd_sp_data_to_host() failed");
+            }
 
             DBG("Send cache to client #%ld (id: %" PRIu64 ")", idx, c->id);
             rc = send_group_cache(econtext, c->ep, c->id, group_uid, metaev);
