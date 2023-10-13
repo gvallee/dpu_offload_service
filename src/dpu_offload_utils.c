@@ -810,9 +810,8 @@ dpu_offload_status_t send_sp_data_to_host(offloading_engine_t *engine, execution
     return DO_SUCCESS;
 }
 
-static dpu_offload_status_t get_sp_ep_by_id_from_sp(offloading_engine_t *engine, uint64_t sp_id, ucp_ep_h *sp_ep, execution_context_t **econtext_comm, uint64_t *comm_id)
+dpu_offload_status_t get_sp_ep_by_id(offloading_engine_t *engine, uint64_t sp_id, ucp_ep_h *sp_ep, execution_context_t **econtext_comm, uint64_t *comm_id)
 {
-    assert(engine->on_dpu);
     CHECK_ERR_RETURN((engine == NULL), DO_ERROR, "engine is undefined");
     CHECK_ERR_RETURN((sp_id >= engine->num_service_procs),
                      DO_ERROR,
@@ -870,11 +869,47 @@ static dpu_offload_status_t get_sp_ep_by_id_from_sp(offloading_engine_t *engine,
     return DO_SUCCESS;
 }
 
-static dpu_offload_status_t get_sp_ep_by_id_from_host(offloading_engine_t *engine, uint64_t sp_id, ucp_ep_h *sp_ep)
+dpu_offload_status_t get_remote_sp_ep_by_id(offloading_engine_t *engine, uint64_t sp_id, ucp_ep_h *sp_ep)
 {
+    remote_service_proc_info_t *sp = NULL;
+
+    assert(engine);
+    assert(!engine->on_dpu);
+    assert(engine->host.total_num_sps != UINT64_MAX);
+    CHECK_ERR_RETURN((engine == NULL), DO_ERROR, "engine is undefined");
+    CHECK_ERR_RETURN((sp_id >= engine->host.total_num_sps),
+                     DO_ERROR,
+                     "request service process #%ld but only %ld service processes are known",
+                     sp_id, engine->host.total_num_sps);
+
+    *sp_ep = NULL;
+    sp = DYN_ARRAY_GET_ELT(&(engine->service_procs), sp_id, remote_service_proc_info_t);
+    assert(sp);
+    if (sp->ep == NULL)
+    {
+        if (sp->peer_addr != NULL)
+        {
+            /* Generate the endpoint with the data we have */
+            ucp_ep_params_t ep_params;
+            ep_params.field_mask = UCP_EP_PARAM_FIELD_REMOTE_ADDRESS;
+            ep_params.address = sp->peer_addr;
+            ucs_status_t status = ucp_ep_create(engine->ucp_worker,
+                                                &ep_params,
+                                                &(sp->ep));
+            CHECK_ERR_RETURN((status != UCS_OK), DO_ERROR,
+                             "ucp_ep_create() failed: %s",
+                             ucs_status_string(status));
+            assert(sp->ep);
+            *sp_ep = sp->ep;
+        }
+    }
+    else
+        *sp_ep = sp->ep;
+
     return DO_SUCCESS;
 }
 
+#if 0
 dpu_offload_status_t get_sp_ep_by_id(offloading_engine_t *engine, uint64_t sp_id, ucp_ep_h *sp_ep, execution_context_t **econtext_comm, uint64_t *comm_id)
 {
     dpu_offload_status_t rc;
@@ -893,6 +928,7 @@ dpu_offload_status_t get_sp_ep_by_id(offloading_engine_t *engine, uint64_t sp_id
 
     return DO_SUCCESS;
 }
+#endif
 
 /******************************************/
 /* FUNCTIONS RELATED TO THE CONFIGURATION */
