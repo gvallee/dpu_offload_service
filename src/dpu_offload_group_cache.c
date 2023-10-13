@@ -12,6 +12,8 @@
 #include "dpu_offload_group_cache.h"
 #include "dpu_offload_event_channels.h"
 
+extern dpu_offload_status_t send_sp_data_to_host(offloading_engine_t *engine, execution_context_t *econtext, ucp_ep_h host_ep, uint64_t host_dest_id);
+
 // Forward declarations
 static dpu_offload_status_t do_populate_group_cache_lookup_table(offloading_engine_t *engine, group_cache_t *gp_cache);
 dpu_offload_status_t offload_engine_progress(offloading_engine_t *engine);
@@ -198,6 +200,11 @@ dpu_offload_status_t send_gp_cache_to_host(execution_context_t *econtext, group_
                 idx++;
                 continue;
             }
+
+            // TOOD: we do not need to send the data every single time, only one time
+            rc = send_sp_data_to_host(econtext->engine, econtext, c->ep, c->id);
+            CHECK_ERR_RETURN((rc), DO_ERROR, "sendd_sp_data_to_host() failed");
+
             DBG("Send cache to client #%ld (id: %" PRIu64 ")", idx, c->id);
             rc = send_group_cache(econtext, c->ep, c->id, group_uid, metaev);
             CHECK_ERR_RETURN((rc), DO_ERROR, "send_group_cache() failed");

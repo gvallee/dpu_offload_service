@@ -785,8 +785,34 @@ dpu_offload_status_t broadcast_group_cache(offloading_engine_t *engine, group_ca
     return DO_SUCCESS;
 }
 
-dpu_offload_status_t get_sp_ep_by_id(offloading_engine_t *engine, uint64_t sp_id, ucp_ep_h *sp_ep, execution_context_t **econtext_comm, uint64_t *comm_id)
+dpu_offload_status_t send_sp_data_to_host(offloading_engine_t *engine, execution_context_t *econtext, ucp_ep_h host_ep, uint64_t host_dest_id)
 {
+    dpu_offload_event_t *ev = NULL;
+    dpu_offload_status_t rc;
+    size_t payload_size = 0;
+
+    assert(engine);
+    assert(econtext);
+
+    rc = event_get(econtext->event_channels, NULL, &ev);
+    CHECK_ERR_RETURN((rc), DO_ERROR, "event_get() failed");
+
+    payload_size = engine->num_service_procs * engine->service_procs.type_size;
+    rc = event_channel_emit_with_payload(&ev,
+                                         AM_SP_DATA_MSG_ID,
+                                         host_ep,
+                                         host_dest_id,
+                                         NULL,
+                                         engine->service_procs.base,
+                                         payload_size);
+    CHECK_ERR_RETURN((rc != EVENT_DONE && rc != EVENT_INPROGRESS), DO_ERROR, "event_channel_emit_with_payload() failed");
+
+    return DO_SUCCESS;
+}
+
+static dpu_offload_status_t get_sp_ep_by_id_from_sp(offloading_engine_t *engine, uint64_t sp_id, ucp_ep_h *sp_ep, execution_context_t **econtext_comm, uint64_t *comm_id)
+{
+    assert(engine->on_dpu);
     CHECK_ERR_RETURN((engine == NULL), DO_ERROR, "engine is undefined");
     CHECK_ERR_RETURN((sp_id >= engine->num_service_procs),
                      DO_ERROR,
@@ -841,6 +867,30 @@ dpu_offload_status_t get_sp_ep_by_id(offloading_engine_t *engine, uint64_t sp_id
     assert(*econtext_comm);
     assert(*sp_ep);
     assert(*comm_id != UINT64_MAX);
+    return DO_SUCCESS;
+}
+
+static dpu_offload_status_t get_sp_ep_by_id_from_host(offloading_engine_t *engine, uint64_t sp_id, ucp_ep_h *sp_ep)
+{
+    return DO_SUCCESS;
+}
+
+dpu_offload_status_t get_sp_ep_by_id(offloading_engine_t *engine, uint64_t sp_id, ucp_ep_h *sp_ep, execution_context_t **econtext_comm, uint64_t *comm_id)
+{
+    dpu_offload_status_t rc;
+    if (engine->on_dpu)
+    {
+        rc = get_sp_ep_by_id_from_sp(engine, sp_id, sp_ep, econtext_comm, comm_id);
+        CHECK_ERR_RETURN((rc), DO_ERROR, "get_sp_ep_by_id_from_host() failed");
+    }
+    else
+    {
+        rc = get_sp_ep_by_id_from_host(engine, sp_id, sp_ep);
+        CHECK_ERR_RETURN((rc), DO_ERROR, "get_sp_ep_by_id_from_host() failed");
+        *econtext_comm = NULL;
+        *comm_id = UINT64_MAX;
+    }
+
     return DO_SUCCESS;
 }
 

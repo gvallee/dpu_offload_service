@@ -22,6 +22,7 @@ _EXTERN_C_BEGIN
 
 #define DEFAULT_INTER_DPU_CONNECT_PORT (11111)
 #define DEFAULT_NUM_PEERS (10000)
+#define DEFAULT_NUM_SERVICE_PROCS (256)
 
 // Set to 1 to use the AM implementaton; 0 to use tag send/recv implementation
 #define USE_AM_IMPLEM (1)
@@ -2892,7 +2893,7 @@ typedef struct offloading_engine
         /* Note that engine->dpus is a vector of remote_dpu_info_t pointers. */                                              \
         /* The actual object are from pool_remote_dpu_info */                                                                \
         DYN_ARRAY_ALLOC(&((_core_engine)->dpus), 32, remote_dpu_info_t *);                                                   \
-        DYN_ARRAY_ALLOC(&((_core_engine)->service_procs), 256, remote_service_proc_info_t);                                  \
+        DYN_ARRAY_ALLOC(&((_core_engine)->service_procs), DEFAULT_NUM_SERVICE_PROCS, remote_service_proc_info_t);            \
         (_core_engine)->num_dpus = 0;                                                                                        \
         (_core_engine)->num_service_procs = 0;                                                                               \
         (_core_engine)->num_connected_service_procs = 0;                                                                     \
@@ -3486,6 +3487,7 @@ typedef enum
     AM_ADD_GP_RANK_MSG_ID,
     AM_REVOKE_GP_RANK_MSG_ID,
     AM_REVOKE_GP_SP_MSG_ID,  // 45
+    AM_SP_DATA_MSG_ID,
     AM_TEST_MSG_ID,
     LAST_RESERVED_NOTIF_ID,
 
