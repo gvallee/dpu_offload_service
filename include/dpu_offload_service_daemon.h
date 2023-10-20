@@ -272,13 +272,25 @@ dpu_offload_status_t broadcast_group_cache_revoke(offloading_engine_t *engine, g
  * @brief Get the service process endpoint by ID object, i.e., the identifier returned by get_sp_id_by_host_rank
  *
  * @param[in] engine Offloading engine for the query
- * @param[in] id Global service process identifier
- * @param[out] ucp_ep_h DPU's endpoint to use to communicate with the target DPU
+ * @param[in] sp_id Global service process identifier
+ * @param[out] ucp_ep_h UCX endpoint to use to communicate with the target SP
  * @param[out] econtext_comm The execution context to use for notification, must be used to get an event
  * @param[out] notif_dest_id The local identifier to send notification to the remote DPU
  * @return dpu_offload_status_t
  */
 dpu_offload_status_t get_sp_ep_by_id(offloading_engine_t *engine, uint64_t sp_id, ucp_ep_h *sp_ep, execution_context_t **econtext_comm, uint64_t *comm_id);
+
+/**
+ * @brief get_remote_sp_ep_by_id returns the UCX endpoint for any service process involved in the job.
+ * The function can be used both in the context of host or service processes. The returned endpoint can
+ * only be used with UCX API, it cannot be used for emitting MIMOSA events.
+ *
+ * @param[in] engine Offloading engine for the query
+ * @param[in] sp_id Global service process identifier
+ * @param[out] ucp_ep_h UCX endpoint to use to communicate with the target SP
+ * @return dpu_offload_status_t
+ */
+dpu_offload_status_t get_remote_sp_ep_by_id(offloading_engine_t *engine, uint64_t sp_id, ucp_ep_h *sp_ep);
 
 execution_context_t *get_server_servicing_host(offloading_engine_t *engine);
 /**
