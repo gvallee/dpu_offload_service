@@ -1247,15 +1247,16 @@ do_populate_group_cache_lookup_table(offloading_engine_t *engine, group_cache_t 
                         remote_service_proc_info_t *);
         gp_cache->sp_array_initialized = true;
     }
+
+    if (!engine->on_dpu)
+        return DO_SUCCESS; // FIXME
+
     i = 0;
     while (i < gp_cache->n_sps)
     {
         if (GROUP_CACHE_BITSET_TEST(gp_cache->sps_bitset, idx))
         {
             remote_service_proc_info_t *sp_data = NULL, **ptr = NULL;
-
-            // FIXME: make sure it can work on the hosts
-            assert(engine->on_dpu);
             sp_data = DYN_ARRAY_GET_ELT(GET_ENGINE_LIST_SERVICE_PROCS(engine),
                                         idx,
                                         remote_service_proc_info_t);
