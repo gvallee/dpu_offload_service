@@ -885,7 +885,7 @@ static dpu_offload_status_t
 finalize_connection_to_remote_service_proc(offloading_engine_t *offload_engine, remote_service_proc_info_t *remote_sp, execution_context_t *client)
 {
     ENGINE_LOCK(offload_engine);
-    remote_service_proc_info_t *sp = DYN_ARRAY_GET_ELT(&(offload_engine->dpu.service_procs),
+    remote_service_proc_info_t *sp = DYN_ARRAY_GET_ELT(GET_ENGINE_LIST_SERVICE_PROCS(offload_engine),
                                                        remote_sp->idx,
                                                        remote_service_proc_info_t);
     assert(sp);
@@ -893,14 +893,13 @@ finalize_connection_to_remote_service_proc(offloading_engine_t *offload_engine, 
     sp->econtext = client;
     sp->peer_addr = client->client->conn_data.oob.peer_addr;
     sp->ucp_worker = GET_WORKER(client);
+    assert(sp->init_params.conn_params);
     DBG("Connection successfully established to service process #%" PRIu64
         " running on DPU #%" PRIu64 " (num service processes: %ld, number of connection with other service processes: %ld)",
         remote_sp->idx,
         remote_sp->service_proc.dpu,
         offload_engine->num_service_procs,
         offload_engine->num_connected_service_procs);
-    assert(sp->peer_addr);
-    assert(sp->init_params.conn_params);
     DBG("-> Service process #%ld: addr=%s, port=%d, ep=%p, econtext=%p, client_id=%" PRIu64 ", server_id=%" PRIu64,
         remote_sp->idx,
         sp->init_params.conn_params->addr_str,
@@ -1124,6 +1123,27 @@ error_out:
         execution_context_fini(&d->self_econtext);
     *engine = NULL;
     return DO_ERROR;
+}
+
+dpu_offload_status_t offload_engine_init_with_info(offloading_engine_t **engine, offloading_engine_info_t *info)
+{
+    dpu_offload_status_t rc;
+
+    rc = offload_engine_init(engine);
+    CHECK_ERR_RETURN((rc), DO_ERROR, "offload_engine_init() failed");
+    assert(engine);
+    assert(*engine);
+    if (info)
+    {
+        (*engine)->on_dpu = info->on_dpu;
+    }
+
+    if ((*engine)->on_dpu)
+    {
+        RESET_DPU_ENGINE(*engine);
+    }
+
+    return DO_SUCCESS;
 }
 
 #if !USE_AM_IMPLEM

@@ -50,7 +50,24 @@ typedef enum
     UCX_LISTENER
 } conn_mode_t;
 
+/**
+ * @brief Initialize an offload engine
+ *
+ * @param[in,out] engine Offload engine to initialize.
+ *
+ * Note: equivalent to offload_engine_with_info(engine, NULL);
+ */
 dpu_offload_status_t offload_engine_init(offloading_engine_t **engine);
+
+/**
+ * @brief Initialize an offload engine using an info object to specify initialization parameters.
+ * Info object can be NULL in which case the call is equivalent to offload_engine_init().
+ *
+ * @param[in,out] engine Offload engine to initialize.
+ */
+dpu_offload_status_t offload_engine_init_with_info(offloading_engine_t **engine, offloading_engine_info_t *info);
+
+
 void offload_engine_fini(offloading_engine_t **engine);
 
 /**

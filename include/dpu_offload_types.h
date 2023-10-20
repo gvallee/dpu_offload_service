@@ -2817,6 +2817,15 @@ typedef struct offloading_engine
         (_engine)->host.total_num_sps = UINT64_MAX; \
     } while (0)
 
+#define RESET_DPU_ENGINE(_engine)                                   \
+    do                                                              \
+    {                                                               \
+        DYN_ARRAY_ALLOC(GET_ENGINE_LIST_SERVICE_PROCS((_engine)),   \
+                        DEFAULT_NUM_SERVICE_PROCS,                  \
+                        remote_service_proc_info_t);                \
+        (_engine)->host_dpu_data_initialized = true;                \
+    } while (0)
+
 #define RESET_CORE_ENGINE_STRUCT(_core_engine, _core_ret)                                                                    \
     do                                                                                                                       \
     {                                                                                                                        \
@@ -2933,6 +2942,16 @@ typedef struct offloading_engine
         (_core_engine)->num_default_notifications = 0;                                                                       \
         (_core_engine)->free_pending_rdv_recv = NULL;                                                                        \
         (_core_engine)->client_lookup_table = NULL;                                                                          \
+    } while (0)
+
+typedef struct offloading_engine_info {
+    bool on_dpu;
+} offloading_engine_info_t;
+
+#define RESET_OFFLOAD_ENGINE_INFO(_info) \
+    do                                  \
+    {                                   \
+        (_info)->on_dpu = false;        \
     } while (0)
 
 typedef struct pending_am_rdv_recv
