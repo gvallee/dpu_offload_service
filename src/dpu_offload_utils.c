@@ -892,7 +892,6 @@ dpu_offload_status_t get_sp_ep_by_id(offloading_engine_t *engine, uint64_t sp_id
 
 dpu_offload_status_t get_remote_sp_ep_by_id(offloading_engine_t *engine, uint64_t sp_id, ucp_ep_h *sp_ep)
 {
-#if 0
     remote_service_proc_info_t *sp = NULL;
 
     assert(engine);
@@ -936,30 +935,8 @@ dpu_offload_status_t get_remote_sp_ep_by_id(offloading_engine_t *engine, uint64_
     }
     else
         *sp_ep = sp->ep;
-#endif
     return DO_SUCCESS;
 }
-
-#if 0
-dpu_offload_status_t get_sp_ep_by_id(offloading_engine_t *engine, uint64_t sp_id, ucp_ep_h *sp_ep, execution_context_t **econtext_comm, uint64_t *comm_id)
-{
-    dpu_offload_status_t rc;
-    if (engine->on_dpu)
-    {
-        rc = get_sp_ep_by_id_from_sp(engine, sp_id, sp_ep, econtext_comm, comm_id);
-        CHECK_ERR_RETURN((rc), DO_ERROR, "get_sp_ep_by_id_from_host() failed");
-    }
-    else
-    {
-        rc = get_sp_ep_by_id_from_host(engine, sp_id, sp_ep);
-        CHECK_ERR_RETURN((rc), DO_ERROR, "get_sp_ep_by_id_from_host() failed");
-        *econtext_comm = NULL;
-        *comm_id = UINT64_MAX;
-    }
-
-    return DO_SUCCESS;
-}
-#endif
 
 /******************************************/
 /* FUNCTIONS RELATED TO THE CONFIGURATION */
