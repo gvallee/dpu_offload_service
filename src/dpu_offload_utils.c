@@ -798,7 +798,6 @@ dpu_offload_status_t broadcast_group_cache(offloading_engine_t *engine, group_ca
 
 dpu_offload_status_t send_sp_data_to_host(offloading_engine_t *engine, execution_context_t *econtext, ucp_ep_h host_ep, uint64_t host_dest_id)
 {
-#if 0
     dpu_offload_event_t *ev = NULL;
     dpu_offload_status_t rc;
     size_t payload_size = 0;
@@ -810,7 +809,7 @@ dpu_offload_status_t send_sp_data_to_host(offloading_engine_t *engine, execution
     rc = event_get(econtext->event_channels, NULL, &ev);
     CHECK_ERR_RETURN((rc), DO_ERROR, "event_get() failed");
 
-    payload_size = engine->num_service_procs * engine->dpu.service_procs.type_size;
+    payload_size = engine->num_service_procs * engine->service_procs.type_size;
     rc = event_channel_emit_with_payload(&ev,
                                          AM_SP_DATA_MSG_ID,
                                          host_ep,
@@ -819,7 +818,6 @@ dpu_offload_status_t send_sp_data_to_host(offloading_engine_t *engine, execution
                                          engine->service_procs.base,
                                          payload_size);
     CHECK_ERR_RETURN((rc != EVENT_DONE && rc != EVENT_INPROGRESS), DO_ERROR, "event_channel_emit_with_payload() failed");
-#endif
     return DO_SUCCESS;
 }
 
