@@ -2810,18 +2810,16 @@ typedef struct offloading_engine
     khash_t(client_lookup_hash_t) * client_lookup_table;
 } offloading_engine_t;
 
-#define RESET_HOST_ENGINE(_engine)                  \
-    do                                              \
-    {                                               \
-        (_engine)->host.total_num_sps = UINT64_MAX; \
+#define RESET_HOST_ENGINE(_engine)                      \
+    do                                                  \
+    {                                                   \
+        (_engine)->host.total_num_sps = UINT64_MAX;     \
+        (_engine)->host_dpu_data_initialized = true;    \
     } while (0)
 
 #define RESET_DPU_ENGINE(_engine)                                   \
     do                                                              \
     {                                                               \
-        DYN_ARRAY_ALLOC(GET_ENGINE_LIST_SERVICE_PROCS((_engine)),   \
-                        DEFAULT_NUM_SERVICE_PROCS,                  \
-                        remote_service_proc_info_t);                \
         (_engine)->host_dpu_data_initialized = true;                \
     } while (0)
 
@@ -2929,6 +2927,9 @@ typedef struct offloading_engine
             _core_ret = -1;                                                                                                  \
             break;                                                                                                           \
         }                                                                                                                    \
+        DYN_ARRAY_ALLOC(GET_ENGINE_LIST_SERVICE_PROCS((_core_engine)),                                                       \
+                        DEFAULT_NUM_SERVICE_PROCS,                                                                           \
+                        remote_service_proc_info_t);                                                                         \
         (_core_engine)->on_dpu = false;                                                                                      \
         (_core_engine)->host_id = UINT64_MAX;                                                                                \
         /* Note that engine->dpus is a vector of remote_dpu_info_t pointers. */                                              \

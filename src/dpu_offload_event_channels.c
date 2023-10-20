@@ -2216,7 +2216,7 @@ static dpu_offload_status_t sp_data_recv_cb(struct dpu_offload_ev_sys *ev_sys, e
     // They will be created if needed when calling get_sp_ep_by_id().
     for (sp_id = 0; sp_id < num_sps; sp_id++)
     {
-        remote_service_proc_info_t *sp;
+        remote_service_proc_info_t *sp = NULL;
         sp = DYN_ARRAY_GET_ELT(&(econtext->engine->service_procs), sp_id, remote_service_proc_info_t);
         assert(sp);
         sp->ep = NULL;
