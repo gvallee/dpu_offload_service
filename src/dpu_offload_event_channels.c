@@ -2196,7 +2196,6 @@ static dpu_offload_status_t add_group_rank_recv_cb(struct dpu_offload_ev_sys *ev
 
 static dpu_offload_status_t sp_data_recv_cb(struct dpu_offload_ev_sys *ev_sys, execution_context_t *econtext, am_header_t *hdr, size_t hdr_size, void *data, size_t data_len)
 {
-#if 0
     size_t num_sps = 0, sp_id;
 
     assert(econtext);
@@ -2210,7 +2209,7 @@ static dpu_offload_status_t sp_data_recv_cb(struct dpu_offload_ev_sys *ev_sys, e
 
     // Figure out the required capacity based on the amount of received data
     num_sps = data_len / sizeof(remote_service_proc_info_t);
-    DYN_ARRAY_ALLOC(&(econtext->engine->service_procs), DEFAULT_NUM_SERVICE_PROCS, remote_service_proc_info_t);
+    assert(econtext->engine->host_dpu_data_initialized == true);
     memcpy(econtext->engine->service_procs.base, data, data_len);
 
     // I do not believe we can reuse the EP handle created on a different system so we reset the endpoints.
@@ -2223,7 +2222,6 @@ static dpu_offload_status_t sp_data_recv_cb(struct dpu_offload_ev_sys *ev_sys, e
         sp->ep = NULL;
     }
     econtext->engine->host.total_num_sps = num_sps;
-#endif
     return DO_SUCCESS;
 }
 
