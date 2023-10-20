@@ -17,8 +17,7 @@
 
 #define GET_ENGINE_LIST_SERVICE_PROCS(_engine) ({   \
     dyn_array_t *_list_sps = NULL;                  \
-    assert((_engine)->on_dpu);                      \
-    _list_sps = &(_engine->dpu.service_procs);      \
+    _list_sps = &(_engine->service_procs);          \
     _list_sps;                                      \
 })
 

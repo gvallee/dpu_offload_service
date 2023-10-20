@@ -1248,9 +1248,6 @@ do_populate_group_cache_lookup_table(offloading_engine_t *engine, group_cache_t 
         gp_cache->sp_array_initialized = true;
     }
 
-    if (!engine->on_dpu)
-        return DO_SUCCESS; // FIXME
-
     i = 0;
     while (i < gp_cache->n_sps)
     {

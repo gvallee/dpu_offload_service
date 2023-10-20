@@ -2687,15 +2687,14 @@ typedef struct offloading_engine
         struct 
         {
             // Struct for elements that are specific to engines running on DPUs
-
-            // service_procs is a vector of remote_service_proc_info_t structures
-            // used on the DPUs to easily track all the remote services processes
-            // that we will have a connection to.
-            // This is at the moment not used on the host. Type: remote_service_proc_info_t
-            dyn_array_t service_procs;
         } dpu;
     };
     
+    // service_procs is a vector of remote_service_proc_info_t structures
+    // used both on the DPUs and hosts to easily track all the remote services processes
+    // that we will have a connection to.
+    // Type: remote_service_proc_info_t
+    dyn_array_t service_procs;
 
     /* client here is used to track the bootstrapping as a client. */
     /* it can only be at most one (the offload engine bootstraps only once */

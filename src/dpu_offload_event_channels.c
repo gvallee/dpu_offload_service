@@ -1460,7 +1460,7 @@ static dpu_offload_status_t peer_cache_entries_request_recv_cb(struct dpu_offloa
         {
             dpu_offload_status_t rc;
             dpu_offload_event_t *req_fwd_ev;
-            remote_service_proc_info_t **list_sps = (remote_service_proc_info_t **)econtext->engine->dpu.service_procs.base;
+            remote_service_proc_info_t **list_sps = (remote_service_proc_info_t **)econtext->engine->service_procs.base;
             rc = send_cache_entry_request(econtext, list_sps[i]->ep, rank_info, &req_fwd_ev);
             CHECK_ERR_RETURN((rc), DO_ERROR, "send_cache_entry_request() failed");
             return DO_SUCCESS;

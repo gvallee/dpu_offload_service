@@ -984,7 +984,7 @@ dpu_offload_status_t offload_engine_progress(offloading_engine_t *engine)
         for (i = 0; i < engine->num_service_procs; i++)
         {
             remote_service_proc_info_t *sp;
-            sp = DYN_ARRAY_GET_ELT(&(engine->dpu.service_procs), i, remote_service_proc_info_t);
+            sp = DYN_ARRAY_GET_ELT(GET_ENGINE_LIST_SERVICE_PROCS(engine), i, remote_service_proc_info_t);
             assert(sp);
             if (sp == NULL)
                 continue;
@@ -1564,7 +1564,7 @@ static void progress_server_econtext(execution_context_t *ctx)
                     if (ECONTEXT_ON_DPU(ctx) && ctx->scope_id == SCOPE_INTER_SERVICE_PROCS)
                     {
                         size_t service_proc = client_info->rank_data.group_rank;
-                        remote_service_proc_info_t *sp = DYN_ARRAY_GET_ELT(&(ctx->engine->dpu.service_procs),
+                        remote_service_proc_info_t *sp = DYN_ARRAY_GET_ELT(GET_ENGINE_LIST_SERVICE_PROCS(ctx->engine),
                                                                            service_proc,
                                                                            remote_service_proc_info_t);
                         assert(sp);
@@ -2058,7 +2058,7 @@ void offload_engine_fini(offloading_engine_t **offload_engine)
     DYN_ARRAY_FREE(&((*offload_engine)->dpus));
     if ((*offload_engine)->on_dpu)
     {
-        DYN_ARRAY_FREE(&((*offload_engine)->dpu.service_procs));
+        DYN_ARRAY_FREE(GET_ENGINE_LIST_SERVICE_PROCS((*offload_engine)));
     }
 
     assert((*offload_engine)->self_econtext);
