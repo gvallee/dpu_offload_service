@@ -2948,10 +2948,10 @@ typedef struct offloading_engine_info {
     bool on_dpu;
 } offloading_engine_info_t;
 
-#define RESET_OFFLOAD_ENGINE_INFO(_info) \
-    do                                  \
-    {                                   \
-        (_info)->on_dpu = false;        \
+#define RESET_OFFLOAD_ENGINE_INFO(_info)    \
+    do                                      \
+    {                                       \
+        (_info)->on_dpu = false;            \
     } while (0)
 
 typedef struct pending_am_rdv_recv
