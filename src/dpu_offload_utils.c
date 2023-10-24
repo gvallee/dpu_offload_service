@@ -909,12 +909,16 @@ dpu_offload_status_t send_sp_data_to_host(offloading_engine_t *engine, execution
     rc = event_get(econtext->event_channels, NULL, &ev);
     CHECK_ERR_RETURN((rc), DO_ERROR, "event_get() failed");
 
-    if (engine->buf_data_sps != NULL)
+    if (engine->buf_data_sps == NULL)
     {
         rc = pack_data_sps(engine, &payload_size);
         CHECK_ERR_RETURN((rc), DO_ERROR, "pack_data_sps() failed");
     }
+    else
+        payload_size = get_list_sps_packed_size(engine);
 
+    assert(payload_size > 0);
+    assert(engine->buf_data_sps);
     rc = event_channel_emit_with_payload(&ev,
                                          AM_SP_DATA_MSG_ID,
                                          host_ep,
