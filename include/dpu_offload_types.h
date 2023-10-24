@@ -937,7 +937,10 @@ typedef struct connected_clients
 typedef struct connected_peer_data
 {
     // IP of the peer that just completed its connection
-    char *peer_addr;
+    char *addr;
+
+    // Length of the address
+    size_t addr_len;
 
     // Associated execution context
     struct execution_context *econtext;
@@ -2689,7 +2692,12 @@ typedef struct offloading_engine
             // Struct for elements that are specific to engines running on DPUs
         } dpu;
     };
-    
+
+    // Buffer to send or receive data about all the SPs involved in the job.
+    // Also used to make the data persistent so allocated wehn first used and
+    // freed when job terminates
+    void *buf_data_sps;
+
     // service_procs is a vector of remote_service_proc_info_t structures
     // used both on the DPUs and hosts to easily track all the remote services processes
     // that we will have a connection to.
@@ -2817,16 +2825,17 @@ typedef struct offloading_engine
         (_engine)->host_dpu_data_initialized = true;    \
     } while (0)
 
-#define RESET_DPU_ENGINE(_engine)                                   \
-    do                                                              \
-    {                                                               \
-        (_engine)->host_dpu_data_initialized = true;                \
+#define RESET_DPU_ENGINE(_engine)                       \
+    do                                                  \
+    {                                                   \
+        (_engine)->host_dpu_data_initialized = true;    \
     } while (0)
 
 #define RESET_CORE_ENGINE_STRUCT(_core_engine, _core_ret)                                                                    \
     do                                                                                                                       \
     {                                                                                                                        \
         (_core_engine)->host_dpu_data_initialized = false;                                                                   \
+        (_core_engine)->buf_data_sps = NULL;                                                                                 \
         (_core_engine)->done = false;                                                                                        \
         (_core_engine)->config = NULL;                                                                                       \
         (_core_engine)->client = NULL;                                                                                       \
@@ -3218,12 +3227,12 @@ typedef struct pending_notification
 #define CREATE_SP_EP_FROM_SP_INFO(_engine, _sp_info)                    \
     do                                                                  \
     {                                                                   \
-        if ((_sp_info)->peer_addr != NULL)                              \
+        if ((_sp_info)->addr != NULL)                                   \
         {                                                               \
             /* Generate the endpoint with the data we have */           \
             ucp_ep_params_t _ep_params;                                 \
             _ep_params.field_mask = UCP_EP_PARAM_FIELD_REMOTE_ADDRESS;  \
-            _ep_params.address = (_sp_info)->peer_addr;                 \
+            _ep_params.address = (_sp_info)->addr;                      \
             ucs_status_t status = ucp_ep_create((_engine)->ucp_worker,  \
                                                 &_ep_params,            \
                                                 &((_sp_info)->ep));     \
@@ -3347,7 +3356,10 @@ typedef struct remote_service_proc_info
     uint64_t client_id;
 
     // Pointer to the address. Used for example to create new endpoint
-    void *peer_addr;
+    void *addr;
+
+    // Length of the address saved in 'addr'
+    size_t addr_len;
 
     // Initialization paramaters for bootstrapping
     init_params_t init_params;

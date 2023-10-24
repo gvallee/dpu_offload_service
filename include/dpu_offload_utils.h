@@ -15,6 +15,9 @@
 #    define _EXTERN_C_END
 #endif
 
+#define BUFF_AT(_ptr, _offset)                        \
+    ((void *)((ptrdiff_t)(_ptr) + (off_t)(_offset)))
+
 #define GET_ENGINE_LIST_SERVICE_PROCS(_engine) ({   \
     dyn_array_t *_list_sps = NULL;                  \
     _list_sps = &(_engine->service_procs);          \

@@ -441,7 +441,7 @@ int main(int argc, char **argv)
         // only get fail/success details.
         if (sp0->ep == NULL)
         {
-            if (sp0->peer_addr == NULL)
+            if (sp0->addr == NULL)
             {
                 fprintf(stderr, "[WARN] the peer's address is NULL\n");
             }

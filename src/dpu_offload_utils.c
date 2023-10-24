@@ -796,6 +796,99 @@ dpu_offload_status_t broadcast_group_cache(offloading_engine_t *engine, group_ca
     return DO_SUCCESS;
 }
 
+static size_t get_list_sps_packed_size(offloading_engine_t *engine)
+{
+    size_t packed_size = 0, idx;
+
+    // Number of SPs
+    packed_size += sizeof(uint64_t);
+
+    // Sizes that will be part of the message (size for each individual address)
+    packed_size += engine->num_service_procs * sizeof(uint64_t);
+
+    // Actual addresses
+    for (idx = 0; idx < engine->num_service_procs; idx++)
+    {
+        remote_service_proc_info_t *sp = NULL;
+        sp = DYN_ARRAY_GET_ELT(GET_ENGINE_LIST_SERVICE_PROCS(engine), idx, remote_service_proc_info_t);
+        assert(sp);
+        packed_size += sp->addr_len;
+    }
+    return packed_size;
+}
+
+static dpu_offload_status_t pack_data_sps(offloading_engine_t *engine)
+{
+    size_t idx;
+    uint64_t *val;
+    off_t offset = 0;
+    remote_service_proc_info_t *sp = NULL;
+    void *ptr;
+
+    assert(engine->on_dpu);
+    assert(engine->buf_data_sps);
+
+    // Number of SPs
+    val = (uint64_t *) BUFF_AT(engine->buf_data_sps, offset);
+    *val = engine->num_service_procs;
+    offset += sizeof(uint64_t);
+
+    for (idx = 0; idx < engine->num_service_procs; idx++)
+    {
+        sp = DYN_ARRAY_GET_ELT(GET_ENGINE_LIST_SERVICE_PROCS(engine), idx, remote_service_proc_info_t);
+        assert(sp);
+
+        val = (uint64_t *) BUFF_AT(engine->buf_data_sps, offset);
+        *val = sp->addr_len;
+        offset += sizeof(uint64_t);
+    }
+
+    for (idx = 0; idx < engine->num_service_procs; idx++)
+    {
+        sp = DYN_ARRAY_GET_ELT(GET_ENGINE_LIST_SERVICE_PROCS(engine), idx, remote_service_proc_info_t);
+        assert(sp);
+
+        ptr = (void *) BUFF_AT(engine->buf_data_sps, offset);
+        memcpy(ptr, sp->addr, sp->addr_len);
+        offset += sp->addr_len;
+    }
+    return DO_SUCCESS;
+}
+
+dpu_offload_status_t unpack_data_sps(offloading_engine_t *engine, void *data)
+{
+    off_t offset = 0;
+    uint64_t num_sps, *val, idx;
+    remote_service_proc_info_t *sp = NULL;
+
+    val = (uint64_t *) BUFF_AT(data, offset);
+    num_sps = *val;
+    offset += sizeof(uint64_t);
+    engine->host.total_num_sps = num_sps;
+
+    // sizes of the addresses
+    for (idx = 0; idx < num_sps; idx++)
+    {
+        sp = DYN_ARRAY_GET_ELT(GET_ENGINE_LIST_SERVICE_PROCS(engine), idx, remote_service_proc_info_t);
+        assert(sp);
+
+        val = (uint64_t *) BUFF_AT(data, offset);
+        offset += sizeof(uint64_t);
+        sp->addr_len = *val;
+    }
+
+    // actual addresses
+    for (idx = 0; idx < num_sps; idx++)
+    {
+        sp = DYN_ARRAY_GET_ELT(GET_ENGINE_LIST_SERVICE_PROCS(engine), idx, remote_service_proc_info_t);
+        assert(sp);
+
+        sp->addr = BUFF_AT(data, offset);
+        offset += sizeof(uint64_t);
+    }
+    return DO_SUCCESS;
+}
+
 dpu_offload_status_t send_sp_data_to_host(offloading_engine_t *engine, execution_context_t *econtext, ucp_ep_h host_ep, uint64_t host_dest_id)
 {
     dpu_offload_event_t *ev = NULL;
@@ -809,13 +902,21 @@ dpu_offload_status_t send_sp_data_to_host(offloading_engine_t *engine, execution
     rc = event_get(econtext->event_channels, NULL, &ev);
     CHECK_ERR_RETURN((rc), DO_ERROR, "event_get() failed");
 
-    payload_size = engine->num_service_procs * engine->service_procs.type_size;
+    payload_size = get_list_sps_packed_size(engine);
+    assert(payload_size > 0);
+    if (engine->buf_data_sps != NULL)
+    {
+        engine->buf_data_sps = DPU_OFFLOAD_MALLOC(payload_size);
+        rc = pack_data_sps(engine);
+        CHECK_ERR_RETURN((rc), DO_ERROR, "pack_data_sps() failed");
+    }
+
     rc = event_channel_emit_with_payload(&ev,
                                          AM_SP_DATA_MSG_ID,
                                          host_ep,
                                          host_dest_id,
                                          NULL,
-                                         engine->service_procs.base,
+                                         engine->buf_data_sps,
                                          payload_size);
     CHECK_ERR_RETURN((rc != EVENT_DONE && rc != EVENT_INPROGRESS), DO_ERROR, "event_channel_emit_with_payload() failed");
     return DO_SUCCESS;
@@ -915,12 +1016,12 @@ dpu_offload_status_t get_remote_sp_ep_by_id(offloading_engine_t *engine, uint64_
     assert(sp);
     if (sp->ep == NULL)
     {
-        if (sp->peer_addr != NULL)
+        if (sp->addr != NULL)
         {
             /* Generate the endpoint with the data we have */
             ucp_ep_params_t ep_params;
             ep_params.field_mask = UCP_EP_PARAM_FIELD_REMOTE_ADDRESS;
-            ep_params.address = sp->peer_addr;
+            ep_params.address = sp->addr;
             ucs_status_t status = ucp_ep_create(engine->ucp_worker,
                                                 &ep_params,
                                                 &(sp->ep));

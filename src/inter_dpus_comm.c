@@ -267,7 +267,7 @@ void connected_to_server_dpu(void *data)
     connected_peer_data_t *connected_peer = (connected_peer_data_t *)data;
 
     DBG("Successfully connected to remote service process %" PRIu64 " running in the context server SP #%" PRIu64 " at %s (econtext: %p)",
-        connected_peer->global_peer_id, connected_peer->peer_id, connected_peer->peer_addr, connected_peer->econtext);
+        connected_peer->global_peer_id, connected_peer->peer_id, connected_peer->addr, connected_peer->econtext);
     set_default_econtext(connected_peer);
 
     assert(connected_peer->econtext);
@@ -410,7 +410,8 @@ void client_service_proc_connected(void *data)
     // Update data in the list of DPUs
     sp = DYN_ARRAY_GET_ELT(GET_ENGINE_LIST_SERVICE_PROCS(connected_peer->econtext->engine), service_proc_global_id, remote_service_proc_info_t);
     assert(sp);
-    sp->peer_addr = connected_peer->peer_addr;
+    sp->addr = connected_peer->addr;
+    sp->addr_len = connected_peer->addr_len;
     sp->econtext = connected_peer->econtext;
     sp->client_id = connected_peer->peer_id;
 #if !NDEBUG
