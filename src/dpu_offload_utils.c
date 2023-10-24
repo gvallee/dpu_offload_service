@@ -844,7 +844,6 @@ static dpu_offload_status_t pack_data_sps(offloading_engine_t *engine, size_t *p
         assert(sp);
 
         val = (uint64_t *) BUFF_AT(engine->buf_data_sps, offset);
-        INFO_MSG("[DBG] addr_len: %ld", sp->addr_len);
         *val = sp->addr_len;
         offset += sizeof(uint64_t);
     }
@@ -882,6 +881,7 @@ dpu_offload_status_t unpack_data_sps(offloading_engine_t *engine, void *data)
         val = (uint64_t *) BUFF_AT(data, offset);
         offset += sizeof(uint64_t);
         sp->addr_len = *val;
+        sp->ep = NULL;
     }
 
     // actual addresses
@@ -891,7 +891,7 @@ dpu_offload_status_t unpack_data_sps(offloading_engine_t *engine, void *data)
         assert(sp);
 
         sp->addr = BUFF_AT(data, offset);
-        offset += sizeof(uint64_t);
+        offset += sp->addr_len;
     }
     return DO_SUCCESS;
 }
