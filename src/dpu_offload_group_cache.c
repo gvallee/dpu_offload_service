@@ -12,6 +12,8 @@
 #include "dpu_offload_group_cache.h"
 #include "dpu_offload_event_channels.h"
 
+extern dpu_offload_status_t send_sp_data_to_host(offloading_engine_t *engine, execution_context_t *econtext, ucp_ep_h host_ep, uint64_t host_dest_id);
+
 // Forward declarations
 static dpu_offload_status_t do_populate_group_cache_lookup_table(offloading_engine_t *engine, group_cache_t *gp_cache);
 dpu_offload_status_t offload_engine_progress(offloading_engine_t *engine);
@@ -198,6 +200,18 @@ dpu_offload_status_t send_gp_cache_to_host(execution_context_t *econtext, group_
                 idx++;
                 continue;
             }
+
+            if (gp_cache->group_uid == econtext->engine->procs_cache.world_group)
+            {
+                // If we are dealing with the world group, we know now that we know
+                // about all the SPs involved in the job so we send the SPs' data
+                // to the local ranks so we can propagate the data as soon as it is
+                // all available. Note that at bootstrapping time, hosts only know
+                // about their associated SPs, not all SPs.
+                rc = send_sp_data_to_host(econtext->engine, econtext, c->ep, c->id);
+                CHECK_ERR_RETURN((rc), DO_ERROR, "sendd_sp_data_to_host() failed");
+            }
+
             DBG("Send cache to client #%ld (id: %" PRIu64 ")", idx, c->id);
             rc = send_group_cache(econtext, c->ep, c->id, group_uid, metaev);
             CHECK_ERR_RETURN((rc), DO_ERROR, "send_group_cache() failed");
@@ -1233,13 +1247,14 @@ do_populate_group_cache_lookup_table(offloading_engine_t *engine, group_cache_t 
                         remote_service_proc_info_t *);
         gp_cache->sp_array_initialized = true;
     }
+
     i = 0;
     while (i < gp_cache->n_sps)
     {
         if (GROUP_CACHE_BITSET_TEST(gp_cache->sps_bitset, idx))
         {
             remote_service_proc_info_t *sp_data = NULL, **ptr = NULL;
-            sp_data = DYN_ARRAY_GET_ELT(&(engine->service_procs),
+            sp_data = DYN_ARRAY_GET_ELT(GET_ENGINE_LIST_SERVICE_PROCS(engine),
                                         idx,
                                         remote_service_proc_info_t);
             assert(sp_data);
@@ -1559,7 +1574,7 @@ do_get_cache_entry_by_group_rank(offloading_engine_t *engine,
         for (i = 0; i < engine->num_service_procs; i++)
         {
             remote_service_proc_info_t *sp;
-            sp = DYN_ARRAY_GET_ELT(&(engine->service_procs), i, remote_service_proc_info_t);
+            sp = DYN_ARRAY_GET_ELT(GET_ENGINE_LIST_SERVICE_PROCS(engine), i, remote_service_proc_info_t);
             assert(sp);
             if (sp != NULL && sp->ep != NULL && sp->init_params.conn_params != NULL)
             {

@@ -50,7 +50,24 @@ typedef enum
     UCX_LISTENER
 } conn_mode_t;
 
+/**
+ * @brief Initialize an offload engine
+ *
+ * @param[in,out] engine Offload engine to initialize.
+ *
+ * Note: equivalent to offload_engine_with_info(engine, NULL);
+ */
 dpu_offload_status_t offload_engine_init(offloading_engine_t **engine);
+
+/**
+ * @brief Initialize an offload engine using an info object to specify initialization parameters.
+ * Info object can be NULL in which case the call is equivalent to offload_engine_init().
+ *
+ * @param[in,out] engine Offload engine to initialize.
+ */
+dpu_offload_status_t offload_engine_init_with_info(offloading_engine_t **engine, offloading_engine_info_t *info);
+
+
 void offload_engine_fini(offloading_engine_t **engine);
 
 /**
@@ -255,16 +272,36 @@ dpu_offload_status_t broadcast_group_cache_revoke(offloading_engine_t *engine, g
  * @brief Get the service process endpoint by ID object, i.e., the identifier returned by get_sp_id_by_host_rank
  *
  * @param[in] engine Offloading engine for the query
- * @param[in] id Global service process identifier
- * @param[out] ucp_ep_h DPU's endpoint to use to communicate with the target DPU
+ * @param[in] sp_id Global service process identifier
+ * @param[out] ucp_ep_h UCX endpoint to use to communicate with the target SP
  * @param[out] econtext_comm The execution context to use for notification, must be used to get an event
  * @param[out] notif_dest_id The local identifier to send notification to the remote DPU
  * @return dpu_offload_status_t
  */
 dpu_offload_status_t get_sp_ep_by_id(offloading_engine_t *engine, uint64_t sp_id, ucp_ep_h *sp_ep, execution_context_t **econtext_comm, uint64_t *comm_id);
 
-execution_context_t *get_server_servicing_host(offloading_engine_t *engine);
+/**
+ * @brief get_remote_sp_ep_by_id returns the UCX endpoint for any service process involved in the job.
+ * The function can be used both in the context of host or service processes. The returned endpoint can
+ * only be used with UCX API, it cannot be used for emitting MIMOSA events.
+ *
+ * @param[in] engine Offloading engine for the query
+ * @param[in] sp_id Global service process identifier
+ * @param[out] ucp_ep_h UCX endpoint to use to communicate with the target SP
+ * @return dpu_offload_status_t
+ */
+dpu_offload_status_t get_remote_sp_ep_by_id(offloading_engine_t *engine, uint64_t sp_id, ucp_ep_h *sp_ep);
 
+execution_context_t *get_server_servicing_host(offloading_engine_t *engine);
+/**
+ * @brief Get the local service proc connect info object. Used by processes running on hosts
+ * to get information about the local service process to connect to for bootstrapping.
+ * 
+ * @param cfg[in] Configuration of the offloading
+ * @param rank_info[in] Information about the local process, i.e., rank
+ * @param init_params[in,out] Initialization parameters
+ * @return dpu_offload_status_t 
+ */
 dpu_offload_status_t get_local_service_proc_connect_info(offloading_config_t *cfg, rank_info_t *rank_info, init_params_t *init_params);
 
 dpu_offload_status_t get_num_connecting_ranks(uint64_t num_service_procs_per_dpu, int64_t n_local_ranks, uint64_t sp_lid, uint64_t *n_ranks);

@@ -15,4 +15,10 @@
 #    define _EXTERN_C_END
 #endif
 
+#define GET_ENGINE_LIST_SERVICE_PROCS(_engine) ({   \
+    dyn_array_t *_list_sps = NULL;                  \
+    _list_sps = &(_engine->service_procs);          \
+    _list_sps;                                      \
+})
+
 #endif // DPU_OFFLOAD_UTILS_H

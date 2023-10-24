@@ -873,10 +873,19 @@ error_out:
     return DO_ERROR;
 }
 
-dpu_offload_status_t finalize_connection_to_remote_service_proc(offloading_engine_t *offload_engine, remote_service_proc_info_t *remote_sp, execution_context_t *client)
+/**
+ * @brief Function invoked in the context of an SP when another SP gets fully connected
+ * 
+ * @param offload_engine Associated offload engine
+ * @param remote_sp Data about the remote SP
+ * @param client Client execution context used during the connection
+ * @return dpu_offload_status_t 
+ */
+static dpu_offload_status_t
+finalize_connection_to_remote_service_proc(offloading_engine_t *offload_engine, remote_service_proc_info_t *remote_sp, execution_context_t *client)
 {
     ENGINE_LOCK(offload_engine);
-    remote_service_proc_info_t *sp = DYN_ARRAY_GET_ELT(&(offload_engine->service_procs),
+    remote_service_proc_info_t *sp = DYN_ARRAY_GET_ELT(GET_ENGINE_LIST_SERVICE_PROCS(offload_engine),
                                                        remote_sp->idx,
                                                        remote_service_proc_info_t);
     assert(sp);
@@ -884,14 +893,13 @@ dpu_offload_status_t finalize_connection_to_remote_service_proc(offloading_engin
     sp->econtext = client;
     sp->peer_addr = client->client->conn_data.oob.peer_addr;
     sp->ucp_worker = GET_WORKER(client);
+    assert(sp->init_params.conn_params);
     DBG("Connection successfully established to service process #%" PRIu64
         " running on DPU #%" PRIu64 " (num service processes: %ld, number of connection with other service processes: %ld)",
         remote_sp->idx,
         remote_sp->service_proc.dpu,
         offload_engine->num_service_procs,
         offload_engine->num_connected_service_procs);
-    assert(sp->peer_addr);
-    assert(sp->init_params.conn_params);
     DBG("-> Service process #%ld: addr=%s, port=%d, ep=%p, econtext=%p, client_id=%" PRIu64 ", server_id=%" PRIu64,
         remote_sp->idx,
         sp->init_params.conn_params->addr_str,
@@ -976,7 +984,7 @@ dpu_offload_status_t offload_engine_progress(offloading_engine_t *engine)
         for (i = 0; i < engine->num_service_procs; i++)
         {
             remote_service_proc_info_t *sp;
-            sp = DYN_ARRAY_GET_ELT(&(engine->service_procs), i, remote_service_proc_info_t);
+            sp = DYN_ARRAY_GET_ELT(GET_ENGINE_LIST_SERVICE_PROCS(engine), i, remote_service_proc_info_t);
             assert(sp);
             if (sp == NULL)
                 continue;
@@ -1115,6 +1123,27 @@ error_out:
         execution_context_fini(&d->self_econtext);
     *engine = NULL;
     return DO_ERROR;
+}
+
+dpu_offload_status_t offload_engine_init_with_info(offloading_engine_t **engine, offloading_engine_info_t *info)
+{
+    dpu_offload_status_t rc;
+
+    rc = offload_engine_init(engine);
+    CHECK_ERR_RETURN((rc), DO_ERROR, "offload_engine_init() failed");
+    assert(engine);
+    assert(*engine);
+    if (info)
+    {
+        (*engine)->on_dpu = info->on_dpu;
+    }
+
+    if ((*engine)->on_dpu)
+    {
+        RESET_DPU_ENGINE(*engine);
+    }
+
+    return DO_SUCCESS;
 }
 
 #if !USE_AM_IMPLEM
@@ -1535,7 +1564,7 @@ static void progress_server_econtext(execution_context_t *ctx)
                     if (ECONTEXT_ON_DPU(ctx) && ctx->scope_id == SCOPE_INTER_SERVICE_PROCS)
                     {
                         size_t service_proc = client_info->rank_data.group_rank;
-                        remote_service_proc_info_t *sp = DYN_ARRAY_GET_ELT(&(ctx->engine->service_procs),
+                        remote_service_proc_info_t *sp = DYN_ARRAY_GET_ELT(GET_ENGINE_LIST_SERVICE_PROCS(ctx->engine),
                                                                            service_proc,
                                                                            remote_service_proc_info_t);
                         assert(sp);
@@ -1883,10 +1912,18 @@ static void execution_context_fini(execution_context_t **ctx)
  */
 execution_context_t *client_init(offloading_engine_t *offload_engine, init_params_t *init_params)
 {
+    execution_context_t *ctx = NULL;
+
     CHECK_ERR_GOTO((offload_engine == NULL), error_out, "Undefined handle");
     CHECK_ERR_GOTO((offload_engine->client != NULL), error_out, "offload engine already initialized as a client");
 
-    execution_context_t *ctx;
+    // When calling this function, we know we can check whether we are
+    // on a host or a DPU. If the process is running on a host, it is
+    // therefore safe to initialize the engine's elements that are specific to
+    // running on hosts.
+    if (!offload_engine->on_dpu && !offload_engine->host_dpu_data_initialized)
+        RESET_HOST_ENGINE(offload_engine);
+
     int rc = execution_context_init(offload_engine, CONTEXT_CLIENT, &ctx);
     CHECK_ERR_GOTO((rc != 0 || ctx == NULL), error_out, "execution_context_init() failed");
     if (init_params != NULL)
@@ -2019,7 +2056,10 @@ void offload_engine_fini(offloading_engine_t **offload_engine)
     DYN_LIST_FREE((*offload_engine)->free_sp_cache_hash_obj, sp_cache_data_t, item);
     DYN_LIST_FREE((*offload_engine)->free_host_cache_hash_obj, host_cache_data_t, item);
     DYN_ARRAY_FREE(&((*offload_engine)->dpus));
-    DYN_ARRAY_FREE(&((*offload_engine)->service_procs));
+    if ((*offload_engine)->on_dpu)
+    {
+        DYN_ARRAY_FREE(GET_ENGINE_LIST_SERVICE_PROCS((*offload_engine)));
+    }
 
     assert((*offload_engine)->self_econtext);
 #if !USE_AM_IMPLEM
