@@ -814,10 +814,11 @@ static size_t get_list_sps_packed_size(offloading_engine_t *engine)
         assert(sp);
         packed_size += sp->addr_len;
     }
+    INFO_MSG("[DBG] Size payload: %ld", packed_size);
     return packed_size;
 }
 
-static dpu_offload_status_t pack_data_sps(offloading_engine_t *engine)
+static dpu_offload_status_t pack_data_sps(offloading_engine_t *engine, size_t *payload_size)
 {
     size_t idx;
     uint64_t *val;
@@ -826,6 +827,10 @@ static dpu_offload_status_t pack_data_sps(offloading_engine_t *engine)
     void *ptr;
 
     assert(engine->on_dpu);
+    assert(engine->buf_data_sps == NULL);
+    *payload_size = get_list_sps_packed_size(engine);
+    assert(*payload_size > 0);
+    engine->buf_data_sps = DPU_OFFLOAD_MALLOC(*payload_size);
     assert(engine->buf_data_sps);
 
     // Number of SPs
@@ -839,6 +844,7 @@ static dpu_offload_status_t pack_data_sps(offloading_engine_t *engine)
         assert(sp);
 
         val = (uint64_t *) BUFF_AT(engine->buf_data_sps, offset);
+        INFO_MSG("[DBG] addr_len: %ld", sp->addr_len);
         *val = sp->addr_len;
         offset += sizeof(uint64_t);
     }
@@ -852,6 +858,7 @@ static dpu_offload_status_t pack_data_sps(offloading_engine_t *engine)
         memcpy(ptr, sp->addr, sp->addr_len);
         offset += sp->addr_len;
     }
+    assert(((size_t)offset) == (*pack_data_sps));
     return DO_SUCCESS;
 }
 
@@ -902,12 +909,9 @@ dpu_offload_status_t send_sp_data_to_host(offloading_engine_t *engine, execution
     rc = event_get(econtext->event_channels, NULL, &ev);
     CHECK_ERR_RETURN((rc), DO_ERROR, "event_get() failed");
 
-    payload_size = get_list_sps_packed_size(engine);
-    assert(payload_size > 0);
     if (engine->buf_data_sps != NULL)
     {
-        engine->buf_data_sps = DPU_OFFLOAD_MALLOC(payload_size);
-        rc = pack_data_sps(engine);
+        rc = pack_data_sps(engine, &payload_size);
         CHECK_ERR_RETURN((rc), DO_ERROR, "pack_data_sps() failed");
     }
 

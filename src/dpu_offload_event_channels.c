@@ -2201,6 +2201,7 @@ static dpu_offload_status_t sp_data_recv_cb(struct dpu_offload_ev_sys *ev_sys, e
 
     assert(econtext);
     assert(econtext->engine);
+    assert(data_len > 0);
     assert(data);
     assert(!ev_sys->econtext->engine->on_dpu);
 
@@ -2208,7 +2209,6 @@ static dpu_offload_status_t sp_data_recv_cb(struct dpu_offload_ev_sys *ev_sys, e
     if (econtext->engine->host.total_num_sps != UINT64_MAX)
         return DO_SUCCESS;
 
-    // Figure out the required capacity based on the amount of received data
     assert(econtext->engine->host_dpu_data_initialized == true);
     assert(econtext->engine->buf_data_sps == NULL);
     econtext->engine->buf_data_sps = DPU_OFFLOAD_MALLOC(data_len);
