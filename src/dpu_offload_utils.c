@@ -858,7 +858,7 @@ static dpu_offload_status_t pack_data_sps(offloading_engine_t *engine, size_t *p
         memcpy(ptr, sp->addr, sp->addr_len);
         offset += sp->addr_len;
     }
-    assert(((size_t)offset) == (*pack_data_sps));
+    assert(((size_t)offset) == (*payload_size));
     return DO_SUCCESS;
 }
 
