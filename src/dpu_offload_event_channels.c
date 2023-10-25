@@ -75,8 +75,9 @@
                           &(_pending_group_add->item));                             \
     } while (0)
 
-#if USE_AM_IMPLEM
+extern dpu_offload_status_t unpack_data_sps(offloading_engine_t *engine, void *data);
 
+#if USE_AM_IMPLEM
 dpu_offload_status_t get_associated_econtext(offloading_engine_t *engine, am_header_t *hdr, execution_context_t **econtext_out)
 {
     execution_context_t *econtext = NULL;
@@ -2196,10 +2197,11 @@ static dpu_offload_status_t add_group_rank_recv_cb(struct dpu_offload_ev_sys *ev
 
 static dpu_offload_status_t sp_data_recv_cb(struct dpu_offload_ev_sys *ev_sys, execution_context_t *econtext, am_header_t *hdr, size_t hdr_size, void *data, size_t data_len)
 {
-    size_t num_sps = 0, sp_id;
+    dpu_offload_status_t rc;
 
     assert(econtext);
     assert(econtext->engine);
+    assert(data_len > 0);
     assert(data);
     assert(!ev_sys->econtext->engine->on_dpu);
 
@@ -2207,21 +2209,14 @@ static dpu_offload_status_t sp_data_recv_cb(struct dpu_offload_ev_sys *ev_sys, e
     if (econtext->engine->host.total_num_sps != UINT64_MAX)
         return DO_SUCCESS;
 
-    // Figure out the required capacity based on the amount of received data
-    num_sps = data_len / sizeof(remote_service_proc_info_t);
     assert(econtext->engine->host_dpu_data_initialized == true);
-    memcpy(econtext->engine->service_procs.base, data, data_len);
+    assert(econtext->engine->buf_data_sps == NULL);
+    econtext->engine->buf_data_sps = DPU_OFFLOAD_MALLOC(data_len);
+    assert(econtext->engine->buf_data_sps);
+    memcpy(econtext->engine->buf_data_sps, data, data_len);
+    rc = unpack_data_sps(econtext->engine, econtext->engine->buf_data_sps);
+    CHECK_ERR_RETURN((rc), DO_ERROR, "unpack_data_sps() failed");
 
-    // I do not believe we can reuse the EP handle created on a different system so we reset the endpoints.
-    // They will be created if needed when calling get_sp_ep_by_id().
-    for (sp_id = 0; sp_id < num_sps; sp_id++)
-    {
-        remote_service_proc_info_t *sp = NULL;
-        sp = DYN_ARRAY_GET_ELT(&(econtext->engine->service_procs), sp_id, remote_service_proc_info_t);
-        assert(sp);
-        sp->ep = NULL;
-    }
-    econtext->engine->host.total_num_sps = num_sps;
     return DO_SUCCESS;
 }
 

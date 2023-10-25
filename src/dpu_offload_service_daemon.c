@@ -891,7 +891,8 @@ finalize_connection_to_remote_service_proc(offloading_engine_t *offload_engine, 
     assert(sp);
     sp->ep = client->client->server_ep;
     sp->econtext = client;
-    sp->peer_addr = client->client->conn_data.oob.peer_addr;
+    sp->addr = client->client->conn_data.oob.peer_addr;
+    sp->addr_len = client->client->conn_data.oob.peer_addr_len;
     sp->ucp_worker = GET_WORKER(client);
     assert(sp->init_params.conn_params);
     DBG("Connection successfully established to service process #%" PRIu64
@@ -1613,7 +1614,8 @@ static void progress_server_econtext(execution_context_t *ctx)
                     {
                         DBG("Invoking connection completion callback...");
                         connected_peer_data_t cb_data = {
-                            .peer_addr = client_info->peer_addr,
+                            .addr = client_info->peer_addr,
+                            .addr_len = client_info->peer_addr_len,
                             .econtext = ctx,
                             .peer_id = idx,
                             .rank_info = client_info->rank_data,
@@ -1705,7 +1707,8 @@ static void progress_client_econtext(execution_context_t *ctx)
                 connected_peer_data_t cb_data;
                 assert(ctx->client);
                 assert(ctx->client->conn_params.addr_str);
-                cb_data.peer_addr = ctx->client->conn_params.addr_str;
+                cb_data.addr = ctx->client->conn_params.addr_str;
+                cb_data.addr_len = strlen(ctx->client->conn_params.addr_str);
                 cb_data.econtext = ctx;
                 cb_data.peer_id = ctx->client->server_id;
                 cb_data.global_peer_id = ctx->client->server_global_id;
