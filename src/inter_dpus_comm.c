@@ -448,7 +448,9 @@ void client_service_proc_connected(void *data)
 
 dpu_offload_status_t inter_dpus_connect_mgr(offloading_engine_t *engine, offloading_config_t *cfg)
 {
-    remote_service_proc_info_t *sp;
+    remote_service_proc_info_t *sp = NULL;
+    ucp_ep_params_t ep_params;
+    ucs_status_t status;
     CHECK_ERR_RETURN((engine == NULL), DO_ERROR, "undefined engine");
     CHECK_ERR_RETURN((cfg == NULL), DO_ERROR, "undefined configuration");
 
@@ -470,32 +472,25 @@ dpu_offload_status_t inter_dpus_connect_mgr(offloading_engine_t *engine, offload
         INIT_WORKER(engine->ucp_context, &(engine->ucp_worker));
     }
 
-    /* self EP */
-    static ucp_address_t *local_addr;
-    size_t local_addr_len;
-    ucp_worker_get_address(engine->ucp_worker, &local_addr, &local_addr_len);
-
-    ucp_ep_params_t ep_params;
-    ep_params.field_mask = UCP_EP_PARAM_FIELD_REMOTE_ADDRESS;
-    /*
-                           | UCP_EP_PARAM_FIELD_ERR_HANDLING_MODE
-                           | UCP_EP_PARAM_FIELD_ERR_HANDLER
-                           | UCP_EP_PARAM_FIELD_USER_DATA;
-    */
-    ep_params.address = local_addr;
-    // ep_params.err_mode = err_handling_opt.ucp_err_mode;
-    // ep_params.err_handler.cb = err_cb;
-    // ep_params.err_handler.arg = NULL;
-    // ep_params.user_data = &(client->server_ep_status);
-    ucp_ep_h self_ep;
-    ucs_status_t status = ucp_ep_create(engine->ucp_worker, &ep_params, &self_ep);
-    CHECK_ERR_RETURN((status != UCS_OK), DO_ERROR, "ucp_ep_create() failed");
-    engine->self_ep = self_ep; // fixme: correctly free
-    assert(cfg->local_service_proc.info.global_id != UINT64_MAX);
+    /* Self address*/
     sp = DYN_ARRAY_GET_ELT(GET_ENGINE_LIST_SERVICE_PROCS(cfg->offloading_engine),
                            cfg->local_service_proc.info.global_id,
                            remote_service_proc_info_t);
     assert(sp);
+    status = ucp_worker_get_address(engine->ucp_worker,
+                                    (ucp_address_t **)&sp->addr,
+                                    &sp->addr_len);
+    CHECK_ERR_RETURN((status != UCS_OK), DO_ERROR, "ucp_worker_get_address() failed");
+
+
+    /* Self EP */
+    ep_params.field_mask = UCP_EP_PARAM_FIELD_REMOTE_ADDRESS;
+    ep_params.address = sp->addr;
+    ucp_ep_h self_ep;
+    status = ucp_ep_create(engine->ucp_worker, &ep_params, &self_ep);
+    CHECK_ERR_RETURN((status != UCS_OK), DO_ERROR, "ucp_ep_create() failed");
+    engine->self_ep = self_ep; // fixme: correctly free
+    assert(cfg->local_service_proc.info.global_id != UINT64_MAX);
     sp->ep = engine->self_ep;
 
     assert(cfg->offloading_engine->num_servers == 0);
