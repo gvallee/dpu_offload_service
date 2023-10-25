@@ -478,7 +478,7 @@ dpu_offload_status_t inter_dpus_connect_mgr(offloading_engine_t *engine, offload
                            remote_service_proc_info_t);
     assert(sp);
     status = ucp_worker_get_address(engine->ucp_worker,
-                                    (ucp_address_t **)&sp->addr,
+                                    (ucp_address_t **)&(sp->addr),
                                     &sp->addr_len);
     CHECK_ERR_RETURN((status != UCS_OK), DO_ERROR, "ucp_worker_get_address() failed");
 
