@@ -838,21 +838,23 @@ static dpu_offload_status_t pack_data_sps(offloading_engine_t *engine, size_t *p
     *val = engine->num_service_procs;
     offset += sizeof(uint64_t);
 
+    // The different sizes
     for (idx = 0; idx < engine->num_service_procs; idx++)
     {
         sp = DYN_ARRAY_GET_ELT(GET_ENGINE_LIST_SERVICE_PROCS(engine), idx, remote_service_proc_info_t);
         assert(sp);
-
+        assert(sp->addr_len > 0);
         val = (uint64_t *) BUFF_AT(engine->buf_data_sps, offset);
         *val = sp->addr_len;
         offset += sizeof(uint64_t);
     }
 
+    // The actual addresses
     for (idx = 0; idx < engine->num_service_procs; idx++)
     {
         sp = DYN_ARRAY_GET_ELT(GET_ENGINE_LIST_SERVICE_PROCS(engine), idx, remote_service_proc_info_t);
         assert(sp);
-
+        assert(sp->addr);
         ptr = (void *) BUFF_AT(engine->buf_data_sps, offset);
         memcpy(ptr, sp->addr, sp->addr_len);
         offset += sp->addr_len;
