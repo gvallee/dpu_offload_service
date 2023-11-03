@@ -463,6 +463,7 @@ dpu_offload_status_t inter_dpus_connect_mgr(offloading_engine_t *engine, offload
     if (engine->ucp_context == NULL)
     {
         engine->ucp_context = INIT_UCX();
+        engine->ucp_context_allocated = true;
         DBG("UCX successfully initialized, context: %p", engine->ucp_context);
     }
 
@@ -470,6 +471,7 @@ dpu_offload_status_t inter_dpus_connect_mgr(offloading_engine_t *engine, offload
     if (engine->ucp_worker == NULL)
     {
         INIT_WORKER(engine->ucp_context, &(engine->ucp_worker));
+        engine->ucp_worker_allocated = true;
     }
 
     /* Self address*/
