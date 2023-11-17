@@ -1680,13 +1680,15 @@ typedef char group_cache_bitset_t;
 #define GROUP_CACHE_BITSET_SLOT(_bit) ((_bit) / CHAR_BIT)
 
 // Set a given bit in a bitset
-#define GROUP_CACHE_BITSET_SET(_bitset, _bit) ((_bitset)[GROUP_CACHE_BITSET_SLOT(_bit)] |= GROUP_CACHE_BITSET_MASK(_bit))
+#define GROUP_CACHE_BITSET_SET(_bitset, _bit) do {                                  \
+    ((_bitset)[GROUP_CACHE_BITSET_SLOT(_bit)] |= GROUP_CACHE_BITSET_MASK(_bit));    \
+} while (0)
 
 // Clear a given bit in a bitset
 #define GROUP_CACHE_BITSET_CLEAR(_bitset, _bit) ((_bitset)[GROUP_CACHE_BITSET_SLOT(_bit)] &= ~GROUP_CACHE_BITSET_MASK(_bit))
 
 // Test if a bit in the bitset is set; returns 0 if the bit is not set, non-zero otherwise.
-#define GROUP_CACHE_BITSET_TEST(_bitset, _bitset_idx) ((_bitset)[GROUP_CACHE_BITSET_SLOT(_bitset_idx)] & GROUP_CACHE_BITSET_MASK(_bitset_idx))
+#define GROUP_CACHE_BITSET_TEST(_bitset, _bit) ((_bitset)[GROUP_CACHE_BITSET_SLOT(_bit)] & GROUP_CACHE_BITSET_MASK(_bit))
 
 // Return the number of slots required to implement a bitset of a given size
 #define GROUP_CACHE_BITSET_NSLOTS(_bitset_size) ((_bitset_size + CHAR_BIT - 1) / CHAR_BIT)
@@ -1698,6 +1700,7 @@ typedef char group_cache_bitset_t;
     {                                                              \
         if (_bitset_ptr == NULL)                                   \
         {                                                          \
+            assert(GROUP_CACHE_BITSET_NSLOTS(_size) > 0);          \
             _bitset_ptr = calloc(GROUP_CACHE_BITSET_NSLOTS(_size), \
                                  sizeof(group_cache_bitset_t));    \
         }                                                          \

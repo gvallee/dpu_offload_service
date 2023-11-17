@@ -701,7 +701,8 @@ get_rank_idx_by_group_host_idx(offloading_engine_t *engine,
     group_cache_t *gp_cache = NULL;
     host_info_t **host_info_ptr = NULL;
     host_cache_data_t *host_data = NULL;
-    size_t i, rank_index = 0;
+    uint64_t i;
+    size_t rank_index = SIZE_MAX;
 
     assert(engine);
     gp_cache = GET_GROUP_CACHE(&(engine->procs_cache), group_uid);
@@ -722,22 +723,38 @@ get_rank_idx_by_group_host_idx(offloading_engine_t *engine,
     assert(host_info_ptr);
     host_data = GET_GROUP_HOST_HASH_ENTRY(gp_cache, (*host_info_ptr)->uid);
     assert(host_data);
-    if (!GROUP_CACHE_BITSET_TEST(host_data->ranks_bitset, rank))
+    if (GROUP_CACHE_BITSET_TEST(host_data->ranks_bitset, rank) == 0)
     {
         // The rank is not involved in the group and running on that host, error
         return DO_ERROR;
     }
 
-    // From there we know the rank is on the host and involved in the rank, we just need
-    // to find its index
-    for (i = 0; i < host_data->num_ranks; i++)
+    // From there we know the rank is on the host and involved in the group, we just need
+    // to find its index.
+    for (i = 0; i < gp_cache->group_size; i++)
     {
-        if (i == rank)
-            break;
+        int status = GROUP_CACHE_BITSET_TEST(host_data->ranks_bitset, (int)i);
+        if (status != 0)
+        {
+            if (rank_index == SIZE_MAX)
+            {
+                // First rank we found on the host
+                rank_index = 0;
+            }
+            else
+            {
+                // Found another rank
+                rank_index++;
+            }
+        }
 
-        if (GROUP_CACHE_BITSET_TEST(host_data->ranks_bitset, i))
-            rank_index++;
+        if (i == rank)
+        {
+            // We found the target rank, no need to continue since the list is ordered
+            break;
+        }
     }
+
     *idx = rank_index;
     return DO_SUCCESS;
 }
@@ -1429,7 +1446,6 @@ update_topology_data(offloading_engine_t *engine, group_cache_t *gp_cache, int64
     }
     // Mark the rank as being part of the group and running on the host
     GROUP_CACHE_BITSET_SET(host_data->ranks_bitset, group_rank);
-
     return DO_SUCCESS;
 }
 
