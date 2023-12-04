@@ -103,7 +103,7 @@ struct oob_msg
 
 extern dpu_offload_status_t get_env_config(offloading_engine_t *engine, conn_params_t *params);
 
-static void oob_recv_addr_handler_2(void *request, ucs_status_t status, const ucp_tag_recv_info_t *tag_info, void *user_data)
+static void oob_recv_generic_handler(void *request, ucs_status_t status, const ucp_tag_recv_info_t *tag_info, void *user_data)
 {
     DBG("Bootstrapping message received\n");
     am_req_t *ctx = (am_req_t *)user_data;
@@ -145,7 +145,7 @@ static inline dpu_offload_status_t oob_server_ucx_client_connection_step1(execut
                               UCP_OP_ATTR_FIELD_USER_DATA;
     recv_param.datatype = ucp_dt_make_contig(1);
     recv_param.user_data = &(client_info->bootstrapping.addr_size_ctx);
-    recv_param.cb.recv = oob_recv_addr_handler_2;
+    recv_param.cb.recv = oob_recv_generic_handler;
     assert(client_info->bootstrapping.addr_size_ctx.complete == false);
     client_info->bootstrapping.addr_size_request = ucp_tag_recv_nbx(GET_WORKER(econtext),
                                                                     &(client_info->peer_addr_len),
@@ -197,7 +197,7 @@ static inline dpu_offload_status_t oob_server_ucx_client_connection_step2(execut
                               UCP_OP_ATTR_FIELD_USER_DATA;
     recv_param.datatype = ucp_dt_make_contig(1);
     recv_param.user_data = &(client_info->bootstrapping.addr_ctx);
-    recv_param.cb.recv = oob_recv_addr_handler_2;
+    recv_param.cb.recv = oob_recv_generic_handler;
     DBG("Tag: %d; scope_id: %d\n", econtext->server->conn_data.oob.tag, econtext->scope_id);
     MAKE_RECV_TAG(ucp_tag,
                   ucp_tag_mask,
@@ -259,7 +259,7 @@ static inline dpu_offload_status_t oob_server_ucx_client_connection_step3(execut
                               UCP_OP_ATTR_FIELD_USER_DATA;
     recv_param.datatype = ucp_dt_make_contig(1);
     recv_param.user_data = &(client_info->bootstrapping.rank_ctx);
-    recv_param.cb.recv = oob_recv_addr_handler_2;
+    recv_param.cb.recv = oob_recv_generic_handler;
     MAKE_RECV_TAG(ucp_tag,
                   ucp_tag_mask,
                   econtext->server->conn_data.oob.tag,
@@ -290,6 +290,56 @@ static inline dpu_offload_status_t oob_server_ucx_client_connection_step3(execut
 error_out:
     ECONTEXT_UNLOCK(econtext);
     return DO_ERROR;
+}
+
+static void ucx_client_bootstrap_send_cb(void *request, ucs_status_t status, void *user_data)
+{
+    am_req_t *ctx = (am_req_t *)user_data;
+    ctx->complete = 1;
+}
+
+// Optional step 4 of a client-server connection, used in the context of the server. It is used ONLY
+// when a client from a host connects to a SP and is used by the SP to send data about itself that
+// the client cannot set on its own.
+static inline dpu_offload_status_t oob_server_ucx_client_connection_step4(execution_context_t *econtext, peer_info_t *client_info)
+{
+    ucp_tag_t ucp_tag;
+    ucp_request_param_t send_param = {0};
+
+    assert(econtext);
+    assert(client_info);
+    assert(client_info->ep);
+
+    ECONTEXT_LOCK(econtext);
+    send_param.op_attr_mask = UCP_OP_ATTR_FIELD_CALLBACK |
+                              UCP_OP_ATTR_FIELD_DATATYPE |
+                              UCP_OP_ATTR_FIELD_USER_DATA;
+    send_param.cb.send = ucx_client_bootstrap_send_cb;
+    send_param.datatype = ucp_dt_make_contig(1);
+    send_param.user_data = &(client_info->bootstrapping.step4.ctx);
+
+    ucp_tag = MAKE_SEND_TAG(econtext->server->conn_data.oob.tag,
+                            client_info->id,
+                            econtext->server->id,
+                            econtext->scope_id,
+                            0);
+    client_info->bootstrapping.step4.request = ucp_tag_send_nbx(client_info->ep,
+                                                                &(econtext->engine->config->local_service_proc.info),
+                                                                sizeof(service_proc_t),
+                                                                ucp_tag,
+                                                                &send_param);
+    if (UCS_PTR_IS_ERR(client_info->bootstrapping.step4.request))
+    {
+        ERR_MSG("ucp_tag_send_nbx() failed");
+        return DO_ERROR;
+    }
+    if (client_info->bootstrapping.step4.request == NULL)
+    {
+        DBG("Send of SP info completed right away");
+        client_info->bootstrapping.step4.ctx.complete = true;
+    }
+    ECONTEXT_UNLOCK(econtext);
+    return DO_SUCCESS;
 }
 
 dpu_offload_status_t set_sock_addr(char *addr, uint16_t port, struct sockaddr_storage *saddr)
@@ -700,10 +750,36 @@ static void oob_send_cb(void *request, ucs_status_t status, void *ctx)
 }
 #endif
 
-static void ucx_client_bootstrap_send_cb(void *request, ucs_status_t status, void *user_data)
+// Optinal step 4 during bootstrapping. Used only between an SP and a rank on a host, on the
+// host side. It receives the data about the SP it is connecting to.
+static dpu_offload_status_t client_ucx_boostrap_step4(execution_context_t *econtext)
 {
-    am_req_t *ctx = (am_req_t *)user_data;
-    ctx->complete = 1;
+    ucp_tag_t ucp_tag, ucp_tag_mask;
+    ucp_request_param_t recv_param = {0};
+
+    assert(econtext);
+    ECONTEXT_LOCK(econtext);
+    MAKE_RECV_TAG(ucp_tag,
+                  ucp_tag_mask,
+                  econtext->client->conn_data.oob.tag,
+                  econtext->client->id,
+                  econtext->client->server_id,
+                  econtext->scope_id,
+                  0);
+    recv_param.op_attr_mask = UCP_OP_ATTR_FIELD_CALLBACK |
+                              UCP_OP_ATTR_FIELD_DATATYPE |
+                              UCP_OP_ATTR_FIELD_USER_DATA;
+    recv_param.datatype = ucp_dt_make_contig(1);
+    recv_param.user_data = &(econtext->client->bootstrapping.step4.ctx);
+    recv_param.cb.recv = oob_recv_generic_handler;
+    econtext->client->bootstrapping.step4.request = ucp_tag_recv_nbx(GET_WORKER(econtext),
+                                                                     &(econtext->engine->config->local_service_proc.info),
+                                                                     sizeof(service_proc_t),
+                                                                     ucp_tag,
+                                                                     ucp_tag_mask,
+                                                                     &recv_param);
+    ECONTEXT_UNLOCK(econtext);
+    return DO_SUCCESS;
 }
 
 static dpu_offload_status_t client_ucx_boostrap_step3(execution_context_t *econtext)
@@ -819,7 +895,7 @@ static dpu_offload_status_t client_ucx_bootstrap_step1(execution_context_t *econ
     econtext->client->bootstrapping.addr_size_request = ucp_tag_send_nbx(econtext->client->server_ep, &(econtext->client->conn_data.oob.local_addr_len), sizeof(size_t), ucp_tag, &send_param);
     if (UCS_PTR_IS_ERR(econtext->client->bootstrapping.addr_size_request))
     {
-        ERR_MSG("ucp_tag_recv_nbx() failed");
+        ERR_MSG("ucp_tag_send_nbx() failed");
         goto error_out;
     }
     if (econtext->client->bootstrapping.addr_size_request == NULL)
@@ -1473,6 +1549,49 @@ add_cache_entry_for_new_client(peer_info_t *client_info, execution_context_t *ct
     return DO_SUCCESS;
 }
 
+static dpu_offload_status_t finalize_client_connection(execution_context_t *econtext, peer_info_t *client_info, size_t idx)
+{
+    client_info->bootstrapping.phase = BOOTSTRAP_DONE;
+    econtext->server->connected_clients.num_ongoing_connections--;
+    econtext->server->connected_clients.num_connected_clients++;
+    econtext->server->connected_clients.num_total_connected_clients++;
+    DBG("****** Bootstrapping of client #%ld now completed in scope %d (econtext: %p, engine: %p), %ld are now connected (connected service processes: %ld)",
+        idx,
+        econtext->scope_id,
+        econtext,
+        econtext->engine,
+        econtext->server->connected_clients.num_connected_clients,
+        econtext->engine->num_connected_service_procs);
+
+    // Trigger the exchange of the cache between service processes when all the local ranks are connected
+    // Do not check for errors, it may fail at this point (if all service processes are not connected) and it is okay
+    if (ECONTEXT_ON_DPU(econtext) &&
+        econtext->scope_id == SCOPE_HOST_DPU &&
+        client_info->rank_data.group_uid != INT_MAX &&
+        client_info->rank_data.group_rank != INVALID_RANK)
+    {
+        if (econtext->engine->host_id == UINT64_MAX)
+            econtext->engine->host_id = client_info->rank_data.host_info;
+        GROUP_CACHE_EXCHANGE(econtext->engine,
+                             client_info->rank_data.group_uid,
+                             client_info->rank_data.n_local_ranks);
+    }
+
+    if (econtext->server->connected_cb != NULL)
+    {
+        DBG("Invoking connection completion callback...");
+        connected_peer_data_t cb_data = {
+            .addr = client_info->peer_addr,
+            .addr_len = client_info->peer_addr_len,
+            .econtext = econtext,
+            .peer_id = idx,
+            .rank_info = client_info->rank_data,
+        };
+        econtext->server->connected_cb(&cb_data);
+    }
+    return DO_SUCCESS;
+}
+
 static void progress_server_econtext(execution_context_t *ctx)
 {
     if (ctx->server->connected_clients.num_ongoing_connections > 0)
@@ -1554,6 +1673,9 @@ static void progress_server_econtext(execution_context_t *ctx)
                         client_info->rank_data.group_size,
                         client_info->rank_data.n_local_ranks);
 
+                    // By default, we assume we do not have to go through step 4.
+                    client_info->bootstrapping.step4.ctx.complete = true;
+
                     // add_cache_entry_for_new_client checks if the data actually needs to be put in the cache
                     rc = add_cache_entry_for_new_client(client_info, ctx);
                     if (rc == DO_ERROR)
@@ -1562,68 +1684,69 @@ static void progress_server_econtext(execution_context_t *ctx)
                         return;
                     }
 
-                    if (ECONTEXT_ON_DPU(ctx) && ctx->scope_id == SCOPE_INTER_SERVICE_PROCS)
+                    if (ECONTEXT_ON_DPU(ctx))
                     {
-                        size_t service_proc = client_info->rank_data.group_rank;
-                        remote_service_proc_info_t *sp = DYN_ARRAY_GET_ELT(GET_ENGINE_LIST_SERVICE_PROCS(ctx->engine),
-                                                                           service_proc,
-                                                                           remote_service_proc_info_t);
-                        assert(sp);
-                        assert(service_proc < ctx->engine->num_service_procs);
-                        assert(ctx->engine);
-                        // Set the endpoint to communicate with that remote service process
-                        sp->ep = client_info->ep;
-                        // Set the pointer to the execution context in the list of know service processes. Used for notifications with the remote service process.
-                        sp->econtext = ctx;
-                        DBG("-> Service process #%ld: addr=%s, port=%d, ep=%p, econtext=%p, client_id=%" PRIu64 ", server_id=%" PRIu64 "", service_proc,
-                            sp->init_params.conn_params->addr_str,
-                            sp->init_params.conn_params->port,
-                            sp->ep,
-                            ctx,
-                            client_info->id,
-                            ctx->server->id);
+                        // On a DPU
+
+                        if (ctx->scope_id == SCOPE_INTER_SERVICE_PROCS)
+                        {
+                            // Inter-SP connection
+                            size_t service_proc = client_info->rank_data.group_rank;
+                            remote_service_proc_info_t *sp = DYN_ARRAY_GET_ELT(GET_ENGINE_LIST_SERVICE_PROCS(ctx->engine),
+                                                                            service_proc,
+                                                                            remote_service_proc_info_t);
+                            assert(sp);
+                            assert(service_proc < ctx->engine->num_service_procs);
+                            assert(ctx->engine);
+                            // Set the endpoint to communicate with that remote service process
+                            sp->ep = client_info->ep;
+                            // Set the pointer to the execution context in the list of know service processes. Used for notifications with the remote service process.
+                            sp->econtext = ctx;
+                            DBG("-> Service process #%ld: addr=%s, port=%d, ep=%p, econtext=%p, client_id=%" PRIu64 ", server_id=%" PRIu64 "", service_proc,
+                                sp->init_params.conn_params->addr_str,
+                                sp->init_params.conn_params->port,
+                                sp->ep,
+                                ctx,
+                                client_info->id,
+                                ctx->server->id);
+                        }
+                        else
+                        {
+                            if (!client_info->bootstrapping.step4.posted)
+                            {
+                                // SP-host connection, from the SP
+                                // Send our global since the host process has no way to calculate it (not enough context)
+                                client_info->bootstrapping.step4.ctx.complete = false;
+                                rc = oob_server_ucx_client_connection_step4(ctx, client_info);
+                                if (rc)
+                                {
+                                    ERR_MSG("oob_server_ucx_client_connection_step3() failed");
+                                    return;
+                                }
+                                client_info->bootstrapping.step4.posted = true;
+                            }
+                        }
                     }
 
-                    client_info->bootstrapping.phase = BOOTSTRAP_DONE;
-                    ctx->server->connected_clients.num_ongoing_connections--;
-                    ctx->server->connected_clients.num_connected_clients++;
-                    ctx->server->connected_clients.num_total_connected_clients++;
-                    DBG("****** Bootstrapping of client #%ld now completed in scope %d (econtext: %p, engine: %p), %ld are now connected (connected service processes: %ld)",
-                        idx,
-                        ctx->scope_id,
-                        ctx,
-                        ctx->engine,
-                        ctx->server->connected_clients.num_connected_clients,
-                        ctx->engine->num_connected_service_procs);
-
-                    // Trigger the exchange of the cache between service processes when all the local ranks are connected
-                    // Do not check for errors, it may fail at this point (if all service processes are not connected) and it is okay
-                    if (ECONTEXT_ON_DPU(ctx) &&
-                        ctx->scope_id == SCOPE_HOST_DPU &&
-                        client_info->rank_data.group_uid != INT_MAX &&
-                        client_info->rank_data.group_rank != INVALID_RANK)
-                    {
-                        if (ctx->engine->host_id == UINT64_MAX)
-                            ctx->engine->host_id = client_info->rank_data.host_info;
-                        GROUP_CACHE_EXCHANGE(ctx->engine,
-                                             client_info->rank_data.group_uid,
-                                             client_info->rank_data.n_local_ranks);
-                    }
-
-                    if (ctx->server->connected_cb != NULL)
-                    {
-                        DBG("Invoking connection completion callback...");
-                        connected_peer_data_t cb_data = {
-                            .addr = client_info->peer_addr,
-                            .addr_len = client_info->peer_addr_len,
-                            .econtext = ctx,
-                            .peer_id = idx,
-                            .rank_info = client_info->rank_data,
-                        };
-                        ctx->server->connected_cb(&cb_data);
-                    }
                     ECONTEXT_UNLOCK(ctx);
+                } // end of step 3 if statement
+
+                if (client_info->bootstrapping.step4.ctx.complete)
+                {
+                    if (client_info->bootstrapping.step4.request != NULL)
+                    {
+                        ucp_request_free(client_info->bootstrapping.step4.request);
+                        client_info->bootstrapping.step4.request = NULL;
+                    }
+
+                    rc = finalize_client_connection(ctx, client_info, idx);
+                    if (rc)
+                    {
+                        ERR_MSG("finalize_client_connection() failed");
+                        return;
+                    }
                 }
+
                 i++; // We just finished handling a client in the process of connecting
             }
             idx++;
@@ -1692,12 +1815,45 @@ static void progress_client_econtext(execution_context_t *ctx)
             ctx->client->bootstrapping.phase = UCX_CONNECT_DONE;
         }
 
+        ctx->client->bootstrapping.step4.ctx.complete = true;
+        assert(ctx->client->bootstrapping.step4.request == NULL);
+
+        // If we are on the host and in the context of DPU-host bootstrapping, we need to receive some data from
+        // the SP to precisely know who it is.
+        if (!ECONTEXT_ON_DPU(ctx))
+        {
+            if (ctx->scope_id == SCOPE_HOST_DPU && ctx->client->bootstrapping.step4.posted == false && ctx->client->bootstrapping.step4.ctx.complete == true)
+            {
+                // Very first time we reach this spot and we need to post a receive to get the SP's data
+                ctx->client->bootstrapping.step4.ctx.complete = false;
+            }
+
+            if (ctx->client->bootstrapping.rank_ctx.complete == true && ctx->client->bootstrapping.step4.ctx.complete == false && !ctx->client->bootstrapping.step4.posted)
+            {
+                // All previous steps completed, time to post the receive to get the SP's data
+                rc = client_ucx_boostrap_step4(ctx);
+                if (rc)
+                {
+                    ERR_MSG("client_ucx_boostrap_step4() failed");
+                    return;
+                }
+            }
+
+            if (ctx->client->bootstrapping.step4.ctx.complete && ctx->client->bootstrapping.step4.request != NULL)
+            {
+                ucp_request_free(ctx->client->bootstrapping.step4.request);
+                ctx->client->bootstrapping.step4.request = NULL;
+            }
+        }
+
         if (ctx->client->bootstrapping.addr_size_ctx.complete == true &&
             ctx->client->bootstrapping.addr_ctx.complete == true &&
             ctx->client->bootstrapping.rank_ctx.complete == true &&
             ctx->client->bootstrapping.addr_size_request == NULL &&
             ctx->client->bootstrapping.addr_request == NULL &&
-            ctx->client->bootstrapping.rank_request == NULL)
+            ctx->client->bootstrapping.rank_request == NULL &&
+            ctx->client->bootstrapping.step4.ctx.complete == true &&
+            ctx->client->bootstrapping.step4.request == NULL)
         {
             ctx->client->bootstrapping.phase = BOOTSTRAP_DONE;
             if (ctx->client->connected_cb != NULL)

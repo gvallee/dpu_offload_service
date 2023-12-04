@@ -790,18 +790,32 @@ typedef struct boostrapping
     am_req_t addr_ctx;
     struct ucx_context *rank_request;
     am_req_t rank_ctx;
+
+    struct {
+        // Track whether the UCX communication has been posted
+        bool posted;
+
+        // Request used for the UCX communicaton
+        struct ucx_context *request;
+
+        // Context used for the UCX communicaton, e.g., to track completion
+        am_req_t ctx;
+    } step4;
 } bootstrapping_t;
 
-#define RESET_BOOTSTRAPPING(_b)                \
-    do                                         \
-    {                                          \
-        (_b)->phase = BOOTSTRAP_NOT_INITIATED; \
-        (_b)->addr_size_request = NULL;        \
-        RESET_AM_REQ(&((_b)->addr_size_ctx));  \
-        (_b)->addr_request = NULL;             \
-        RESET_AM_REQ(&((_b)->addr_ctx));       \
-        (_b)->rank_request = NULL;             \
-        RESET_AM_REQ(&((_b)->rank_ctx));       \
+#define RESET_BOOTSTRAPPING(_b)                 \
+    do                                          \
+    {                                           \
+        (_b)->phase = BOOTSTRAP_NOT_INITIATED;  \
+        (_b)->addr_size_request = NULL;         \
+        RESET_AM_REQ(&((_b)->addr_size_ctx));   \
+        (_b)->addr_request = NULL;              \
+        RESET_AM_REQ(&((_b)->addr_ctx));        \
+        (_b)->rank_request = NULL;              \
+        RESET_AM_REQ(&((_b)->rank_ctx));        \
+        (_b)->step4.posted = false;             \
+        (_b)->step4.request = NULL;             \
+        RESET_AM_REQ(&((_b)->step4.ctx));       \
     } while (0)
 
 typedef struct peer_info
@@ -3306,7 +3320,9 @@ typedef enum
 
 typedef struct service_proc
 {
-    // Identifier of the DPU where the service process is running
+    // Identifier of the DPU where the service process is running, i.e.,
+    // index of the DPU from the configuration. This is NOT the global ID
+    // of the DPU for the job.
     uint64_t dpu;
 
     // local unique identifier based on how many service processes are running on
@@ -3506,7 +3522,7 @@ typedef struct offloading_config
     // Hash of host UID for quick lookup. Key: host_iud_t; value: host_info_t.
     khash_t(host_info_hash_t) * host_lookup_table;
 
-    // Configuration of the local DPU (only valid on DPUs)
+    // Configuration of the local DPU
     struct
     {
         service_proc_t info;
