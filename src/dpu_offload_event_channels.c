@@ -2217,6 +2217,14 @@ static dpu_offload_status_t sp_data_recv_cb(struct dpu_offload_ev_sys *ev_sys, e
     rc = unpack_data_sps(econtext->engine, econtext->engine->buf_data_sps);
     CHECK_ERR_RETURN((rc), DO_ERROR, "unpack_data_sps() failed");
 
+#if !NDEBUG
+    if (!econtext->engine->on_dpu)
+    {
+        assert(econtext->engine->host.total_num_sps > 0);
+        assert(econtext->engine->host.total_num_sps != UINT64_MAX);
+    }
+#endif
+
     return DO_SUCCESS;
 }
 

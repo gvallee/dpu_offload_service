@@ -1477,9 +1477,15 @@ host_add_local_rank_to_cache(offloading_engine_t *engine, rank_info_t *rank_info
     cache_entry->set = true;
     gp_cache->num_local_entries++;
 
-    ret = update_topology_data(engine, gp_cache, rank_info->group_rank, engine->config->local_service_proc.info.global_id, rank_info->host_info);
-    CHECK_ERR_RETURN((ret != DO_SUCCESS), DO_ERROR, "update_topology_data() failed");
-
+    if (engine->config->local_service_proc.info.global_id != UINT64_MAX)
+    {
+        ret = update_topology_data(engine,
+                                   gp_cache,
+                                   rank_info->group_rank,
+                                   engine->config->local_service_proc.info.global_id,
+                                   rank_info->host_info);
+        CHECK_ERR_RETURN((ret != DO_SUCCESS), DO_ERROR, "update_topology_data() failed");
+    }
     return DO_SUCCESS;
 }
 
