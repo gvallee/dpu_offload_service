@@ -2206,7 +2206,7 @@ static dpu_offload_status_t sp_data_recv_cb(struct dpu_offload_ev_sys *ev_sys, e
     assert(!ev_sys->econtext->engine->on_dpu);
 
     // If we already have the data, do nothing.
-    if (econtext->engine->host.total_num_sps != UINT64_MAX)
+    if (econtext->engine->host.total_num_sps != SIZE_MAX)
         return DO_SUCCESS;
 
     assert(econtext->engine->host_dpu_data_initialized == true);
@@ -2216,6 +2216,14 @@ static dpu_offload_status_t sp_data_recv_cb(struct dpu_offload_ev_sys *ev_sys, e
     memcpy(econtext->engine->buf_data_sps, data, data_len);
     rc = unpack_data_sps(econtext->engine, econtext->engine->buf_data_sps);
     CHECK_ERR_RETURN((rc), DO_ERROR, "unpack_data_sps() failed");
+
+#if !NDEBUG
+    if (!econtext->engine->on_dpu)
+    {
+        assert(econtext->engine->host.total_num_sps > 0);
+        assert(econtext->engine->host.total_num_sps != UINT64_MAX);
+    }
+#endif
 
     return DO_SUCCESS;
 }

@@ -42,7 +42,6 @@ extern execution_context_t *client_init(offloading_engine_t *, init_params_t *);
         for (_x = 0; _x < (_cfg)->num_service_procs_per_dpu; _x++)                                                          \
         {                                                                                                                   \
             uint64_t _sp_gid = (_dpu)->idx * (_cfg)->num_service_procs_per_dpu + _x;                                        \
-            assert((_cfg->offloading_engine->host_dpu_data_initialized == true));                                           \
             remote_service_proc_info_t *_sp = DYN_ARRAY_GET_ELT(GET_ENGINE_LIST_SERVICE_PROCS((_cfg)->offloading_engine),   \
                                                                 _sp_gid,                                                    \
                                                                 remote_service_proc_info_t);                                \

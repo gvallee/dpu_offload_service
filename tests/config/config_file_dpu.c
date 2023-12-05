@@ -101,7 +101,7 @@ int main(int argc, char **argv)
     }
     fprintf(stdout, "\n\tLookup table content:\n");
     kh_foreach(cfg.host_lookup_table, host_hash_key, host_hash_value, {
-        fprintf(stderr, "\tHost UID: 0x%lx, %s, index: %ld\n", host_hash_key, host_hash_value->hostname, host_hash_value->idx);
+        fprintf(stderr, "\t\tHost UID: 0x%lx, %s, index: %ld\n", host_hash_key, host_hash_value->hostname, host_hash_value->idx);
     })
     fprintf(stdout, "\n");
 
