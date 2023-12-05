@@ -1551,6 +1551,7 @@ add_cache_entry_for_new_client(peer_info_t *client_info, execution_context_t *ct
 
 static dpu_offload_status_t finalize_client_connection(execution_context_t *econtext, peer_info_t *client_info, size_t idx)
 {
+    dpu_offload_status_t rc;
     client_info->bootstrapping.phase = BOOTSTRAP_DONE;
     econtext->server->connected_clients.num_ongoing_connections--;
     econtext->server->connected_clients.num_connected_clients++;
@@ -1570,6 +1571,14 @@ static dpu_offload_status_t finalize_client_connection(execution_context_t *econ
         client_info->rank_data.group_uid != INT_MAX &&
         client_info->rank_data.group_rank != INVALID_RANK)
     {
+        // add_cache_entry_for_new_client checks if the data actually needs to be put in the cache
+        rc = add_cache_entry_for_new_client(client_info, econtext);
+        if (rc == DO_ERROR)
+        {
+            ECONTEXT_UNLOCK(ctx);
+            return DO_ERROR;
+        }
+
         if (econtext->engine->host_id == UINT64_MAX)
             econtext->engine->host_id = client_info->rank_data.host_info;
         GROUP_CACHE_EXCHANGE(econtext->engine,
@@ -1594,18 +1603,20 @@ static dpu_offload_status_t finalize_client_connection(execution_context_t *econ
 
 static void progress_server_econtext(execution_context_t *ctx)
 {
+    dpu_offload_status_t rc;
     if (ctx->server->connected_clients.num_ongoing_connections > 0)
     {
         size_t i = 0; // Number of ongoing connections we already handled
         size_t idx = 0;
-        // Find the clients that are currently connecting
+        // Find the clients that are currently connecting, it can be any client from the list but we know
+        // how many are currently in the process of connecting.
         while (i < ctx->server->connected_clients.num_ongoing_connections && idx < ctx->server->connected_clients.clients.capacity)
         {
             peer_info_t *client_info = DYN_ARRAY_GET_ELT(&(ctx->server->connected_clients.clients), idx, peer_info_t);
             assert(client_info);
-            if (client_info->bootstrapping.phase == OOB_CONNECT_DONE)
+            if ((client_info->bootstrapping.phase == OOB_CONNECT_DONE || client_info->bootstrapping.phase == UCX_CONNECT_DONE) && client_info->bootstrapping.phase != BOOTSTRAP_DONE)
             {
-                dpu_offload_status_t rc;
+                // OOB connection established, we can initiate the UCX bootstrapping.
                 if (client_info->bootstrapping.addr_size_ctx.complete == false && client_info->bootstrapping.addr_size_request == NULL)
                 {
                     DBG("UCX level bootstrap - client #%" PRIu64 ", step 1 - Getting address size", idx);
@@ -1676,18 +1687,8 @@ static void progress_server_econtext(execution_context_t *ctx)
                     // By default, we assume we do not have to go through step 4.
                     client_info->bootstrapping.step4.ctx.complete = true;
 
-                    // add_cache_entry_for_new_client checks if the data actually needs to be put in the cache
-                    rc = add_cache_entry_for_new_client(client_info, ctx);
-                    if (rc == DO_ERROR)
-                    {
-                        ECONTEXT_UNLOCK(ctx);
-                        return;
-                    }
-
                     if (ECONTEXT_ON_DPU(ctx))
                     {
-                        // On a DPU
-
                         if (ctx->scope_id == SCOPE_INTER_SERVICE_PROCS)
                         {
                             // Inter-SP connection
@@ -1729,7 +1730,7 @@ static void progress_server_econtext(execution_context_t *ctx)
                     }
 
                     ECONTEXT_UNLOCK(ctx);
-                } // end of step 3 if statement
+                }
 
                 if (client_info->bootstrapping.step4.ctx.complete)
                 {
