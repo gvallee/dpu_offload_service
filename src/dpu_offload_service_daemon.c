@@ -105,7 +105,7 @@ extern dpu_offload_status_t get_env_config(offloading_engine_t *engine, conn_par
 
 static void oob_recv_generic_handler(void *request, ucs_status_t status, const ucp_tag_recv_info_t *tag_info, void *user_data)
 {
-    DBG("Bootstrapping message received\n");
+    DBG("Bootstrapping message received (ctx: %p)", user_data);
     am_req_t *ctx = (am_req_t *)user_data;
     ctx->complete = 1;
 }
@@ -778,6 +778,22 @@ static dpu_offload_status_t client_ucx_boostrap_step4(execution_context_t *econt
                                                                      ucp_tag,
                                                                      ucp_tag_mask,
                                                                      &recv_param);
+    if (UCS_PTR_IS_ERR(econtext->client->bootstrapping.step4.request))
+    {
+        ERR_MSG("ucp_tag_recv_nbx() failed");
+        return DO_ERROR;
+    }
+    if (econtext->client->bootstrapping.step4.request == NULL)
+    {
+        DBG("We received the local SP's data right away, callback not invoked, dealing directly with it");
+        econtext->client->bootstrapping.step4.ctx.complete = true;
+    }
+    else
+    {
+        DBG("Reception of the local SP's data still in progress (engine: %p)", econtext->engine);
+        assert(econtext->client->bootstrapping.step4.ctx.complete == false);
+    }
+    econtext->client->bootstrapping.step4.posted = true;
     ECONTEXT_UNLOCK(econtext);
     return DO_SUCCESS;
 }
@@ -1757,10 +1773,11 @@ static void progress_server_econtext(execution_context_t *ctx)
 
 static void progress_client_econtext(execution_context_t *ctx)
 {
+    dpu_offload_status_t rc;
+
     if (ctx->client->bootstrapping.phase == OOB_CONNECT_DONE)
     {
-        dpu_offload_status_t rc;
-        // Need now to progress UCX bootstrapping
+        // // We now have a OOB connection established; we need now to progress UCX bootstrapping
         if (ctx->client->bootstrapping.addr_size_ctx.complete == false && ctx->client->bootstrapping.addr_size_request == NULL)
         {
             DBG("UCX level bootstrap - step 1");
@@ -1815,20 +1832,16 @@ static void progress_client_econtext(execution_context_t *ctx)
             ctx->client->bootstrapping.rank_request = NULL;
             ctx->client->bootstrapping.phase = UCX_CONNECT_DONE;
         }
+    }
 
-        ctx->client->bootstrapping.step4.ctx.complete = true;
-        assert(ctx->client->bootstrapping.step4.request == NULL);
+    if (ctx->client->bootstrapping.phase == UCX_CONNECT_DONE)
+    {
+        // We now have a UCX connection established
 
         // If we are on the host and in the context of DPU-host bootstrapping, we need to receive some data from
         // the SP to precisely know who it is.
-        if (!ECONTEXT_ON_DPU(ctx))
+        if (!ECONTEXT_ON_DPU(ctx) && ctx->scope_id == SCOPE_HOST_DPU)
         {
-            if (ctx->scope_id == SCOPE_HOST_DPU && ctx->client->bootstrapping.step4.posted == false && ctx->client->bootstrapping.step4.ctx.complete == true)
-            {
-                // Very first time we reach this spot and we need to post a receive to get the SP's data
-                ctx->client->bootstrapping.step4.ctx.complete = false;
-            }
-
             if (ctx->client->bootstrapping.rank_ctx.complete == true && ctx->client->bootstrapping.step4.ctx.complete == false && !ctx->client->bootstrapping.step4.posted)
             {
                 // All previous steps completed, time to post the receive to get the SP's data
@@ -1840,12 +1853,17 @@ static void progress_client_econtext(execution_context_t *ctx)
                 }
             }
 
-            if (ctx->client->bootstrapping.step4.ctx.complete && ctx->client->bootstrapping.step4.request != NULL)
+            if (ctx->client->bootstrapping.step4.ctx.complete)
             {
-                ucp_request_free(ctx->client->bootstrapping.step4.request);
-                ctx->client->bootstrapping.step4.request = NULL;
+                if (ctx->client->bootstrapping.step4.request != NULL)
+                {
+                    ucp_request_free(ctx->client->bootstrapping.step4.request);
+                    ctx->client->bootstrapping.step4.request = NULL;
+                }
             }
         }
+        else
+            ctx->client->bootstrapping.step4.ctx.complete = true;
 
         if (ctx->client->bootstrapping.addr_size_ctx.complete == true &&
             ctx->client->bootstrapping.addr_ctx.complete == true &&
@@ -1857,6 +1875,28 @@ static void progress_client_econtext(execution_context_t *ctx)
             ctx->client->bootstrapping.step4.request == NULL)
         {
             ctx->client->bootstrapping.phase = BOOTSTRAP_DONE;
+
+            // Bootstrapping in completed, we have all the necessary data to
+            // be able to safely add ourselves to the local EP cache as shadow service process
+            if (ctx->rank.group_uid != INT_MAX &&
+                ctx->rank.group_rank != INVALID_RANK)
+            {
+                group_cache_t *gp_cache = NULL;
+                assert(ctx->engine->config->local_service_proc.info.global_id != UINT64_MAX);
+                gp_cache = GET_GROUP_CACHE(&(ctx->engine->procs_cache), ctx->rank.group_uid);
+                assert(gp_cache);
+                rc = update_topology_data(ctx->engine,
+                                          gp_cache,
+                                          ctx->rank.group_rank,
+                                          ctx->engine->config->local_service_proc.info.global_id,
+                                          ctx->rank.host_info);
+                if (rc != DO_SUCCESS)
+                {
+                    ERR_MSG("update_topology_data() failed");
+                    return;
+                }
+            }
+
             if (ctx->client->connected_cb != NULL)
             {
                 DBG("Successfully connected, invoking connected callback (econtext: %p, client: %p, cb: %p)",

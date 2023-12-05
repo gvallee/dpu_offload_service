@@ -872,7 +872,8 @@ dpu_offload_status_t unpack_data_sps(offloading_engine_t *engine, void *data)
     val = (uint64_t *) BUFF_AT(data, offset);
     num_sps = *val;
     offset += sizeof(uint64_t);
-    engine->host.total_num_sps = num_sps;
+    if (!engine->on_dpu)
+        engine->host.total_num_sps = num_sps;
 
     // sizes of the addresses
     for (idx = 0; idx < num_sps; idx++)
@@ -1781,7 +1782,10 @@ dpu_offload_status_t get_local_service_proc_connect_info(offloading_config_t *cf
 
     entry = DYN_ARRAY_GET_ELT(&(cfg->dpus_config), cfg->local_service_proc.info.dpu, dpu_config_data_t);
     cfg->local_service_proc.info.local_id = service_proc_local_id;
-    cfg->local_service_proc.info.global_id = cfg->local_service_proc.info.dpu * cfg->num_service_procs_per_dpu + service_proc_local_id;
+    // Note that we cannot calculate the SP's global ID since we have no idea at this point
+    // what are the DPUs using by the job, which is a subset of all the DPUs from the config
+    // file. The global ID is sent by the SP to the rank during the bootstrapping process.
+
     // The config of our DPU is always the first one in the list.
     dpu_config_data_t *dpu_config = DYN_ARRAY_GET_ELT(&(cfg->dpus_config), 0, dpu_config_data_t);
     assert(dpu_config);
