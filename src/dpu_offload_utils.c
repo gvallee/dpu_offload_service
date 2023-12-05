@@ -1246,7 +1246,7 @@ bool parse_line_dpu_version_1(offloading_config_t *data, char *line)
                                               data->num_hosts,
                                               host_info_t);
                 assert(host_info);
-                host_info->hostname = target_entry->version_1.hostname;
+                host_info->hostname = local_host_name;
                 host_info->idx = data->num_hosts;
                 host_info->uid = local_host_uid;
 
