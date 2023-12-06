@@ -84,18 +84,31 @@ int main(int argc, char **argv)
             fprintf(stderr, "undefined SP\n");
             goto error_out;
         }
+#if 0
         if (sp->init_params.conn_params == NULL)
         {
             fprintf(stderr, "undefined conn_params\n");
             goto error_out;
         }
+#endif
     }
 
     fprintf(stderr, "[DBG] CM num dpus: %ld\n", cfg.num_dpus);
+    size_t sp_index;
+    for (sp_index = 0; sp_index < cfg.num_service_procs; sp_index++)
+    {
+        remote_service_proc_info_t *sp = NULL;
+        sp = DYN_ARRAY_GET_ELT(GET_ENGINE_LIST_SERVICE_PROCS(cfg.offloading_engine),
+                                                            sp_index,
+                                                            remote_service_proc_info_t);
+
+        fprintf(stderr, "[DBG] SP data: %ld %ld %p\n", sp->service_proc.local_id, sp->service_proc.global_id, sp->init_params.conn_params);
+    }
+
     for (dpu_index = 0; dpu_index < cfg.num_dpus; dpu_index++)
     {
-        remote_dpu_info_t **remote_dpu = NULL;
-        remote_dpu = DYN_ARRAY_GET_ELT(&(engine->dpus), dpu_index, remote_dpu_info_t*);
+        remote_dpu_info_t *remote_dpu = NULL;
+        remote_dpu = DYN_ARRAY_GET_ELT(&(engine->dpus), dpu_index, remote_dpu_info_t);
         if (remote_dpu == NULL)
         {
             fprintf(stderr, "undefined DPU\n");
@@ -104,16 +117,16 @@ int main(int argc, char **argv)
 
         for (local_sp = 0; local_sp < cfg.num_service_procs_per_dpu; local_sp++)
         {
-            remote_service_proc_info_t **cur_sp = NULL;
-            cur_sp = DYN_ARRAY_GET_ELT(&((*remote_dpu)->local_service_procs), local_sp, remote_service_proc_info_t *);
+            uint64_t *cur_sp = NULL;
+            remote_service_proc_info_t *sp = NULL;
+            cur_sp = DYN_ARRAY_GET_ELT(&(remote_dpu->local_service_procs), local_sp, uint64_t);
             assert(cur_sp);
-
-            fprintf(stdout, "[DBG] DPU: %ld, SP %p GID: %ld, LID: %ld, conn_params: %p\n", (*remote_dpu)->idx, (*cur_sp), (*cur_sp)->service_proc.global_id, (*cur_sp)->service_proc.local_id, (*cur_sp)->init_params.conn_params);
-            assert((*cur_sp)->service_proc.local_id < 32);
+            sp = DYN_ARRAY_GET_ELT(GET_ENGINE_LIST_SERVICE_PROCS(cfg.offloading_engine), (*cur_sp), remote_service_proc_info_t);
+            fprintf(stdout, "[DBG] DPU: %ld, SP GID: %ld, LID: %ld, conn_params: %p\n", remote_dpu->idx, (*cur_sp), local_sp, sp->init_params.conn_params);
         }
     }
 
-    abort();
+    fprintf(stderr, "Youpi\n");
 
     rc = find_dpu_config_from_platform_configfile(argv[1], &cfg);
     if (rc != DO_SUCCESS)

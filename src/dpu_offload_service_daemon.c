@@ -2247,7 +2247,7 @@ void offload_engine_fini(offloading_engine_t **offload_engine)
     DYN_LIST_FREE((*offload_engine)->free_op_descs, op_desc_t, item);
     DYN_LIST_FREE((*offload_engine)->free_cache_entry_requests, cache_entry_request_t, item);
     DYN_LIST_FREE((*offload_engine)->pool_conn_params, conn_params_t, item);
-    DYN_LIST_FREE((*offload_engine)->pool_remote_dpu_info, remote_dpu_info_t, item);
+    //DYN_LIST_FREE((*offload_engine)->pool_remote_dpu_info, remote_dpu_info_t, item);
     DYN_LIST_FREE((*offload_engine)->pool_group_revoke_msgs_from_sps, group_revoke_msg_from_sp_t, item);
     DYN_LIST_FREE((*offload_engine)->pool_group_revoke_msgs_from_ranks, group_revoke_msg_from_rank_t, item);
     DYN_LIST_FREE((*offload_engine)->pool_pending_recv_group_add, pending_group_add_t, item);

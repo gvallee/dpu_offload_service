@@ -2767,8 +2767,10 @@ typedef struct offloading_engine
     /* Objects used during wire-up */
     dyn_list_t *pool_conn_params;
 
+#if 0
     /* Pool of remote_dpu_info_t structures, used when getting the configuration */
     dyn_list_t *pool_remote_dpu_info;
+#endif
 
     // Pool of group_revoke_msg_from_sp_t objects that are available to send notifications to revoke messages from remote SPs
     dyn_list_t *pool_group_revoke_msgs_from_sps;
@@ -2793,7 +2795,7 @@ typedef struct offloading_engine
 
     // dpus is a vector of remote_dpu_info_t structures used on the DPUs
     // to easily track all the DPUs used in the current configuration.
-    // This is at the moment not used on the host. Type: remote_dpu_info_t*
+    // This is at the moment not used on the host. Type: remote_dpu_info_t
     dyn_array_t dpus;
 
     // Number of DPUs defined in dpus
@@ -2907,17 +2909,6 @@ typedef struct offloading_engine
             _core_ret = -1;                                                                                                  \
             break;                                                                                                           \
         }                                                                                                                    \
-        DYN_LIST_ALLOC_WITH_INIT_CALLBACK((_core_engine)->pool_remote_dpu_info,                                              \
-                                          32,                                                                                \
-                                          remote_dpu_info_t,                                                                 \
-                                          item,                                                                              \
-                                          init_remote_dpu_info_struct);                                                      \
-        if ((_core_engine)->pool_remote_dpu_info == NULL)                                                                    \
-        {                                                                                                                    \
-            fprintf(stderr, "unable to allocate pool of remote DPU information descriptors\n");                              \
-            _core_ret = -1;                                                                                                  \
-            break;                                                                                                           \
-        }                                                                                                                    \
         DYN_LIST_ALLOC((_core_engine)->pool_group_revoke_msgs_from_sps, 32, group_revoke_msg_from_sp_t, item);               \
         if ((_core_engine)->pool_group_revoke_msgs_from_sps == NULL)                                                         \
         {                                                                                                                    \
@@ -2960,7 +2951,7 @@ typedef struct offloading_engine
         (_core_engine)->host_id = UINT64_MAX;                                                                                \
         /* Note that engine->dpus is a vector of remote_dpu_info_t pointers. */                                              \
         /* The actual object are from pool_remote_dpu_info */                                                                \
-        DYN_ARRAY_ALLOC(&((_core_engine)->dpus), 32, remote_dpu_info_t *);                                                   \
+        DYN_ARRAY_ALLOC(&((_core_engine)->dpus), 32, remote_dpu_info_t);                                                     \
         DYN_ARRAY_ALLOC(&((_core_engine)->service_procs), 256, remote_service_proc_info_t);                                  \
         (_core_engine)->num_dpus = 0;                                                                                        \
         (_core_engine)->num_service_procs = 0;                                                                               \
@@ -3079,10 +3070,10 @@ typedef struct remote_dpu_info
     // engine associated to the remote DPU
     offloading_engine_t *engine;
 
-    // Array of service processes running on the DPU, indexed based on
+    // Array of service processes global IDs running on the DPU, indexed based on
     // the SP's local ID. Note that it is an array of pointer, the
     // actual objects are saved at the engine level.
-    // Type: remote_service_proc_info_t*
+    // Type: uint64_t
     dyn_array_t local_service_procs;
 } remote_dpu_info_t;
 
