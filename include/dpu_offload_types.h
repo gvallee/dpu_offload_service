@@ -3078,9 +3078,11 @@ typedef struct remote_dpu_info
     // engine associated to the remote DPU
     offloading_engine_t *engine;
 
-    // List of service processes running on the remote DPU
-    // Type: remote_service_proc_info_t
-    simple_list_t remote_service_procs;
+    // Array of service processes running on the DPU, indexed based on
+    // the SP's local ID. Note that it is an array of pointer, the
+    // actual objects are saved at the engine level.
+    // Type: remote_service_proc_info_t*
+    dyn_array_t local_service_procs;
 } remote_dpu_info_t;
 
 #define RESET_REMOTE_DPU_INFO(_info)                        \
@@ -3089,7 +3091,9 @@ typedef struct remote_dpu_info
         (_info)->idx = 0;                                   \
         (_info)->hostname = NULL;                           \
         (_info)->engine = NULL;                             \
-        SIMPLE_LIST_INIT(&((_info)->remote_service_procs)); \
+        DYN_ARRAY_ALLOC(&((_info)->local_service_procs),    \
+                        8,                                  \
+                        remote_service_proc_info_t*);       \
     } while (0)
 
 /***************************/
@@ -3166,36 +3170,6 @@ typedef struct pending_notification
 /***********************************/
 /* DPU/SERVICE PROCS CONFIGURATION */
 /***********************************/
-
-/**
- * @brief LIST_DPUS_FROM_ENGINE returns the pointer to the array of remote_dpu_info_t structures
- * representing the list of known DPU, based on a engine. This is relevant mainly on DPUs
- *
- * @parma[in] engine
- */
-#define LIST_DPUS_FROM_ENGINE(_engine) ({                   \
-    remote_dpu_info_t **_list = NULL;                       \
-    if (_engine)                                            \
-    {                                                       \
-        _list = (remote_dpu_info_t **)(_engine)->dpus.base; \
-    }                                                       \
-    _list;                                                  \
-})
-
-/**
- * @brief LIST_DPUS_FROM_ENGINE returns the pointer to the array of remote_dpu_info_t structures
- * representing the list of known DPU, based on a execution context. This is relevant mainly on DPUs.
- *
- * @parma[in] econtext
- */
-#define LIST_DPUS_FROM_ECONTEXT(_econtext) ({               \
-    remote_dpu_info_t **_list = NULL;                       \
-    if (_econtext != NULL)                                  \
-    {                                                       \
-        _list = LIST_DPUS_FROM_ENGINE((_econtext)->engine); \
-    }                                                       \
-    _list;                                                  \
-})
 
 #define ECONTEXT_FOR_SERVICE_PROC_COMMUNICATION(_engine, _service_proc_idx) ({  \
     execution_context_t *_e = NULL;                                             \

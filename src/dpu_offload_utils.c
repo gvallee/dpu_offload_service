@@ -1174,10 +1174,10 @@ bool parse_line_dpu_version_1(offloading_config_t *data, char *line)
     int idx = 0;
     size_t dpu_idx = 0;
     size_t cur_global_sp_id = 0;
+    size_t local_sp;
     bool rc = false;
     char *rest_line = line;
     dpu_config_data_t *target_entry = NULL;
-    remote_dpu_info_t **list_dpus = NULL;
     host_uid_t last_host = UNKNOWN_HOST;
     char *local_host_name = NULL;
     host_uid_t local_host_uid;
@@ -1185,8 +1185,8 @@ bool parse_line_dpu_version_1(offloading_config_t *data, char *line)
     assert(data);
     assert(data->offloading_engine);
     assert(line);
-    list_dpus = LIST_DPUS_FROM_ENGINE(data->offloading_engine);
-    assert(list_dpus);
+
+    INFO_MSG("[DBG] Parsing %s", line);
 
     while (line[idx] == ' ')
         idx++;
@@ -1206,6 +1206,7 @@ bool parse_line_dpu_version_1(offloading_config_t *data, char *line)
         bool target_dpu = false;
         size_t i;
         DBG("-> Service proc data: %s", token);
+        INFO_MSG("[DBG]");
 
         /* if the DPU is not part of the list of DPUs to use, we skip it */
         for (i = 0; i < data->num_dpus; i++)
@@ -1226,6 +1227,7 @@ bool parse_line_dpu_version_1(offloading_config_t *data, char *line)
                 break;
             }
         }
+        INFO_MSG("[DBG]");
 
         if (target_dpu)
         {
@@ -1259,21 +1261,24 @@ bool parse_line_dpu_version_1(offloading_config_t *data, char *line)
                 data->num_hosts++;
                 last_host = target_host;
             }
+            INFO_MSG("[DBG]");
 
             // Find the corresponding remote_dpu_info_t structure so we can populate it
             // while parsing the line.
             remote_dpu_info_t *cur_dpu = NULL;
             for (d = 0; d < data->num_dpus; d++)
             {
-                remote_dpu_info_t *remote_dpu = list_dpus[d];
-                size_t _strlen = strlen(remote_dpu->hostname);
+                remote_dpu_info_t **remote_dpu = NULL;
+                remote_dpu = DYN_ARRAY_GET_ELT(&(data->offloading_engine->dpus), d, remote_dpu_info_t*);
+                assert(remote_dpu);
+                assert(*remote_dpu);
+                assert((*remote_dpu)->hostname);
+                size_t _strlen = strlen((*remote_dpu)->hostname);
                 if (strlen(target_entry->version_1.hostname) < _strlen)
                     _strlen = strlen(target_entry->version_1.hostname);
-                assert(remote_dpu);
-                assert(remote_dpu->hostname);
-                if (strncmp(target_entry->version_1.hostname, remote_dpu->hostname, _strlen) == 0)
+                if (strncmp(target_entry->version_1.hostname, (*remote_dpu)->hostname, _strlen) == 0)
                 {
-                    cur_dpu = remote_dpu;
+                    cur_dpu = *remote_dpu;
                     break;
                 }
             }
@@ -1283,9 +1288,11 @@ bool parse_line_dpu_version_1(offloading_config_t *data, char *line)
                 return false;
             }
             assert(cur_dpu);
+            INFO_MSG("[DBG]");
 
             bool parsing_okay = parse_dpu_cfg(token, target_entry);
             CHECK_ERR_RETURN((parsing_okay == false), false, "unable to parse config file entry");
+            assert(target_entry);
 
             // Corner case: the environment variable to specify the number of SPs per DPU may not
             // be set, in which case, the config is first assumed to be based with one SP per DPU.
@@ -1299,35 +1306,59 @@ bool parse_line_dpu_version_1(offloading_config_t *data, char *line)
             // We now have the configuration associated to the line we just parsed, checking a few things...
             assert(target_entry->version_1.addr);
 
+            INFO_MSG("[DBG]");
+
             /*
              * Save the configuration details of each service process on that DPU.
              * This is for example where we figure out which port should be used to connect to
              * a given service process.
              */
-            remote_service_proc_info_t *cur_sp, *next_sp;
-            SIMPLE_LIST_FOR_EACH(cur_sp, next_sp, &(cur_dpu->remote_service_procs), item)
+            for (local_sp = 0; local_sp < data->num_service_procs_per_dpu; local_sp++)
             {
-                size_t sp_port_idx = cur_sp->idx % data->num_service_procs_per_dpu;
-                assert(cur_sp->init_params.conn_params);
-                cur_sp->init_params.conn_params->addr_str = target_entry->version_1.addr;
-                int *port = DYN_ARRAY_GET_ELT(&(target_entry->version_1.interdpu_ports),
-                                              sp_idx,
-                                              int);
-                cur_sp->init_params.conn_params->port = *port;
+                remote_service_proc_info_t **cur_sp = NULL;
                 service_proc_config_data_t *sp_config;
+                size_t sp_port_idx;
+                int *port = NULL;
+
+                INFO_MSG("[DBG]");
+
+                cur_sp = DYN_ARRAY_GET_ELT(&(cur_dpu->local_service_procs), local_sp, remote_service_proc_info_t *);
+                assert(cur_sp);
+                assert(*cur_sp);
+
+                INFO_MSG("[DBG]");
+
+                // We set the details for each of the SPs running on that DPU
+                sp_port_idx = (*cur_sp)->idx % data->num_service_procs_per_dpu;
+                assert((*cur_sp)->init_params.conn_params);
+                INFO_MSG("[DBG] %p %p", (*cur_sp)->init_params.conn_params, target_entry->version_1.addr);
+                assert(target_entry);
+                //(*cur_sp)->init_params.conn_params->addr_str = target_entry->version_1.addr;
+                INFO_MSG("[DBG]");
+                port = DYN_ARRAY_GET_ELT(&(target_entry->version_1.interdpu_ports),
+                                         sp_idx,
+                                         int);
+                assert(port);
+                INFO_MSG("[DBG]");
+                (*cur_sp)->init_params.conn_params->port = *port;
                 sp_config = DYN_ARRAY_GET_ELT(&(data->sps_config), cur_global_sp_id, service_proc_config_data_t);
                 assert(sp_config);
-                cur_sp->config = sp_config;
+                INFO_MSG("[DBG]");
+                (*cur_sp)->config = sp_config;
                 sp_config->version_1.hostname = target_entry->version_1.hostname;
                 int *intersp_port = DYN_ARRAY_GET_ELT(&(target_entry->version_1.interdpu_ports), sp_port_idx, int);
                 int *host_port = DYN_ARRAY_GET_ELT(&(target_entry->version_1.host_ports), sp_idx, int);
+                INFO_MSG("[DBG]");
                 sp_config->version_1.host_port = *host_port;
                 sp_config->version_1.intersp_port = *intersp_port;
-                cur_sp->init_params.conn_params->port = *intersp_port;
-                cur_sp->init_params.conn_params->addr_str = target_entry->version_1.addr;
+                (*cur_sp)->init_params.conn_params->port = *intersp_port;
+                (*cur_sp)->init_params.conn_params->addr_str = target_entry->version_1.addr;
+                INFO_MSG("[DBG]");
                 sp_idx++;
                 cur_global_sp_id++;
             }
+
+            INFO_MSG("[DBG]");
 
             if (strncmp(data->local_service_proc.hostname, target_entry->version_1.hostname, strlen(target_entry->version_1.hostname)) == 0)
             {
@@ -1355,7 +1386,6 @@ bool parse_line_dpu_version_1(offloading_config_t *data, char *line)
                 assert(data->local_service_proc.info.global_id != UINT64_MAX);
                 assert(data->num_service_procs_per_dpu != 0);
                 assert(data->num_service_procs_per_dpu != UINT64_MAX);
-                assert(SIMPLE_LIST_LENGTH(&(cur_dpu->remote_service_procs)) == data->num_service_procs_per_dpu);
 
                 if (data->local_service_proc.info.global_id < data->num_service_procs_per_dpu * (dpu_idx + 1))
                     data->service_proc_found = true;
@@ -1378,13 +1408,16 @@ bool parse_line_dpu_version_1(offloading_config_t *data, char *line)
                 // data->local_dpu.id is already set while parsing the list of DPUs to use for the job
                 rc = true;
             }
+            INFO_MSG("[DBG]");
         }
         else
         {
             DBG("%s is not to be used", token);
         }
         token = strtok_r(rest_line, ",", &rest_line);
+        INFO_MSG("[DBG]");
     }
+    INFO_MSG("[DBG]");
     return rc;
 }
 

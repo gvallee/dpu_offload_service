@@ -30,35 +30,57 @@ rank_info_t invalid_group_rank = {
 extern execution_context_t *server_init(offloading_engine_t *, init_params_t *);
 extern execution_context_t *client_init(offloading_engine_t *, init_params_t *);
 
-// dpu: remote_dpu_info_t struct
-#define ADD_LOCAL_SPS_TO_DPU_CONFIG(_cfg, _dpu)                                                                             \
-    do                                                                                                                      \
-    {                                                                                                                       \
-        size_t _x;                                                                                                          \
-        assert((_cfg));                                                                                                     \
-        assert((_cfg)->offloading_engine);                                                                                  \
-        assert((_dpu));                                                                                                     \
-        assert((_cfg)->num_service_procs_per_dpu > 0);                                                                      \
-        for (_x = 0; _x < (_cfg)->num_service_procs_per_dpu; _x++)                                                          \
-        {                                                                                                                   \
-            uint64_t _sp_gid = (_dpu)->idx * (_cfg)->num_service_procs_per_dpu + _x;                                        \
-            remote_service_proc_info_t *_sp = DYN_ARRAY_GET_ELT(GET_ENGINE_LIST_SERVICE_PROCS((_cfg)->offloading_engine),   \
-                                                                _sp_gid,                                                    \
-                                                                remote_service_proc_info_t);                                \
-            assert(_sp);                                                                                                    \
-            _sp->idx = _sp_gid;                                                                                             \
-            conn_params_t *_sp_conn_params = NULL;                                                                          \
-            DYN_LIST_GET((_cfg)->offloading_engine->pool_conn_params, conn_params_t, item, _sp_conn_params);                \
-            assert(_sp_conn_params);                                                                                        \
-            RESET_CONN_PARAMS(_sp_conn_params);                                                                             \
-            _sp->dpu = (_dpu);                                                                                              \
-            _sp->init_params.conn_params = _sp_conn_params;                                                                 \
-            _sp->service_proc.local_id = _x;                                                                                \
-            _sp->service_proc.global_id = _sp_gid;                                                                          \
-            _sp->offload_engine = (_cfg)->offloading_engine;                                                                \
-            SIMPLE_LIST_PREPEND(&((_dpu)->remote_service_procs), &(_sp->item));                                             \
-        }                                                                                                                   \
-    } while (0)
+// The function prepare the resources to track all the SPs running on a specific DPU.
+static dpu_offload_status_t
+add_local_sps_to_dpu_config(offloading_config_t *cfg, remote_dpu_info_t *dpu)
+{
+    // Handle used to access the unique object gathering all the data about an SP.
+    remote_service_proc_info_t *sp = NULL;
+    // Handle used to access the pointer used at the DPU level to track SPs running
+    // on that DPU.
+    remote_service_proc_info_t **local_dpu_sp = NULL;
+    uint64_t sp_gid, sp_lid = 0;
+    size_t dpu_index, sp_index;
+
+    assert(cfg);
+    assert(cfg->offloading_engine);
+    assert(dpu);
+    assert(cfg->num_service_procs_per_dpu > 0);
+
+    dpu_index = dpu->idx;
+    INFO_MSG("[DBG] handling DPU %ld", dpu_index);
+
+    for (sp_index = 0; sp_index < cfg->num_service_procs_per_dpu; sp_index++)
+    {
+        sp_gid = dpu->idx * cfg->num_service_procs_per_dpu + sp_lid;
+        /* Get the SP's object from the list at the engine level */
+        sp = DYN_ARRAY_GET_ELT(GET_ENGINE_LIST_SERVICE_PROCS(cfg->offloading_engine),
+                                                            sp_gid,
+                                                            remote_service_proc_info_t);
+        assert(sp);
+        sp->idx = sp_gid;
+        conn_params_t *sp_conn_params = NULL;
+        DYN_LIST_GET(cfg->offloading_engine->pool_conn_params, conn_params_t, item, sp_conn_params);
+        assert(sp_conn_params);
+        //INFO_MSG("[DBG] initializing conn_params of SP #%ld", sp_gid);
+        RESET_CONN_PARAMS(sp_conn_params);
+        sp->dpu = dpu;
+        sp->init_params.conn_params = sp_conn_params;
+        //INFO_MSG("[DBG] SP %ld/%p, conn_params: %p", sp_gid, sp, sp->init_params.conn_params);
+        sp->service_proc.local_id = sp_lid;
+        sp->service_proc.global_id = sp_gid;
+        sp->offload_engine = cfg->offloading_engine;
+        INFO_MSG("[DBG] CM -> SP %p %ld-%ld added to DPU %ld, conn_params: %p",
+            sp, sp->service_proc.local_id, sp->service_proc.global_id, dpu_index, sp->init_params.conn_params);
+        /* Add a pointer to the SP at the DPU level */
+        local_dpu_sp = DYN_ARRAY_GET_ELT(&(dpu->local_service_procs), sp_lid, remote_service_proc_info_t *);
+        *local_dpu_sp = sp;
+
+        sp_lid++;
+    }
+
+    return DO_SUCCESS;
+}
 
 #define SET_REMOTE_SP_TO_CONNECT_TO(_cfg, _sp_gid)                                                  \
     do                                                                                              \
@@ -68,6 +90,7 @@ extern execution_context_t *client_init(offloading_engine_t *, init_params_t *);
                                           _sp_gid,                                                  \
                                           remote_service_proc_info_t);                              \
         assert(sp_connect_to);                                                                      \
+        /*INFO_MSG("[DBG] SP %ld/%p, conn_params: %p", _sp_gid, sp_connect_to, sp_connect_to->init_params.conn_params);*/\
         assert(sp_connect_to->init_params.conn_params);                                             \
         connect_to_service_proc_t *sp_conn_to;                                                      \
         DYN_LIST_GET((_cfg)->info_connecting_to.pool_remote_sp_connect_to,                          \
@@ -84,7 +107,6 @@ extern execution_context_t *client_init(offloading_engine_t *, init_params_t *);
     do                                                                                          \
     {                                                                                           \
         size_t _s;                                                                              \
-        ADD_LOCAL_SPS_TO_DPU_CONFIG((_cfg), _remote_dpu);                                       \
         ucs_list_add_tail(&((_cfg)->info_connecting_to.dpus_connect_to), &(_remote_dpu->item)); \
         for (_s = 0; _s < (_cfg)->num_service_procs_per_dpu; _s++)                              \
         {                                                                                       \
@@ -118,7 +140,8 @@ dpu_offload_parse_list_dpus(offloading_engine_t *engine, offloading_config_t *co
     bool pre = true;
     char *token;
     size_t n_connecting_from = 0;
-    remote_dpu_info_t **dpus_info = NULL;
+    dpu_offload_status_t rc;
+    //remote_dpu_info_t **dpus_info = NULL;
 
     assert(engine);
     assert(config_data);
@@ -159,11 +182,12 @@ dpu_offload_parse_list_dpus(offloading_engine_t *engine, offloading_config_t *co
                                                           NULL, 0);
     }
 
-    dpus_info = LIST_DPUS_FROM_ENGINE(engine);
     token = strtok(config_data->list_dpus, ",");
 
+    // Iterate over all the DPUs
     while (token != NULL)
     {
+        remote_dpu_info_t **ptr = NULL;
         // Update the data in the list of DPUs' configurations
         dpu_config_data_t *dpu_config = DYN_ARRAY_GET_ELT(&(config_data->dpus_config), config_data->num_dpus, dpu_config_data_t);
         assert(dpu_config);
@@ -175,12 +199,17 @@ dpu_offload_parse_list_dpus(offloading_engine_t *engine, offloading_config_t *co
                      remote_dpu_info_t, item, d_info);
         assert(d_info);
         d_info->hostname = dpu_config->version_1.hostname;
-        dpus_info[dpu_idx] = d_info;
-        dpus_info[dpu_idx]->idx = dpu_idx;
-        dpus_info[dpu_idx]->config = dpu_config;
+        ptr = DYN_ARRAY_GET_ELT(&(engine->dpus), dpu_idx, remote_dpu_info_t*);
+        assert(ptr);
+        *ptr = d_info;
+        (*ptr)->idx = dpu_idx;
+        (*ptr)->config = dpu_config;
 
         DBG("** hostname of DPU #%ld: %s", config_data->num_dpus, dpu_config->version_1.hostname);
         config_data->num_dpus++;
+
+        rc = add_local_sps_to_dpu_config(config_data, d_info);
+        CHECK_ERR_RETURN((rc != DO_SUCCESS), DO_ERROR, "add_local_sps_to_dpu_config() failed");
 
         DBG("Checking hostname %s (i am %s)", token, config_data->local_service_proc.hostname);
         if (strncmp(token, config_data->local_service_proc.hostname, strlen(token)) == 0)
@@ -197,7 +226,6 @@ dpu_offload_parse_list_dpus(offloading_engine_t *engine, offloading_config_t *co
             // Each DPU can have multiple service procs
             d_info->idx = dpu_idx;
             d_info->hostname = config_data->local_service_proc.hostname;
-            ADD_LOCAL_SPS_TO_DPU_CONFIG(config_data, d_info);
             dpu_idx++;
 
             // Adjust the number of service processes to connect to and expected to connect to us based
@@ -230,7 +258,6 @@ dpu_offload_parse_list_dpus(offloading_engine_t *engine, offloading_config_t *co
         {
             // Service process that will connect to us.
             n_connecting_from += config_data->num_service_procs_per_dpu;
-            ADD_LOCAL_SPS_TO_DPU_CONFIG(config_data, d_info);
         }
         else
         {

@@ -17,7 +17,7 @@ extern dpu_offload_status_t dpu_offload_parse_list_dpus(offloading_engine_t *eng
 int main(int argc, char **argv)
 {
     dpu_offload_status_t rc;
-    size_t i;
+    size_t i, dpu_index, local_sp;
     offloading_engine_t *engine = NULL;
     offloading_config_t cfg;
     uint64_t host_hash_key;
@@ -67,6 +67,11 @@ int main(int argc, char **argv)
         fprintf(stderr, "no SP identified\n");
         goto error_out;
     }
+    if (cfg.num_dpus == 0)
+    {
+        fprintf(stderr, "No DPU identified\n");
+        goto error_out;
+    }
 
     // Check a few things after the first step
     for (sp_gid = 0; sp_gid < cfg.num_service_procs; sp_gid++)
@@ -85,6 +90,29 @@ int main(int argc, char **argv)
             goto error_out;
         }
     }
+
+    fprintf(stderr, "[DBG] CM num dpus: %ld\n", cfg.num_dpus);
+    for (dpu_index = 0; dpu_index < cfg.num_dpus; dpu_index++)
+    {
+        remote_dpu_info_t **remote_dpu = NULL;
+        remote_dpu = DYN_ARRAY_GET_ELT(&(engine->dpus), dpu_index, remote_dpu_info_t*);
+        if (remote_dpu == NULL)
+        {
+            fprintf(stderr, "undefined DPU\n");
+            goto error_out;
+        }
+
+        for (local_sp = 0; local_sp < cfg.num_service_procs_per_dpu; local_sp++)
+        {
+            remote_service_proc_info_t **cur_sp = NULL;
+            cur_sp = DYN_ARRAY_GET_ELT(&((*remote_dpu)->local_service_procs), local_sp, remote_service_proc_info_t *);
+            assert(cur_sp);
+
+            fprintf(stdout, "[DBG] DPU: %ld, SP %p LID: %ld, conn_params: %p\n", (*remote_dpu)->idx, (*cur_sp), (*cur_sp)->service_proc.local_id, (*cur_sp)->init_params.conn_params);
+        }
+    }
+
+    abort();
 
     rc = find_dpu_config_from_platform_configfile(argv[1], &cfg);
     if (rc != DO_SUCCESS)
