@@ -47,7 +47,7 @@ extern execution_context_t *client_init(offloading_engine_t *, init_params_t *);
                                                                 remote_service_proc_info_t);                                \
             assert(_sp);                                                                                                    \
             _sp->idx = _sp_gid;                                                                                             \
-            conn_params_t *_sp_conn_params;                                                                                 \
+            conn_params_t *_sp_conn_params = NULL;                                                                          \
             DYN_LIST_GET((_cfg)->offloading_engine->pool_conn_params, conn_params_t, item, _sp_conn_params);                \
             assert(_sp_conn_params);                                                                                        \
             RESET_CONN_PARAMS(_sp_conn_params);                                                                             \
@@ -138,14 +138,23 @@ dpu_offload_parse_list_dpus(offloading_engine_t *engine, offloading_config_t *co
         config_data->local_service_proc.info.local_id = 0;
         config_data->num_service_procs_per_dpu = 1;
     }
-    else
+
+    if (config_data->local_service_proc.info.global_id_str != NULL)
     {
         config_data->local_service_proc.info.global_id = strtoull(config_data->local_service_proc.info.global_id_str,
                                                                   NULL, 0);
+        // If the global ID env var is set, the local ID one is mandatory
         assert(config_data->local_service_proc.info.local_id_str != NULL);
+    }
+    if (config_data->local_service_proc.info.local_id_str != NULL)
+    {
         config_data->local_service_proc.info.local_id = strtoull(config_data->local_service_proc.info.local_id_str,
                                                                  NULL, 0);
+        // If the local ID env var is set, the one for the number of SP per DPU is also mandatory
         assert(config_data->num_service_procs_per_dpu_str != NULL);
+    }
+    if (config_data->num_service_procs_per_dpu_str != NULL)
+    {
         config_data->num_service_procs_per_dpu = strtoull(config_data->num_service_procs_per_dpu_str,
                                                           NULL, 0);
     }
@@ -241,7 +250,7 @@ dpu_offload_parse_list_dpus(offloading_engine_t *engine, offloading_config_t *co
 
     config_data->num_connecting_service_procs = n_connecting_from;
     config_data->offloading_engine->num_dpus = dpu_idx;
-    config_data->offloading_engine->num_service_procs = config_data->offloading_engine->num_dpus * config_data->num_service_procs_per_dpu;
+    config_data->num_service_procs = config_data->offloading_engine->num_service_procs = config_data->offloading_engine->num_dpus * config_data->num_service_procs_per_dpu;
     return DO_SUCCESS;
 }
 

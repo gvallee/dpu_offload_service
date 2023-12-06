@@ -1286,6 +1286,16 @@ bool parse_line_dpu_version_1(offloading_config_t *data, char *line)
 
             bool parsing_okay = parse_dpu_cfg(token, target_entry);
             CHECK_ERR_RETURN((parsing_okay == false), false, "unable to parse config file entry");
+
+            // Corner case: the environment variable to specify the number of SPs per DPU may not
+            // be set, in which case, the config is first assumed to be based with one SP per DPU.
+            // If we detect that a default was set and since we now know how many SPs are to be
+            // expected on each DPU, we update the data
+            if (data->num_service_procs_per_dpu == 1 && (target_entry->version_1.num_interdpu_ports != data->num_service_procs_per_dpu))
+            {
+                data->num_service_procs_per_dpu = target_entry->version_1.num_interdpu_ports;
+            }
+
             // We now have the configuration associated to the line we just parsed, checking a few things...
             assert(target_entry->version_1.addr);
 
