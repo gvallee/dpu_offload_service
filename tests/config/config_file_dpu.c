@@ -108,7 +108,8 @@ int main(int argc, char **argv)
             cur_sp = DYN_ARRAY_GET_ELT(&((*remote_dpu)->local_service_procs), local_sp, remote_service_proc_info_t *);
             assert(cur_sp);
 
-            fprintf(stdout, "[DBG] DPU: %ld, SP %p LID: %ld, conn_params: %p\n", (*remote_dpu)->idx, (*cur_sp), (*cur_sp)->service_proc.local_id, (*cur_sp)->init_params.conn_params);
+            fprintf(stdout, "[DBG] DPU: %ld, SP %p GID: %ld, LID: %ld, conn_params: %p\n", (*remote_dpu)->idx, (*cur_sp), (*cur_sp)->service_proc.global_id, (*cur_sp)->service_proc.local_id, (*cur_sp)->init_params.conn_params);
+            assert((*cur_sp)->service_proc.local_id < 32);
         }
     }
 
