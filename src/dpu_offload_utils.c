@@ -814,7 +814,6 @@ static size_t get_list_sps_packed_size(offloading_engine_t *engine)
         assert(sp);
         packed_size += sp->addr_len;
     }
-    INFO_MSG("[DBG] Size payload: %ld", packed_size);
     return packed_size;
 }
 
