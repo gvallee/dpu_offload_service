@@ -347,7 +347,6 @@ connect_to_service_procs(offloading_engine_t *offload_engine, service_procs_inte
     assert(info_connect_to);
     assert(init_params);
     // Create a connection thread for all the required connection
-    //connect_to_service_proc_t *conn_info, *conn_info_next;
     for (connect_to_idx = 0; connect_to_idx < info_connect_to->num_connect_to; connect_to_idx++)
     {
         // Initiate the connection to the remote service process running on a specific DPU.
