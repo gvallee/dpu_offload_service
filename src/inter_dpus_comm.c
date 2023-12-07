@@ -75,39 +75,28 @@ add_local_sps_to_dpu_config(offloading_config_t *cfg, remote_dpu_info_t *dpu)
     return DO_SUCCESS;
 }
 
-#define SET_REMOTE_SP_TO_CONNECT_TO(_cfg, _sp_gid)                                                  \
-    do                                                                                              \
-    {                                                                                               \
-        remote_service_proc_info_t *sp_connect_to = NULL;                                           \
-        sp_connect_to = DYN_ARRAY_GET_ELT(GET_ENGINE_LIST_SERVICE_PROCS((_cfg)->offloading_engine), \
-                                          _sp_gid,                                                  \
-                                          remote_service_proc_info_t);                              \
-        assert(sp_connect_to);                                                                      \
-        /*INFO_MSG("[DBG] SP %ld/%p, conn_params: %p", _sp_gid, sp_connect_to, sp_connect_to->init_params.conn_params);*/\
-        assert(sp_connect_to->init_params.conn_params);                                             \
-        connect_to_service_proc_t *sp_conn_to;                                                      \
-        DYN_LIST_GET((_cfg)->info_connecting_to.pool_remote_sp_connect_to,                          \
-                     connect_to_service_proc_t,                                                     \
-                     item,                                                                          \
-                     sp_conn_to);                                                                   \
-        assert(sp_conn_to);                                                                         \
-        sp_conn_to->sp = sp_connect_to;                                                             \
-        /* Connection details are set while parsing the config file */                              \
-        ucs_list_add_tail(&((_cfg)->info_connecting_to.sps_connect_to), &(sp_conn_to->item));       \
+#define SET_REMOTE_SP_TO_CONNECT_TO(_cfg, _sp_gid)                                              \
+    do                                                                                          \
+    {                                                                                           \
+        /* Connection details are set while parsing the config file */                          \
+        uint64_t *_sp_gid_connect_to = NULL;                                                    \
+        _sp_gid_connect_to = DYN_ARRAY_GET_ELT(&((_cfg)->info_connecting_to.sps_connect_to),    \
+                                               (_cfg)->info_connecting_to.num_connect_to,       \
+                                               uint64_t);                                       \
+        *_sp_gid_connect_to = _sp_gid;                                                          \
+        (_cfg)->info_connecting_to.num_connect_to++;                                            \
     } while (0)
 
 #define SET_SERVICE_PROC_TO_CONNECT_TO(_engine, _cfg, _remote_dpu)                              \
     do                                                                                          \
     {                                                                                           \
         size_t _s;                                                                              \
-        ucs_list_add_tail(&((_cfg)->info_connecting_to.dpus_connect_to), &(_remote_dpu->item)); \
         for (_s = 0; _s < (_cfg)->num_service_procs_per_dpu; _s++)                              \
         {                                                                                       \
             uint64_t sp_global_id = _remote_dpu->idx * (_cfg)->num_service_procs_per_dpu + _s;  \
             SET_REMOTE_SP_TO_CONNECT_TO(_cfg, sp_global_id);                                    \
         }                                                                                       \
         (_cfg)->info_connecting_to.num_dpus++;                                                  \
-        (_cfg)->info_connecting_to.num_connect_to += (_cfg)->num_service_procs_per_dpu;         \
     } while (0)
 
 /**
@@ -225,13 +214,11 @@ dpu_offload_parse_list_dpus(offloading_engine_t *engine, offloading_config_t *co
             if (n_sp_connecting_to > 0)
             {
                 size_t local_sp;
-                ucs_list_add_tail(&(config_data->info_connecting_to.dpus_connect_to), &(d_info->item));
                 for (local_sp = 0; local_sp < n_sp_connecting_to; local_sp++)
                 {
                     size_t global_sp_id = config_data->local_service_proc.info.global_id + local_sp + 1;
                     SET_REMOTE_SP_TO_CONNECT_TO(config_data, global_sp_id);
                 }
-                config_data->info_connecting_to.num_connect_to += n_sp_connecting_to;
             }
 
             token = strtok(NULL, ",");
@@ -355,17 +342,26 @@ dpu_offload_status_t connect_to_remote_service_proc(remote_service_proc_info_t *
 static dpu_offload_status_t
 connect_to_service_procs(offloading_engine_t *offload_engine, service_procs_inter_connect_info_t *info_connect_to, init_params_t *init_params)
 {
+    size_t connect_to_idx;
     assert(offload_engine);
     assert(info_connect_to);
     assert(init_params);
     // Create a connection thread for all the required connection
-    connect_to_service_proc_t *conn_info, *conn_info_next;
-    ucs_list_for_each_safe(conn_info, conn_info_next, &(info_connect_to->sps_connect_to), item)
+    //connect_to_service_proc_t *conn_info, *conn_info_next;
+    for (connect_to_idx = 0; connect_to_idx < info_connect_to->num_connect_to; connect_to_idx++)
     {
         // Initiate the connection to the remote service process running on a specific DPU.
         // This is a non-blocking operation, meaning there is no guarantee the connection
         // will not be fully established when the function returns
-        dpu_offload_status_t rc = connect_to_remote_service_proc(conn_info->sp);
+        uint64_t *target_sp_gid = NULL;
+        dpu_offload_status_t rc;
+        remote_service_proc_info_t *sp = NULL;
+
+        target_sp_gid = DYN_ARRAY_GET_ELT(&(info_connect_to->sps_connect_to), connect_to_idx, uint64_t);
+        assert(target_sp_gid);
+        sp = DYN_ARRAY_GET_ELT(GET_ENGINE_LIST_SERVICE_PROCS(offload_engine), *target_sp_gid, remote_service_proc_info_t);
+        assert(sp);
+        rc = connect_to_remote_service_proc(sp);
         CHECK_ERR_RETURN((rc), DO_ERROR, "unable to start connection thread");
     }
     return DO_SUCCESS;

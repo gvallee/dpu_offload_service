@@ -117,16 +117,23 @@ int main(int argc, char **argv)
     }
     fprintf(stdout, "\tAddress: %s\n", cfg.local_service_proc.host_conn_params.addr_str);
     fprintf(stdout, "Connecting to %ld service processes\n", cfg.info_connecting_to.num_connect_to);
-    connect_to_service_proc_t *remote_sp, *next_remote_sp;
-    ucs_list_for_each_safe(remote_sp, next_remote_sp, &(cfg.info_connecting_to.sps_connect_to), item)
+
+    for (i = 0; i < cfg.info_connecting_to.num_connect_to; i++)
     {
-        if (remote_sp->sp->init_params.conn_params == NULL)
+        uint64_t *remote_sp_gid = NULL;
+        remote_service_proc_info_t *remote_sp = NULL;
+
+        remote_sp_gid = DYN_ARRAY_GET_ELT(&(cfg.info_connecting_to.sps_connect_to), i, uint64_t);
+        assert(remote_sp_gid);
+        remote_sp = DYN_ARRAY_GET_ELT(GET_ENGINE_LIST_SERVICE_PROCS(engine), *remote_sp_gid, remote_service_proc_info_t);
+        assert(remote_sp);
+        if (remote_sp->init_params.conn_params == NULL)
         {
-            fprintf(stderr, "[ERROR] connection parameters for %p are undefined\n", remote_sp->sp);
+            fprintf(stderr, "[ERROR] connection parameters for %p are undefined\n", remote_sp);
             goto error_out;
         }
-        fprintf(stdout, "\tPort: %d\n", remote_sp->sp->init_params.conn_params->port);
-        if (remote_sp->sp->init_params.conn_params->port == -1)
+        fprintf(stdout, "\tPort to connect to SP #%ld: %d\n", remote_sp->service_proc.global_id, remote_sp->init_params.conn_params->port);
+        if (remote_sp->init_params.conn_params->port == -1)
         {
             fprintf(stderr, "[ERROR] Invalid port\n");
             goto error_out;

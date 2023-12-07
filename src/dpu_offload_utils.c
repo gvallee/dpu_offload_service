@@ -1131,7 +1131,7 @@ static inline bool parse_dpu_cfg(char *str, dpu_config_data_t *config_entry)
             assert(token_port); // We must have at least one port
             while (token_port != NULL)
             {
-                DBG("-> inter-DPU port #%d is %s", j, token_port);
+                DBG("-> inter-DPU port #%d is %s (DPU %s)", j, token_port, config_entry->version_1.hostname);
                 int *port = DYN_ARRAY_GET_ELT(&(config_entry->version_1.interdpu_ports), j, int);
                 *port = atoi(token_port);
                 j++;
@@ -1333,7 +1333,6 @@ bool parse_line_dpu_version_1(offloading_config_t *data, char *line)
                 sp_config->version_1.host_port = *host_port;
                 sp_config->version_1.intersp_port = *intersp_port;
                 cur_sp->init_params.conn_params->port = *intersp_port;
-                //INFO_MSG("[DBG] port: %d", sp_config->version_1.intersp_port);
                 cur_sp->init_params.conn_params->addr_str = target_entry->version_1.addr;
                 sp_idx++;
                 cur_global_sp_id++;
@@ -1373,11 +1372,10 @@ bool parse_line_dpu_version_1(offloading_config_t *data, char *line)
                 data->local_service_proc.host_init_params.id_set = true;
                 data->local_service_proc.host_init_params.id = data->local_service_proc.info.global_id;
                 int *intersp_port = DYN_ARRAY_GET_ELT(&(target_entry->version_1.interdpu_ports),
-                                                      data->local_service_proc.info.local_id, int);
+                                                      data->local_service_proc.info.global_id, int);
                 int *host_port = DYN_ARRAY_GET_ELT(&(target_entry->version_1.host_ports),
-                                                   data->local_service_proc.info.local_id, int);
+                                                   data->local_service_proc.info.global_id, int);
                 data->local_service_proc.inter_service_procs_conn_params.port = *intersp_port;
-                INFO_MSG("[DBG] local service proc inter-SP port: %d", data->local_service_proc.inter_service_procs_conn_params.port);
                 data->local_service_proc.inter_service_procs_conn_params.addr_str = target_entry->version_1.addr;
                 data->local_service_proc.host_conn_params.port = *host_port;
                 data->local_service_proc.host_conn_params.addr_str = target_entry->version_1.addr;
@@ -1849,8 +1847,6 @@ void offload_config_free(offloading_config_t *cfg)
             DYN_ARRAY_FREE(&(dpu_config->version_1.host_ports));
         }
     }
-
-    DYN_LIST_FREE(cfg->info_connecting_to.pool_remote_sp_connect_to, connect_to_service_proc_t, item);
 
     DYN_ARRAY_FREE(&(cfg->dpus_config));
     DYN_ARRAY_FREE(&(cfg->sps_config));

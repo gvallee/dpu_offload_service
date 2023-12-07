@@ -3402,9 +3402,8 @@ typedef struct connect_to_service_proc
 
 typedef struct service_proc_inter_connect_info
 {
-    dyn_list_t *pool_remote_sp_connect_to; // Pool of connect_to_service_proc_t structures
-    ucs_list_link_t sps_connect_to;        // List of connect_to_service_proc_t structures
-    ucs_list_link_t dpus_connect_to;       // List of  structures
+    // Vector of SP global IDs representing the SPs we need to connect to
+    dyn_array_t sps_connect_to;
 
     // Number of physical DPUs to connect to
     size_t num_dpus;
@@ -3413,14 +3412,12 @@ typedef struct service_proc_inter_connect_info
     size_t num_connect_to;
 } service_procs_inter_connect_info_t;
 
-#define RESET_INFO_CONNECTING_TO(_i)                                                           \
-    do                                                                                         \
-    {                                                                                          \
-        ucs_list_head_init(&((_i)->dpus_connect_to));                                          \
-        ucs_list_head_init(&((_i)->sps_connect_to));                                           \
-        DYN_LIST_ALLOC((_i)->pool_remote_sp_connect_to, 256, connect_to_service_proc_t, item); \
-        (_i)->num_dpus = 0;                                                                    \
-        (_i)->num_connect_to = 0;                                                              \
+#define RESET_INFO_CONNECTING_TO(_i)                                \
+    do                                                              \
+    {                                                               \
+        DYN_ARRAY_ALLOC(&((_i)->sps_connect_to), 256, uint64_t);    \
+        (_i)->num_dpus = 0;                                         \
+        (_i)->num_connect_to = 0;                                   \
     } while (0)
 
 /**
