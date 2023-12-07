@@ -48,7 +48,6 @@ add_local_sps_to_dpu_config(offloading_config_t *cfg, remote_dpu_info_t *dpu)
     assert(cfg->num_service_procs_per_dpu > 0);
 
     dpu_index = dpu->idx;
-    INFO_MSG("[DBG] handling DPU %ld", dpu_index);
 
     for (sp_index = 0; sp_index < cfg->num_service_procs_per_dpu; sp_index++)
     {
@@ -62,16 +61,12 @@ add_local_sps_to_dpu_config(offloading_config_t *cfg, remote_dpu_info_t *dpu)
         conn_params_t *sp_conn_params = NULL;
         DYN_LIST_GET(cfg->offloading_engine->pool_conn_params, conn_params_t, item, sp_conn_params);
         assert(sp_conn_params);
-        INFO_MSG("[DBG] initializing conn_params of SP #%ld", sp_gid);
         RESET_CONN_PARAMS(sp_conn_params);
         sp->dpu = dpu;
         sp->init_params.conn_params = sp_conn_params;
-        INFO_MSG("[DBG] SP %ld/%p, conn_params: %p", sp_gid, sp, sp->init_params.conn_params);
         sp->service_proc.local_id = sp_index;
         sp->service_proc.global_id = sp_gid;
         sp->offload_engine = cfg->offloading_engine;
-        INFO_MSG("[DBG] CM -> SP %p %ld-%ld added to DPU %ld, conn_params: %p",
-            sp, sp->service_proc.local_id, sp->service_proc.global_id, dpu->idx, sp->init_params.conn_params);
         /* Add a pointer to the SP at the DPU level */
         local_dpu_sp = DYN_ARRAY_GET_ELT(&(dpu->local_service_procs), sp_index, uint64_t);
         *local_dpu_sp = sp->service_proc.global_id;
@@ -184,7 +179,6 @@ dpu_offload_parse_list_dpus(offloading_engine_t *engine, offloading_config_t *co
     while (token != NULL)
     {
         // Update the data in the list of DPUs' configurations
-        INFO_MSG("[DBG] TITI: %ld %ld", config_data->num_dpus, config_data->num_dpus);
         dpu_config_data_t *dpu_config = DYN_ARRAY_GET_ELT(&(config_data->dpus_config), config_data->num_dpus, dpu_config_data_t);
         assert(dpu_config);
         dpu_config->version_1.hostname = strdup(token); // freed when calling offload_config_free()
@@ -241,6 +235,7 @@ dpu_offload_parse_list_dpus(offloading_engine_t *engine, offloading_config_t *co
             }
 
             token = strtok(NULL, ",");
+            config_data->num_dpus++;
             continue;
         }
 
@@ -255,8 +250,8 @@ dpu_offload_parse_list_dpus(offloading_engine_t *engine, offloading_config_t *co
             SET_SERVICE_PROC_TO_CONNECT_TO(engine, config_data, d_info);
         }
 
-        config_data->num_dpus++;
         token = strtok(NULL, ",");
+        config_data->num_dpus++;
     }
 
     if (pre == true)
