@@ -1851,6 +1851,7 @@ void offload_config_free(offloading_config_t *cfg)
     DYN_ARRAY_FREE(&(cfg->dpus_config));
     DYN_ARRAY_FREE(&(cfg->sps_config));
     DYN_ARRAY_FREE(&(cfg->hosts_config));
+    DYN_ARRAY_FREE(&(cfg->info_connecting_to.sps_connect_to));
     CONFIG_HOSTS_HASH_FINI(cfg);
 }
 

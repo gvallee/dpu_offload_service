@@ -98,9 +98,9 @@ typedef struct simple_list
 /*****************/
 
 /**
- * @brief dynamic arrays are vectors of data that are implicitely expended
+ * @brief dynamic arrays are vectors of data that are implicitly expended
  * when it reaches its full capacity.
- * WARNING: since dynamic arrays can implicitely grow, the content of the vector
+ * WARNING: since dynamic arrays can implicitly grow, the content of the vector
  * can be re-allocated and therefore moved; do NOT rely on pointer to elements
  * in the vector, if references are necessary, use the index in the vector.
  */

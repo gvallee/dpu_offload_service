@@ -2767,11 +2767,6 @@ typedef struct offloading_engine
     /* Objects used during wire-up */
     dyn_list_t *pool_conn_params;
 
-#if 0
-    /* Pool of remote_dpu_info_t structures, used when getting the configuration */
-    dyn_list_t *pool_remote_dpu_info;
-#endif
-
     // Pool of group_revoke_msg_from_sp_t objects that are available to send notifications to revoke messages from remote SPs
     dyn_list_t *pool_group_revoke_msgs_from_sps;
 
