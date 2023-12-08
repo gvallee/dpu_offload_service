@@ -1307,7 +1307,9 @@ bool parse_line_dpu_version_1(offloading_config_t *data, char *line)
                 remote_service_proc_info_t *cur_sp = NULL;
                 service_proc_config_data_t *sp_config;
                 size_t sp_port_idx;
+                int *intersp_port = NULL;
                 int *port = NULL;
+                int *host_port = NULL;
 
                 cur_sp_gid = DYN_ARRAY_GET_ELT(&(cur_dpu->local_service_procs), local_sp, uint64_t);
                 assert(cur_sp_gid);
@@ -1323,13 +1325,18 @@ bool parse_line_dpu_version_1(offloading_config_t *data, char *line)
                                          sp_idx,
                                          int);
                 assert(port);
+                assert(*port > 0);
                 cur_sp->init_params.conn_params->port = *port;
                 sp_config = DYN_ARRAY_GET_ELT(&(data->sps_config), cur_global_sp_id, service_proc_config_data_t);
                 assert(sp_config);
                 cur_sp->config = sp_config;
                 sp_config->version_1.hostname = target_entry->version_1.hostname;
-                int *intersp_port = DYN_ARRAY_GET_ELT(&(target_entry->version_1.interdpu_ports), sp_port_idx, int);
-                int *host_port = DYN_ARRAY_GET_ELT(&(target_entry->version_1.host_ports), sp_idx, int);
+                intersp_port = DYN_ARRAY_GET_ELT(&(target_entry->version_1.interdpu_ports), sp_port_idx, int);
+                assert(intersp_port);
+                assert(*intersp_port > 0);
+                host_port = DYN_ARRAY_GET_ELT(&(target_entry->version_1.host_ports), sp_idx, int);
+                assert(host_port);
+                assert(*host_port > 0);
                 sp_config->version_1.host_port = *host_port;
                 sp_config->version_1.intersp_port = *intersp_port;
                 cur_sp->init_params.conn_params->port = *intersp_port;
@@ -1341,6 +1348,9 @@ bool parse_line_dpu_version_1(offloading_config_t *data, char *line)
             if (strncmp(data->local_service_proc.hostname, target_entry->version_1.hostname, strlen(target_entry->version_1.hostname)) == 0)
             {
                 remote_service_proc_info_t *sp = NULL;
+                int *intersp_port = NULL;
+                int *host_port = NULL;
+
                 // This is the DPU's configuration we were looking for
                 DBG("-> This is the current DPU");
 
@@ -1371,10 +1381,14 @@ bool parse_line_dpu_version_1(offloading_config_t *data, char *line)
                 data->local_service_proc.inter_service_procs_init_params.id = data->local_service_proc.info.global_id;
                 data->local_service_proc.host_init_params.id_set = true;
                 data->local_service_proc.host_init_params.id = data->local_service_proc.info.global_id;
-                int *intersp_port = DYN_ARRAY_GET_ELT(&(target_entry->version_1.interdpu_ports),
-                                                      data->local_service_proc.info.global_id, int);
-                int *host_port = DYN_ARRAY_GET_ELT(&(target_entry->version_1.host_ports),
-                                                   data->local_service_proc.info.global_id, int);
+                intersp_port = DYN_ARRAY_GET_ELT(&(target_entry->version_1.interdpu_ports),
+                                                 data->local_service_proc.info.local_id, int);
+                assert(intersp_port);
+                assert(*intersp_port > 0);
+                host_port = DYN_ARRAY_GET_ELT(&(target_entry->version_1.host_ports),
+                                              data->local_service_proc.info.local_id, int);
+                assert(host_port);
+                assert(*host_port > 0);
                 data->local_service_proc.inter_service_procs_conn_params.port = *intersp_port;
                 data->local_service_proc.inter_service_procs_conn_params.addr_str = target_entry->version_1.addr;
                 data->local_service_proc.host_conn_params.port = *host_port;

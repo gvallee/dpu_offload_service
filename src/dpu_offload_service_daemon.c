@@ -2855,6 +2855,7 @@ execution_context_t *server_init(offloading_engine_t *offloading_engine, init_pa
             execution_context,
             execution_context->scope_id);
         assert(init_params->conn_params->addr_str);
+        assert(init_params->conn_params->port > 0);
     }
 #endif
 

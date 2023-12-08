@@ -475,6 +475,9 @@ dpu_offload_status_t inter_dpus_connect_mgr(offloading_engine_t *engine, offload
     DBG("Connection manager: expecting %ld inbound connections and %ld outbound connections",
         cfg->num_connecting_service_procs, cfg->info_connecting_to.num_connect_to);
 
+    assert(cfg->local_service_proc.inter_service_procs_conn_params.port > 0);
+    assert(cfg->local_service_proc.host_conn_params.port > 0);
+
     /* Init UCP if necessary */
     if (engine->ucp_context == NULL)
     {
@@ -607,6 +610,9 @@ dpu_offload_status_t get_dpu_config(offloading_engine_t *offload_engine, offload
         if (port_str)
             config_data->local_service_proc.inter_service_procs_conn_params.port = atoi(port_str);
     }
+
+    assert(config_data->local_service_proc.inter_service_procs_conn_params.port > 0);
+    assert(config_data->local_service_proc.host_conn_params.port > 0);
 
     DBG("%ld service process configuration(s) detected, connecting to %ld service processes and expecting %ld inbound connections",
         config_data->num_dpus,
