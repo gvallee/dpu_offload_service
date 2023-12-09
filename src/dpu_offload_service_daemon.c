@@ -2247,7 +2247,6 @@ void offload_engine_fini(offloading_engine_t **offload_engine)
     DYN_LIST_FREE((*offload_engine)->free_op_descs, op_desc_t, item);
     DYN_LIST_FREE((*offload_engine)->free_cache_entry_requests, cache_entry_request_t, item);
     DYN_LIST_FREE((*offload_engine)->pool_conn_params, conn_params_t, item);
-    DYN_LIST_FREE((*offload_engine)->pool_remote_dpu_info, remote_dpu_info_t, item);
     DYN_LIST_FREE((*offload_engine)->pool_group_revoke_msgs_from_sps, group_revoke_msg_from_sp_t, item);
     DYN_LIST_FREE((*offload_engine)->pool_group_revoke_msgs_from_ranks, group_revoke_msg_from_rank_t, item);
     DYN_LIST_FREE((*offload_engine)->pool_pending_recv_group_add, pending_group_add_t, item);
@@ -2255,6 +2254,13 @@ void offload_engine_fini(offloading_engine_t **offload_engine)
     DYN_LIST_FREE((*offload_engine)->pool_pending_recv_cache_entries, pending_recv_cache_entry_t, item);
     DYN_LIST_FREE((*offload_engine)->free_sp_cache_hash_obj, sp_cache_data_t, item);
     DYN_LIST_FREE((*offload_engine)->free_host_cache_hash_obj, host_cache_data_t, item);
+    for (i = 0; i < (*offload_engine)->config->num_dpus; i++)
+    {
+        remote_dpu_info_t *remote_dpu = NULL;
+        remote_dpu = DYN_ARRAY_GET_ELT(&((*offload_engine)->dpus), i, remote_dpu_info_t);
+        assert(remote_dpu);
+        DYN_ARRAY_FREE(&(remote_dpu->local_service_procs));
+    }
     DYN_ARRAY_FREE(&((*offload_engine)->dpus));
     if ((*offload_engine)->on_dpu)
     {
@@ -2849,6 +2855,7 @@ execution_context_t *server_init(offloading_engine_t *offloading_engine, init_pa
             execution_context,
             execution_context->scope_id);
         assert(init_params->conn_params->addr_str);
+        assert(init_params->conn_params->port > 0);
     }
 #endif
 

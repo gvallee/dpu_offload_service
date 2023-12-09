@@ -1130,7 +1130,7 @@ static inline bool parse_dpu_cfg(char *str, dpu_config_data_t *config_entry)
             assert(token_port); // We must have at least one port
             while (token_port != NULL)
             {
-                DBG("-> inter-DPU port #%d is %s", j, token_port);
+                DBG("-> inter-DPU port #%d is %s (DPU %s)", j, token_port, config_entry->version_1.hostname);
                 int *port = DYN_ARRAY_GET_ELT(&(config_entry->version_1.interdpu_ports), j, int);
                 *port = atoi(token_port);
                 j++;
@@ -1173,10 +1173,10 @@ bool parse_line_dpu_version_1(offloading_config_t *data, char *line)
     int idx = 0;
     size_t dpu_idx = 0;
     size_t cur_global_sp_id = 0;
+    size_t local_sp;
     bool rc = false;
     char *rest_line = line;
     dpu_config_data_t *target_entry = NULL;
-    remote_dpu_info_t **list_dpus = NULL;
     host_uid_t last_host = UNKNOWN_HOST;
     char *local_host_name = NULL;
     host_uid_t local_host_uid;
@@ -1184,8 +1184,6 @@ bool parse_line_dpu_version_1(offloading_config_t *data, char *line)
     assert(data);
     assert(data->offloading_engine);
     assert(line);
-    list_dpus = LIST_DPUS_FROM_ENGINE(data->offloading_engine);
-    assert(list_dpus);
 
     while (line[idx] == ' ')
         idx++;
@@ -1197,14 +1195,11 @@ bool parse_line_dpu_version_1(offloading_config_t *data, char *line)
     local_host_uid = HASH_HOSTNAME(local_host_name);
 
     token = strtok_r(rest_line, ",", &rest_line);
-    if (token == NULL)
-        ERR_MSG("unable to parse: %s", line);
     assert(token);
     while (token != NULL)
     {
         bool target_dpu = false;
         size_t i;
-        DBG("-> Service proc data: %s", token);
 
         /* if the DPU is not part of the list of DPUs to use, we skip it */
         for (i = 0; i < data->num_dpus; i++)
@@ -1264,12 +1259,13 @@ bool parse_line_dpu_version_1(offloading_config_t *data, char *line)
             remote_dpu_info_t *cur_dpu = NULL;
             for (d = 0; d < data->num_dpus; d++)
             {
-                remote_dpu_info_t *remote_dpu = list_dpus[d];
+                remote_dpu_info_t *remote_dpu = NULL;
+                remote_dpu = DYN_ARRAY_GET_ELT(&(data->offloading_engine->dpus), d, remote_dpu_info_t);
+                assert(remote_dpu);
+                assert(remote_dpu->hostname);
                 size_t _strlen = strlen(remote_dpu->hostname);
                 if (strlen(target_entry->version_1.hostname) < _strlen)
                     _strlen = strlen(target_entry->version_1.hostname);
-                assert(remote_dpu);
-                assert(remote_dpu->hostname);
                 if (strncmp(target_entry->version_1.hostname, remote_dpu->hostname, _strlen) == 0)
                 {
                     cur_dpu = remote_dpu;
@@ -1285,6 +1281,17 @@ bool parse_line_dpu_version_1(offloading_config_t *data, char *line)
 
             bool parsing_okay = parse_dpu_cfg(token, target_entry);
             CHECK_ERR_RETURN((parsing_okay == false), false, "unable to parse config file entry");
+            assert(target_entry);
+
+            // Corner case: the environment variable to specify the number of SPs per DPU may not
+            // be set, in which case, the config is first assumed to be based with one SP per DPU.
+            // If we detect that a default was set and since we now know how many SPs are to be
+            // expected on each DPU, we update the data
+            if (data->num_service_procs_per_dpu == 1 && (target_entry->version_1.num_interdpu_ports != data->num_service_procs_per_dpu))
+            {
+                data->num_service_procs_per_dpu = target_entry->version_1.num_interdpu_ports;
+            }
+
             // We now have the configuration associated to the line we just parsed, checking a few things...
             assert(target_entry->version_1.addr);
 
@@ -1293,23 +1300,42 @@ bool parse_line_dpu_version_1(offloading_config_t *data, char *line)
              * This is for example where we figure out which port should be used to connect to
              * a given service process.
              */
-            remote_service_proc_info_t *cur_sp, *next_sp;
-            SIMPLE_LIST_FOR_EACH(cur_sp, next_sp, &(cur_dpu->remote_service_procs), item)
+            for (local_sp = 0; local_sp < data->num_service_procs_per_dpu; local_sp++)
             {
-                size_t sp_port_idx = cur_sp->idx % data->num_service_procs_per_dpu;
-                assert(cur_sp->init_params.conn_params);
-                cur_sp->init_params.conn_params->addr_str = target_entry->version_1.addr;
-                int *port = DYN_ARRAY_GET_ELT(&(target_entry->version_1.interdpu_ports),
-                                              sp_idx,
-                                              int);
-                cur_sp->init_params.conn_params->port = *port;
+                uint64_t *cur_sp_gid = NULL;
+                remote_service_proc_info_t *cur_sp = NULL;
                 service_proc_config_data_t *sp_config;
+                size_t sp_port_idx;
+                int *intersp_port = NULL;
+                int *port = NULL;
+                int *host_port = NULL;
+
+                cur_sp_gid = DYN_ARRAY_GET_ELT(&(cur_dpu->local_service_procs), local_sp, uint64_t);
+                assert(cur_sp_gid);
+                cur_sp = DYN_ARRAY_GET_ELT(GET_ENGINE_LIST_SERVICE_PROCS(data->offloading_engine), (*cur_sp_gid), remote_service_proc_info_t);
+                assert(cur_sp);
+
+                // We set the details for each of the SPs running on that DPU
+                sp_port_idx = cur_sp->idx % data->num_service_procs_per_dpu;
+                assert(cur_sp->init_params.conn_params);
+                assert(target_entry);
+                cur_sp->init_params.conn_params->addr_str = target_entry->version_1.addr;
+                port = DYN_ARRAY_GET_ELT(&(target_entry->version_1.interdpu_ports),
+                                         sp_idx,
+                                         int);
+                assert(port);
+                assert(*port > 0);
+                cur_sp->init_params.conn_params->port = *port;
                 sp_config = DYN_ARRAY_GET_ELT(&(data->sps_config), cur_global_sp_id, service_proc_config_data_t);
                 assert(sp_config);
                 cur_sp->config = sp_config;
                 sp_config->version_1.hostname = target_entry->version_1.hostname;
-                int *intersp_port = DYN_ARRAY_GET_ELT(&(target_entry->version_1.interdpu_ports), sp_port_idx, int);
-                int *host_port = DYN_ARRAY_GET_ELT(&(target_entry->version_1.host_ports), sp_idx, int);
+                intersp_port = DYN_ARRAY_GET_ELT(&(target_entry->version_1.interdpu_ports), sp_port_idx, int);
+                assert(intersp_port);
+                assert(*intersp_port > 0);
+                host_port = DYN_ARRAY_GET_ELT(&(target_entry->version_1.host_ports), sp_idx, int);
+                assert(host_port);
+                assert(*host_port > 0);
                 sp_config->version_1.host_port = *host_port;
                 sp_config->version_1.intersp_port = *intersp_port;
                 cur_sp->init_params.conn_params->port = *intersp_port;
@@ -1321,6 +1347,9 @@ bool parse_line_dpu_version_1(offloading_config_t *data, char *line)
             if (strncmp(data->local_service_proc.hostname, target_entry->version_1.hostname, strlen(target_entry->version_1.hostname)) == 0)
             {
                 remote_service_proc_info_t *sp = NULL;
+                int *intersp_port = NULL;
+                int *host_port = NULL;
+
                 // This is the DPU's configuration we were looking for
                 DBG("-> This is the current DPU");
 
@@ -1344,7 +1373,6 @@ bool parse_line_dpu_version_1(offloading_config_t *data, char *line)
                 assert(data->local_service_proc.info.global_id != UINT64_MAX);
                 assert(data->num_service_procs_per_dpu != 0);
                 assert(data->num_service_procs_per_dpu != UINT64_MAX);
-                assert(SIMPLE_LIST_LENGTH(&(cur_dpu->remote_service_procs)) == data->num_service_procs_per_dpu);
 
                 if (data->local_service_proc.info.global_id < data->num_service_procs_per_dpu * (dpu_idx + 1))
                     data->service_proc_found = true;
@@ -1352,10 +1380,14 @@ bool parse_line_dpu_version_1(offloading_config_t *data, char *line)
                 data->local_service_proc.inter_service_procs_init_params.id = data->local_service_proc.info.global_id;
                 data->local_service_proc.host_init_params.id_set = true;
                 data->local_service_proc.host_init_params.id = data->local_service_proc.info.global_id;
-                int *intersp_port = DYN_ARRAY_GET_ELT(&(target_entry->version_1.interdpu_ports),
-                                                      data->local_service_proc.info.local_id, int);
-                int *host_port = DYN_ARRAY_GET_ELT(&(target_entry->version_1.host_ports),
-                                                   data->local_service_proc.info.local_id, int);
+                intersp_port = DYN_ARRAY_GET_ELT(&(target_entry->version_1.interdpu_ports),
+                                                 data->local_service_proc.info.local_id, int);
+                assert(intersp_port);
+                assert(*intersp_port > 0);
+                host_port = DYN_ARRAY_GET_ELT(&(target_entry->version_1.host_ports),
+                                              data->local_service_proc.info.local_id, int);
+                assert(host_port);
+                assert(*host_port > 0);
                 data->local_service_proc.inter_service_procs_conn_params.port = *intersp_port;
                 data->local_service_proc.inter_service_procs_conn_params.addr_str = target_entry->version_1.addr;
                 data->local_service_proc.host_conn_params.port = *host_port;
@@ -1829,11 +1861,10 @@ void offload_config_free(offloading_config_t *cfg)
         }
     }
 
-    DYN_LIST_FREE(cfg->info_connecting_to.pool_remote_sp_connect_to, connect_to_service_proc_t, item);
-
     DYN_ARRAY_FREE(&(cfg->dpus_config));
     DYN_ARRAY_FREE(&(cfg->sps_config));
     DYN_ARRAY_FREE(&(cfg->hosts_config));
+    DYN_ARRAY_FREE(&(cfg->info_connecting_to.sps_connect_to));
     CONFIG_HOSTS_HASH_FINI(cfg);
 }
 

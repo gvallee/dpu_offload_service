@@ -7,6 +7,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 
+#include "dpu_offload_envvars.h"
 #include "dpu_offload_service_daemon.h"
 
 extern dpu_offload_status_t find_config_from_platform_configfile(char *filepath, char *hostname, offloading_config_t *data);
@@ -21,6 +22,7 @@ int main(int argc, char **argv)
     offloading_config_t cfg;
     uint64_t host_hash_key;
     host_info_t *host_hash_value = NULL;
+    size_t sp_gid;
 
     if (argc != 4)
     {
@@ -28,6 +30,13 @@ int main(int argc, char **argv)
         fprintf(stderr, "\t- the path to the configuration file to parse,\n");
         fprintf(stderr, "\t- the list of DPUs you wish to simulate from the config file (e.g., \"jupiterbf001.hpcadvisorycouncil.com,jupiterbf002.hpcadvisorycouncil.com\"\n");
         fprintf(stderr, "\t- the DPU on which we want to simulate the parsing of the configuration (e.g., jupiterbf001.hpcadvisorycouncil.com\n");
+        fprintf(stderr, "The environment variable %s is also expected to be properly set\n", DPU_OFFLOAD_SERVICE_PROCESSES_PER_DPU_ENVVAR);
+        return EXIT_FAILURE;
+    }
+
+    if (getenv(DPU_OFFLOAD_SERVICE_PROCESSES_PER_DPU_ENVVAR) == NULL)
+    {
+        fprintf(stderr, "ERROR: %s is not set, please properly set it\n", DPU_OFFLOAD_SERVICE_PROCESSES_PER_DPU_ENVVAR);
         return EXIT_FAILURE;
     }
 
@@ -42,18 +51,53 @@ int main(int argc, char **argv)
     INIT_DPU_CONFIG_DATA(&cfg);
     cfg.list_dpus = argv[2];
     strcpy(cfg.local_service_proc.hostname, argv[3]);
+
+    // Manually set a few things since we test a fairly low-level API
+    cfg.num_service_procs_per_dpu_str = getenv(DPU_OFFLOAD_SERVICE_PROCESSES_PER_DPU_ENVVAR);
+    cfg.offloading_engine = engine;
+
     rc = dpu_offload_parse_list_dpus(engine, &cfg);
     if (rc != DO_SUCCESS)
     {
         fprintf(stderr, "[ERROR] dpu_offload_parse_list_dpus() failed\n");
         goto error_out;
     }
+    if (cfg.num_service_procs == 0)
+    {
+        fprintf(stderr, "no SP identified\n");
+        goto error_out;
+    }
+    if (cfg.num_dpus == 0)
+    {
+        fprintf(stderr, "No DPU identified\n");
+        goto error_out;
+    }
+
+    // Check a few things after the first step
+    for (sp_gid = 0; sp_gid < cfg.num_service_procs; sp_gid++)
+    {
+        remote_service_proc_info_t *sp = DYN_ARRAY_GET_ELT(GET_ENGINE_LIST_SERVICE_PROCS(engine),
+                                                           sp_gid,
+                                                           remote_service_proc_info_t);
+        if (sp == NULL)
+        {
+            fprintf(stderr, "undefined SP\n");
+            goto error_out;
+        }
+        if (sp->init_params.conn_params == NULL)
+        {
+            fprintf(stderr, "undefined conn_params\n");
+            goto error_out;
+        }
+    }
+
     rc = find_dpu_config_from_platform_configfile(argv[1], &cfg);
     if (rc != DO_SUCCESS)
     {
         fprintf(stderr, "[ERROR] find_dpu_config_from_platform_configfile() failed\n");
         goto error_out;
     }
+
     fprintf(stdout, "Configuration: \n");
     fprintf(stdout, "\tNumber of DPUs: %ld\n", cfg.num_dpus);
     fprintf(stdout, "\tNumber of service process per DPU: %ld\n", cfg.num_service_procs_per_dpu);
@@ -73,16 +117,23 @@ int main(int argc, char **argv)
     }
     fprintf(stdout, "\tAddress: %s\n", cfg.local_service_proc.host_conn_params.addr_str);
     fprintf(stdout, "Connecting to %ld service processes\n", cfg.info_connecting_to.num_connect_to);
-    connect_to_service_proc_t *remote_sp, *next_remote_sp;
-    ucs_list_for_each_safe(remote_sp, next_remote_sp, &(cfg.info_connecting_to.sps_connect_to), item)
+
+    for (i = 0; i < cfg.info_connecting_to.num_connect_to; i++)
     {
-        if (remote_sp->sp->init_params.conn_params == NULL)
+        uint64_t *remote_sp_gid = NULL;
+        remote_service_proc_info_t *remote_sp = NULL;
+
+        remote_sp_gid = DYN_ARRAY_GET_ELT(&(cfg.info_connecting_to.sps_connect_to), i, uint64_t);
+        assert(remote_sp_gid);
+        remote_sp = DYN_ARRAY_GET_ELT(GET_ENGINE_LIST_SERVICE_PROCS(engine), *remote_sp_gid, remote_service_proc_info_t);
+        assert(remote_sp);
+        if (remote_sp->init_params.conn_params == NULL)
         {
-            fprintf(stderr, "[ERROR] connection parameters for %p are undefined\n", remote_sp->sp);
+            fprintf(stderr, "[ERROR] connection parameters for %p are undefined\n", remote_sp);
             goto error_out;
         }
-        fprintf(stdout, "\tPort: %d\n", remote_sp->sp->init_params.conn_params->port);
-        if (remote_sp->sp->init_params.conn_params->port == -1)
+        fprintf(stdout, "\tPort to connect to SP #%ld: %d\n", remote_sp->service_proc.global_id, remote_sp->init_params.conn_params->port);
+        if (remote_sp->init_params.conn_params->port == -1)
         {
             fprintf(stderr, "[ERROR] Invalid port\n");
             goto error_out;

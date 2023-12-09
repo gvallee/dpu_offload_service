@@ -97,6 +97,13 @@ typedef struct simple_list
 /* DYNAMIC ARRAY */
 /*****************/
 
+/**
+ * @brief dynamic arrays are vectors of data that are implicitly expended
+ * when it reaches its full capacity.
+ * WARNING: since dynamic arrays can implicitly grow, the content of the vector
+ * can be re-allocated and therefore moved; do NOT rely on pointer to elements
+ * in the vector, if references are necessary, use the index in the vector.
+ */
 typedef struct dyn_array
 {
     void *base;
@@ -106,16 +113,16 @@ typedef struct dyn_array
     dyn_struct_elt_init_fn element_init_fn;
 } dyn_array_t;
 
-#define DYN_ARRAY_ALLOC(_dyn_array_alloc, _da_alloc_num_elts_alloc, _da_alloc_type)                             \
-    do                                                                                                          \
-    {                                                                                                           \
-        assert(_da_alloc_num_elts_alloc);                                                                       \
+#define DYN_ARRAY_ALLOC(_dyn_array_alloc, _da_alloc_num_elts_alloc, _da_alloc_type)                              \
+    do                                                                                                           \
+    {                                                                                                            \
+        assert(_da_alloc_num_elts_alloc);                                                                        \
         (_dyn_array_alloc)->allocation_size = _da_alloc_num_elts_alloc;                                          \
-        (_dyn_array_alloc)->capacity = _da_alloc_num_elts_alloc;                                                \
-        (_dyn_array_alloc)->type_size = sizeof(_da_alloc_type);                                                 \
-        (_dyn_array_alloc)->element_init_fn = NULL;                                                             \
+        (_dyn_array_alloc)->capacity = _da_alloc_num_elts_alloc;                                                 \
+        (_dyn_array_alloc)->type_size = sizeof(_da_alloc_type);                                                  \
+        (_dyn_array_alloc)->element_init_fn = NULL;                                                              \
         (_dyn_array_alloc)->base = malloc((_dyn_array_alloc)->allocation_size * (_dyn_array_alloc)->type_size);  \
-        assert((_dyn_array_alloc)->base);                                                                       \
+        assert((_dyn_array_alloc)->base);                                                                        \
         memset((_dyn_array_alloc)->base, 0, (_dyn_array_alloc)->allocation_size *(_dyn_array_alloc)->type_size); \
     } while (0)
 
@@ -124,7 +131,7 @@ typedef struct dyn_array
     {                                                                              \
         size_t _da_alloc_x;                                                        \
         assert(_num_elts_alloc);                                                   \
-        (_dyn_array)->allocation_size = _num_elts_alloc;                            \
+        (_dyn_array)->allocation_size = _num_elts_alloc;                           \
         (_dyn_array)->capacity = _num_elts_alloc;                                  \
         (_dyn_array)->element_init_fn = _fn;                                       \
         (_dyn_array)->base = malloc(_num_elts_alloc * sizeof(_type));              \
