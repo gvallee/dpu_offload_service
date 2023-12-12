@@ -2685,6 +2685,7 @@ typedef struct offloading_engine
         bool persistent_endpoint_cache;
     } settings;
 
+    // Not really used on the DPU at the moment, i keep it for some backward compatibility concerns.
     bool host_dpu_data_initialized;
     union
     {
