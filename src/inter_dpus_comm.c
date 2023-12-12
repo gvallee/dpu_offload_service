@@ -369,7 +369,6 @@ connect_to_service_procs(offloading_engine_t *offload_engine, service_procs_inte
 static uint64_t get_dpu_global_id_from_service_proc_id(offloading_engine_t *engine, uint64_t service_proc_global_id)
 {
     remote_service_proc_info_t *sp = NULL;
-    assert(engine->host_dpu_data_initialized == true);
     if (engine->num_service_procs <= service_proc_global_id)
         return UINT64_MAX;
     sp = DYN_ARRAY_GET_ELT(GET_ENGINE_LIST_SERVICE_PROCS(engine),
