@@ -392,6 +392,7 @@ void *get_notif_buf(dpu_offload_ev_sys_t *ev_sys, uint64_t type)
     return (entry->info.get_buf(entry->info.mem_pool, entry->info.get_buf_args));
 }
 
+// WARNING: This function returns a pointer into a dynamic array
 notification_callback_entry_t *get_notif_callback_entry(dpu_offload_ev_sys_t *ev_sys, uint64_t type)
 {
     notification_callback_entry_t *entry;

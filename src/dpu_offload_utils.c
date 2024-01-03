@@ -551,7 +551,7 @@ static dpu_offload_status_t send_local_revoke_rank_group_cache(execution_context
  * @param dest_ep Remote service process endpoint
  * @param dest_id Remote service process ID
  * @param gp_uid Group UID associated to the operation
- * @param metaev Meta event to track all the different sends involve in the broadcast invoking the call to this function
+ * @param metaev Meta event to track all the different sends involved in the broadcast invoking the call to this function
  * @return dpu_offload_status_t
  */
 static dpu_offload_status_t send_local_rank_group_cache(execution_context_t *econtext, ucp_ep_h dest_ep, uint64_t dest_id, group_uid_t gp_uid, dpu_offload_event_t *metaev)
@@ -584,15 +584,28 @@ static dpu_offload_status_t send_local_rank_group_cache(execution_context_t *eco
         find_range_local_ranks(econtext, gp_uid, gp_cache->group_size, idx, gp_cache->n_local_ranks_populated, count, &idx_start, &n_entries_to_send, &idx);
         dpu_offload_event_t *e;
         peer_cache_entry_t *first_entry = GET_GROUP_RANK_CACHE_ENTRY(&(econtext->engine->procs_cache), gp_uid, idx_start, gp_cache->group_size);
+        
+        // BW: It seems like using first_entry (a pointer to dynamic array elements) in conjunction with
+        // event_channel_emit_with_payload() could potentially be problematic. i.e. If first_entry becomes invalid
+        // before the underlying data is sent. Switching to a managed payload with event_channel_emit() for now.
+        // TODO: If we want to use event_channel_emit() here long-term, we may need an mpool for the buffers
+        // to avoid malloc/memcpy/free costs
+#if 0
         rc = event_get(econtext->event_channels, NULL, &e);
         CHECK_ERR_RETURN((rc), DO_ERROR, "event_get() failed");
         e->is_subevent = true;
-
+#endif
+        dpu_offload_event_info_t event_info = { .payload_size = (n_entries_to_send * sizeof(peer_cache_entry_t)), };
+        rc = event_get(econtext->event_channels, &event_info, &e);
+        CHECK_ERR_RETURN((rc), DO_ERROR, "event_get() failed");
+        memcpy(e->payload, first_entry, (n_entries_to_send * sizeof(peer_cache_entry_t)));
+        e->is_subevent = true;
 #if !NDEBUG
         uint64_t sp_global_id = LOCAL_ID_TO_GLOBAL(econtext, dest_id);
         DBG("Sending %ld cache entries to %ld (SP %" PRIu64 ") from entry %ld, ev: %p (%ld), metaev: %ld (msg size: %ld)",
             n_entries_to_send, dest_id, sp_global_id, idx_start, e, e->seq_num, metaev->seq_num, n_entries_to_send * sizeof(peer_cache_entry_t));
 #endif
+#if 0
         rc = event_channel_emit_with_payload(&e,
                                              AM_PEER_CACHE_ENTRIES_MSG_ID,
                                              dest_ep,
@@ -600,9 +613,12 @@ static dpu_offload_status_t send_local_rank_group_cache(execution_context_t *eco
                                              NULL,
                                              first_entry,
                                              n_entries_to_send * sizeof(peer_cache_entry_t));
+#endif
+        rc = event_channel_emit(&e, AM_PEER_CACHE_ENTRIES_MSG_ID, dest_ep, dest_id, NULL);
         if (rc != EVENT_DONE && rc != EVENT_INPROGRESS)
         {
-            ERR_MSG("event_channel_emit_with_payload() failed");
+            //ERR_MSG("event_channel_emit_with_payload() failed");
+            ERR_MSG("event_channel_emit() failed");
             return DO_ERROR;
         }
         if (e != NULL)
@@ -939,7 +955,7 @@ dpu_offload_status_t get_sp_ep_by_id(offloading_engine_t *engine, uint64_t sp_id
                      DO_ERROR,
                      "request service process #%ld but only %ld service processes are known",
                      sp_id, engine->num_service_procs);
-    remote_service_proc_info_t *sp;
+    remote_service_proc_info_t *sp = NULL;
 
     if (engine->on_dpu)
     {
@@ -1098,6 +1114,8 @@ static inline bool parse_dpu_cfg(char *str, dpu_config_data_t *config_entry)
     assert(str);
     assert(config_entry);
 
+    // TODO: Looks like this may leak memory on the host side where
+    // parse_dpu_cfg() is called in a loop inside parse_line_version_1()
     DYN_ARRAY_ALLOC(&(config_entry->version_1.interdpu_ports), 2, int);
     DYN_ARRAY_ALLOC(&(config_entry->version_1.host_ports), 2, int);
 
@@ -1233,7 +1251,7 @@ bool parse_line_dpu_version_1(offloading_config_t *data, char *line)
             {
                 // First we know about the host
                 host_info_t *host_info = NULL;
-                khiter_t host_key;
+                khiter_t host_idx_key;
                 int ret;
 
                 host_info = DYN_ARRAY_GET_ELT(&(data->hosts_config),
@@ -1244,12 +1262,12 @@ bool parse_line_dpu_version_1(offloading_config_t *data, char *line)
                 host_info->idx = data->num_hosts;
                 host_info->uid = local_host_uid;
 
-                // Add the host to the lookup table
-                host_key = kh_put(host_info_hash_t,
-                                  data->host_lookup_table,
-                                  local_host_uid,
-                                  &ret);
-                kh_value(data->host_lookup_table, host_key) = host_info;
+                // Add the host index to the lookup table
+                host_idx_key = kh_put(host_info_indices_hash_t,
+                                      data->host_idx_lookup_table,
+                                      local_host_uid,
+                                      &ret);
+                kh_value(data->host_idx_lookup_table, host_idx_key) = data->num_hosts;
                 data->num_hosts++;
                 last_host = target_host;
             }
@@ -1304,7 +1322,7 @@ bool parse_line_dpu_version_1(offloading_config_t *data, char *line)
             {
                 uint64_t *cur_sp_gid = NULL;
                 remote_service_proc_info_t *cur_sp = NULL;
-                service_proc_config_data_t *sp_config;
+                service_proc_config_data_t *sp_config = NULL;
                 size_t sp_port_idx;
                 int *intersp_port = NULL;
                 int *port = NULL;
@@ -1328,8 +1346,10 @@ bool parse_line_dpu_version_1(offloading_config_t *data, char *line)
                 cur_sp->init_params.conn_params->port = *port;
                 sp_config = DYN_ARRAY_GET_ELT(&(data->sps_config), cur_global_sp_id, service_proc_config_data_t);
                 assert(sp_config);
-                cur_sp->config = sp_config;
+                cur_sp->config_idx = cur_global_sp_id;
                 sp_config->version_1.hostname = target_entry->version_1.hostname;
+                // BW: We must not use the "port" pointer after this point in the loop since the following call
+                // could invalidate it. Currently looks okay.
                 intersp_port = DYN_ARRAY_GET_ELT(&(target_entry->version_1.interdpu_ports), sp_port_idx, int);
                 assert(intersp_port);
                 assert(*intersp_port > 0);
@@ -1353,7 +1373,7 @@ bool parse_line_dpu_version_1(offloading_config_t *data, char *line)
                 // This is the DPU's configuration we were looking for
                 DBG("-> This is the current DPU");
 
-                // We now know that the configuration is about the local DPU. Based on this, the nest
+                // We now know that the configuration is about the local DPU. Based on this, the next
                 // steps are:
                 // 1. Find how many service processes are before/after us to update the list of service
                 //    processes we need to connect to and the list of service processes we expect to
@@ -1412,7 +1432,7 @@ bool parse_line_dpu_version_1(offloading_config_t *data, char *line)
 static dpu_offload_status_t add_host_to_config(offloading_config_t *cfg, char *hostname)
 {
     host_info_t *host_info = NULL;
-    khiter_t host_key;
+    khiter_t host_idx_key;
     int ret;
     host_info = DYN_ARRAY_GET_ELT(&(cfg->hosts_config),
                                   cfg->num_hosts,
@@ -1422,12 +1442,12 @@ static dpu_offload_status_t add_host_to_config(offloading_config_t *cfg, char *h
     host_info->idx = cfg->num_hosts;
     host_info->uid = HASH_HOSTNAME(hostname);
 
-    // Add the host to the lookup table
-    host_key = kh_put(host_info_hash_t,
-                      cfg->host_lookup_table,
-                      host_info->uid,
-                      &ret);
-    kh_value(cfg->host_lookup_table, host_key) = host_info;
+    // Add the host index to the lookup table
+    host_idx_key = kh_put(host_info_indices_hash_t,
+                          cfg->host_idx_lookup_table,
+                          host_info->uid,
+                          &ret);
+    kh_value(cfg->host_idx_lookup_table, host_idx_key) = cfg->num_hosts;
     return DO_SUCCESS;
 }
 
@@ -1797,7 +1817,7 @@ dpu_offload_status_t get_num_connecting_ranks(uint64_t num_service_procs_per_dpu
 dpu_offload_status_t get_local_service_proc_connect_info(offloading_config_t *cfg, rank_info_t *rank_info, init_params_t *init_params)
 {
     int64_t service_proc_local_id = 0;
-    dpu_config_data_t *entry = NULL;
+    //dpu_config_data_t *entry = NULL;
     int *host_port = NULL;
     assert(cfg);
     assert(rank_info);
@@ -1811,7 +1831,8 @@ dpu_offload_status_t get_local_service_proc_connect_info(offloading_config_t *cf
         service_proc_local_id = rank_info->local_rank % cfg->num_service_procs_per_dpu;
     }
 
-    entry = DYN_ARRAY_GET_ELT(&(cfg->dpus_config), cfg->local_service_proc.info.dpu, dpu_config_data_t);
+    // BW: entry doesn't look to be used
+    //entry = DYN_ARRAY_GET_ELT(&(cfg->dpus_config), cfg->local_service_proc.info.dpu, dpu_config_data_t);
     cfg->local_service_proc.info.local_id = service_proc_local_id;
     // Note that we cannot calculate the SP's global ID since we have no idea at this point
     // what are the DPUs using by the job, which is a subset of all the DPUs from the config

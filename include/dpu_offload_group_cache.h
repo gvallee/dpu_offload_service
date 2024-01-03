@@ -163,12 +163,12 @@ extern execution_context_t *get_server_servicing_host(offloading_engine_t *engin
                     }                                                       \
                     if (_gp_cache->sp_array_initialized)                    \
                     {                                                       \
-                        DYN_ARRAY_FREE(&(_gp_cache->sps));                  \
+                        DYN_ARRAY_FREE(&(_gp_cache->sp_indices));           \
                         _gp_cache->sp_array_initialized = false;            \
                     }                                                       \
                     if (_gp_cache->host_array_initialized)                  \
                     {                                                       \
-                        DYN_ARRAY_FREE(&(_gp_cache->hosts));                \
+                        DYN_ARRAY_FREE(&(_gp_cache->host_indices));         \
                         _gp_cache->host_array_initialized = false;          \
                     }                                                       \
                     /* Free hash table(s) */                                \
@@ -295,7 +295,7 @@ extern execution_context_t *get_server_servicing_host(offloading_engine_t *engin
 bool is_in_cache(cache_t *cache, group_uid_t gp_uid, int64_t rank_id, int64_t group_size);
 
 /**
- * @brief This function populated the cache's lookup tables. It assumes the cache is
+ * @brief This function populates the cache's lookup tables. It assumes the cache is
  * fully ppopulated.
  *
  * @param[in] engine Associated offload engine
@@ -392,7 +392,7 @@ dpu_offload_status_t get_num_ranks_for_group_sp(offloading_engine_t *engine,
 
 /**
  * @brief Get the number of running ranks assigned to a specific service process that
- * is identifier through its local group identifier (local host service process identifier)
+ * is identified through its local group identifier (local host service process identifier)
  * and the host index from the contiguous ordered array of hosts.
  *
  * @param[in] engine Associated offload engine
@@ -518,7 +518,7 @@ dpu_offload_status_t get_all_hosts_by_group(offloading_engine_t *engine,
                                             size_t *num_hosts);
 
 /**
- * @brief Get all the ranks associated to a specific service process involed in a given group, using the
+ * @brief Get all the ranks associated to a specific service process involved in a given group, using the
  * service process group global id.
  *
  * @param[in] engine Associated offload engine

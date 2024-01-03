@@ -974,11 +974,11 @@ error_out:
  * @return dpu_offload_status_t 
  */
 static dpu_offload_status_t
-finalize_connection_to_remote_service_proc(offloading_engine_t *offload_engine, remote_service_proc_info_t *remote_sp, execution_context_t *client)
+finalize_connection_to_remote_service_proc(offloading_engine_t *offload_engine, uint64_t remote_sp_idx, execution_context_t *client)
 {
     ENGINE_LOCK(offload_engine);
     remote_service_proc_info_t *sp = DYN_ARRAY_GET_ELT(GET_ENGINE_LIST_SERVICE_PROCS(offload_engine),
-                                                       remote_sp->idx,
+                                                       remote_sp_idx,
                                                        remote_service_proc_info_t);
     assert(sp);
     sp->ep = client->client->server_ep;
@@ -989,12 +989,12 @@ finalize_connection_to_remote_service_proc(offloading_engine_t *offload_engine, 
     assert(sp->init_params.conn_params);
     DBG("Connection successfully established to service process #%" PRIu64
         " running on DPU #%" PRIu64 " (num service processes: %ld, number of connection with other service processes: %ld)",
-        remote_sp->idx,
-        remote_sp->service_proc.dpu,
+        sp->idx,
+        sp->service_proc.dpu,
         offload_engine->num_service_procs,
         offload_engine->num_connected_service_procs);
     DBG("-> Service process #%ld: addr=%s, port=%d, ep=%p, econtext=%p, client_id=%" PRIu64 ", server_id=%" PRIu64,
-        remote_sp->idx,
+        sp->idx,
         sp->init_params.conn_params->addr_str,
         sp->init_params.conn_params->port,
         sp->ep,
@@ -1062,7 +1062,7 @@ dpu_offload_status_t offload_engine_progress(offloading_engine_t *engine)
                     c, c_econtext->client->server_id);
                 ECONTEXT_UNLOCK(c_econtext);
                 dpu_offload_status_t rc = finalize_connection_to_remote_service_proc(engine,
-                                                                                     engine->inter_service_proc_clients[c].remote_service_proc_info,
+                                                                                     engine->inter_service_proc_clients[c].remote_service_proc_idx,
                                                                                      engine->inter_service_proc_clients[c].client_econtext);
                 CHECK_ERR_RETURN((rc), DO_ERROR, "finalize_connection_to_remote_service_proc() failed");
                 ECONTEXT_UNLOCK(c_econtext);
@@ -1549,10 +1549,14 @@ add_cache_entry_for_new_client(peer_info_t *client_info, execution_context_t *ct
                    client_info->peer_addr,
                    client_info->peer_addr_len);
         }
-        assert(client_info->cache_entries.capacity > 0);
-        peer_cache_entry_t **cache_entries = (peer_cache_entry_t **)(client_info->cache_entries.base);
-        assert(cache_entries);
-        cache_entries[0] = cache_entry;
+        assert(client_info->cache_entry_index_data.capacity > 0);
+        peer_cache_entry_index_t *index_item = DYN_ARRAY_GET_ELT(&(client_info->cache_entry_index_data),
+                                                                 0,
+                                                                 peer_cache_entry_index_t);
+        assert(index_item);
+        index_item->group_uid = client_info->rank_data.group_uid;
+        index_item->rank = client_info->rank_data.group_rank;
+        index_item->group_size = client_info->rank_data.group_size;
 
         // Update the topology
         rc = update_topology_data(ctx->engine,
@@ -2705,7 +2709,8 @@ dpu_offload_status_t server_init_context(execution_context_t *econtext, init_par
 #else
         peer_info->notif_recv.ctx.complete = true; // to make sure we can post the initial recv
 #endif
-        DYN_ARRAY_ALLOC(&(peer_info->cache_entries), MAX_CACHE_ENTRIES_PER_PROC, peer_cache_entry_t *);
+        // TODO: Not sure this is used, but leaving for now. Where is the memory freed?
+        DYN_ARRAY_ALLOC(&(peer_info->cache_entry_index_data), MAX_CACHE_ENTRIES_PER_PROC, peer_cache_entry_index_t);
     }
 
     if (init_params == NULL || init_params->conn_params == NULL)
