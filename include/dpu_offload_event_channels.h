@@ -272,8 +272,18 @@ bool event_completed(dpu_offload_event_t *ev);
 
 dpu_offload_status_t send_term_msg(execution_context_t *ctx, dest_client_t *dest_info);
 
-// FIXME: those should not be there
+/* FIXME: those should not be there */
+/**
+ * @brief send_revoke_group_to_ranks sends a group revoke message that specifies how many ranks revoked the said group.
+ * 
+ * @param engine Offload engine associated to the revoke.
+ * @param gp_uid Group UID associated to the revoke.
+ * @param num_ranks Number of ranks that already revoked the group.
+ * @return dpu_offload_status_t 
+ */
 dpu_offload_status_t send_revoke_group_to_ranks(offloading_engine_t *engine, group_uid_t gp_uid, uint64_t num_ranks);
+
 dpu_offload_status_t handle_pending_group_cache_add_msgs(group_cache_t *group_cache);
+/* END FIXME */
 
 #endif // DPU_OFFLOAD_EVENT_CHANNELS_H_

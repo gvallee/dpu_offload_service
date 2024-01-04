@@ -258,7 +258,7 @@ dpu_offload_status_t handle_peer_cache_entries_recv(execution_context_t *econtex
     cache = &(engine->procs_cache);
     group_size = entries[idx].peer.proc_info.group_size;
     group_uid = entries[idx].peer.proc_info.group_uid;
-    gp_cache = GET_GROUP_CACHE(&(econtext->engine->procs_cache), group_uid);
+    gp_cache = GET_GROUP_CACHE_INTERNAL(&(econtext->engine->procs_cache), group_uid, group_size);
     assert(gp_cache);
 
     while (cur_size < data_len)
@@ -1457,7 +1457,7 @@ host_add_local_rank_to_cache(offloading_engine_t *engine, rank_info_t *rank_info
                                                                  rank_info->group_uid,
                                                                  rank_info->group_rank,
                                                                  rank_info->group_size);
-    group_cache_t *gp_cache = GET_GROUP_CACHE(&(engine->procs_cache), rank_info->group_uid);
+    group_cache_t *gp_cache = GET_GROUP_CACHE_INTERNAL(&(engine->procs_cache), rank_info->group_uid, rank_info->group_size);
     assert(cache_entry);
     assert(gp_cache);
     assert(engine->config != NULL);
