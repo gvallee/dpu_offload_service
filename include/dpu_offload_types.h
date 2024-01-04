@@ -23,6 +23,7 @@ _EXTERN_C_BEGIN
 #define DEFAULT_INTER_DPU_CONNECT_PORT (11111)
 #define DEFAULT_NUM_PEERS (10000)
 #define DEFAULT_NUM_SERVICE_PROCS (256)
+#define MIMOSA_DEFAULT_NUM_RANKS (1024)
 
 // Set to 1 to use the AM implementaton; 0 to use tag send/recv implementation
 #define USE_AM_IMPLEM (1)
@@ -2087,11 +2088,12 @@ typedef struct group_cache
         (__g)->lookup_tables_populated = false;     \
     } while(0)
 
-#define INIT_GROUP_CACHE(__g)                                                           \
+#define INIT_GROUP_CACHE(__g, __gp_size)                                                \
     do                                                                                  \
     {                                                                                   \
+        assert(__gp_size > 0);                                                          \
         BASIC_INIT_GROUP_CACHE((__g));                                                  \
-        DYN_ARRAY_ALLOC(&((__g)->ranks), 1024, peer_cache_entry_t);                     \
+        DYN_ARRAY_ALLOC(&((__g)->ranks), __gp_size, peer_cache_entry_t);                \
         (__g)->rank_array_initialized = true;                                           \
         /* No need to allocate _new_group_cache->hosts, we handle it when we populte */ \
         /* lookup tables in populate_group_cache_lookup_table() */                      \
@@ -2238,14 +2240,19 @@ typedef struct group_cache
 #endif
 
 /**
- * @brief GET_GROUP_CACHE looks up a specific group from the cache. If the cache does
+ * @brief GET_GROUP_CACHE_INTERNAL looks up a specific group from the cache. If the cache does
  * not exist, the macro initializes the group cache structure for the cache to be ready
  * to be used. It does not mean the group cache for the group is fully initialized. The
  * second part of the initialization is performed when a rank is added to the cache.
+ * Designed to be used within MIMOSA, not be other libraries.
+ * When the group is already initialized or not known, the group size can be set to 0.
  */
-#define GET_GROUP_CACHE(_cache, _gp_uid) ({                                                         \
+#define GET_GROUP_CACHE_INTERNAL(_cache, _gp_uid, _gp_size) ({                                      \
+    size_t __gp_size = _gp_size;                                                                    \
     group_cache_t *_gp_cache = NULL;                                                                \
     assert((_cache)->data);                                                                         \
+    if (__gp_size == 0)                                                                             \
+        __gp_size = MIMOSA_DEFAULT_NUM_RANKS;                                                       \
     khiter_t k = kh_get(group_hash_t, (_cache)->data, _gp_uid);                                     \
     if (k == kh_end((_cache)->data))                                                                \
     {                                                                                               \
@@ -2258,12 +2265,12 @@ typedef struct group_cache
         khiter_t _newKey = kh_put(group_hash_t, (_cache)->data, (_gp_uid), &_ret);                  \
         DYN_LIST_GET((_cache)->group_cache_pool, group_cache_t, item, _new_group_cache);            \
         assert(_new_group_cache);                                                                   \
-        INIT_GROUP_CACHE(_new_group_cache);                                                         \
+        INIT_GROUP_CACHE(_new_group_cache, _gp_size);                                               \
         _new_group_cache->persistent.initialized = false;                                           \
         _new_group_cache->engine = (_cache)->engine;                                                \
         _new_group_cache->group_uid = (_gp_uid);                                                    \
         /* We set the value for the first group when we add */                                      \
-        /* the first rank to a cache. GET_GROUP_CACHE only made */                                  \
+        /* the first rank to a cache. GET_GROUP_CACHE_INTERNAL only made */                         \
         /* sure we could use the structure */                                                       \
         /* The first group is MPI_COMM_WORLD or equivalent. */                                      \
         (_cache)->size++;                                                                           \
@@ -2292,7 +2299,7 @@ typedef struct group_cache
             /* a previous group revoke, which does not delete entries from hash */                  \
             /* tables but reset the group cache handle. In such a case, we */                       \
             /* re-initialize the group cache */                                                     \
-            INIT_GROUP_CACHE(_gp_cache);                                                            \
+            INIT_GROUP_CACHE(_gp_cache, __gp_size);                                                 \
             _gp_cache->group_uid = _gp_uid;                                                         \
         }                                                                                           \
         if (_gp_cache->engine == NULL && _gp_cache->num_local_entries == 0)                         \
@@ -2305,6 +2312,18 @@ typedef struct group_cache
         assert(_gp_cache->persistent.initialized == true);                                          \
     }                                                                                               \
     _gp_cache;                                                                                      \
+})
+
+/**
+ * @brief GET_GROUP_CACHE looks up a specific group from the cache. If the cache does
+ * not exist, the macro initializes the group cache structure for the cache to be ready
+ * to be used. It does not mean the group cache for the group is fully initialized. The
+ * second part of the initialization is performed when a rank is added to the cache.
+ */
+#define GET_GROUP_CACHE(_cache, _gp_uid) ({                     \
+    group_cache_t *_gp_cache = NULL;                            \
+    _gp_cache = GET_GROUP_CACHE_INTERNAL(_cache, _gp_uid, 0);   \
+    _gp_cache;                                                  \
 })
 
 #define GET_GROUP_KEY(__gp) ({                          \
@@ -2444,7 +2463,7 @@ typedef struct cache
         peer_cache_entry_t *_entry = NULL;                                  \
         group_cache_t *_gp_cache = NULL;                                    \
         dyn_array_t *_rank_cache = NULL;                                    \
-        _gp_cache = GET_GROUP_CACHE((_cache), _gp_uid);                     \
+        _gp_cache = GET_GROUP_CACHE_INTERNAL((_cache), _gp_uid, _gp_size);           \
         assert(_gp_cache);                                                  \
         _rank_cache = &(_gp_cache->ranks);                                  \
         if (_gp_cache->initialized &&                                       \
