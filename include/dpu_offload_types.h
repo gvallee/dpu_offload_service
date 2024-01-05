@@ -2352,10 +2352,12 @@ typedef struct group_cache
 /*
  * WARNING: GET_GROUPRANK_CACHE_ENTRY() returns a pointer into a dynamic
  * array which must be limited in scope. See DYN_ARRAY_GET_ELT().
+ * FIXME: this is by definition incorrect
  */
 #define GET_GROUPRANK_CACHE_ENTRY(_cache, _gp_uid, _rank)                       \
     ({                                                                          \
         peer_cache_entry_t *_entry = NULL;                                      \
+        abort();                                                                \
         group_cache_t *_gp_cache = GET_GROUP_CACHE((_cache), (_gp_uid));        \
         dyn_array_t *_rank_cache = &(_gp_cache->ranks);                         \
         if (_gp_cache->initialized == true)                                     \
@@ -2474,12 +2476,14 @@ typedef struct cache
  * 
  * WARNING: GET_GROUP_RANK_CACHE_ENTRY() returns a pointer into a dynamic
  * array which must be limited in scope. See DYN_ARRAY_GET_ELT().
+ * FIXME: this is by default the wrong thing to do.
  */
 #define GET_GROUP_RANK_CACHE_ENTRY(_cache, _gp_uid, _rank, _gp_size)        \
     ({                                                                      \
         peer_cache_entry_t *_entry = NULL;                                  \
         group_cache_t *_gp_cache = NULL;                                    \
         dyn_array_t *_rank_cache = NULL;                                    \
+        abort();                                                            \
         _gp_cache = GET_GROUP_CACHE((_cache), _gp_uid);                     \
         assert(_gp_cache);                                                  \
         _rank_cache = &(_gp_cache->ranks);                                  \
