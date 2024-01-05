@@ -106,11 +106,22 @@ typedef struct simple_list
  */
 typedef struct dyn_array
 {
-    void *base;                                 // pointer to the memory backing the dynamic array
-    size_t capacity;                            // number of elements the dynamic array can currently hold
-    size_t allocation_size;                     // granularity in elements to use when expanding the dynamic array capacity
-    size_t type_size;                           // size in bytes of a dynamic array element
-    dyn_struct_elt_init_fn element_init_fn;     // pointer to function used to initialize dynamic array elements
+    // Pointer to the memory backing the dynamic array
+    void *base;
+
+    // Capacity of the dynamic array can currently hold, *not* the number of actual elements being used
+    size_t capacity;
+
+    // Number of elements (*not* memory size) to allocate when expanding the dynamic array capacity
+    size_t allocation_size;
+
+    // Size in bytes of a dynamic array element
+    size_t type_size;
+
+    // Optional function pointer used to initialize a single dynamic array element;
+    // when defined, called for the entire dynarmic array's capacity ti ensure the array
+    // is fully initialized before being used.
+    dyn_struct_elt_init_fn element_init_fn;
 } dyn_array_t;
 
 #define DYN_ARRAY_ALLOC(_dyn_array_alloc, _da_alloc_num_elts_alloc, _da_alloc_type)                              \
