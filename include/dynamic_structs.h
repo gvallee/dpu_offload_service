@@ -100,6 +100,7 @@ typedef struct simple_list
 /**
  * @brief dynamic arrays are vectors of data that are implicitly extended
  * when it reaches its full capacity.
+ * 
  * WARNING: since dynamic arrays can implicitly grow, the content of the vector
  * can be re-allocated and therefore moved; do NOT rely on pointer to elements
  * in the vector, if references are necessary, use the index in the vector.
@@ -200,20 +201,20 @@ typedef struct dyn_array
     } while (0)
 
 /*
- * WARNING: DYN_ARRAY_GET_ELT() may reallocate the memory backing a specified dynamic
- * array when invoked. As a result, pointers returned by previous calls to DYN_ARRAY_GET_ELT() 
- * can become invalidated unexpectedly. Therefore, pointers returned by this call must be utilized
+ * WARNING: DYN_ARRAY_GET_ELT() may grow the dynamic array, i.e., reallocate the memory backing a
+ * specified dynamic array. As a result, pointers returned by previous calls to DYN_ARRAY_GET_ELT() 
+ * can become invalid. Therefore, pointers returned by this call must be utilized
  * in a very limited scope and should never be saved for later use. Specifically, any pointer returned 
  * from DYN_ARRAY_GET_ELT() with a given dynamic array should only be considered valid until a
  * subsequent call with the same array takes place.
  * 
- * e.g.
- * elt_type *ptr_1, *ptr_2;
- * ptr_1 = DYN_ARRAY_GET_ELT(&my_dyn_array, i, elt_type)
- * // ptr_1 is a valid pointer into my_dyn_array 
- * ptr_2 = DYN_ARRAY_GET_ELT(&my_dyn_array, j, elt_type)
- * // ptr_2 is valid pointer into my_dyn_array, but ptr_1 may be invalid if i < j and j
- * // is greater than the capacity of my_dyn_array after the first call to DYN_ARRAY_GET_ELT()
+ * Example:
+ *    elt_type *ptr_1, *ptr_2;
+ *    ptr_1 = DYN_ARRAY_GET_ELT(&my_dyn_array, i, elt_type)
+ *    // ptr_1 is a valid pointer into my_dyn_array 
+ *    ptr_2 = DYN_ARRAY_GET_ELT(&my_dyn_array, j, elt_type)
+ *    // ptr_2 is valid pointer into my_dyn_array, but ptr_1 may be invalid if i < j and j
+ *    // is greater than the capacity of my_dyn_array after the first call to DYN_ARRAY_GET_ELT()
  */
 #define DYN_ARRAY_GET_ELT(_dyn_array, _idx, _type) ({ \
     assert(_dyn_array);                               \
