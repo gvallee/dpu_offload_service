@@ -1449,7 +1449,9 @@ void local_rank_connect_default_callback(void *data)
     }
 
     assert(connected_peer->econtext->engine);
-    gc = GET_GROUP_CACHE(&(connected_peer->econtext->engine->procs_cache), group_uid);
+    gc = GET_GROUP_CACHE_INTERNAL(&(connected_peer->econtext->engine->procs_cache),
+                         group_uid,
+                         client_info->rank_data.group_size);
     assert(gc);
     DBG("Checking group 0x%x (number of local entries: %ld, n_local_populated: %ld, n_local: %ld)",
         group_uid, gc->n_local_ranks_populated, gc->n_local_ranks_populated, gc->n_local_ranks);
@@ -1493,7 +1495,9 @@ add_cache_entry_for_new_client(peer_info_t *client_info, execution_context_t *ct
         dpu_offload_status_t rc;
         group_cache_t *gp_cache = NULL;
 
-        gp_cache = GET_GROUP_CACHE(&(ctx->engine->procs_cache), client_info->rank_data.group_uid);
+        gp_cache = GET_GROUP_CACHE_INTERNAL(&(ctx->engine->procs_cache),
+                                   client_info->rank_data.group_uid,
+                                   client_info->rank_data.group_size);
         assert(gp_cache);
 
         DBG("Adding gp/rank 0x%x/%" PRId64 " to cache for group 0x%x (group's seq_num: %ld)",
@@ -1887,7 +1891,9 @@ static void progress_client_econtext(execution_context_t *ctx)
             {
                 group_cache_t *gp_cache = NULL;
                 assert(ctx->engine->config->local_service_proc.info.global_id != UINT64_MAX);
-                gp_cache = GET_GROUP_CACHE(&(ctx->engine->procs_cache), ctx->rank.group_uid);
+                gp_cache = GET_GROUP_CACHE_INTERNAL(&(ctx->engine->procs_cache),
+                                           ctx->rank.group_uid,
+                                           ctx->rank.group_size);
                 assert(gp_cache);
                 rc = update_topology_data(ctx->engine,
                                           gp_cache,
@@ -2154,7 +2160,9 @@ execution_context_t *client_init(offloading_engine_t *offload_engine, init_param
             if (ctx->rank.group_uid != INT_MAX)
             {
                 /* Update the local cache for consistency */
-                group_cache_t *gp_cache = GET_GROUP_CACHE(&(offload_engine->procs_cache), ctx->rank.group_uid);
+                group_cache_t *gp_cache = GET_GROUP_CACHE_INTERNAL(&(offload_engine->procs_cache),
+                                                                   ctx->rank.group_uid,
+                                                                   ctx->rank.group_size);
                 if (gp_cache->group_size <= 0)
                 {
                     gp_cache->group_size = init_params->proc_info->group_size;
@@ -2223,7 +2231,9 @@ execution_context_t *client_init(offloading_engine_t *offload_engine, init_param
         dpu_offload_state_t ret;
         group_cache_t *gp_cache = NULL;
         assert(offload_engine->procs_cache.world_group == ctx->rank.group_uid);
-        gp_cache = GET_GROUP_CACHE(&(offload_engine->procs_cache), ctx->rank.group_uid);
+        gp_cache = GET_GROUP_CACHE_INTERNAL(&(offload_engine->procs_cache),
+                                            ctx->rank.group_uid,
+                                            ctx->rank.group_size);
         assert(gp_cache);
         assert(gp_cache->persistent.num == 0); // The group is not in use yet so its seq num should be 0
         ctx->rank.group_seq_num = gp_cache->persistent.num = 1; // Now we mark it as in use so the seq num is set to 1
@@ -2320,7 +2330,7 @@ void offload_engine_fini(offloading_engine_t **offload_engine)
 
     for (i = 0; i < (*offload_engine)->num_servers; i++)
     {
-        // server_fini() fixme
+        // server_fini() FIXME
     }
     for (i = 0; i < (*offload_engine)->num_inter_service_proc_clients; i++)
     {

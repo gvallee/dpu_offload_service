@@ -1557,7 +1557,7 @@ static dpu_offload_status_t peer_cache_entries_recv_cb(struct dpu_offload_ev_sys
     entries = (peer_cache_entry_t *)data;
     group_uid = entries[0].peer.proc_info.group_uid;
     group_size = entries[0].peer.proc_info.group_size;
-    gp_cache = GET_GROUP_CACHE(&(econtext->engine->procs_cache), group_uid);
+    gp_cache = GET_GROUP_CACHE_INTERNAL(&(econtext->engine->procs_cache), group_uid, group_size);
     assert(gp_cache);
 #if !NDEBUG
     {
@@ -1735,7 +1735,9 @@ static dpu_offload_status_t do_add_group_rank_recv_cb(offloading_engine_t *engin
         rank_info->group_rank,
         rank_info->group_size,
         rank_info->group_seq_num);
-    group_cache_t *gp_cache = GET_GROUP_CACHE(&(engine->procs_cache), rank_info->group_uid);
+    group_cache_t *gp_cache = GET_GROUP_CACHE_INTERNAL(&(engine->procs_cache),
+                                                       rank_info->group_uid,
+                                                       rank_info->group_size);
     assert(gp_cache);
     assert(rank_info->group_seq_num >= gp_cache->persistent.num);
 
@@ -1878,7 +1880,7 @@ static dpu_offload_status_t handle_revoke_group_rank_through_list_ranks(executio
 {
     dpu_offload_status_t rc;
     group_cache_t *gp_cache = NULL;
-    gp_cache = GET_GROUP_CACHE(&(econtext->engine->procs_cache), revoke_msg->gp_uid);
+    gp_cache = GET_GROUP_CACHE_INTERNAL(&(econtext->engine->procs_cache), revoke_msg->gp_uid, revoke_msg->group_size);
     assert(gp_cache);
     assert(gp_cache->revokes.global <= gp_cache->group_size);
 #if !NDEBUG
@@ -2044,7 +2046,9 @@ static dpu_offload_status_t handle_revoke_group_rank_through_rank_info(execution
 
     // Revoke message received from the local host
     assert(is_in_cache(&(econtext->engine->procs_cache), revoke_msg->rank_info.group_uid, revoke_msg->rank_info.group_rank, revoke_msg->rank_info.group_size));
-    gp_cache = GET_GROUP_CACHE(&(econtext->engine->procs_cache), revoke_msg->rank_info.group_uid);
+    gp_cache = GET_GROUP_CACHE_INTERNAL(&(econtext->engine->procs_cache),
+                                        revoke_msg->rank_info.group_uid,
+                                        revoke_msg->rank_info.group_size);
     assert(gp_cache);
     assert(gp_cache->initialized);
     assert(gp_cache->n_local_ranks > 0);

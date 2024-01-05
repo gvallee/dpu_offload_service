@@ -42,7 +42,9 @@ dpu_offload_status_t do_send_add_group_rank_request(execution_context_t *econtex
     // The rank info is always at the beginning of the payload that the caller prepared
     rank_info_t *rank_info = (rank_info_t *)ev->payload;
 
-    gp_cache = GET_GROUP_CACHE(&(econtext->engine->procs_cache), rank_info->group_uid);
+    gp_cache = GET_GROUP_CACHE_INTERNAL(&(econtext->engine->procs_cache),
+                                        rank_info->group_uid,
+                                        rank_info->group_size);
     assert(gp_cache);
     if (gp_cache->num_local_entries == 0)
     {
@@ -84,7 +86,9 @@ dpu_offload_status_t send_add_group_rank_request(execution_context_t *econtext, 
     {
         rank_info->host_info = econtext->rank.host_info;
     }
-    gp_cache = GET_GROUP_CACHE(&(econtext->engine->procs_cache), rank_info->group_uid);
+    gp_cache = GET_GROUP_CACHE_INTERNAL(&(econtext->engine->procs_cache),
+                                        rank_info->group_uid,
+                                        rank_info->group_size);
     assert(gp_cache);
     if (gp_cache->revokes.global == 0)
     {
@@ -199,7 +203,9 @@ dpu_offload_status_t send_revoke_group_rank_request_through_rank_info(execution_
         return DO_SUCCESS;
     }
 
-    gp_cache = GET_GROUP_CACHE(&(econtext->engine->procs_cache), rank_info->group_uid);
+    gp_cache = GET_GROUP_CACHE_INTERNAL(&(econtext->engine->procs_cache),
+                                        rank_info->group_uid,
+                                        rank_info->group_size);
     assert(gp_cache);
 
     RESET_EVENT_INFO(&ev_info);
@@ -554,7 +560,8 @@ static dpu_offload_status_t send_local_revoke_rank_group_cache(execution_context
  * @param metaev Meta event to track all the different sends involved in the broadcast invoking the call to this function
  * @return dpu_offload_status_t
  */
-static dpu_offload_status_t send_local_rank_group_cache(execution_context_t *econtext, ucp_ep_h dest_ep, uint64_t dest_id, group_uid_t gp_uid, dpu_offload_event_t *metaev)
+static dpu_offload_status_t
+send_local_rank_group_cache(execution_context_t *econtext, ucp_ep_h dest_ep, uint64_t dest_id, group_uid_t gp_uid, dpu_offload_event_t *metaev)
 {
     size_t count, idx;
     int rc;
