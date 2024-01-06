@@ -22,7 +22,7 @@ const group_uid_t default_gp_uid = 42;
         group_uid_t _gp_uid;                                                        \
         size_t i;                                                                   \
         _gp_uid = _group_uid;                                                       \
-        _gp_cache = GET_GROUP_CACHE(_cache, _gp_uid);                               \
+        _gp_cache = GET_GROUP_CACHE_INTERNAL(_cache, _gp_uid, _n_ranks);            \
         assert(_gp_cache);                                                          \
         for (i = 0; i < _n_ranks; i++)                                              \
         {                                                                           \
@@ -50,7 +50,7 @@ const group_uid_t default_gp_uid = 42;
         group_uid_t group_uid;                                                  \
         group_cache_t *_gp = NULL;                                              \
         group_uid = _group_uid;                                                 \
-        _gp = GET_GROUP_CACHE(_cache, group_uid);                               \
+        _gp = GET_GROUP_CACHE_INTERNAL(_cache, group_uid, _n_ranks);            \
         if (_gp->initialized == false)                                          \
         {                                                                       \
             fprintf(stderr, "target group is not marked as initialized");       \
