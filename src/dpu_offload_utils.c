@@ -1177,7 +1177,6 @@ bool parse_line_dpu_version_1(offloading_config_t *data, char *line)
 {
     int idx = 0;
     size_t dpu_idx = 0;
-    size_t cur_global_sp_id = 0;
     size_t local_sp;
     bool rc = false;
     char *rest_line = line;
@@ -1331,7 +1330,7 @@ bool parse_line_dpu_version_1(offloading_config_t *data, char *line)
                 assert(port);
                 assert(*port > 0);
                 cur_sp->init_params.conn_params->port = *port;
-                sp_config = DYN_ARRAY_GET_ELT(&(data->sps_config), cur_global_sp_id, service_proc_config_data_t);
+                sp_config = DYN_ARRAY_GET_ELT(&(data->sps_config), data->num_service_procs_configured, service_proc_config_data_t);
                 assert(sp_config);
                 sp_config->version_1.hostname = target_entry->version_1.hostname;
                 intersp_port = DYN_ARRAY_GET_ELT(&(target_entry->version_1.interdpu_ports), sp_port_idx, int);
@@ -1345,7 +1344,7 @@ bool parse_line_dpu_version_1(offloading_config_t *data, char *line)
                 cur_sp->init_params.conn_params->port = *intersp_port;
                 cur_sp->init_params.conn_params->addr_str = target_entry->version_1.addr;
                 sp_idx++;
-                cur_global_sp_id++;
+                data->num_service_procs_configured++;
             }
 
             if (strncmp(data->local_service_proc.hostname, target_entry->version_1.hostname, strlen(target_entry->version_1.hostname)) == 0)

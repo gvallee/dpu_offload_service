@@ -1054,7 +1054,7 @@ typedef struct init_params
 
     // Proc identifier passed in by the calling layer.
     // Mainly used to create the mapping between group/rank from layer such as MPI
-    rank_info_t *proc_info;
+    rank_info_t proc_info;
 
     // worker to use to perform the initial connection.
     // If NULL, a new worker will be created
@@ -1081,16 +1081,16 @@ typedef struct init_params
     connect_completed_cb connected_cb;
 } init_params_t;
 
-#define RESET_INIT_PARAMS(_params)            \
-    do                                        \
-    {                                         \
-        (_params)->conn_params = NULL;        \
-        (_params)->proc_info = NULL;          \
-        (_params)->worker = NULL;             \
-        (_params)->ucp_context = NULL;        \
-        (_params)->id_set = false;            \
-        (_params)->connected_cb = NULL;       \
-        (_params)->scope_id = SCOPE_HOST_DPU; \
+#define RESET_INIT_PARAMS(_params)                  \
+    do                                              \
+    {                                               \
+        (_params)->conn_params = NULL;              \
+        RESET_RANK_INFO(&((_params)->proc_info));   \
+        (_params)->worker = NULL;                   \
+        (_params)->ucp_context = NULL;              \
+        (_params)->id_set = false;                  \
+        (_params)->connected_cb = NULL;             \
+        (_params)->scope_id = SCOPE_HOST_DPU;       \
     } while (0)
 
 #if OFFLOADING_MT_ENABLE
@@ -3506,6 +3506,9 @@ typedef struct offloading_config
     // Total number of service processes to be used
     size_t num_service_procs;
 
+    // Number of service processes for which we have their configuration set
+    size_t num_service_procs_configured;
+
     // Total number of hosts being involved in the job
     size_t num_hosts;
 
@@ -3568,11 +3571,12 @@ typedef struct offloading_config
         (_data)->num_dpus_per_host = 0;                                                                             \
         (_data)->num_dpus = 0;                                                                                      \
         (_data)->num_service_procs = 0;                                                                             \
+        (_data)->num_service_procs_configured = 0;                                                                  \
         (_data)->num_hosts = 0;                                                                                     \
         DYN_ARRAY_ALLOC(&((_data)->dpus_config), 32, dpu_config_data_t);                                            \
         DYN_ARRAY_ALLOC(&((_data)->sps_config), 256, service_proc_config_data_t);                                   \
         DYN_ARRAY_ALLOC(&((_data)->hosts_config), 32, host_info_t);                                                 \
-        (_data)->host_lookup_table = kh_init(host_info_hash_t);                                                 \
+        (_data)->host_lookup_table = kh_init(host_info_hash_t);                                                     \
         RESET_SERVICE_PROC(&((_data)->local_service_proc.info));                                                    \
         /* (_data)->local_service_proc.config = NULL; */                                                            \
         (_data)->local_service_proc.hostname[1023] = '\0';                                                          \

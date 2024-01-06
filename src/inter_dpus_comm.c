@@ -324,18 +324,8 @@ dpu_offload_status_t connect_to_remote_service_proc(offloading_engine_t *offload
         remote_dpu_info->hostname,
         offload_engine->config->local_service_proc.info.global_id);
     // Inter-DPU connection, no group, rank is the service process's global ID
-    
-    // BW: Shouldn't service_proc_info, which is being associated with remote_service_proc_info->init_params.proc_info below,
-    // fall out of scope after the function returns when allocated on the stack? Replacing with malloc for now to be safe.
-    // TODO: Free the memory where appropriate to patch the resulting memory leak.
-    //rank_info_t service_proc_info;
-    //RESET_RANK_INFO(&service_proc_info);
-    rank_info_t *service_proc_info = (rank_info_t*) malloc(sizeof(rank_info_t));
-    RESET_RANK_INFO(service_proc_info);
-    service_proc_info->group_rank = offload_engine->config->local_service_proc.info.global_id;
-    //remote_service_proc_info->init_params.proc_info = &service_proc_info;
-    remote_service_proc_info->init_params.proc_info = service_proc_info;
-    
+    RESET_RANK_INFO(&(remote_service_proc_info->init_params.proc_info));
+    remote_service_proc_info->init_params.proc_info.group_rank = offload_engine->config->local_service_proc.info.global_id;
     remote_service_proc_info->init_params.connected_cb = connected_to_server_dpu;
     remote_service_proc_info->init_params.scope_id = SCOPE_INTER_SERVICE_PROCS;
     // We make sure that we use the inter-service-process port here because we do not know the context while
@@ -343,6 +333,7 @@ dpu_offload_status_t connect_to_remote_service_proc(offloading_engine_t *offload
     service_proc_config_data_t *sp_config = NULL;
     sp_config = DYN_ARRAY_GET_ELT(&(cfg->sps_config), remote_service_proc_info->service_proc.global_id, service_proc_config_data_t);
     assert(sp_config);
+    assert(sp_config->version_1.intersp_port > 0);
     remote_service_proc_info->init_params.conn_params->port = sp_config->version_1.intersp_port;
     execution_context_t *client = client_init(offload_engine, &(remote_service_proc_info->init_params));
     CHECK_ERR_RETURN((client == NULL), DO_ERROR, "Unable to connect to %s\n", remote_service_proc_info->init_params.conn_params->addr_str);
@@ -498,7 +489,7 @@ dpu_offload_status_t inter_dpus_connect_mgr(offloading_engine_t *engine, offload
 
     assert(cfg->local_service_proc.inter_service_procs_conn_params.port > 0);
     assert(cfg->local_service_proc.host_conn_params.port > 0);
-
+  
     /* Init UCP if necessary */
     if (engine->ucp_context == NULL)
     {
@@ -608,9 +599,9 @@ dpu_offload_status_t get_dpu_config(offloading_engine_t *offload_engine, offload
         config_data->local_service_proc.info.global_id);
 
     config_data->local_service_proc.inter_service_procs_init_params.worker = NULL;
-    config_data->local_service_proc.inter_service_procs_init_params.proc_info = NULL;
+    RESET_RANK_INFO(&(config_data->local_service_proc.inter_service_procs_init_params.proc_info));
+    RESET_RANK_INFO(&(config_data->local_service_proc.host_init_params.proc_info));
     config_data->local_service_proc.host_init_params.worker = NULL;
-    config_data->local_service_proc.host_init_params.proc_info = NULL;
 
     /* First, we check whether we know about a configuration file. If so, we load all the configuration details from it */
     /* If there is no configuration file, we try to configuration from environment variables */

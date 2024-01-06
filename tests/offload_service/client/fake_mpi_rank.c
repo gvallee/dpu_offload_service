@@ -33,7 +33,6 @@ int main(int argc, char **argv)
     execution_context_t *client = NULL;
     init_params_t client_init_params;
     conn_params_t client_conn_params;
-    rank_info_t client_rank_info;
     group_id_t group;
     group_uid_t dummy_uid = 1234;
 
@@ -71,11 +70,10 @@ int main(int argc, char **argv)
     RESET_INIT_PARAMS(&client_init_params);
     RESET_CONN_PARAMS(&client_conn_params);
     client_init_params.conn_params = &client_conn_params;
-    client_init_params.proc_info = &client_rank_info;
-    client_init_params.proc_info->group_uid = dummy_uid;
-    client_init_params.proc_info->group_rank = rank;
-    client_init_params.proc_info->group_size = group_size;
-    client_init_params.proc_info->n_local_ranks = group_size;
+    client_init_params.proc_info.group_uid = dummy_uid;
+    client_init_params.proc_info.group_rank = rank;
+    client_init_params.proc_info.group_size = group_size;
+    client_init_params.proc_info.n_local_ranks = group_size;
     client_init_params.conn_params->addr_str = dpu_addr;
     client_init_params.conn_params->port_str = argv[2];
     client_init_params.conn_params->port = dpu_port;
