@@ -86,8 +86,7 @@ int main(int argc, char **argv)
         group_cache_t *gp_cache = GET_GROUP_CACHE(cache, default_gp_uid);
         if (gp_cache->initialized)
         {
-            peer_cache_entry_t *list_ranks = (peer_cache_entry_t *)gp_cache->ranks.base;
-            peer_data_t *target_peer = &(list_ranks[DEFAULT_NUM_RANKS - 1].peer);
+            peer_data_t *target_peer = &(gp_cache->ranks[DEFAULT_NUM_RANKS - 1].peer);
             if (IS_A_VALID_PEER_DATA(target_peer))
                 test_done = true;
         }

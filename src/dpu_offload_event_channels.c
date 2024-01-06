@@ -1610,7 +1610,7 @@ static dpu_offload_status_t peer_cache_entries_recv_cb(struct dpu_offload_ev_sys
 static bool rank_is_on_sp(int64_t world_rank, offloading_engine_t *engine)
 {
     group_cache_t *c = GET_GROUP_CACHE(&(engine->procs_cache), engine->procs_cache.world_group);
-    peer_cache_entry_t *cache_entry = DYN_ARRAY_GET_ELT(&(c->ranks), world_rank, peer_cache_entry_t);
+    peer_cache_entry_t *cache_entry = MIMOSA_GET_RANK_FROM_GROUP_CACHE(c, world_rank);
     assert(cache_entry);
     if (cache_entry->shadow_service_procs[0] == engine->config->local_service_proc.info.global_id)
     {

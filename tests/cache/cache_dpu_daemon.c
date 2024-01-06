@@ -270,7 +270,7 @@ static int test_cb(struct dpu_offload_ev_sys *ev_sys, execution_context_t *econt
 #define ADD_TO_CACHE(_rank, _gp_uid, _gp_sz, _engine, _config_data)                                   \
     do                                                                                                \
     {                                                                                                 \
-        peer_cache_entry_t *_entry - NULL;                                                            \
+        peer_cache_entry_t *_entry = NULL;                                                            \
         _entry = GET_GROUP_RANK_CACHE_ENTRY(&((_engine)->procs_cache), _gp_uid, (_rank), (_gp_sz));   \
         assert(_entry);                                                                               \
         _entry->peer.proc_info.group_rank = (_rank);                                                  \

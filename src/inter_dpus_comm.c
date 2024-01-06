@@ -341,7 +341,7 @@ dpu_offload_status_t connect_to_remote_service_proc(offloading_engine_t *offload
     // We make sure that we use the inter-service-process port here because we do not know the context while
     // parsing the configuration file (host or DPU) and updating the value while parsing ends up being confusing
     service_proc_config_data_t *sp_config = NULL;
-    sp_config = DYN_ARRAY_GET_ELT(&(cfg->sps_config), remote_service_proc_info->config_idx, service_proc_config_data_t);
+    sp_config = DYN_ARRAY_GET_ELT(&(cfg->sps_config), remote_service_proc_info->service_proc.global_id, service_proc_config_data_t);
     assert(sp_config);
     remote_service_proc_info->init_params.conn_params->port = sp_config->version_1.intersp_port;
     execution_context_t *client = client_init(offload_engine, &(remote_service_proc_info->init_params));

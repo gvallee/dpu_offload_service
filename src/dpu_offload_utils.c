@@ -592,27 +592,14 @@ send_local_rank_group_cache(execution_context_t *econtext, ucp_ep_h dest_ep, uin
         dpu_offload_event_t *e;
         peer_cache_entry_t *first_entry = GET_GROUP_RANK_CACHE_ENTRY(&(econtext->engine->procs_cache), gp_uid, idx_start, gp_cache->group_size);
         
-        // BW: It seems like using first_entry (a pointer to dynamic array elements) in conjunction with
-        // event_channel_emit_with_payload() could potentially be problematic. i.e. If first_entry becomes invalid
-        // before the underlying data is sent. Switching to a managed payload with event_channel_emit() for now.
-        // TODO: If we want to use event_channel_emit() here long-term, we may need an mpool for the buffers
-        // to avoid malloc/memcpy/free costs
-#if 0
         rc = event_get(econtext->event_channels, NULL, &e);
         CHECK_ERR_RETURN((rc), DO_ERROR, "event_get() failed");
-        e->is_subevent = true;
-#endif
-        dpu_offload_event_info_t event_info = { .payload_size = (n_entries_to_send * sizeof(peer_cache_entry_t)), };
-        rc = event_get(econtext->event_channels, &event_info, &e);
-        CHECK_ERR_RETURN((rc), DO_ERROR, "event_get() failed");
-        memcpy(e->payload, first_entry, (n_entries_to_send * sizeof(peer_cache_entry_t)));
         e->is_subevent = true;
 #if !NDEBUG
         uint64_t sp_global_id = LOCAL_ID_TO_GLOBAL(econtext, dest_id);
         DBG("Sending %ld cache entries to %ld (SP %" PRIu64 ") from entry %ld, ev: %p (%ld), metaev: %ld (msg size: %ld)",
             n_entries_to_send, dest_id, sp_global_id, idx_start, e, e->seq_num, metaev->seq_num, n_entries_to_send * sizeof(peer_cache_entry_t));
 #endif
-#if 0
         rc = event_channel_emit_with_payload(&e,
                                              AM_PEER_CACHE_ENTRIES_MSG_ID,
                                              dest_ep,
@@ -620,12 +607,9 @@ send_local_rank_group_cache(execution_context_t *econtext, ucp_ep_h dest_ep, uin
                                              NULL,
                                              first_entry,
                                              n_entries_to_send * sizeof(peer_cache_entry_t));
-#endif
-        rc = event_channel_emit(&e, AM_PEER_CACHE_ENTRIES_MSG_ID, dest_ep, dest_id, NULL);
         if (rc != EVENT_DONE && rc != EVENT_INPROGRESS)
         {
-            //ERR_MSG("event_channel_emit_with_payload() failed");
-            ERR_MSG("event_channel_emit() failed");
+            ERR_MSG("event_channel_emit_with_payload() failed");
             return DO_ERROR;
         }
         if (e != NULL)
@@ -637,8 +621,6 @@ send_local_rank_group_cache(execution_context_t *econtext, ucp_ep_h dest_ep, uin
 
     return DO_SUCCESS;
 }
-
-
 
 dpu_offload_status_t send_cache(execution_context_t *econtext, cache_t *cache, ucp_ep_h dest_ep, uint64_t dest_id, dpu_offload_event_t *metaevt)
 {
@@ -1121,8 +1103,6 @@ static inline bool parse_dpu_cfg(char *str, dpu_config_data_t *config_entry)
     assert(str);
     assert(config_entry);
 
-    // TODO: Looks like this may leak memory on the host side where
-    // parse_dpu_cfg() is called in a loop inside parse_line_version_1()
     DYN_ARRAY_ALLOC(&(config_entry->version_1.interdpu_ports), 2, int);
     DYN_ARRAY_ALLOC(&(config_entry->version_1.host_ports), 2, int);
 
@@ -1258,7 +1238,7 @@ bool parse_line_dpu_version_1(offloading_config_t *data, char *line)
             {
                 // First we know about the host
                 host_info_t *host_info = NULL;
-                khiter_t host_idx_key;
+                khiter_t host_key;
                 int ret;
 
                 host_info = DYN_ARRAY_GET_ELT(&(data->hosts_config),
@@ -1269,12 +1249,12 @@ bool parse_line_dpu_version_1(offloading_config_t *data, char *line)
                 host_info->idx = data->num_hosts;
                 host_info->uid = local_host_uid;
 
-                // Add the host index to the lookup table
-                host_idx_key = kh_put(host_info_indices_hash_t,
-                                      data->host_idx_lookup_table,
-                                      local_host_uid,
-                                      &ret);
-                kh_value(data->host_idx_lookup_table, host_idx_key) = data->num_hosts;
+                // Add the host to the lookup table
+                host_key = kh_put(host_info_hash_t,
+                                  data->host_lookup_table,
+                                  local_host_uid,
+                                  &ret);
+                kh_value(data->host_lookup_table, host_key) = data->num_hosts;
                 data->num_hosts++;
                 last_host = target_host;
             }
@@ -1353,10 +1333,7 @@ bool parse_line_dpu_version_1(offloading_config_t *data, char *line)
                 cur_sp->init_params.conn_params->port = *port;
                 sp_config = DYN_ARRAY_GET_ELT(&(data->sps_config), cur_global_sp_id, service_proc_config_data_t);
                 assert(sp_config);
-                cur_sp->config_idx = cur_global_sp_id;
                 sp_config->version_1.hostname = target_entry->version_1.hostname;
-                // BW: We must not use the "port" pointer after this point in the loop since the following call
-                // could invalidate it. Currently looks okay.
                 intersp_port = DYN_ARRAY_GET_ELT(&(target_entry->version_1.interdpu_ports), sp_port_idx, int);
                 assert(intersp_port);
                 assert(*intersp_port > 0);
@@ -1439,7 +1416,7 @@ bool parse_line_dpu_version_1(offloading_config_t *data, char *line)
 static dpu_offload_status_t add_host_to_config(offloading_config_t *cfg, char *hostname)
 {
     host_info_t *host_info = NULL;
-    khiter_t host_idx_key;
+    khiter_t host_key;
     int ret;
     host_info = DYN_ARRAY_GET_ELT(&(cfg->hosts_config),
                                   cfg->num_hosts,
@@ -1449,12 +1426,12 @@ static dpu_offload_status_t add_host_to_config(offloading_config_t *cfg, char *h
     host_info->idx = cfg->num_hosts;
     host_info->uid = HASH_HOSTNAME(hostname);
 
-    // Add the host index to the lookup table
-    host_idx_key = kh_put(host_info_indices_hash_t,
-                          cfg->host_idx_lookup_table,
-                          host_info->uid,
-                          &ret);
-    kh_value(cfg->host_idx_lookup_table, host_idx_key) = cfg->num_hosts;
+    // Add the host to the lookup table
+    host_key = kh_put(host_info_hash_t,
+                      cfg->host_lookup_table,
+                      host_info->uid,
+                      &ret);
+    kh_value(cfg->host_lookup_table, host_key) = cfg->num_hosts;
     return DO_SUCCESS;
 }
 

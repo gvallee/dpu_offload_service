@@ -21,7 +21,7 @@ int main(int argc, char **argv)
     offloading_engine_t *engine = NULL;
     offloading_config_t cfg;
     uint64_t host_hash_key;
-    host_info_t *host_hash_value = NULL;
+    size_t host_hash_value = SIZE_MAX;
     size_t sp_gid;
 
     if (argc != 4)
@@ -152,7 +152,10 @@ int main(int argc, char **argv)
     }
     fprintf(stdout, "\n\tLookup table content:\n");
     kh_foreach(cfg.host_lookup_table, host_hash_key, host_hash_value, {
-        fprintf(stderr, "\t\tHost UID: 0x%lx, %s, index: %ld\n", host_hash_key, host_hash_value->hostname, host_hash_value->idx);
+        host_info_t *host_data = NULL;
+        host_data = DYN_ARRAY_GET_ELT(&(cfg.hosts_config), host_hash_value, host_info_t);
+        assert(host_data);
+        fprintf(stderr, "\t\tHost UID: 0x%lx, %s, index: %ld\n", host_hash_key, host_data->hostname, host_hash_value);
     })
     fprintf(stdout, "\n");
 
