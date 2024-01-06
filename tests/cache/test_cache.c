@@ -148,6 +148,7 @@ simulate_cache_entry_exchange(offloading_engine_t *engine)
         entries[rank].peer.proc_info.n_local_ranks = NUM_FAKE_RANKS_PER_SP;
         entries[rank].peer.proc_info.local_rank = NUM_FAKE_RANKS_PER_SP;
         entries[rank].peer.proc_info.host_info = host_uid;
+        entries[rank].peer.proc_info.group_seq_num = DEFAULT_SEQ_NUM;
         entries[rank].peer.host_info = host_uid;
         entries[rank].peer.addr_len = 8;
         strcpy(entries[rank].peer.addr, "deadbeef");
@@ -575,7 +576,9 @@ int main(int argc, char **argv)
     /* Initialize everything we need for the test */
     offloading_engine_t *offload_engine;
     offloading_config_t *engine_config = NULL;
-    dpu_offload_status_t rc = offload_engine_init(&offload_engine);
+    dpu_offload_status_t rc;
+    
+    rc = offload_engine_init(&offload_engine);
     if (rc || offload_engine == NULL)
     {
         fprintf(stderr, "offload_engine_init() failed\n");

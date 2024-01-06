@@ -10,6 +10,7 @@
 #include <unistd.h>
 
 #define DEFAULT_NUM_RANKS (10)
+#define DEFAULT_SEQ_NUM (1)
 
 const group_uid_t default_gp_uid = 42;
 
@@ -32,9 +33,11 @@ const group_uid_t default_gp_uid = 42;
             RESET_PEER_DATA(&(new_entry->peer));                                    \
             new_entry->peer.proc_info.group_rank = i;                               \
             new_entry->peer.proc_info.group_uid = _group_uid;                       \
+            new_entry->peer.proc_info.group_seq_num = DEFAULT_SEQ_NUM;              \
             new_entry->peer.host_info = HASH_LOCAL_HOSTNAME();                      \
             new_entry->set = true;                                                  \
         }                                                                           \
+        _gp_cache->num_local_entries = _n_ranks;                                    \
                                                                                     \
         if (_cache->size != 1)                                                      \
         {                                                                           \
@@ -53,7 +56,13 @@ const group_uid_t default_gp_uid = 42;
         _gp = GET_GROUP_CACHE_INTERNAL(_cache, group_uid, _n_ranks);            \
         if (_gp->initialized == false)                                          \
         {                                                                       \
-            fprintf(stderr, "target group is not marked as initialized");       \
+            fprintf(stderr, "target group is not marked as initialized\n");     \
+            goto error_out;                                                     \
+        }                                                                       \
+                                                                                \
+        if (_gp->num_local_entries == 0)                                        \
+        {                                                                       \
+            fprintf(stderr, "no local entries have been defined\n");            \
             goto error_out;                                                     \
         }                                                                       \
                                                                                 \
