@@ -2277,7 +2277,6 @@ typedef struct group_cache
     size_t __gp_size = _gp_size;                                                                    \
     group_cache_t *_gp_cache = NULL;                                                                \
     assert((_cache)->data);                                                                         \
-    assert(__gp_size > 0);                                                                          \
     khiter_t k = kh_get(group_hash_t, (_cache)->data, _gp_uid);                                     \
     if (k == kh_end((_cache)->data))                                                                \
     {                                                                                               \
@@ -2290,6 +2289,7 @@ typedef struct group_cache
         khiter_t _newKey = kh_put(group_hash_t, (_cache)->data, (_gp_uid), &_ret);                  \
         DYN_LIST_GET((_cache)->group_cache_pool, group_cache_t, item, _new_group_cache);            \
         assert(_new_group_cache);                                                                   \
+        assert(_gp_size > 0);                                                                       \
         INIT_GROUP_CACHE(_new_group_cache, _gp_size);                                               \
         _new_group_cache->persistent.initialized = false;                                           \
         _new_group_cache->engine = (_cache)->engine;                                                \
