@@ -1631,8 +1631,6 @@ dpu_offload_status_t find_config_from_platform_configfile(char *filepath, char *
     assert(hostname);
     assert(data);
 
-    INFO_MSG("[DBG] Check");
-
     file = fopen(filepath, "r");
     if (file == NULL)
         fprintf(stderr, "[ERROR] unable to open configuration file %s\n", filepath);
