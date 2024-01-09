@@ -136,29 +136,18 @@ dpu_offload_status_t send_group_cache(execution_context_t *econtext, ucp_ep_h de
 #endif
 
     dpu_offload_event_t *e;
-    peer_cache_entry_t *first_entry = GET_GROUP_RANK_CACHE_ENTRY(&(econtext->engine->procs_cache), gp_uid, 0, gp_cache->group_size);
-    
-    // BW: It seems like using first_entry (a pointer to dynamic array elements) in conjunction with
-    // event_channel_emit_with_payload() could potentially be problematic. i.e. If first_entry becomes invalid
-    // before the underlying data is sent. Switching to a managed payload with event_channel_emit() for now.
-    // TODO: If we want to use event_channel_emit() here long-term, we may need an mpool for the buffers
-    // to avoid malloc/memcpy/free costs
-#if 0
     rc = event_get(econtext->event_channels, NULL, &e);
     CHECK_ERR_RETURN((rc), DO_ERROR, "event_get() failed");
     e->is_subevent = true;
-    DBG("Sending %ld cache entries to %ld, ev: %p (%ld), metaev: %ld\n",
-        gp_cache->group_size, dest_id, e, e->seq_num, metaev->seq_num);
-    rc = event_channel_emit_with_payload(&e, AM_PEER_CACHE_ENTRIES_MSG_ID, dest_ep, dest_id, NULL, first_entry, gp_cache->group_size * sizeof(peer_cache_entry_t));
-#endif
-    dpu_offload_event_info_t event_info = { .payload_size = (gp_cache->group_size * sizeof(peer_cache_entry_t)), };
-    rc = event_get(econtext->event_channels, &event_info, &e);
-    CHECK_ERR_RETURN((rc), DO_ERROR, "event_get() failed");
-    memcpy(e->payload, first_entry, (gp_cache->group_size * sizeof(peer_cache_entry_t)));
-    e->is_subevent = true;
-    DBG("Sending %ld cache entries to %ld, ev: %p (%ld), metaev: %ld\n",
-        gp_cache->group_size, dest_id, e, e->seq_num, metaev->seq_num);
-    rc = event_channel_emit(&e, AM_PEER_CACHE_ENTRIES_MSG_ID, dest_ep, dest_id, NULL);
+    DBG("Sending %ld cache entries to %ld, ev: %p (%ld), metaev: %ld, len: %ld, group size: %ld\n",
+        gp_cache->group_size, dest_id, e, e->seq_num, metaev->seq_num, gp_cache->group_size * sizeof(peer_cache_entry_t), gp_cache->group_size);
+    rc = event_channel_emit_with_payload(&e,
+                                         AM_PEER_CACHE_ENTRIES_MSG_ID,
+                                         dest_ep,
+                                         dest_id,
+                                         NULL,
+                                         gp_cache->ranks,
+                                         gp_cache->group_size * sizeof(peer_cache_entry_t));
     if (rc != EVENT_DONE && rc != EVENT_INPROGRESS)
     {
         //ERR_MSG("event_channel_emit_with_payload() failed");

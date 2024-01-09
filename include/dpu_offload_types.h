@@ -2505,8 +2505,6 @@ typedef struct cache
         _entry;                                                             \
     })
 
-//_entry = MIMOSA_GET_RANK_FROM_GROUP_CACHE((_gp_cache), (_rank));    
-
 KHASH_MAP_INIT_INT64(client_lookup_hash_t, execution_context_t *);
 
 /**
