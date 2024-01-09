@@ -526,32 +526,38 @@ typedef struct peer_cache_entry
     simple_list_t events;
 } peer_cache_entry_t;
 
-#define RESET_PEER_CACHE_ENTRY(_e)                                    \
-    do                                                                \
-    {                                                                 \
-        size_t _idx;                                                  \
-        dpu_offload_event_t *__ev = NULL;                             \
-        (_e)->set = false;                                            \
-        RESET_PEER_DATA(&((_e)->peer));                               \
-        (_e)->client_id = UINT64_MAX;                                 \
-        (_e)->ep = NULL;                                              \
-        for (_idx = 0; _idx < (_e)->num_shadow_service_procs; _idx++) \
-        {                                                             \
-            (_e)->shadow_service_procs[_idx] = UINT64_MAX;            \
-        }                                                             \
-        (_e)->num_shadow_service_procs = 0;                           \
-        if ((_e)->events_initialized)                                 \
-        {                                                             \
-            while (!SIMPLE_LIST_IS_EMPTY(&((_e)->events)))            \
-            {                                                         \
-                __ev = SIMPLE_LIST_EXTRACT_HEAD(&((_e)->events),      \
-                                                dpu_offload_event_t,  \
-                                                item);                \
-                assert(__ev);                                         \
-                event_return(&__ev);                                  \
-            }                                                         \
-        }                                                             \
-        (_e)->events_initialized = false;                             \
+#define INIT_PEER_CACHE_ENTRY(__entry)                          \
+    do                                                          \
+    {                                                           \
+        size_t _idx;                                            \
+        (__entry)->set = false;                                 \
+        RESET_PEER_DATA(&((__entry)->peer));                    \
+        (__entry)->client_id = UINT64_MAX;                      \
+        (__entry)->ep = NULL;                                   \
+        for (_idx = 0; _idx < MAX_SHADOW_SERVICE_PROCS; _idx++) \
+        {                                                       \
+            (__entry)->shadow_service_procs[_idx] = UINT64_MAX; \
+        }                                                       \
+        (__entry)->num_shadow_service_procs = 0;                \
+        (__entry)->events_initialized = false;                  \
+    } while (0)
+
+#define RESET_PEER_CACHE_ENTRY(_e)                                      \
+    do                                                                  \
+    {                                                                   \
+        dpu_offload_event_t *__ev = NULL;                               \
+        if ((_e)->events_initialized)                                   \
+        {                                                               \
+            while (!SIMPLE_LIST_IS_EMPTY(&((_e)->events)))              \
+            {                                                           \
+                __ev = SIMPLE_LIST_EXTRACT_HEAD(&((_e)->events),        \
+                                                dpu_offload_event_t,    \
+                                                item);                  \
+                assert(__ev);                                           \
+                event_return(&__ev);                                    \
+            }                                                           \
+        }                                                               \
+        INIT_PEER_CACHE_ENTRY(_e);                                      \
     } while (0)
 
 typedef struct cache_entry_request
@@ -2108,10 +2114,15 @@ typedef struct group_cache
 #define INIT_GROUP_CACHE(__g, __gp_size)                                                \
     do                                                                                  \
     {                                                                                   \
+        size_t _rank_idx;                                                               \
         assert(__gp_size > 0);                                                          \
         BASIC_INIT_GROUP_CACHE((__g));                                                  \
         (__g)->ranks = malloc(__gp_size * sizeof(peer_cache_entry_t));                  \
         assert((__g)->ranks);                                                           \
+        for (_rank_idx = 0; _rank_idx < (__gp_size); _rank_idx++)                       \
+        {                                                                               \
+            INIT_PEER_CACHE_ENTRY(&((__g)->ranks[_rank_idx]));                          \
+        }                                                                               \
         /* No need to allocate _new_group_cache->host_indices, we handle it when we */  \
         /* populate lookup tables in populate_group_cache_lookup_table() */             \
         (__g)->sps_hash = kh_init(group_sps_hash_t);                                    \

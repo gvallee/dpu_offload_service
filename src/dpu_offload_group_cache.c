@@ -1447,6 +1447,8 @@ host_add_local_rank_to_cache(offloading_engine_t *engine, rank_info_t *rank_info
                                              rank_info->group_size);
     gp_cache = GET_GROUP_CACHE_INTERNAL(&(engine->procs_cache), rank_info->group_uid, rank_info->group_size);
     assert(cache_entry);
+    assert(cache_entry->set == false);
+    assert(cache_entry->num_shadow_service_procs == 0);
     assert(gp_cache);
     assert(engine->config != NULL);
     if (gp_cache->num_local_entries == 0)
