@@ -1435,11 +1435,18 @@ dpu_offload_status_t
 host_add_local_rank_to_cache(offloading_engine_t *engine, rank_info_t *rank_info)
 {
     dpu_offload_state_t ret;
-    peer_cache_entry_t *cache_entry = GET_GROUP_RANK_CACHE_ENTRY(&(engine->procs_cache),
-                                                                 rank_info->group_uid,
-                                                                 rank_info->group_rank,
-                                                                 rank_info->group_size);
-    group_cache_t *gp_cache = GET_GROUP_CACHE_INTERNAL(&(engine->procs_cache), rank_info->group_uid, rank_info->group_size);
+    peer_cache_entry_t *cache_entry = NULL;
+    group_cache_t *gp_cache = NULL;
+
+    assert(engine);
+    assert(engine->config);
+    assert(rank_info);
+
+    cache_entry = GET_GROUP_RANK_CACHE_ENTRY(&(engine->procs_cache),
+                                             rank_info->group_uid,
+                                             rank_info->group_rank,
+                                             rank_info->group_size);
+    gp_cache = GET_GROUP_CACHE_INTERNAL(&(engine->procs_cache), rank_info->group_uid, rank_info->group_size);
     assert(cache_entry);
     assert(gp_cache);
     assert(engine->config != NULL);
