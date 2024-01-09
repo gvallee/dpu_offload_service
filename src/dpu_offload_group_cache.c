@@ -294,6 +294,7 @@ dpu_offload_status_t handle_peer_cache_entries_recv(execution_context_t *econtex
 
             // Make sure the entry is for the "version" of the group that matches
             assert(entries[idx].peer.proc_info.group_seq_num);
+            assert(entries[idx].num_shadow_service_procs > 0);
             if (gp_cache->num_local_entries == 0)
             {
                 // New "version" of the group.
@@ -312,11 +313,9 @@ dpu_offload_status_t handle_peer_cache_entries_recv(execution_context_t *econtex
             cache_entry = GET_GROUP_RANK_CACHE_ENTRY(cache, group_uid, group_rank, group_size);
             assert(cache_entry);
             cache_entry->set = true;
-            cache_entry->num_shadow_service_procs += entries[idx].num_shadow_service_procs;
             COPY_PEER_DATA(&(entries[idx].peer), &(cache_entry->peer));
-            assert(entries[idx].num_shadow_service_procs > 0);
             assert(cache_entry->peer.proc_info.group_seq_num);
-            // append the shadow DPU data to the data already local available (if any)
+            // append the shadow DPU data to the data already locally available (if any)
             for (n = 0; n < entries[idx].num_shadow_service_procs; n++)
             {
                 dpu_offload_status_t rc;
@@ -329,6 +328,7 @@ dpu_offload_status_t handle_peer_cache_entries_recv(execution_context_t *econtex
                 CHECK_ERR_RETURN((rc), DO_ERROR, "handle_cache_data() failed");
             }
             cache_entry->client_id = entries[idx].client_id;
+            cache_entry->num_shadow_service_procs += entries[idx].num_shadow_service_procs;
 
             // If any event is associated to the cache entry, handle them
             if (cache_entry->events_initialized)
