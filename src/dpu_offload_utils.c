@@ -1631,6 +1631,8 @@ dpu_offload_status_t find_config_from_platform_configfile(char *filepath, char *
     assert(hostname);
     assert(data);
 
+    INFO_MSG("[DBG] Check");
+
     file = fopen(filepath, "r");
     if (file == NULL)
         fprintf(stderr, "[ERROR] unable to open configuration file %s\n", filepath);
@@ -1800,7 +1802,6 @@ dpu_offload_status_t get_num_connecting_ranks(uint64_t num_service_procs_per_dpu
 dpu_offload_status_t get_local_service_proc_connect_info(offloading_config_t *cfg, rank_info_t *rank_info, init_params_t *init_params)
 {
     int64_t service_proc_local_id = 0;
-    //dpu_config_data_t *entry = NULL;
     int *host_port = NULL;
     assert(cfg);
     assert(rank_info);
@@ -1814,8 +1815,6 @@ dpu_offload_status_t get_local_service_proc_connect_info(offloading_config_t *cf
         service_proc_local_id = rank_info->local_rank % cfg->num_service_procs_per_dpu;
     }
 
-    // BW: entry doesn't look to be used
-    //entry = DYN_ARRAY_GET_ELT(&(cfg->dpus_config), cfg->local_service_proc.info.dpu, dpu_config_data_t);
     cfg->local_service_proc.info.local_id = service_proc_local_id;
     // Note that we cannot calculate the SP's global ID since we have no idea at this point
     // what are the DPUs using by the job, which is a subset of all the DPUs from the config

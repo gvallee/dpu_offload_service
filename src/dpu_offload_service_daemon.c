@@ -1897,6 +1897,21 @@ static void progress_client_econtext(execution_context_t *ctx)
                                            ctx->rank.group_uid,
                                            ctx->rank.group_size);
                 assert(gp_cache);
+
+                // On the host, we now have the details about of shadow SP so we can finally add ourselves to the
+                // group cache.
+                if (!ECONTEXT_ON_DPU(ctx))
+                {
+                    int ret;
+                    assert(ctx->engine->config->local_service_proc.info.global_id != UINT64_MAX);
+                    ret = host_add_local_rank_to_cache(ctx->engine, &(ctx->rank));
+                    if (ret != DO_SUCCESS)
+                    {
+                        ERR_MSG("host_add_local_rank_to_cache() failed (rc: %d)", ret);
+                        return;
+                    }
+                }
+
                 rc = update_topology_data(ctx->engine,
                                           gp_cache,
                                           ctx->rank.group_rank,
@@ -2223,12 +2238,10 @@ execution_context_t *client_init(offloading_engine_t *offload_engine, init_param
     ECONTEXT_UNLOCK(ctx);
     CHECK_ERR_GOTO((rc), error_out, "register_default_notfications() failed");
 
-    // We add ourselves to the local EP cache as shadow service process
     if (ctx->rank.group_uid != INT_MAX &&
         ctx->rank.group_rank != INVALID_RANK &&
         !is_in_cache(&(offload_engine->procs_cache), ctx->rank.group_uid, ctx->rank.group_rank, ctx->rank.group_size))
     {
-        dpu_offload_state_t ret;
         group_cache_t *gp_cache = NULL;
         assert(offload_engine->procs_cache.world_group == ctx->rank.group_uid);
         gp_cache = GET_GROUP_CACHE_INTERNAL(&(offload_engine->procs_cache),
@@ -2237,8 +2250,11 @@ execution_context_t *client_init(offloading_engine_t *offload_engine, init_param
         assert(gp_cache);
         assert(gp_cache->persistent.num == 0); // The group is not in use yet so its seq num should be 0
         ctx->rank.group_seq_num = gp_cache->persistent.num = 1; // Now we mark it as in use so the seq num is set to 1
-        ret = host_add_local_rank_to_cache(offload_engine, &(ctx->rank));
-        CHECK_ERR_GOTO((ret != DO_SUCCESS), error_out, "host_add_local_rank_to_cache() failed (rc: %d)", ret);
+
+        // Note that it is not possible to add ourself to the group cache because we do not
+        // know yet the GID of our SP(s). That data is only available when we get data from
+        // a SP during the bootstrapping phase. As a result, the local rank is added to the
+        // group cache only when the bootstrapping process completes.
     }
 
     return ctx;
