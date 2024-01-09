@@ -321,7 +321,9 @@ dpu_offload_status_t handle_peer_cache_entries_recv(execution_context_t *econtex
             DBG("Adding rank %ld to group 0x%x (seq_num: %ld/%ld)",
                 group_rank, gp_cache->group_uid, gp_cache->persistent.num, entries[idx].peer.proc_info.group_seq_num);
             cache_entry = GET_GROUP_RANK_CACHE_ENTRY(cache, group_uid, group_rank, group_size);
+            assert(cache_entry);
             cache_entry->set = true;
+            cache_entry->num_shadow_service_procs = entries[idx].num_shadow_service_procs;
             COPY_PEER_DATA(&(entries[idx].peer), &(cache_entry->peer));
             assert(entries[idx].num_shadow_service_procs > 0);
             assert(cache_entry->peer.proc_info.group_seq_num);
