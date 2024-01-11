@@ -1090,13 +1090,16 @@ typedef struct init_params
 #define RESET_INIT_PARAMS(_params)                  \
     do                                              \
     {                                               \
+        (_params)->scope_id = SCOPE_HOST_DPU;       \
         (_params)->conn_params = NULL;              \
         RESET_RANK_INFO(&((_params)->proc_info));   \
         (_params)->worker = NULL;                   \
         (_params)->ucp_context = NULL;              \
         (_params)->id_set = false;                  \
+        (_params)->id = UINT64_MAX;                 \
+        (_params)->sps_per_dpu = 0;                 \
+        (_params)->num_sps = 0;                     \
         (_params)->connected_cb = NULL;             \
-        (_params)->scope_id = SCOPE_HOST_DPU;       \
     } while (0)
 
 #if OFFLOADING_MT_ENABLE

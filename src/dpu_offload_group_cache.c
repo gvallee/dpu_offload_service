@@ -477,9 +477,9 @@ get_local_sp_id_by_group(offloading_engine_t *engine,
                          uint64_t sp_gp_guid,
                          uint64_t *sp_gp_lid)
 {
-    remote_service_proc_info_t *ptr = NULL;
     sp_cache_data_t *sp_data = NULL;
     group_cache_t *gp_cache = NULL;
+    size_t idx, sp_gp_idx = 0;
 
     assert(engine);
     gp_cache = GET_GROUP_CACHE(&(engine->procs_cache), gp_uid);
@@ -496,9 +496,27 @@ get_local_sp_id_by_group(offloading_engine_t *engine,
         }
     }
 
-    ptr = MIMOSA_GET_SP_FROM_GROUP_CACHE(gp_cache, sp_gp_guid);
-    assert(ptr);
-    sp_data = GET_GROUP_SP_HASH_ENTRY(gp_cache, ptr->service_proc.global_id);
+    if (sp_gp_guid > gp_cache->n_sps)
+    {
+        *sp_gp_lid = UINT64_MAX;
+        return DO_ERROR;
+    }
+
+    // Translate SP's group GUID to SP GUID
+    for (idx = 0; idx < engine->num_service_procs; idx++)
+    {
+        int sp_in_group = GROUP_CACHE_BITSET_TEST(gp_cache->sps_bitset, idx);
+        if (sp_in_group)
+        {
+            if (sp_gp_idx == sp_gp_guid)
+                goto find_lid;
+            sp_gp_idx++;
+        }
+    }
+
+  find_lid:
+    // Once we have the GID, we can get the LID
+    sp_data = GET_GROUP_SP_HASH_ENTRY(gp_cache, idx);
     assert(sp_data);
     *sp_gp_lid = sp_data->lid;
     return DO_SUCCESS;
@@ -721,6 +739,7 @@ get_rank_idx_by_group_host_idx(offloading_engine_t *engine,
     if (GROUP_CACHE_BITSET_TEST(host_data->ranks_bitset, rank) == 0)
     {
         // The rank is not involved in the group and running on that host, error
+        *idx = UINT64_MAX;
         return DO_ERROR;
     }
 
@@ -990,7 +1009,7 @@ dpu_offload_status_t get_sp_group_gid(offloading_engine_t *engine,
                                       uint64_t *sp_gp_gid)
 {
     group_cache_t *gp_cache = NULL;
-    size_t sp_gp_idx;
+    size_t sp_gp_idx = 0, idx;
 
     assert(engine);
     gp_cache = GET_GROUP_CACHE(&(engine->procs_cache), group_uid);
@@ -1015,21 +1034,24 @@ dpu_offload_status_t get_sp_group_gid(offloading_engine_t *engine,
     }
 #endif
 
-    assert(gp_cache->sps);
-    for (sp_gp_idx = 0; sp_gp_idx < gp_cache->n_sps; sp_gp_idx++)
+    // The SP is not involved in the group, return an error
+    int sp_in_group = GROUP_CACHE_BITSET_TEST(gp_cache->sps_bitset, (int)sp_gid);
+    if (sp_gid > gp_cache->n_sps || !sp_in_group)
     {
-        remote_service_proc_info_t *sp_data = NULL;
-        sp_data = MIMOSA_GET_SP_FROM_GROUP_CACHE(gp_cache, sp_gp_idx);
-        assert(sp_data);
-
-        if (sp_data->service_proc.global_id == sp_gid)
+        *sp_gp_gid = UINT64_MAX;
+        return DO_ERROR;
+    }
+    assert(gp_cache->sps);
+    for (idx = 0; idx < sp_gid; idx++)
+    {
+        int sp_in_group = GROUP_CACHE_BITSET_TEST(gp_cache->sps_bitset, idx);
+        if (sp_in_group)
         {
-            *sp_gp_gid = sp_gp_idx;
-            return DO_SUCCESS;
+            sp_gp_idx++;
         }
     }
-    *sp_gp_gid = UINT64_MAX;
-    return DO_ERROR;
+    *sp_gp_gid = sp_gp_idx;
+    return DO_SUCCESS;
 }
 
 dpu_offload_status_t get_group_ranks_on_host(offloading_engine_t *engine,
@@ -1231,6 +1253,7 @@ static dpu_offload_status_t
 do_populate_group_cache_lookup_table(offloading_engine_t *engine, group_cache_t *gp_cache)
 {   
     size_t i, idx = 0;
+    group_cache_t *world_group = NULL;
 
     assert(engine);
     assert(gp_cache);
@@ -1246,20 +1269,15 @@ do_populate_group_cache_lookup_table(offloading_engine_t *engine, group_cache_t 
         assert(gp_cache->sps);
     }
 
+    world_group = GET_GROUP_CACHE(&(engine->procs_cache), engine->procs_cache.world_group);
     i = 0;
     while (i < gp_cache->n_sps)
     {
         if (GROUP_CACHE_BITSET_TEST(gp_cache->sps_bitset, idx))
         {
-            remote_service_proc_info_t *sp_data = NULL;
-            // The configuration is at this point static, the dynamic array
-            // used for the configuration is not supposed to ever change, we
-            // can safely use pointers to it.
-            sp_data = DYN_ARRAY_GET_ELT(GET_ENGINE_LIST_SERVICE_PROCS(engine),
-                                        idx,
-                                        remote_service_proc_info_t);
-            assert(sp_data);
-            gp_cache->sps[i] = sp_data;
+            // We use the world group as a reference and set the pointer for the group
+            // based on it.
+            gp_cache->sps[i] = world_group->sps[idx];
             i++;
         }
         idx++;

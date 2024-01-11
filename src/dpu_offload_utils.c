@@ -877,7 +877,7 @@ dpu_offload_status_t unpack_data_sps(offloading_engine_t *engine, void *data)
     num_sps = *val;
     offset += sizeof(uint64_t);
     if (!engine->on_dpu)
-        engine->host.total_num_sps = num_sps;
+        engine->num_service_procs = engine->host.total_num_sps = num_sps;
 
     // sizes of the addresses
     for (idx = 0; idx < num_sps; idx++)
@@ -1826,11 +1826,6 @@ dpu_offload_status_t get_local_service_proc_connect_info(offloading_config_t *cf
     assert(dpu_config->version_1.addr);
     init_params->conn_params->addr_str = dpu_config->version_1.addr;
     init_params->sps_per_dpu = cfg->num_service_procs_per_dpu;
-    if (cfg->num_service_procs == 0)
-    {
-        cfg->num_service_procs = cfg->num_service_procs_per_dpu * cfg->num_service_procs_per_dpu;
-    }
-    init_params->num_sps = cfg->num_service_procs;
     DBG("Service process connection info - port: %d, addr: %s",
         init_params->conn_params->port,
         init_params->conn_params->addr_str);
