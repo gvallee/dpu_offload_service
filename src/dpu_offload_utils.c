@@ -819,6 +819,9 @@ static size_t get_list_sps_packed_size(offloading_engine_t *engine)
         assert(sp);
         packed_size += sp->addr_len;
     }
+
+    // SP's info
+    packed_size += engine->num_service_procs * sizeof(service_proc_t);
     return packed_size;
 }
 
@@ -863,6 +866,16 @@ static dpu_offload_status_t pack_data_sps(offloading_engine_t *engine, size_t *p
         memcpy(ptr, sp->addr, sp->addr_len);
         offset += sp->addr_len;
     }
+
+    // SPs' info
+    for (idx = 0; idx < engine->num_service_procs; idx++)
+    {
+        sp = DYN_ARRAY_GET_ELT(GET_ENGINE_LIST_SERVICE_PROCS(engine), idx, remote_service_proc_info_t);
+        assert(sp);
+        ptr = (void*) BUFF_AT(engine->buf_data_sps, offset);
+        memcpy(ptr, &(sp->service_proc), sizeof(service_proc_t));
+        offset += sizeof(service_proc_t);
+    }
     assert(((size_t)offset) == (*payload_size));
     return DO_SUCCESS;
 }
@@ -900,6 +913,18 @@ dpu_offload_status_t unpack_data_sps(offloading_engine_t *engine, void *data)
         sp->addr = BUFF_AT(data, offset);
         offset += sp->addr_len;
     }
+
+    for (idx = 0; idx < num_sps; idx++)
+    {
+        service_proc_t *recvd_sp_info;
+        sp = DYN_ARRAY_GET_ELT(GET_ENGINE_LIST_SERVICE_PROCS(engine), idx, remote_service_proc_info_t);
+        assert(sp);
+
+        recvd_sp_info = (service_proc_t*)BUFF_AT(data, offset);
+        memcpy(&(sp->service_proc), recvd_sp_info, sizeof(service_proc_t));
+        offset += sizeof(service_proc_t);
+    }
+
     return DO_SUCCESS;
 }
 

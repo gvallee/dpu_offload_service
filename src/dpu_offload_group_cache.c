@@ -1231,8 +1231,11 @@ populate_host_sps(group_cache_t *gp_cache, host_cache_data_t *host_data)
     assert(host_data->num_sps);
     
     size_t i = 0, idx = 0;
-    host_data->sps = malloc(host_data->num_sps * sizeof(sp_cache_data_t *));
-    assert(host_data->sps);
+    if (host_data->sps == NULL)
+    {
+        host_data->sps = malloc(host_data->num_sps * sizeof(sp_cache_data_t *));
+        assert(host_data->sps);
+    }
     while (idx < host_data->num_sps)
     {
         if (GROUP_CACHE_BITSET_TEST(host_data->sps_bitset, i))
@@ -1253,7 +1256,6 @@ static dpu_offload_status_t
 do_populate_group_cache_lookup_table(offloading_engine_t *engine, group_cache_t *gp_cache)
 {   
     size_t i, idx = 0;
-    group_cache_t *world_group = NULL;
 
     assert(engine);
     assert(gp_cache);
@@ -1269,7 +1271,6 @@ do_populate_group_cache_lookup_table(offloading_engine_t *engine, group_cache_t 
         assert(gp_cache->sps);
     }
 
-    world_group = GET_GROUP_CACHE(&(engine->procs_cache), engine->procs_cache.world_group);
     i = 0;
     while (i < gp_cache->n_sps)
     {
@@ -1277,7 +1278,13 @@ do_populate_group_cache_lookup_table(offloading_engine_t *engine, group_cache_t 
         {
             // We use the world group as a reference and set the pointer for the group
             // based on it.
-            gp_cache->sps[i] = world_group->sps[idx];
+            remote_service_proc_info_t *sp;
+            sp = DYN_ARRAY_GET_ELT(GET_ENGINE_LIST_SERVICE_PROCS(engine), i, remote_service_proc_info_t);
+            assert(sp);
+
+            // The list of SPs is constant at this point, should never grow so we can safely use
+            // pointer to elements of the dynamic array.
+            gp_cache->sps[i] = sp;
             i++;
         }
         idx++;

@@ -1891,6 +1891,7 @@ typedef struct hosts_cache_data
         (_host_data)->num_ranks = 0;            \
         (_host_data)->config_idx = 0;           \
         (_host_data)->sps_bitset = NULL;        \
+        (_host_data)->sps = NULL;               \
         (_host_data)->ranks_bitset = NULL;      \
         (_host_data)->sps_initialized = false;  \
     } while (0)
@@ -2287,70 +2288,74 @@ typedef struct group_cache
  * Designed to be used within MIMOSA, not be other libraries.
  * When the group is already initialized or not known, the group size can be set to 0.
  */
-#define GET_GROUP_CACHE_INTERNAL(_cache, _gp_uid, _gp_size) ({                                      \
-    size_t __gp_size = _gp_size;                                                                    \
-    group_cache_t *_gp_cache = NULL;                                                                \
-    assert((_cache)->data);                                                                         \
-    khiter_t k = kh_get(group_hash_t, (_cache)->data, _gp_uid);                                     \
-    if (k == kh_end((_cache)->data))                                                                \
-    {                                                                                               \
-        /* Group not in the cache, adding it */                                                     \
-        int _ret;                                                                                   \
-        assert((_cache)->engine);                                                                   \
-        assert((_cache)->engine->config);                                                           \
-        assert((_cache)->engine->config->num_hosts > 0);                                            \
-        group_cache_t *_new_group_cache;                                                            \
-        khiter_t _newKey = kh_put(group_hash_t, (_cache)->data, (_gp_uid), &_ret);                  \
-        DYN_LIST_GET((_cache)->group_cache_pool, group_cache_t, item, _new_group_cache);            \
-        assert(_new_group_cache);                                                                   \
-        assert(_gp_size > 0);                                                                       \
-        INIT_GROUP_CACHE(_new_group_cache, _gp_size);                                               \
-        _new_group_cache->persistent.initialized = false;                                           \
-        _new_group_cache->engine = (_cache)->engine;                                                \
-        _new_group_cache->group_uid = (_gp_uid);                                                    \
-        /* We set the value for the first group when we add */                                      \
-        /* the first rank to a cache. GET_GROUP_CACHE_INTERNAL only made */                         \
-        /* sure we could use the structure */                                                       \
-        /* The first group is MPI_COMM_WORLD or equivalent. */                                      \
-        (_cache)->size++;                                                                           \
-        if ((_cache)->size == 1)                                                                    \
-            (_cache)->world_group = (_gp_uid);                                                      \
-        kh_value((_cache)->data, _newKey) = _new_group_cache;                                       \
-        ucs_list_head_init(&((_new_group_cache)->persistent.pending_group_revoke_msgs_from_sps));   \
-        ucs_list_head_init(&((_new_group_cache)->persistent.pending_group_revoke_msgs_from_ranks)); \
-        ucs_list_head_init(&((_new_group_cache)->persistent.pending_group_add_msgs));               \
-        ucs_list_head_init(&((_new_group_cache)->persistent.pending_send_group_add_msgs));          \
-        ucs_list_head_init(&((_new_group_cache)->persistent.pending_recv_cache_entries));           \
-        _new_group_cache->persistent.initialized = true;                                            \
-        _new_group_cache->persistent.num = 0;                                                       \
-        _new_group_cache->persistent.sent_to_host = _new_group_cache->persistent.num;               \
-        _new_group_cache->persistent.revoke_send_to_host_posted = _new_group_cache->persistent.num; \
-        _new_group_cache->persistent.revoke_sent_to_host = _new_group_cache->persistent.num;        \
-        _gp_cache = _new_group_cache;                                                               \
-    }                                                                                               \
-    else                                                                                            \
-    {                                                                                               \
-        /* Group is in the cache, just return a pointer */                                          \
-        _gp_cache = kh_value((_cache)->data, k);                                                    \
-        if (_gp_cache->group_uid == INT_MAX)                                                        \
-        {                                                                                           \
-            /* The group cache is actually not initialized, most certainly because of */            \
-            /* a previous group revoke, which does not delete entries from hash */                  \
-            /* tables but reset the group cache handle. In such a case, we */                       \
-            /* re-initialize the group cache */                                                     \
-            INIT_GROUP_CACHE(_gp_cache, __gp_size);                                                 \
-            _gp_cache->group_uid = _gp_uid;                                                         \
-        }                                                                                           \
-        if (_gp_cache->engine == NULL && _gp_cache->num_local_entries == 0)                         \
-        {                                                                                           \
-            /* This happens when the group has been revoked and reused */                           \
-            _gp_cache->engine = (_cache)->engine;                                                   \
-        }                                                                                           \
-        assert(_gp_cache->engine != NULL);                                                          \
-        assert(_gp_uid == _gp_cache->group_uid);                                                    \
-        assert(_gp_cache->persistent.initialized == true);                                          \
-    }                                                                                               \
-    _gp_cache;                                                                                      \
+#define GET_GROUP_CACHE_INTERNAL(_cache, _gp_uid, _gp_size) ({                                                      \
+    size_t __gp_size = _gp_size;                                                                                    \
+    group_cache_t *_gp_cache = NULL;                                                                                \
+    assert((_cache)->data);                                                                                         \
+    khiter_t k = kh_get(group_hash_t, (_cache)->data, _gp_uid);                                                     \
+    if (k == kh_end((_cache)->data))                                                                                \
+    {                                                                                                               \
+        /* Group not in the cache, adding it */                                                                     \
+        int _ret;                                                                                                   \
+        assert((_cache)->engine);                                                                                   \
+        assert((_cache)->engine->config);                                                                           \
+        assert((_cache)->engine->config->num_hosts > 0);                                                            \
+        group_cache_t *_new_group_cache;                                                                            \
+        khiter_t _newKey = kh_put(group_hash_t, (_cache)->data, (_gp_uid), &_ret);                                  \
+        DYN_LIST_GET((_cache)->group_cache_pool, group_cache_t, item, _new_group_cache);                            \
+        assert(_new_group_cache);                                                                                   \
+        assert(_gp_size > 0);                                                                                       \
+        INIT_GROUP_CACHE(_new_group_cache, _gp_size);                                                               \
+        assert((_cache)->engine->num_service_procs > 0);                                                            \
+        assert(_new_group_cache->sps == NULL);                                                                      \
+        _new_group_cache->sps = malloc((_cache)->engine->num_service_procs * sizeof(remote_service_proc_info_t));   \
+        assert(_new_group_cache->sps);                                                                              \
+        _new_group_cache->persistent.initialized = false;                                                           \
+        _new_group_cache->engine = (_cache)->engine;                                                                \
+        _new_group_cache->group_uid = (_gp_uid);                                                                    \
+        /* We set the value for the first group when we add */                                                      \
+        /* the first rank to a cache. GET_GROUP_CACHE_INTERNAL only made */                                         \
+        /* sure we could use the structure */                                                                       \
+        /* The first group is MPI_COMM_WORLD or equivalent. */                                                      \
+        (_cache)->size++;                                                                                           \
+        if ((_cache)->size == 1)                                                                                    \
+            (_cache)->world_group = (_gp_uid);                                                                      \
+        kh_value((_cache)->data, _newKey) = _new_group_cache;                                                       \
+        ucs_list_head_init(&((_new_group_cache)->persistent.pending_group_revoke_msgs_from_sps));                   \
+        ucs_list_head_init(&((_new_group_cache)->persistent.pending_group_revoke_msgs_from_ranks));                 \
+        ucs_list_head_init(&((_new_group_cache)->persistent.pending_group_add_msgs));                               \
+        ucs_list_head_init(&((_new_group_cache)->persistent.pending_send_group_add_msgs));                          \
+        ucs_list_head_init(&((_new_group_cache)->persistent.pending_recv_cache_entries));                           \
+        _new_group_cache->persistent.initialized = true;                                                            \
+        _new_group_cache->persistent.num = 0;                                                                       \
+        _new_group_cache->persistent.sent_to_host = _new_group_cache->persistent.num;                               \
+        _new_group_cache->persistent.revoke_send_to_host_posted = _new_group_cache->persistent.num;                 \
+        _new_group_cache->persistent.revoke_sent_to_host = _new_group_cache->persistent.num;                        \
+        _gp_cache = _new_group_cache;                                                                               \
+    }                                                                                                               \
+    else                                                                                                            \
+    {                                                                                                               \
+        /* Group is in the cache, just return a pointer */                                                          \
+        _gp_cache = kh_value((_cache)->data, k);                                                                    \
+        if (_gp_cache->group_uid == INT_MAX)                                                                        \
+        {                                                                                                           \
+            /* The group cache is actually not initialized, most certainly because of */                            \
+            /* a previous group revoke, which does not delete entries from hash */                                  \
+            /* tables but reset the group cache handle. In such a case, we */                                       \
+            /* re-initialize the group cache */                                                                     \
+            INIT_GROUP_CACHE(_gp_cache, __gp_size);                                                                 \
+            _gp_cache->group_uid = _gp_uid;                                                                         \
+        }                                                                                                           \
+        if (_gp_cache->engine == NULL && _gp_cache->num_local_entries == 0)                                         \
+        {                                                                                                           \
+            /* This happens when the group has been revoked and reused */                                           \
+            _gp_cache->engine = (_cache)->engine;                                                                   \
+        }                                                                                                           \
+        assert(_gp_cache->engine != NULL);                                                                          \
+        assert(_gp_uid == _gp_cache->group_uid);                                                                    \
+        assert(_gp_cache->persistent.initialized == true);                                                          \
+    }                                                                                                               \
+    _gp_cache;                                                                                                      \
 })
 
 /**
