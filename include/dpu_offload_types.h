@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2021, NVIDIA CORPORATION. All rights reserved.
+// Copyright (c) 2021-2024, NVIDIA CORPORATION. All rights reserved.
 //
 // See LICENSE.txt for license information
 //
@@ -218,6 +218,12 @@ typedef struct dest_client
     ECONTEXT_UNLOCK((_exec_ctx));            \
     _done;                                   \
 })
+
+#define MIMOSA_GET_SP_FROM_GROUP_CACHE(__group_cache, __sp_idx) ((remote_service_proc_info_t *)(__group_cache)->sps[(__sp_idx)])
+
+#define MIMOSA_GET_HOST_FROM_GROUP_CACHE(__group_cache, __host_idx) ((__group_cache)->hosts[(__host_idx)])
+
+#define MIMOSA_GET_RANK_FROM_GROUP_CACHE(__group_cache, __rank_idx) (&(__group_cache)->ranks[(__rank_idx)])
 
 typedef enum dpu_offload_state
 {
@@ -520,32 +526,38 @@ typedef struct peer_cache_entry
     simple_list_t events;
 } peer_cache_entry_t;
 
-#define RESET_PEER_CACHE_ENTRY(_e)                                    \
-    do                                                                \
-    {                                                                 \
-        size_t _idx;                                                  \
-        dpu_offload_event_t *__ev = NULL;                             \
-        (_e)->set = false;                                            \
-        RESET_PEER_DATA(&((_e)->peer));                               \
-        (_e)->client_id = UINT64_MAX;                                 \
-        (_e)->ep = NULL;                                              \
-        for (_idx = 0; _idx < (_e)->num_shadow_service_procs; _idx++) \
-        {                                                             \
-            (_e)->shadow_service_procs[_idx] = UINT64_MAX;            \
-        }                                                             \
-        (_e)->num_shadow_service_procs = 0;                           \
-        if ((_e)->events_initialized)                                 \
-        {                                                             \
-            while (!SIMPLE_LIST_IS_EMPTY(&((_e)->events)))            \
-            {                                                         \
-                __ev = SIMPLE_LIST_EXTRACT_HEAD(&((_e)->events),      \
-                                                dpu_offload_event_t,  \
-                                                item);                \
-                assert(__ev);                                         \
-                event_return(&__ev);                                  \
-            }                                                         \
-        }                                                             \
-        (_e)->events_initialized = false;                             \
+#define INIT_PEER_CACHE_ENTRY(__entry)                          \
+    do                                                          \
+    {                                                           \
+        size_t _idx;                                            \
+        (__entry)->set = false;                                 \
+        RESET_PEER_DATA(&((__entry)->peer));                    \
+        (__entry)->client_id = UINT64_MAX;                      \
+        (__entry)->ep = NULL;                                   \
+        for (_idx = 0; _idx < MAX_SHADOW_SERVICE_PROCS; _idx++) \
+        {                                                       \
+            (__entry)->shadow_service_procs[_idx] = UINT64_MAX; \
+        }                                                       \
+        (__entry)->num_shadow_service_procs = 0;                \
+        (__entry)->events_initialized = false;                  \
+    } while (0)
+
+#define RESET_PEER_CACHE_ENTRY(_e)                                      \
+    do                                                                  \
+    {                                                                   \
+        dpu_offload_event_t *__ev = NULL;                               \
+        if ((_e)->events_initialized)                                   \
+        {                                                               \
+            while (!SIMPLE_LIST_IS_EMPTY(&((_e)->events)))              \
+            {                                                           \
+                __ev = SIMPLE_LIST_EXTRACT_HEAD(&((_e)->events),        \
+                                                dpu_offload_event_t,    \
+                                                item);                  \
+                assert(__ev);                                           \
+                event_return(&__ev);                                    \
+            }                                                           \
+        }                                                               \
+        INIT_PEER_CACHE_ENTRY(_e);                                      \
     } while (0)
 
 typedef struct cache_entry_request
@@ -782,7 +794,7 @@ typedef struct notif_reception
     } while (0)
 #endif
 
-typedef struct boostrapping
+typedef struct bootstrapping
 {
     int phase;
     struct ucx_context *addr_size_request;
@@ -819,6 +831,23 @@ typedef struct boostrapping
         RESET_AM_REQ(&((_b)->step4.ctx));       \
     } while (0)
 
+// Stores all the indexing data needed to retrieve a pointer
+// to a specific peer_cache_entry_t item from a given group
+// cache's ranks array using GET_GROUP_RANK_CACHE_ENTRY 
+// Workaround to avoid storing pointers to dyn_array_t elements
+typedef struct peer_cache_entry_index
+{
+    // group_uid for the target group cache
+    group_uid_t group_uid;
+    
+    // ID of the target rank within the group cache ranks array
+    int64_t rank;
+    
+    // Size of the group for the target group cache
+    int64_t group_size;
+    
+} peer_cache_entry_index_t;
+
 typedef struct peer_info
 {
     bootstrapping_t bootstrapping;
@@ -849,9 +878,9 @@ typedef struct peer_info
 
     rank_info_t rank_data;
 
-    // Dynamic array of group/proc entries, one per group. A rank can belong to multiple groups but have a single endpoint.
-    // Type: peer_cache_entry_t *
-    dyn_array_t cache_entries;
+    // Dynamic array of indexing data for associated cache entries
+    // Type: peer_cache_entry_index_t
+    dyn_array_t cache_entry_index_data;
 } peer_info_t;
 
 /**********************************************/
@@ -1031,7 +1060,7 @@ typedef struct init_params
 
     // Proc identifier passed in by the calling layer.
     // Mainly used to create the mapping between group/rank from layer such as MPI
-    rank_info_t *proc_info;
+    rank_info_t proc_info;
 
     // worker to use to perform the initial connection.
     // If NULL, a new worker will be created
@@ -1058,16 +1087,19 @@ typedef struct init_params
     connect_completed_cb connected_cb;
 } init_params_t;
 
-#define RESET_INIT_PARAMS(_params)            \
-    do                                        \
-    {                                         \
-        (_params)->conn_params = NULL;        \
-        (_params)->proc_info = NULL;          \
-        (_params)->worker = NULL;             \
-        (_params)->ucp_context = NULL;        \
-        (_params)->id_set = false;            \
-        (_params)->connected_cb = NULL;       \
-        (_params)->scope_id = SCOPE_HOST_DPU; \
+#define RESET_INIT_PARAMS(_params)                  \
+    do                                              \
+    {                                               \
+        (_params)->scope_id = SCOPE_HOST_DPU;       \
+        (_params)->conn_params = NULL;              \
+        RESET_RANK_INFO(&((_params)->proc_info));   \
+        (_params)->worker = NULL;                   \
+        (_params)->ucp_context = NULL;              \
+        (_params)->id_set = false;                  \
+        (_params)->id = UINT64_MAX;                 \
+        (_params)->sps_per_dpu = 0;                 \
+        (_params)->num_sps = 0;                     \
+        (_params)->connected_cb = NULL;             \
     } while (0)
 
 #if OFFLOADING_MT_ENABLE
@@ -1277,7 +1309,7 @@ typedef struct dpu_offload_client_t
 {
     bootstrapping_t bootstrapping;
 
-    // Index in the list of clietns
+    // Index in the list of clients
     int64_t idx;
 
     // Identifier assigned by server
@@ -1659,7 +1691,7 @@ typedef struct dpu_offload_event
 
 typedef struct dpu_offload_event_info
 {
-    // Size of the payload that the library needs to be managing. If 0 not payload needs to be managed
+    // Size of the payload that the library needs to be managing. If 0, no payload needs to be managed
     size_t payload_size;
 
     // Specify whether the user will explicitely return the event once done or not
@@ -1761,8 +1793,10 @@ typedef struct sp_cache_data
     // List of ranks from the group that are associated to the service process
     group_cache_bitset_t *ranks_bitset;
 
-    // Contiguous & ordered list of ranks associated with the SP (type: peer_cache_entry_t *)
-    dyn_array_t ranks;
+    // Ordered dynamic array of index data which can
+    // be used to lookup ranks associated with this SP
+    // using GET_GROUP_RANK_CACHE_ENTRY
+    peer_cache_entry_t **ranks;
 
     // Specifies whether the ranks array has been initialized
     bool ranks_initialized;
@@ -1781,6 +1815,9 @@ typedef struct sp_cache_data
     } while (0)
 
 // Keys for group_sps_hash_t are the SP's GID, i.e., uint64_t
+// values are pointers to sp_cache_data_t items
+// BW: At this point, I think this hash map with pointer values should be fine
+// since the backing memory is based on dyn lists rather than dyn arrays
 KHASH_MAP_INIT_INT64(group_sps_hash_t, sp_cache_data_t *);
 
 /**
@@ -1799,14 +1836,15 @@ typedef struct host_info
     size_t idx;
 } host_info_t;
 
-// Keys for host_info_hash_t are the host's UID, i.e., uint64_t
-KHASH_MAP_INIT_INT64(host_info_hash_t, host_info_t *);
+// Keys are the host's UID, i.e., uint64_t; values are the index in hosts_config that corresponds to the host
+KHASH_MAP_INIT_INT64(host_info_hash_t, size_t);
 
-#define CONFIG_HOSTS_HASH_FINI(_cfg)                                \
-    do                                                              \
-    {                                                               \
-        assert((_cfg)->host_lookup_table);                          \
-        kh_destroy(host_info_hash_t, (_cfg)->host_lookup_table);    \
+#define CONFIG_HOSTS_HASH_FINI(_cfg)            \
+    do                                          \
+    {                                           \
+        assert((_cfg)->host_lookup_table);      \
+        kh_destroy(host_info_hash_t,            \
+                   (_cfg)->host_lookup_table);  \
     } while (0)
 
 /**
@@ -1827,16 +1865,16 @@ typedef struct hosts_cache_data
     // Number of SPs that are being used on the host and within the group
     size_t num_sps;
 
-    // Number of ranks that are being running on the host and within the group
+    // Number of ranks that are running on the host and within the group
     size_t num_ranks;
 
-    // Bitset to track which SPs is being used on the host
-    // out of the list of all the service at the engine level
+    // Bitset to track which SPs are being used on the host
+    // out of the list of all the service procs at the engine level
     group_cache_bitset_t *sps_bitset;
 
     // Contiguous & ordered list of SPs associated with the host and
-    // involved in the group (type: sp_cache_data_t *)
-    dyn_array_t sps;
+    // involved in the group.
+    sp_cache_data_t **sps;
 
     // Specifies whether the sps array has been initialized
     bool sps_initialized;
@@ -1853,10 +1891,13 @@ typedef struct hosts_cache_data
         (_host_data)->num_ranks = 0;            \
         (_host_data)->config_idx = 0;           \
         (_host_data)->sps_bitset = NULL;        \
+        (_host_data)->sps = NULL;               \
         (_host_data)->ranks_bitset = NULL;      \
         (_host_data)->sps_initialized = false;  \
     } while (0)
 
+// BW: I think this hash map with pointer values should be fine since
+// the backing memory is based on dyn lists rather than dyn arrays
 KHASH_MAP_INIT_INT64(group_hosts_hash_t, host_cache_data_t *);
 
 struct remote_service_proc_info; // Forward declaration
@@ -1924,7 +1965,6 @@ typedef struct group_cache
         group_cache_bitset_t *ranks;
     } revokes;
 
-
     // Number of ranks/processes in the group
     size_t group_size;
 
@@ -1945,64 +1985,49 @@ typedef struct group_cache
     // Number of rank in the group that are associated to the current service process
     size_t sp_ranks;
 
-    // Array with all the ranks in the group (type: peer_cache_entry_t)
-    dyn_array_t ranks;
-
-    // Boolean to track if the dynamic array
-    bool rank_array_initialized;
+    // Array with all the ranks in the group
+    peer_cache_entry_t *ranks;
 
     // Hash for all the hosts in the group. We use a hash so we can efficiently
     // track which hosts are used in a group as we receive cache entries.
     // The key is the host ID (64-bit hash of the hostname), the value the
     // host_uid_t structure.
-    // It creates a logically contiguous, unordered list of all the hosts involed in
+    // It creates a logically contiguous, unordered list of all the hosts involved in
     // the group
     khash_t(group_hosts_hash_t) * hosts_hash;
 
     // Bitset used to identify all the hosts involed in the group. This creates a
     // non-contiguous but ordered list of all the hosts that are involed.
     group_cache_bitset_t *hosts_bitset;
-
-    // Lookup table implemented as an array of all the hosts involved in the group.
+    
+    // Lookup table implemented as a dynamic array of indices within cfg->hosts_config
+    // corresponding to host_into_t items for all the hosts involved in the group.
     // The array is contiguous and ordered, i.e., each host involved in the group
-    // are added to the array based on the order from the configuration,
+    // has its pointer added to the array based on the order from the configuration,
     // which for most jobs is from a configuration file.
     // The array is guaranteed to be the same on all hosts and SPs.
-    // The index in the array is referred to as a "host group ID", i.e.,
-    // the host ID within the group, from 0 to n, n being the total number of hosts
-    // that are involved.
-    // Type: host_info_t *
-    dyn_array_t hosts;
+    host_info_t **hosts;
 
     // Number of hosts involved in the group, i.e., the number of elements in the 'hosts' array
     size_t n_hosts;
 
-    // Boolean to track if the dynamic array 'hosts' has been initialized or not
-    bool host_array_initialized;
-
     // Hash for all the SPs in the group. We use a hash so we can efficiently
     // track which SPs are used in a group as we receive cache entries.
     // The key is the group ID, the value the number of ranks associated to that SP.
-    // It creates a logically contiguous, unordered list of all the SPs involed in
+    // It creates a logically contiguous, unordered list of all the SPs involved in
     // the group
     khash_t(group_sps_hash_t) * sps_hash;
 
     // Bitset used to identify all the SPs involed in the group. This creates a
-    // non-contiguous but ordered list of all the SPs that are involed.
+    // non-contiguous but ordered list of all the SPs that are involved.
     group_cache_bitset_t *sps_bitset;
-
-    // Lookup table implemented as an array of all the SPs involved in the group.
+    
+    // Lookup table for all the service processes that are actively part of the group.
     // The array is contiguous and ordered, i.e., each SP involved in the group
-    // are added to the array based on the order from the configuration,
+    // has its pointer added to the array based on the order from the configuration,
     // which for most jobs is from a configuration file.
     // The array is guaranteed to be the same on all hosts and SPs.
-    // The index in the array is referred to as "global group SP id", i.e.,
-    // the SP ID within the group, from 0 to n, n being the total number of SPs
-    // involved in the group (type: remote_service_proc_info_t *).
-    dyn_array_t sps;
-
-    // Boolean to track if the dynamic array 'sps' has been initialized or not
-    bool sp_array_initialized;
+    struct remote_service_proc_info **sps;
 
     // Number of SPs involved in the group, i.e., the number of elements in the 'sps' array.
     size_t n_sps;
@@ -2026,10 +2051,10 @@ typedef struct group_cache
             {                                                               \
                 kh_foreach((_gp_cache)->sps_hash, __k, __sp_v, {            \
                     GROUP_CACHE_BITSET_DESTROY(__sp_v->ranks_bitset);       \
-                    if (__sp_v->ranks_initialized)                          \
+                    if (__sp_v->ranks)                                      \
                     {                                                       \
-                        DYN_ARRAY_FREE(&(__sp_v->ranks));                   \
-                        __sp_v->ranks_initialized = false;                  \
+                        free(__sp_v->ranks);                                \
+                        __sp_v->ranks = NULL;                               \
                     }                                                       \
                     DYN_LIST_RETURN((_engine)->free_sp_cache_hash_obj,      \
                                     __sp_v,                                 \
@@ -2051,7 +2076,7 @@ typedef struct group_cache
                     GROUP_CACHE_BITSET_DESTROY(__host_v->ranks_bitset);     \
                     if (__host_v->sps_initialized)                          \
                     {                                                       \
-                        DYN_ARRAY_FREE(&(__host_v->sps));                   \
+                        free(__host_v->sps);                                \
                         __host_v->sps_initialized = false;                  \
                     }                                                       \
                     DYN_LIST_RETURN((_engine)->free_host_cache_hash_obj,    \
@@ -2078,25 +2103,32 @@ typedef struct group_cache
         (__g)->n_local_ranks = 0;                   \
         (__g)->n_local_ranks_populated = 0;         \
         (__g)->sp_ranks = 0;                        \
-        (__g)->n_hosts = 0;                         \
-        (__g)->n_sps = 0;                           \
-        (__g)->sps_bitset = NULL;                   \
+        (__g)->ranks = NULL;                        \
+        (__g)->hosts_hash = NULL;                   \
         (__g)->hosts_bitset = NULL;                 \
-        (__g)->sp_array_initialized = false;        \
-        (__g)->host_array_initialized = false;      \
-        (__g)->rank_array_initialized = false;      \
+        (__g)->hosts = NULL;                        \
+        (__g)->n_hosts = 0;                         \
+        (__g)->sps_hash = NULL;                     \
+        (__g)->sps_bitset = NULL;                   \
+        (__g)->sps = NULL;                          \
+        (__g)->n_sps = 0;                           \
         (__g)->lookup_tables_populated = false;     \
     } while(0)
 
 #define INIT_GROUP_CACHE(__g, __gp_size)                                                \
     do                                                                                  \
     {                                                                                   \
+        size_t _rank_idx;                                                               \
         assert(__gp_size > 0);                                                          \
         BASIC_INIT_GROUP_CACHE((__g));                                                  \
-        DYN_ARRAY_ALLOC(&((__g)->ranks), __gp_size, peer_cache_entry_t);                \
-        (__g)->rank_array_initialized = true;                                           \
-        /* No need to allocate _new_group_cache->hosts, we handle it when we populte */ \
-        /* lookup tables in populate_group_cache_lookup_table() */                      \
+        (__g)->ranks = malloc(__gp_size * sizeof(peer_cache_entry_t));                  \
+        assert((__g)->ranks);                                                           \
+        for (_rank_idx = 0; _rank_idx < (__gp_size); _rank_idx++)                       \
+        {                                                                               \
+            INIT_PEER_CACHE_ENTRY(&((__g)->ranks[_rank_idx]));                          \
+        }                                                                               \
+        /* No need to allocate _new_group_cache->host_indices, we handle it when we */  \
+        /* populate lookup tables in populate_group_cache_lookup_table() */             \
         (__g)->sps_hash = kh_init(group_sps_hash_t);                                    \
         (__g)->hosts_hash = kh_init(group_hosts_hash_t);                                \
         (__g)->initialized = true;                                                      \
@@ -2107,12 +2139,21 @@ typedef struct group_cache
     do                                                          \
     {                                                           \
         GROUP_CACHE_HASHES_FINI(__e, __g);                      \
-        if ((__g)->sp_array_initialized)                        \
-            DYN_ARRAY_FREE(&((__g)->sps));                      \
-        if ((__g)->host_array_initialized)                      \
-            DYN_ARRAY_FREE(&((__g)->hosts));                    \
-        if ((__g)->rank_array_initialized)                      \
-            DYN_ARRAY_FREE(&((__g)->ranks));                    \
+        if ((__g)->sps)                                         \
+        {                                                       \
+            free((__g)->sps);                                   \
+            (__g)->sps = NULL;                                  \
+        }                                                       \
+        if ((__g)->hosts)                                       \
+        {                                                       \
+            free((__g)->hosts);                                 \
+            (__g)->hosts = NULL;                                \
+        }                                                       \
+        if ((__g)->ranks)                                       \
+        {                                                       \
+            free((__g)->ranks);                                 \
+            (__g)->ranks = NULL;                                \
+        }                                                       \
         if ((__g)->revokes.ranks)                               \
         {                                                       \
             GROUP_CACHE_BITSET_DESTROY((__g)->revokes.ranks);   \
@@ -2149,21 +2190,21 @@ typedef struct group_cache
     _host_data;                                                                       \
 })
 
-#define LOOKUP_HOST_CONFIG(_engine, _host_uid) ({                        \
-    host_info_t *__host_info = NULL;                                     \
-    if (kh_size((_engine)->config->host_lookup_table) != 0)              \
-    {                                                                    \
-        khiter_t _hk = kh_get(host_info_hash_t,                          \
-                              (_engine)->config->host_lookup_table,      \
-                              _host_uid);                                \
-        if (_hk != kh_end((_engine)->config->host_lookup_table))         \
-        {                                                                \
-            /* The host is in the hash */                                \
-            __host_info = kh_value((_engine)->config->host_lookup_table, \
-                                   _hk);                                 \
-        }                                                                \
-    }                                                                    \
-    __host_info;                                                         \
+#define LOOKUP_HOST_CONFIG_IDX(_engine, _host_uid) ({                               \
+    size_t __host_info_idx = -1;                                                    \
+    if (kh_size((_engine)->config->host_lookup_table) != 0)                     \
+    {                                                                               \
+        khiter_t _hk = kh_get(host_info_hash_t,                                     \
+                              (_engine)->config->host_lookup_table,             \
+                              _host_uid);                                           \
+        if (_hk != kh_end((_engine)->config->host_lookup_table))                \
+        {                                                                           \
+            /* The host is in the hash */                                           \
+            __host_info_idx = kh_value((_engine)->config->host_lookup_table,    \
+                                        _hk);                                       \
+        }                                                                           \
+    }                                                                               \
+    __host_info_idx;                                                                \
 })
 
 #define DISPLAY_GROUP_SP_HASH(_gp_cache) \
@@ -2247,71 +2288,83 @@ typedef struct group_cache
  * Designed to be used within MIMOSA, not be other libraries.
  * When the group is already initialized or not known, the group size can be set to 0.
  */
-#define GET_GROUP_CACHE_INTERNAL(_cache, _gp_uid, _gp_size) ({                                      \
-    size_t __gp_size = _gp_size;                                                                    \
-    group_cache_t *_gp_cache = NULL;                                                                \
-    assert((_cache)->data);                                                                         \
-    if (__gp_size == 0)                                                                             \
-        __gp_size = MIMOSA_DEFAULT_NUM_RANKS;                                                       \
-    khiter_t k = kh_get(group_hash_t, (_cache)->data, _gp_uid);                                     \
-    if (k == kh_end((_cache)->data))                                                                \
-    {                                                                                               \
-        /* Group not in the cache, adding it */                                                     \
-        int _ret;                                                                                   \
-        assert((_cache)->engine);                                                                   \
-        assert((_cache)->engine->config);                                                           \
-        assert((_cache)->engine->config->num_hosts > 0);                                            \
-        group_cache_t *_new_group_cache;                                                            \
-        khiter_t _newKey = kh_put(group_hash_t, (_cache)->data, (_gp_uid), &_ret);                  \
-        DYN_LIST_GET((_cache)->group_cache_pool, group_cache_t, item, _new_group_cache);            \
-        assert(_new_group_cache);                                                                   \
-        INIT_GROUP_CACHE(_new_group_cache, _gp_size);                                               \
-        _new_group_cache->persistent.initialized = false;                                           \
-        _new_group_cache->engine = (_cache)->engine;                                                \
-        _new_group_cache->group_uid = (_gp_uid);                                                    \
-        /* We set the value for the first group when we add */                                      \
-        /* the first rank to a cache. GET_GROUP_CACHE_INTERNAL only made */                         \
-        /* sure we could use the structure */                                                       \
-        /* The first group is MPI_COMM_WORLD or equivalent. */                                      \
-        (_cache)->size++;                                                                           \
-        if ((_cache)->size == 1)                                                                    \
-            (_cache)->world_group = (_gp_uid);                                                      \
-        kh_value((_cache)->data, _newKey) = _new_group_cache;                                       \
-        ucs_list_head_init(&((_new_group_cache)->persistent.pending_group_revoke_msgs_from_sps));   \
-        ucs_list_head_init(&((_new_group_cache)->persistent.pending_group_revoke_msgs_from_ranks)); \
-        ucs_list_head_init(&((_new_group_cache)->persistent.pending_group_add_msgs));               \
-        ucs_list_head_init(&((_new_group_cache)->persistent.pending_send_group_add_msgs));          \
-        ucs_list_head_init(&((_new_group_cache)->persistent.pending_recv_cache_entries));           \
-        _new_group_cache->persistent.initialized = true;                                            \
-        _new_group_cache->persistent.num = 0;                                                       \
-        _new_group_cache->persistent.sent_to_host = _new_group_cache->persistent.num;               \
-        _new_group_cache->persistent.revoke_send_to_host_posted = _new_group_cache->persistent.num; \
-        _new_group_cache->persistent.revoke_sent_to_host = _new_group_cache->persistent.num;        \
-        _gp_cache = _new_group_cache;                                                               \
-    }                                                                                               \
-    else                                                                                            \
-    {                                                                                               \
-        /* Group is in the cache, just return a pointer */                                          \
-        _gp_cache = kh_value((_cache)->data, k);                                                    \
-        if (_gp_cache->group_uid == INT_MAX)                                                        \
-        {                                                                                           \
-            /* The group cache is actually not initialized, most certainly because of */            \
-            /* a previous group revoke, which does not delete entries from hash */                  \
-            /* tables but reset the group cache handle. In such a case, we */                       \
-            /* re-initialize the group cache */                                                     \
-            INIT_GROUP_CACHE(_gp_cache, __gp_size);                                                 \
-            _gp_cache->group_uid = _gp_uid;                                                         \
-        }                                                                                           \
-        if (_gp_cache->engine == NULL && _gp_cache->num_local_entries == 0)                         \
-        {                                                                                           \
-            /* This happens when the group has been revoked and reused */                           \
-            _gp_cache->engine = (_cache)->engine;                                                   \
-        }                                                                                           \
-        assert(_gp_cache->engine != NULL);                                                          \
-        assert(_gp_uid == _gp_cache->group_uid);                                                    \
-        assert(_gp_cache->persistent.initialized == true);                                          \
-    }                                                                                               \
-    _gp_cache;                                                                                      \
+#define GET_GROUP_CACHE_INTERNAL(_cache, _gp_uid, _gp_size) ({                                              \
+    size_t __gp_size = _gp_size;                                                                            \
+    group_cache_t *_gp_cache = NULL;                                                                        \
+    assert((_cache)->data);                                                                                 \
+    khiter_t k = kh_get(group_hash_t, (_cache)->data, _gp_uid);                                             \
+    if (k == kh_end((_cache)->data))                                                                        \
+    {                                                                                                       \
+        /* Group not in the cache, adding it */                                                             \
+        int _ret;                                                                                           \
+        assert((_cache)->engine);                                                                           \
+        assert((_cache)->engine->config);                                                                   \
+        assert((_cache)->engine->config->num_hosts > 0);                                                    \
+        group_cache_t *_new_group_cache;                                                                    \
+        khiter_t _newKey = kh_put(group_hash_t, (_cache)->data, (_gp_uid), &_ret);                          \
+        DYN_LIST_GET((_cache)->group_cache_pool, group_cache_t, item, _new_group_cache);                    \
+        assert(_new_group_cache);                                                                           \
+        assert(_gp_size > 0);                                                                               \
+        INIT_GROUP_CACHE(_new_group_cache, _gp_size);                                                       \
+        if ((_cache)->engine->num_service_procs > 0)                                                        \
+        {                                                                                                   \
+            size_t __alloc_size = (_cache)->engine->num_service_procs * sizeof(remote_service_proc_info_t); \
+            assert(_new_group_cache->sps == NULL);                                                          \
+            _new_group_cache->sps = malloc(__alloc_size);                                                   \
+            assert(_new_group_cache->sps);                                                                  \
+        }                                                                                                   \
+        _new_group_cache->persistent.initialized = false;                                                   \
+        _new_group_cache->engine = (_cache)->engine;                                                        \
+        _new_group_cache->group_uid = (_gp_uid);                                                            \
+        /* We set the value for the first group when we add */                                              \
+        /* the first rank to a cache. GET_GROUP_CACHE_INTERNAL only made */                                 \
+        /* sure we could use the structure */                                                               \
+        /* The first group is MPI_COMM_WORLD or equivalent. */                                              \
+        (_cache)->size++;                                                                                   \
+        if ((_cache)->size == 1)                                                                            \
+            (_cache)->world_group = (_gp_uid);                                                              \
+        kh_value((_cache)->data, _newKey) = _new_group_cache;                                               \
+        ucs_list_head_init(&((_new_group_cache)->persistent.pending_group_revoke_msgs_from_sps));           \
+        ucs_list_head_init(&((_new_group_cache)->persistent.pending_group_revoke_msgs_from_ranks));         \
+        ucs_list_head_init(&((_new_group_cache)->persistent.pending_group_add_msgs));                       \
+        ucs_list_head_init(&((_new_group_cache)->persistent.pending_send_group_add_msgs));                  \
+        ucs_list_head_init(&((_new_group_cache)->persistent.pending_recv_cache_entries));                   \
+        _new_group_cache->persistent.initialized = true;                                                    \
+        _new_group_cache->persistent.num = 0;                                                               \
+        _new_group_cache->persistent.sent_to_host = _new_group_cache->persistent.num;                       \
+        _new_group_cache->persistent.revoke_send_to_host_posted = _new_group_cache->persistent.num;         \
+        _new_group_cache->persistent.revoke_sent_to_host = _new_group_cache->persistent.num;                \
+        _gp_cache = _new_group_cache;                                                                       \
+    }                                                                                                       \
+    else                                                                                                    \
+    {                                                                                                       \
+        _gp_cache = kh_value((_cache)->data, k);                                                            \
+        if (_gp_cache->group_uid == INT_MAX)                                                                \
+        {                                                                                                   \
+            /* The group cache is actually not initialized, most certainly because of */                    \
+            /* a previous group revoke, which does not delete entries from hash */                          \
+            /* tables but reset the group cache handle. In such a case, we */                               \
+            /* re-initialize the group cache */                                                             \
+            INIT_GROUP_CACHE(_gp_cache, __gp_size);                                                         \
+            _gp_cache->group_uid = _gp_uid;                                                                 \
+        }                                                                                                   \
+        if (_gp_cache->engine == NULL && _gp_cache->num_local_entries == 0)                                 \
+        {                                                                                                   \
+            /* This happens when the group has been revoked and reused */                                   \
+            _gp_cache->engine = (_cache)->engine;                                                           \
+        }                                                                                                   \
+        assert(_gp_cache->engine != NULL);                                                                  \
+        assert(_gp_uid == _gp_cache->group_uid);                                                            \
+        assert(_gp_cache->persistent.initialized == true);                                                  \
+        /* Group is in the cache, just return a pointer */                                                  \
+        if (_gp_cache->sps == NULL && (_cache)->engine->num_service_procs > 0)                              \
+        {                                                                                                   \
+            size_t __alloc_size = (_cache)->engine->num_service_procs * sizeof(remote_service_proc_info_t); \
+            _gp_cache->sps = malloc(__alloc_size);                                                          \
+            assert(_gp_cache->sps);                                                                         \
+        }                                                                                                   \
+    }                                                                                                       \
+    _gp_cache;                                                                                              \
 })
 
 /**
@@ -2320,10 +2373,10 @@ typedef struct group_cache
  * to be used. It does not mean the group cache for the group is fully initialized. The
  * second part of the initialization is performed when a rank is added to the cache.
  */
-#define GET_GROUP_CACHE(_cache, _gp_uid) ({                     \
-    group_cache_t *_gp_cache = NULL;                            \
-    _gp_cache = GET_GROUP_CACHE_INTERNAL(_cache, _gp_uid, 0);   \
-    _gp_cache;                                                  \
+#define GET_GROUP_CACHE(_cache, _gp_uid) ({                         \
+    group_cache_t *_gp_cache = NULL;                                \
+    _gp_cache = GET_GROUP_CACHE_INTERNAL(_cache, (_gp_uid), 0);     \
+    _gp_cache;                                                      \
 })
 
 #define GET_GROUP_KEY(__gp) ({                          \
@@ -2343,10 +2396,9 @@ typedef struct group_cache
     ({                                                                          \
         peer_cache_entry_t *_entry = NULL;                                      \
         group_cache_t *_gp_cache = GET_GROUP_CACHE((_cache), (_gp_uid));        \
-        dyn_array_t *_rank_cache = &(_gp_cache->ranks);                         \
         if (_gp_cache->initialized == true)                                     \
         {                                                                       \
-            _entry = DYN_ARRAY_GET_ELT(_rank_cache, _rank, peer_cache_entry_t); \
+            _entry = MIMOSA_GET_RANK_FROM_GROUP_CACHE(_gp_cache, _rank);        \
         }                                                                       \
         _entry;                                                                 \
     })
@@ -2455,17 +2507,15 @@ typedef struct cache
  * a given rank in a group. Also, group caches are populated in a lazy way since
  * we only get data on the DPU when ranks are connecting. So the macro is also
  * in charge is initialization the cache if the group and the rank entry do not
- * exist. Of course, I means that the data passed in is assumed accurate, i.e.,
+ * exist. Of course, it means that the data passed in is assumed accurate, i.e.,
  * the group identifier, rank and group size are the actual value and won't change.
  */
 #define GET_GROUP_RANK_CACHE_ENTRY(_cache, _gp_uid, _rank, _gp_size)        \
     ({                                                                      \
         peer_cache_entry_t *_entry = NULL;                                  \
         group_cache_t *_gp_cache = NULL;                                    \
-        dyn_array_t *_rank_cache = NULL;                                    \
-        _gp_cache = GET_GROUP_CACHE_INTERNAL((_cache), _gp_uid, _gp_size);           \
+        _gp_cache = GET_GROUP_CACHE_INTERNAL((_cache), _gp_uid, _gp_size);  \
         assert(_gp_cache);                                                  \
-        _rank_cache = &(_gp_cache->ranks);                                  \
         if (_gp_cache->initialized &&                                       \
             _gp_cache->group_size <= 0 &&                                   \
             _gp_size >= 0)                                                  \
@@ -2473,14 +2523,13 @@ typedef struct cache
             /* the cache was initialized without a group size */            \
             /* but we now know it now */                                    \
             _gp_cache->group_size = _gp_size;                               \
-            _gp_cache->group_size = _gp_size;                               \
             GROUP_CACHE_BITSET_CREATE(_gp_cache->sps_bitset, _gp_size);     \
             GROUP_CACHE_BITSET_CREATE(_gp_cache->hosts_bitset,              \
                                       (_cache)->engine->config->num_hosts); \
             GROUP_CACHE_BITSET_CREATE(_gp_cache->revokes.ranks,             \
                                       _gp_cache->group_size);               \
         }                                                                   \
-        _entry = DYN_ARRAY_GET_ELT(_rank_cache, _rank, peer_cache_entry_t); \
+        _entry = MIMOSA_GET_RANK_FROM_GROUP_CACHE(_gp_cache, _rank);        \
         _entry;                                                             \
     })
 
@@ -2547,11 +2596,12 @@ KHASH_MAP_INIT_INT64(client_lookup_hash_t, execution_context_t *);
     _ec;                                                 \
 })
 
-struct remote_service_proc_info; // Forward declaration
-
 typedef struct remote_dpu_connect_tracker
 {
-    struct remote_service_proc_info *remote_service_proc_info;
+    // index of the remote service process within 
+    // the engine->service_procs dyn array
+    size_t remote_service_proc_idx;
+    
     execution_context_t *client_econtext;
 } remote_service_procs_connect_tracker_t;
 
@@ -2966,8 +3016,8 @@ typedef struct offloading_engine
         (_core_engine)->host_id = UINT64_MAX;                                                                                \
         /* Note that engine->dpus is a vector of remote_dpu_info_t pointers. */                                              \
         /* The actual object are from pool_remote_dpu_info */                                                                \
+        /* BW: Not sure the above notes are still accurate */                                                                \
         DYN_ARRAY_ALLOC(&((_core_engine)->dpus), 32, remote_dpu_info_t);                                                     \
-        DYN_ARRAY_ALLOC(&((_core_engine)->service_procs), 256, remote_service_proc_info_t);                                  \
         (_core_engine)->num_dpus = 0;                                                                                        \
         (_core_engine)->num_service_procs = 0;                                                                               \
         (_core_engine)->num_connected_service_procs = 0;                                                                     \
@@ -3080,14 +3130,14 @@ typedef struct remote_dpu_info
     // DPU's hostname
     char *hostname;
 
-    dpu_config_data_t *config;
-
     // engine associated to the remote DPU
     offloading_engine_t *engine;
 
     // Array of service processes global IDs running on the DPU, indexed based on
     // the SP's local ID. Note that it is an array of pointer, the
     // actual objects are saved at the engine level.
+    // BW: It looks the array is now storing the sp_gids 
+    // directly and the above note may no longer apply.  
     // Type: uint64_t
     dyn_array_t local_service_procs;
 } remote_dpu_info_t;
@@ -3100,7 +3150,7 @@ typedef struct remote_dpu_info
         (_info)->engine = NULL;                             \
         DYN_ARRAY_ALLOC(&((_info)->local_service_procs),    \
                         8,                                  \
-                        remote_service_proc_info_t*);       \
+                        uint64_t);       \
     } while (0)
 
 /***************************/
@@ -3332,7 +3382,7 @@ typedef struct service_proc
     } while (0)
 
 /**
- * @brief Datatstructure representing a remote service process that is running on
+ * @brief Data structure representing a remote service process that is running on
  * a specific DPU. A service process is identified by both its local unique identifier
  * based on how many service processes are running on the DPU and a global unique
  * identifier based on how many service processes are available for offloading.
@@ -3343,13 +3393,12 @@ typedef struct remote_service_proc_info
 
     // Index in the array of known service processes
     size_t idx;
+    
+    // Index of the remote_dpu_info_t item for the associated 
+    // physical dpu stored at the config/engine level
+    size_t dpu_idx;
 
-    service_proc_config_data_t *config;
-
-    // Associated physical DPU
-    remote_dpu_info_t *dpu;
-
-    // Traget service process
+    // Target service process
     service_proc_t service_proc;
 
     // Associated client_id when applicable
@@ -3411,8 +3460,8 @@ typedef struct remote_service_proc_info
  */
 typedef struct connect_to_service_proc
 {
-    ucs_list_link_t item;
-    remote_service_proc_info_t *sp;
+   ucs_list_link_t item;
+   remote_service_proc_info_t *sp;
 } connect_to_service_proc_t;
 
 typedef struct service_proc_inter_connect_info
@@ -3483,6 +3532,9 @@ typedef struct offloading_config
     // Total number of service processes to be used
     size_t num_service_procs;
 
+    // Number of service processes for which we have their configuration set
+    size_t num_service_procs_configured;
+
     // Total number of hosts being involved in the job
     size_t num_hosts;
 
@@ -3496,15 +3548,21 @@ typedef struct offloading_config
 
     // Configuration of all the hosts being used (type: host_info_t)
     dyn_array_t hosts_config;
-
-    // Hash of host UID for quick lookup. Key: host_iud_t; value: host_info_t.
-    khash_t(host_info_hash_t) * host_lookup_table;
+    
+    // Hash of host UID for quick lookup. Keys for host_info_hash_t are the host's UID
+    // (host_uid_t/uint64_t), values are the index of the corresponding host_info_t struct within
+    // cfg->hosts_config (size_t)
+    khash_t(host_info_hash_t) *host_lookup_table;
 
     // Configuration of the local DPU
     struct
     {
         service_proc_t info;
-        service_proc_config_data_t *config;
+        
+        // BW: Not currently used, but would possibly need to be an
+        // index if the intent was originally to be ptr into sps_config
+        //service_proc_config_data_t *config;
+        
         char hostname[1024];
         host_uid_t host_uid;
 
@@ -3539,13 +3597,14 @@ typedef struct offloading_config
         (_data)->num_dpus_per_host = 0;                                                                             \
         (_data)->num_dpus = 0;                                                                                      \
         (_data)->num_service_procs = 0;                                                                             \
+        (_data)->num_service_procs_configured = 0;                                                                  \
         (_data)->num_hosts = 0;                                                                                     \
         DYN_ARRAY_ALLOC(&((_data)->dpus_config), 32, dpu_config_data_t);                                            \
         DYN_ARRAY_ALLOC(&((_data)->sps_config), 256, service_proc_config_data_t);                                   \
         DYN_ARRAY_ALLOC(&((_data)->hosts_config), 32, host_info_t);                                                 \
         (_data)->host_lookup_table = kh_init(host_info_hash_t);                                                     \
         RESET_SERVICE_PROC(&((_data)->local_service_proc.info));                                                    \
-        (_data)->local_service_proc.config = NULL;                                                                  \
+        /* (_data)->local_service_proc.config = NULL; */                                                            \
         (_data)->local_service_proc.hostname[1023] = '\0';                                                          \
         (_data)->local_service_proc.host_uid = UINT64_MAX;                                                          \
         RESET_INIT_PARAMS(&((_data)->local_service_proc.host_init_params));                                         \

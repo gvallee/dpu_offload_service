@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2022, NVIDIA CORPORATION. All rights reserved.
+// Copyright (c) 2022-2024, NVIDIA CORPORATION. All rights reserved.
 //
 // See LICENSE.txt for license information
 //
@@ -72,7 +72,7 @@ static int create_dummy_config(offloading_engine_t *engine)
                           engine->config->host_lookup_table,
                           host_uid,
                           &ret);
-        kh_value(engine->config->host_lookup_table, host_key) = host_info;
+        kh_value(engine->config->host_lookup_table, host_key) = i;
         engine->config->num_hosts++;
     }
     return 0;
@@ -148,6 +148,7 @@ simulate_cache_entry_exchange(offloading_engine_t *engine)
         entries[rank].peer.proc_info.n_local_ranks = NUM_FAKE_RANKS_PER_SP;
         entries[rank].peer.proc_info.local_rank = NUM_FAKE_RANKS_PER_SP;
         entries[rank].peer.proc_info.host_info = host_uid;
+        entries[rank].peer.proc_info.group_seq_num = DEFAULT_SEQ_NUM;
         entries[rank].peer.host_info = host_uid;
         entries[rank].peer.addr_len = 8;
         strcpy(entries[rank].peer.addr, "deadbeef");
@@ -232,20 +233,18 @@ simulate_cache_entry_exchange(offloading_engine_t *engine)
     // Second, check the content of the contiguous ordered array of SPs involed in the group
     for (i = 0; i < gp_cache->n_sps; i++)
     {
-        remote_service_proc_info_t **sp_info = NULL;
-        sp_info = DYN_ARRAY_GET_ELT(&(gp_cache->sps),
-                                    i,
-                                    remote_service_proc_info_t *);
-        if ((*sp_info)->idx != i)
+        remote_service_proc_info_t *sp_info = NULL;
+        sp_info = MIMOSA_GET_SP_FROM_GROUP_CACHE(gp_cache, i);
+        if (sp_info->idx != i)
         {
             fprintf(stderr, "ERROR: the index of SP %ld is reported as %ld\n",
-                    i, (*sp_info)->idx);
+                    i, sp_info->idx);
             return DO_ERROR;
         }
-        if ((*sp_info)->service_proc.global_id != i)
+        if (sp_info->service_proc.global_id != i)
         {
             fprintf(stderr, "ERROR: the global SP ID for %ld is %ld instead of %ld\n",
-                    i, (*sp_info)->service_proc.global_id, i);
+                    i, sp_info->service_proc.global_id, i);
             return DO_ERROR;
         }
     }
@@ -253,11 +252,9 @@ simulate_cache_entry_exchange(offloading_engine_t *engine)
     fprintf(stdout, "Number of SP(s) involved in the group: %ld\n", gp_cache->n_sps);
     for (i = 0; i < gp_cache->n_sps; i++)
     {
-        remote_service_proc_info_t **sp_info = NULL;
-        sp_info = DYN_ARRAY_GET_ELT(&(gp_cache->sps),
-                                    i,
-                                    remote_service_proc_info_t *);
-        fprintf(stdout, "\tSP %" PRIu64 " is involved in the group\n", (*sp_info)->service_proc.global_id);
+        remote_service_proc_info_t *sp_info = NULL;
+        sp_info = MIMOSA_GET_SP_FROM_GROUP_CACHE(gp_cache, i);
+        fprintf(stdout, "\tSP %" PRIu64 " is involved in the group\n", sp_info->service_proc.global_id);
     }
 
     // Then we check the hosts involved in the group
@@ -279,11 +276,9 @@ simulate_cache_entry_exchange(offloading_engine_t *engine)
     fprintf(stdout, "\nNumber of host(s) involved in the group: %ld\n", gp_cache->n_hosts);
     for (i = 0; i < gp_cache->n_hosts; i++)
     {
-        host_info_t **host_info = NULL;
-        host_info = DYN_ARRAY_GET_ELT(&(gp_cache->hosts),
-                                      i,
-                                      host_info_t *);
-        fprintf(stdout, "\t%s (index: %ld)\n", (*host_info)->hostname, (*host_info)->idx);
+        host_info_t *host_info = NULL;
+        host_info = MIMOSA_GET_HOST_FROM_GROUP_CACHE(gp_cache, i);
+        fprintf(stdout, "\t%s (index: %ld)\n", host_info->hostname, host_info->idx);
     }
 
     return DO_SUCCESS;
@@ -296,7 +291,9 @@ dpu_offload_status_t test_topo_api(offloading_engine_t *engine)
     uint64_t target_gp_gp_lid = 0, global_group_sp_id;
     int64_t target_rank = 0;
     size_t i, host_idx, num_sps, num_ranks, target_host_idx = 0, rank_idx, num_hosts, host;
-    dyn_array_t *sps = NULL, *hosts = NULL, *ranks = NULL;
+    sp_cache_data_t **sps = NULL;
+    host_info_t **hosts = NULL;
+    peer_cache_entry_t **ranks = NULL;
     dpu_offload_status_t rc;
     size_t expected_number_of_sps_per_host = NUM_FAKE_DPU_PER_HOST * NUM_FAKE_SP_PER_DPU;
     size_t expected_number_of_ranks_per_host = NUM_FAKE_DPU_PER_HOST * NUM_FAKE_SP_PER_DPU * NUM_FAKE_RANKS_PER_SP;
@@ -431,11 +428,9 @@ dpu_offload_status_t test_topo_api(offloading_engine_t *engine)
     fprintf(stdout, "-> SP(s) data:\n");
     for (i = 0; i < num_sps; i++)
     {
-        sp_cache_data_t **ptr = NULL;
-        ptr = DYN_ARRAY_GET_ELT(sps, i, sp_cache_data_t *);
-        assert(ptr);
+        assert(sps[i]);
         fprintf(stdout, "\tGID: %" PRIu64 "; Group UID: 0x%x; Host UID: 0x%lx; LID: %" PRIu64 "; number of ranks: %ld\n",
-                (*ptr)->gid, (*ptr)->gp_uid, (*ptr)->host_uid, (*ptr)->lid, (*ptr)->n_ranks);
+                sps[i]->gid, sps[i]->gp_uid, sps[i]->host_uid, sps[i]->lid, sps[i]->n_ranks);
     }
 
     rc = get_all_hosts_by_group(engine, gpuid, &hosts, &num_hosts);
@@ -454,11 +449,9 @@ dpu_offload_status_t test_topo_api(offloading_engine_t *engine)
     fprintf(stdout, "-> Host(s) data:\n");
     for (i = 0; i < num_hosts; i++)
     {
-        host_info_t **host_data = NULL;
-        host_data = DYN_ARRAY_GET_ELT(hosts, i, host_info_t *);
-        assert(host_data);
+        assert(hosts[i]);
         fprintf(stdout, "\tHostname: %s; index: %ld; UID: 0x%lx\n",
-                (*host_data)->hostname, (*host_data)->idx, (*host_data)->uid);
+                hosts[i]->hostname, hosts[i]->idx, hosts[i]->uid);
     }
 
     rc = get_all_ranks_by_group_sp_gid(engine, gpuid, target_sp_gp_guid, &ranks, &num_ranks);
@@ -478,12 +471,9 @@ dpu_offload_status_t test_topo_api(offloading_engine_t *engine)
     fprintf(stdout, "-> Rank(s) data:\n");
     for (i = 0; i < num_ranks; i++)
     {
-        peer_cache_entry_t **ptr = NULL;
-        ptr = DYN_ARRAY_GET_ELT(ranks, i, peer_cache_entry_t *);
-        assert(ptr);
-        assert(*ptr);
+        assert(ranks[i]);
         fprintf(stderr, "Rank %" PRId64 ": group UID=0x%x; host UID: 0x%lx\n",
-                (*ptr)->peer.proc_info.group_rank, (*ptr)->peer.proc_info.group_uid, (*ptr)->peer.host_info);
+                ranks[i]->peer.proc_info.group_rank, ranks[i]->peer.proc_info.group_uid, ranks[i]->peer.host_info);
     }
 
     rc = get_rank_idx_by_group_sp_id(engine, gpuid, target_sp_gp_guid, 0, &rank_idx);
@@ -520,12 +510,9 @@ dpu_offload_status_t test_topo_api(offloading_engine_t *engine)
             fprintf(stdout, "-> Rank(s) data:\n");
             for (j = 0; j < num_ranks; j++)
             {
-                peer_cache_entry_t **ptr = NULL;
-                ptr = DYN_ARRAY_GET_ELT(ranks, j, peer_cache_entry_t *);
-                assert(ptr);
-                assert(*ptr);
+                assert(ranks[j]);
                 fprintf(stderr, "Rank %" PRId64 ": group UID=0x%x; host UID: 0x%lx\n",
-                        (*ptr)->peer.proc_info.group_rank, (*ptr)->peer.proc_info.group_uid, (*ptr)->peer.host_info);
+                        ranks[j]->peer.proc_info.group_rank, ranks[j]->peer.proc_info.group_uid, ranks[j]->peer.host_info);
             }
         }
     }
@@ -589,7 +576,9 @@ int main(int argc, char **argv)
     /* Initialize everything we need for the test */
     offloading_engine_t *offload_engine;
     offloading_config_t *engine_config = NULL;
-    dpu_offload_status_t rc = offload_engine_init(&offload_engine);
+    dpu_offload_status_t rc;
+    
+    rc = offload_engine_init(&offload_engine);
     if (rc || offload_engine == NULL)
     {
         fprintf(stderr, "offload_engine_init() failed\n");

@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2023, NVIDIA CORPORATION. All rights reserved.
+// Copyright (c) 2023-2024, NVIDIA CORPORATION. All rights reserved.
 //
 // See LICENSE.txt for license information
 //
@@ -156,20 +156,20 @@ extern execution_context_t *get_server_servicing_host(offloading_engine_t *engin
                     group_cache_t *_gp_cache = NULL;                        \
                     _gp_cache = GET_GROUP_CACHE((_cache), key);             \
                     assert(_gp_cache);                                      \
-                    if (_gp_cache->rank_array_initialized)                  \
+                    if (_gp_cache->ranks)                                   \
                     {                                                       \
-                        DYN_ARRAY_FREE(&(_gp_cache->ranks));                \
-                        _gp_cache->rank_array_initialized = false;          \
+                        free(_gp_cache->ranks);                             \
+                        _gp_cache->ranks = NULL;                            \
                     }                                                       \
-                    if (_gp_cache->sp_array_initialized)                    \
+                    if (_gp_cache->sps)                                     \
                     {                                                       \
-                        DYN_ARRAY_FREE(&(_gp_cache->sps));                  \
-                        _gp_cache->sp_array_initialized = false;            \
+                        free(_gp_cache->sps);                               \
+                        _gp_cache->sps = NULL;                              \
                     }                                                       \
-                    if (_gp_cache->host_array_initialized)                  \
+                    if (_gp_cache->hosts)                                   \
                     {                                                       \
-                        DYN_ARRAY_FREE(&(_gp_cache->hosts));                \
-                        _gp_cache->host_array_initialized = false;          \
+                        free(_gp_cache->hosts);                             \
+                        _gp_cache->hosts = NULL;                            \
                     }                                                       \
                     /* Free hash table(s) */                                \
                     GROUP_CACHE_HASHES_FINI((_cache)->engine, _gp_cache);   \
@@ -295,7 +295,7 @@ extern execution_context_t *get_server_servicing_host(offloading_engine_t *engin
 bool is_in_cache(cache_t *cache, group_uid_t gp_uid, int64_t rank_id, int64_t group_size);
 
 /**
- * @brief This function populated the cache's lookup tables. It assumes the cache is
+ * @brief This function populates the cache's lookup tables. It assumes the cache is
  * fully ppopulated.
  *
  * @param[in] engine Associated offload engine
@@ -392,7 +392,7 @@ dpu_offload_status_t get_num_ranks_for_group_sp(offloading_engine_t *engine,
 
 /**
  * @brief Get the number of running ranks assigned to a specific service process that
- * is identifier through its local group identifier (local host service process identifier)
+ * is identified through its local group identifier (local host service process identifier)
  * and the host index from the contiguous ordered array of hosts.
  *
  * @param[in] engine Associated offload engine
@@ -478,16 +478,16 @@ dpu_offload_status_t get_rank_idx_by_group_sp_id(offloading_engine_t *engine,
  *
  * @code{.unparsed}
  *  // Get the data of the first SP involved in the group and associated to the first host
- *  dyn_array_t *sps = NULL;
+ *  sp_cache_data_t ***sps = NULL;
  *  sp_cache_data_t **sp_data = NULL;
  *  size_t n_sps;
  *  get_all_sps_by_group_host_idx(engine, group_uid, 0, &sps, &n_sps);
- *  sp_data = DYN_ARRAY_GET_ELT(sps, 0, sp_cache_data_t *);
+ *  sp_data = (*sps)[0];
  */
 dpu_offload_status_t get_all_sps_by_group_host_idx(offloading_engine_t *engine,
                                                    group_uid_t group_uid,
                                                    size_t host_idx,
-                                                   dyn_array_t **sps,
+                                                   sp_cache_data_t ***sps,
                                                    size_t *num_sps);
 
 /**
@@ -506,19 +506,19 @@ dpu_offload_status_t get_all_sps_by_group_host_idx(offloading_engine_t *engine,
  *
  * @code{.unparsed}
  *  // Get the data of the first host involved in the group
- *  dyn_array_t *hosts = NULL;
+ *  host_info_t **hosts = NULL;
  *  host_info_t **host_data = NULL;
  *  size_t n_hosts;
  *  get_all_hosts_by_group(engine, group_uid, &hosts, *n_hosts);
- *  host_data = DYN_ARRAY_GET_ELT(hosts, 0, host_info_t *);
+ *  host_data = (*hosts)[0];
  */
 dpu_offload_status_t get_all_hosts_by_group(offloading_engine_t *engine,
                                             group_uid_t group_uid,
-                                            dyn_array_t **hosts,
+                                            host_info_t ***hosts,
                                             size_t *num_hosts);
 
 /**
- * @brief Get all the ranks associated to a specific service process involed in a given group, using the
+ * @brief Get all the ranks associated to a specific service process involved in a given group, using the
  * service process group global id.
  *
  * @param[in] engine Associated offload engine
@@ -535,15 +535,15 @@ dpu_offload_status_t get_all_hosts_by_group(offloading_engine_t *engine,
  * @code{.unparsed}
  *  // Get the data of the first rank involved in the group and associated with the first SP in the group
  *  peer_cache_entry_t **rank_data = NULL;
- *  dyn_array_t *ranks = NULL;
+ *  peer_cache_entry_t ***ranks = NULL;
  *  size_t n_ranks;
  *  get_all_ranks_by_group_sp_gid(engine, group_uid, 0, &ranks, &n_ranks);
- *  rank_data = DYN_ARRAY_GET_ELT(ranks, 0, peer_cache_entry_t *)
+ *  rank_data = (*ranks)[0];
  */
 dpu_offload_status_t get_all_ranks_by_group_sp_gid(offloading_engine_t *engine,
                                                    group_uid_t group_uid,
                                                    uint64_t sp_group_gid,
-                                                   dyn_array_t **ranks,
+                                                   peer_cache_entry_t ***ranks,
                                                    size_t *num_ranks);
 
 /**
@@ -564,17 +564,17 @@ dpu_offload_status_t get_all_ranks_by_group_sp_gid(offloading_engine_t *engine,
  *
  * @code{.unparsed}
  *  // Get the list of ranks associated to the first SP on the first host that is involved in the group
- *  dyn_array_t *ranks = NULL;
+ *  peer_cache_entry_t ***ranks = NULL;
  *  size_t n_ranks;
  *  peer_cache_entry_t **rank_info = NULL;
  *  get_all_ranks_by_group_sp_lid(engine, group_uid, 0, 0, &ranks, &n_ranks);
- *  ranks_info = DYN_ARRAY_GET_ELT(ranks, 0, peer_cache_entry_t *);
+ *  ranks_info = (*ranks)[0];
  */
 dpu_offload_status_t get_all_ranks_by_group_sp_lid(offloading_engine_t *engine,
                                                    group_uid_t group_uid,
                                                    size_t host_idx,
                                                    uint64_t sp_group_lid,
-                                                   dyn_array_t **ranks,
+                                                   peer_cache_entry_t ***ranks,
                                                    size_t *num_ranks);
 
 /**
@@ -627,7 +627,11 @@ bool group_cache_populated(offloading_engine_t *engine, group_uid_t gp_uid);
  * @param[in] sp_id Global identifier of the service process assigned to the new rank
  * @param[in] host_uid Unique identifier of the host where the rank is running
  */
-dpu_offload_status_t update_topology_data(offloading_engine_t *engine, group_cache_t *gp_cache, int64_t group_rank, uint64_t sp_gid, host_uid_t host_uid);
+dpu_offload_status_t update_topology_data(offloading_engine_t *engine,
+                                          group_cache_t *gp_cache,
+                                          int64_t group_rank,
+                                          uint64_t sp_gid,
+                                          host_uid_t host_uid);
 
 /**
  * @brief Function that can be called on the host to add a local rank to the local cache.
@@ -667,7 +671,11 @@ dpu_offload_status_t host_add_local_rank_to_cache(offloading_engine_t *engine, r
  *              DYN_LIST_RETURN(engine->free_cache_entry_requests, cache_entry_req, item);
  *          }
  */
-dpu_offload_status_t get_cache_entry_by_group_rank(offloading_engine_t *engine, group_uid_t gp_uid, int64_t rank, int64_t sp_idx, request_compl_cb_t cb);
+dpu_offload_status_t get_cache_entry_by_group_rank(offloading_engine_t *engine,
+                                                   group_uid_t gp_uid,
+                                                   int64_t rank,
+                                                   int64_t sp_idx,
+                                                   request_compl_cb_t cb);
 
 /**
  * @brief Get the global service process ID (not the group service process global ID) that is associated with a specific rank in a group.
@@ -714,14 +722,14 @@ dpu_offload_status_t get_group_ranks_on_host(offloading_engine_t *engine,
  * @param[in] gp_uid Target group's UID
  * @param[in] rank Target rank in the group
  * @param[in,out] n_sps Pointer to the variable that will hold the number of local SPs
- * @param[in,out] sps Pointer to the dynamic array of uint64_t that will store all the service processes global ID
+ * @param[in,out] sps Pointer to the array of sp_cache_data_t* that will store all the service processes's data
  * @return dpu_offload_status_t
  */
 dpu_offload_status_t get_group_rank_sps(offloading_engine_t *engine,
                                         group_uid_t gp_uid,
                                         uint64_t rank,
                                         size_t *n_sps,
-                                        dyn_array_t **sps);
+                                        sp_cache_data_t ***sps);
 
 /**
  * @brief Get the local SPs for a given group. Can be used only is the context of SPs.
@@ -730,7 +738,7 @@ dpu_offload_status_t get_group_rank_sps(offloading_engine_t *engine,
  * @param[in] engine Offloading engine for the query
  * @param[in] gp_uid Target group's UID
  * @param[in,out] n_sps Pointer to the variable that will hold the number of local SPs
- * @param[in,out] sps Pointer to the dunamic array of uint64_t that will store all the service processes global ID
+ * @param[in,out] sps Pointer to the dynamic array of uint64_t that will store all the service processes global ID
  * @return dpu_offload_status_t
  */
 dpu_offload_status_t get_group_local_sps(offloading_engine_t *engine,

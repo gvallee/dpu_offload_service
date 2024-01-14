@@ -90,20 +90,17 @@ int main(int argc, char **argv)
     fprintf(stderr, "INFO: connecting to DPU %s:%d\n", dpu_config[0].version_1.addr, *connect_port);
 
     group_uid_t guid = 42;
-    rank_info_t my_rank_info = {
-        .group_uid = guid,
-        .group_rank = my_rank,
-        .group_size = group_size,
-        .n_local_ranks = local_ranks,
-    };
     init_params_t init_params;
     conn_params_t conn_params;
     RESET_INIT_PARAMS(&init_params);
     RESET_CONN_PARAMS(&conn_params);
     init_params.conn_params = &conn_params;
-    init_params.proc_info = &my_rank_info;
+    init_params.proc_info.group_uid = guid;
+    init_params.proc_info.group_rank = my_rank;
+    init_params.proc_info.group_size = group_size;
+    init_params.proc_info.n_local_ranks = local_ranks;
 
-    rc = get_local_service_proc_connect_info(&config_data, &my_rank_info, &init_params);
+    rc = get_local_service_proc_connect_info(&config_data, &init_params.proc_info, &init_params);
     if (rc)
     {
         fprintf(stderr, "ERROR: get_local_service_proc_connect_info() failed\n");

@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2022, NVIDIA CORPORATION. All rights reserved.
+// Copyright (c) 2022-2024, NVIDIA CORPORATION. All rights reserved.
 //
 // See LICENSE.txt for license information
 //
@@ -98,18 +98,30 @@ typedef struct simple_list
 /*****************/
 
 /**
- * @brief dynamic arrays are vectors of data that are implicitly expended
+ * @brief dynamic arrays are vectors of data that are implicitly extended
  * when it reaches its full capacity.
+ * 
  * WARNING: since dynamic arrays can implicitly grow, the content of the vector
  * can be re-allocated and therefore moved; do NOT rely on pointer to elements
  * in the vector, if references are necessary, use the index in the vector.
  */
 typedef struct dyn_array
 {
+    // Pointer to the memory backing the dynamic array
     void *base;
+
+    // Capacity of the dynamic array can currently hold, *not* the number of actual elements being used
     size_t capacity;
+
+    // Number of elements (*not* memory size) to allocate when expanding the dynamic array capacity
     size_t allocation_size;
+
+    // Size in bytes of a dynamic array element
     size_t type_size;
+
+    // Optional function pointer used to initialize a single dynamic array element;
+    // when defined, called for the entire dynarmic array's capacity ti ensure the array
+    // is fully initialized before being used.
     dyn_struct_elt_init_fn element_init_fn;
 } dyn_array_t;
 
@@ -133,6 +145,7 @@ typedef struct dyn_array
         assert(_num_elts_alloc);                                                   \
         (_dyn_array)->allocation_size = _num_elts_alloc;                           \
         (_dyn_array)->capacity = _num_elts_alloc;                                  \
+        (_dyn_array)->type_size = sizeof(_type);                                   \
         (_dyn_array)->element_init_fn = _fn;                                       \
         (_dyn_array)->base = malloc(_num_elts_alloc * sizeof(_type));              \
         assert((_dyn_array)->base);                                                \
@@ -157,6 +170,8 @@ typedef struct dyn_array
             (_dyn_array)->base = NULL;            \
             (_dyn_array)->element_init_fn = NULL; \
             (_dyn_array)->capacity = 0;           \
+            (_dyn_array)->allocation_size = 0;    \
+            (_dyn_array)->type_size = 0;          \
         }                                         \
     } while (0)
 
@@ -167,7 +182,7 @@ typedef struct dyn_array
         _initial_num_elts = _new_num_elts = (_dyn_array)->capacity;                                     \
         while (_new_num_elts * sizeof(_type) <= _size * sizeof(_type))                                  \
         {                                                                                               \
-            _new_num_elts += (_dyn_array)->allocation_size;                                              \
+            _new_num_elts += (_dyn_array)->allocation_size;                                             \
         }                                                                                               \
         (_dyn_array)->base = realloc((_dyn_array)->base, _new_num_elts * sizeof(_type));                \
         assert((_dyn_array)->base);                                                                     \
@@ -185,6 +200,22 @@ typedef struct dyn_array
         (_dyn_array)->capacity = _new_num_elts;                                                         \
     } while (0)
 
+/*
+ * WARNING: DYN_ARRAY_GET_ELT() may grow the dynamic array, i.e., reallocate the memory backing a
+ * specified dynamic array. As a result, pointers returned by previous calls to DYN_ARRAY_GET_ELT() 
+ * can become invalid. Therefore, pointers returned by this call must be utilized
+ * in a very limited scope and should never be saved for later use. Specifically, any pointer returned 
+ * from DYN_ARRAY_GET_ELT() with a given dynamic array should only be considered valid until a
+ * subsequent call with the same array takes place.
+ * 
+ * Example:
+ *    elt_type *ptr_1, *ptr_2;
+ *    ptr_1 = DYN_ARRAY_GET_ELT(&my_dyn_array, i, elt_type)
+ *    // ptr_1 is a valid pointer into my_dyn_array 
+ *    ptr_2 = DYN_ARRAY_GET_ELT(&my_dyn_array, j, elt_type)
+ *    // ptr_2 is valid pointer into my_dyn_array, but ptr_1 may be invalid if i < j and j
+ *    // is greater than the capacity of my_dyn_array after the first call to DYN_ARRAY_GET_ELT()
+ */
 #define DYN_ARRAY_GET_ELT(_dyn_array, _idx, _type) ({ \
     assert(_dyn_array);                               \
     assert((_dyn_array)->capacity);                   \
@@ -202,7 +233,7 @@ typedef struct dyn_array
     do                                                   \
     {                                                    \
         assert(_dyn_array);                              \
-        if ((_dyn_array)->capacity >= _idx)              \
+        if ((_dyn_array)->capacity <= _idx)              \
         {                                                \
             DYN_ARRAY_GROW(_dyn_array, _type, _idx);     \
         }                                                \
@@ -395,7 +426,6 @@ typedef struct dyn_list
     {                                                              \
         SIMPLE_LIST_PREPEND(&((_dyn_list)->list), &(_item->_elt)); \
     } while (0)
-int dynamic_list_return();
 
 /*****************/
 /* SMART BUFFERS */

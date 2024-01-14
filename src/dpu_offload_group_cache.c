@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2022-2023, NVIDIA CORPORATION. All rights reserved.
+// Copyright (c) 2022-2024, NVIDIA CORPORATION. All rights reserved.
 //
 // See LICENSE.txt for license information
 //
@@ -66,7 +66,6 @@ void display_group_cache(cache_t *cache, group_uid_t gp_uid)
         idx++;
     }
 }
-
 
 void group_cache_send_to_local_ranks_cb(void *context)
 {
@@ -137,16 +136,22 @@ dpu_offload_status_t send_group_cache(execution_context_t *econtext, ucp_ep_h de
 #endif
 
     dpu_offload_event_t *e;
-    peer_cache_entry_t *first_entry = GET_GROUP_RANK_CACHE_ENTRY(&(econtext->engine->procs_cache), gp_uid, 0, gp_cache->group_size);
     rc = event_get(econtext->event_channels, NULL, &e);
     CHECK_ERR_RETURN((rc), DO_ERROR, "event_get() failed");
     e->is_subevent = true;
-    DBG("Sending %ld cache entries to %ld, ev: %p (%ld), metaev: %ld\n",
-        gp_cache->group_size, dest_id, e, e->seq_num, metaev->seq_num);
-    rc = event_channel_emit_with_payload(&e, AM_PEER_CACHE_ENTRIES_MSG_ID, dest_ep, dest_id, NULL, first_entry, gp_cache->group_size * sizeof(peer_cache_entry_t));
+    DBG("Sending %ld cache entries to %ld, ev: %p (%ld), metaev: %ld, len: %ld, group size: %ld\n",
+        gp_cache->group_size, dest_id, e, e->seq_num, metaev->seq_num, gp_cache->group_size * sizeof(peer_cache_entry_t), gp_cache->group_size);
+    rc = event_channel_emit_with_payload(&e,
+                                         AM_PEER_CACHE_ENTRIES_MSG_ID,
+                                         dest_ep,
+                                         dest_id,
+                                         NULL,
+                                         gp_cache->ranks,
+                                         gp_cache->group_size * sizeof(peer_cache_entry_t));
     if (rc != EVENT_DONE && rc != EVENT_INPROGRESS)
     {
-        ERR_MSG("event_channel_emit_with_payload() failed");
+        //ERR_MSG("event_channel_emit_with_payload() failed");
+        ERR_MSG("event_channel_emit() failed");
         return DO_ERROR;
     }
     if (e != NULL)
@@ -289,6 +294,7 @@ dpu_offload_status_t handle_peer_cache_entries_recv(execution_context_t *econtex
 
             // Make sure the entry is for the "version" of the group that matches
             assert(entries[idx].peer.proc_info.group_seq_num);
+            assert(entries[idx].num_shadow_service_procs > 0);
             if (gp_cache->num_local_entries == 0)
             {
                 // New "version" of the group.
@@ -305,11 +311,11 @@ dpu_offload_status_t handle_peer_cache_entries_recv(execution_context_t *econtex
             DBG("Adding rank %ld to group 0x%x (seq_num: %ld/%ld)",
                 group_rank, gp_cache->group_uid, gp_cache->persistent.num, entries[idx].peer.proc_info.group_seq_num);
             cache_entry = GET_GROUP_RANK_CACHE_ENTRY(cache, group_uid, group_rank, group_size);
+            assert(cache_entry);
             cache_entry->set = true;
             COPY_PEER_DATA(&(entries[idx].peer), &(cache_entry->peer));
-            assert(entries[idx].num_shadow_service_procs > 0);
             assert(cache_entry->peer.proc_info.group_seq_num);
-            // append the shadow DPU data to the data already local available (if any)
+            // append the shadow DPU data to the data already locally available (if any)
             for (n = 0; n < entries[idx].num_shadow_service_procs; n++)
             {
                 dpu_offload_status_t rc;
@@ -321,8 +327,8 @@ dpu_offload_status_t handle_peer_cache_entries_recv(execution_context_t *econtex
                                           entries[idx].peer.host_info);
                 CHECK_ERR_RETURN((rc), DO_ERROR, "handle_cache_data() failed");
             }
-            cache_entry->num_shadow_service_procs += entries[idx].num_shadow_service_procs;
             cache_entry->client_id = entries[idx].client_id;
+            cache_entry->num_shadow_service_procs += entries[idx].num_shadow_service_procs;
 
             // If any event is associated to the cache entry, handle them
             if (cache_entry->events_initialized)
@@ -401,9 +407,7 @@ dpu_offload_status_t revoke_group_cache(offloading_engine_t *engine, group_uid_t
     assert(c->group_size);
     for (i = 0; i < c->group_size; i++)
     {
-        peer_cache_entry_t *e = DYN_ARRAY_GET_ELT(&(c->ranks),
-                                                  i,
-                                                  peer_cache_entry_t);
+        peer_cache_entry_t *e = MIMOSA_GET_RANK_FROM_GROUP_CACHE(c, i);
         assert(e);
         RESET_PEER_CACHE_ENTRY(e);
     }
@@ -454,13 +458,10 @@ get_global_sp_id_by_group(offloading_engine_t *engine,
     assert(gp_cache);
     for (i = 0; i < gp_cache->n_sps; i++)
     {
-        remote_service_proc_info_t **ptr = NULL;
-
-        ptr = DYN_ARRAY_GET_ELT(&(gp_cache->sps),
-                                i,
-                                remote_service_proc_info_t *);
+        remote_service_proc_info_t *ptr = NULL;
+        ptr = MIMOSA_GET_SP_FROM_GROUP_CACHE(gp_cache, i);
         assert(ptr);
-        if ((*ptr)->service_proc.global_id == engine->config->local_service_proc.info.global_id)
+        if (ptr->service_proc.global_id == engine->config->local_service_proc.info.global_id)
         {
             *sp_id = engine->config->local_service_proc.info.global_id;
             return DO_SUCCESS;
@@ -476,9 +477,9 @@ get_local_sp_id_by_group(offloading_engine_t *engine,
                          uint64_t sp_gp_guid,
                          uint64_t *sp_gp_lid)
 {
-    remote_service_proc_info_t **ptr = NULL;
     sp_cache_data_t *sp_data = NULL;
     group_cache_t *gp_cache = NULL;
+    size_t idx, sp_gp_idx = 0;
 
     assert(engine);
     gp_cache = GET_GROUP_CACHE(&(engine->procs_cache), gp_uid);
@@ -495,9 +496,27 @@ get_local_sp_id_by_group(offloading_engine_t *engine,
         }
     }
 
-    ptr = DYN_ARRAY_GET_ELT(&(gp_cache->sps), sp_gp_guid, remote_service_proc_info_t *);
-    assert(ptr);
-    sp_data = GET_GROUP_SP_HASH_ENTRY(gp_cache, (*ptr)->service_proc.global_id);
+    if (sp_gp_guid > gp_cache->n_sps)
+    {
+        *sp_gp_lid = UINT64_MAX;
+        return DO_ERROR;
+    }
+
+    // Translate SP's group GUID to SP GUID
+    for (idx = 0; idx < engine->num_service_procs; idx++)
+    {
+        int sp_in_group = GROUP_CACHE_BITSET_TEST(gp_cache->sps_bitset, idx);
+        if (sp_in_group)
+        {
+            if (sp_gp_idx == sp_gp_guid)
+                goto find_lid;
+            sp_gp_idx++;
+        }
+    }
+
+  find_lid:
+    // Once we have the GID, we can get the LID
+    sp_data = GET_GROUP_SP_HASH_ENTRY(gp_cache, idx);
     assert(sp_data);
     *sp_gp_lid = sp_data->lid;
     return DO_SUCCESS;
@@ -530,12 +549,10 @@ get_host_idx_by_group(offloading_engine_t *engine,
 
     for (i = 0; i < gp_cache->n_hosts; i++)
     {
-        host_info_t **ptr = NULL;
-        ptr = DYN_ARRAY_GET_ELT(&(gp_cache->hosts),
-                                i,
-                                host_info_t *);
+        host_info_t *ptr = NULL;
+        ptr = MIMOSA_GET_HOST_FROM_GROUP_CACHE(gp_cache, i);
         assert(ptr);
-        if ((*ptr)->uid == my_host_uid)
+        if (ptr->uid == my_host_uid)
         {
             *host_idx = i;
             return DO_SUCCESS;
@@ -551,7 +568,7 @@ get_num_sps_by_group_host_idx(offloading_engine_t *engine,
                               size_t host_idx,
                               size_t *num_sps)
 {
-    host_info_t **ptr = NULL;
+    host_info_t *ptr = NULL;
     host_cache_data_t *host_data = NULL;
     group_cache_t *gp_cache = NULL;
 
@@ -570,11 +587,9 @@ get_num_sps_by_group_host_idx(offloading_engine_t *engine,
         }
     }
 
-    ptr = DYN_ARRAY_GET_ELT(&(gp_cache->hosts),
-                            host_idx,
-                            host_info_t *);
+    ptr = MIMOSA_GET_HOST_FROM_GROUP_CACHE(gp_cache, host_idx);
     assert(ptr);
-    host_data = GET_GROUP_HOST_HASH_ENTRY(gp_cache, (*ptr)->uid);
+    host_data = GET_GROUP_HOST_HASH_ENTRY(gp_cache, ptr->uid);
     assert(host_data);
     *num_sps = host_data->num_sps;
     return DO_SUCCESS;
@@ -586,7 +601,7 @@ get_num_ranks_for_group_sp(offloading_engine_t *engine,
                            uint64_t sp_gp_gid,
                            size_t *num_ranks)
 {
-    remote_service_proc_info_t **sp_data = NULL;
+    remote_service_proc_info_t *sp_data = NULL;
     sp_cache_data_t *sp_info = NULL;
     group_cache_t *gp_cache = NULL;
 
@@ -605,9 +620,9 @@ get_num_ranks_for_group_sp(offloading_engine_t *engine,
         }
     }
 
-    sp_data = DYN_ARRAY_GET_ELT(&(gp_cache->sps), sp_gp_gid, remote_service_proc_info_t *);
+    sp_data = MIMOSA_GET_SP_FROM_GROUP_CACHE(gp_cache, sp_gp_gid);
     assert(sp_data);
-    sp_info = GET_GROUP_SP_HASH_ENTRY(gp_cache, (*sp_data)->service_proc.global_id);
+    sp_info = GET_GROUP_SP_HASH_ENTRY(gp_cache, sp_data->service_proc.global_id);
     assert(sp_info);
     *num_ranks = sp_info->n_ranks;
     return DO_SUCCESS;
@@ -621,9 +636,9 @@ get_num_ranks_for_group_host_local_sp(offloading_engine_t *engine,
                                       size_t *num_ranks)
 {
     group_cache_t *gp_cache = NULL;
-    host_info_t **host_info_ptr = NULL;
+    host_info_t *host_info_ptr = NULL;
     host_cache_data_t *host_data = NULL;
-    sp_cache_data_t **sp_data_ptr = NULL;
+    sp_cache_data_t *sp_data_ptr = NULL;
 
     assert(engine);
     gp_cache = GET_GROUP_CACHE(&(engine->procs_cache), group_uid);
@@ -640,9 +655,9 @@ get_num_ranks_for_group_host_local_sp(offloading_engine_t *engine,
         }
     }
 
-    host_info_ptr = DYN_ARRAY_GET_ELT(&(gp_cache->hosts), host_idx, host_info_t *);
+    host_info_ptr = MIMOSA_GET_HOST_FROM_GROUP_CACHE(gp_cache, host_idx);
     assert(host_info_ptr);
-    host_data = GET_GROUP_HOST_HASH_ENTRY(gp_cache, (*host_info_ptr)->uid);
+    host_data = GET_GROUP_HOST_HASH_ENTRY(gp_cache, host_info_ptr->uid);
     assert(host_data);
     if (local_host_sp_id >= host_data->num_sps)
     {
@@ -650,9 +665,9 @@ get_num_ranks_for_group_host_local_sp(offloading_engine_t *engine,
         // and involved in the group. This is an error.
         return DO_ERROR;
     }
-    sp_data_ptr = DYN_ARRAY_GET_ELT(&(host_data->sps), local_host_sp_id, sp_cache_data_t *);
+    sp_data_ptr = host_data->sps[local_host_sp_id];
     assert(sp_data_ptr);
-    *num_ranks = (*sp_data_ptr)->n_ranks;
+    *num_ranks = sp_data_ptr->n_ranks;
     return DO_SUCCESS;
 }
 
@@ -662,7 +677,7 @@ get_num_ranks_for_group_host_idx(offloading_engine_t *engine,
                                  size_t host_idx,
                                  size_t *num_ranks)
 {
-    host_info_t **ptr = NULL;
+    host_info_t *ptr = NULL;
     group_cache_t *gp_cache = NULL;
     host_cache_data_t *host_data = NULL;
 
@@ -681,11 +696,9 @@ get_num_ranks_for_group_host_idx(offloading_engine_t *engine,
         }
     }
 
-    ptr = DYN_ARRAY_GET_ELT(&(gp_cache->hosts),
-                            host_idx,
-                            host_info_t *);
+    ptr = MIMOSA_GET_HOST_FROM_GROUP_CACHE(gp_cache, host_idx);
     assert(ptr);
-    host_data = GET_GROUP_HOST_HASH_ENTRY(gp_cache, (*ptr)->uid);
+    host_data = GET_GROUP_HOST_HASH_ENTRY(gp_cache, ptr->uid);
     assert(host_data);
     *num_ranks = host_data->num_ranks;
     return DO_SUCCESS;
@@ -699,7 +712,7 @@ get_rank_idx_by_group_host_idx(offloading_engine_t *engine,
                                uint64_t *idx)
 {
     group_cache_t *gp_cache = NULL;
-    host_info_t **host_info_ptr = NULL;
+    host_info_t *host_info_ptr = NULL;
     host_cache_data_t *host_data = NULL;
     uint64_t i;
     size_t rank_index = SIZE_MAX;
@@ -719,13 +732,14 @@ get_rank_idx_by_group_host_idx(offloading_engine_t *engine,
         }
     }
 
-    host_info_ptr = DYN_ARRAY_GET_ELT(&(gp_cache->hosts), host_idx, host_info_t *);
+    host_info_ptr = MIMOSA_GET_HOST_FROM_GROUP_CACHE(gp_cache, host_idx);
     assert(host_info_ptr);
-    host_data = GET_GROUP_HOST_HASH_ENTRY(gp_cache, (*host_info_ptr)->uid);
+    host_data = GET_GROUP_HOST_HASH_ENTRY(gp_cache, host_info_ptr->uid);
     assert(host_data);
     if (GROUP_CACHE_BITSET_TEST(host_data->ranks_bitset, rank) == 0)
     {
         // The rank is not involved in the group and running on that host, error
+        *idx = UINT64_MAX;
         return DO_ERROR;
     }
 
@@ -766,7 +780,7 @@ get_rank_idx_by_group_sp_id(offloading_engine_t *engine,
                             int64_t rank,
                             size_t *rank_idx)
 {
-    remote_service_proc_info_t **sp_data = NULL;
+    remote_service_proc_info_t *sp_data = NULL;
     sp_cache_data_t *sp_info = NULL;
     group_cache_t *gp_cache = NULL;
     size_t rank_index;
@@ -786,17 +800,17 @@ get_rank_idx_by_group_sp_id(offloading_engine_t *engine,
         }
     }
 
-    sp_data = DYN_ARRAY_GET_ELT(&(gp_cache->sps), sp_gp_gid, remote_service_proc_info_t *);
+    sp_data = MIMOSA_GET_SP_FROM_GROUP_CACHE(gp_cache, sp_gp_gid);
     assert(sp_data);
-    sp_info = GET_GROUP_SP_HASH_ENTRY(gp_cache, (*sp_data)->service_proc.global_id);
+    sp_info = GET_GROUP_SP_HASH_ENTRY(gp_cache, sp_data->service_proc.global_id);
     assert(sp_info);
 
     for (rank_index = 0; rank_index < sp_info->n_ranks; rank_index++)
     {
-        peer_cache_entry_t **rank_info = NULL;
-        rank_info = DYN_ARRAY_GET_ELT(&(sp_info->ranks), rank_index, peer_cache_entry_t *);
+        peer_cache_entry_t *rank_info = NULL;
+        rank_info = sp_info->ranks[rank_index];
         assert(rank_info);
-        if ((*rank_info)->peer.proc_info.group_rank == rank)
+        if (rank_info->peer.proc_info.group_rank == rank)
         {
             *rank_idx = rank_index;
             return DO_SUCCESS;
@@ -812,11 +826,11 @@ dpu_offload_status_t
 get_all_sps_by_group_host_idx(offloading_engine_t *engine,
                               group_uid_t group_uid,
                               size_t host_idx,
-                              dyn_array_t **sps,
+                              sp_cache_data_t ***sps,
                               size_t *num_sps)
 {
     group_cache_t *gp_cache = NULL;
-    host_info_t **host_info_ptr = NULL;
+    host_info_t *host_info_ptr = NULL;
     host_cache_data_t *host_data = NULL;
 
     assert(engine);
@@ -834,11 +848,11 @@ get_all_sps_by_group_host_idx(offloading_engine_t *engine,
         }
     }
 
-    host_info_ptr = DYN_ARRAY_GET_ELT(&(gp_cache->hosts), host_idx, host_info_t *);
+    host_info_ptr = MIMOSA_GET_HOST_FROM_GROUP_CACHE(gp_cache, host_idx);
     assert(host_info_ptr);
-    host_data = GET_GROUP_HOST_HASH_ENTRY(gp_cache, (*host_info_ptr)->uid);
+    host_data = GET_GROUP_HOST_HASH_ENTRY(gp_cache, host_info_ptr->uid);
     assert(host_data);
-    *sps = &(host_data->sps);
+    *sps = host_data->sps;
     *num_sps = host_data->num_sps;
     return DO_SUCCESS;
 }
@@ -846,7 +860,7 @@ get_all_sps_by_group_host_idx(offloading_engine_t *engine,
 dpu_offload_status_t
 get_all_hosts_by_group(offloading_engine_t *engine,
                        group_uid_t group_uid,
-                       dyn_array_t **hosts,
+                       host_info_t ***hosts,
                        size_t *num_hosts)
 {
     group_cache_t *gp_cache = NULL;
@@ -866,7 +880,7 @@ get_all_hosts_by_group(offloading_engine_t *engine,
         }
     }
 
-    *hosts = &(gp_cache->hosts);
+    *hosts = gp_cache->hosts;
     *num_hosts = gp_cache->n_hosts;
     return DO_SUCCESS;
 }
@@ -875,11 +889,11 @@ dpu_offload_status_t
 get_all_ranks_by_group_sp_gid(offloading_engine_t *engine,
                               group_uid_t group_uid,
                               uint64_t sp_group_gid,
-                              dyn_array_t **ranks,
+                              peer_cache_entry_t ***ranks,
                               size_t *num_ranks)
 {
     group_cache_t *gp_cache = NULL;
-    remote_service_proc_info_t **ptr = NULL;
+    remote_service_proc_info_t *ptr = NULL;
     sp_cache_data_t *sp_data = NULL;
 
     assert(engine);
@@ -897,13 +911,11 @@ get_all_ranks_by_group_sp_gid(offloading_engine_t *engine,
         }
     }
 
-    ptr = DYN_ARRAY_GET_ELT(&(gp_cache->sps),
-                            sp_group_gid,
-                            remote_service_proc_info_t *);
+    ptr = MIMOSA_GET_SP_FROM_GROUP_CACHE(gp_cache, sp_group_gid);
     assert(ptr);
-    sp_data = GET_GROUP_SP_HASH_ENTRY(gp_cache, (*ptr)->service_proc.global_id);
+    sp_data = GET_GROUP_SP_HASH_ENTRY(gp_cache, ptr->service_proc.global_id);
     assert(sp_data);
-    *ranks = &(sp_data->ranks);
+    *ranks = sp_data->ranks;
     *num_ranks = sp_data->n_ranks;
     return DO_SUCCESS;
 }
@@ -913,13 +925,13 @@ get_all_ranks_by_group_sp_lid(offloading_engine_t *engine,
                               group_uid_t group_uid,
                               size_t host_idx,
                               uint64_t sp_group_lid,
-                              dyn_array_t **ranks,
+                              peer_cache_entry_t ***ranks,
                               size_t *num_ranks)
 {
     group_cache_t *gp_cache = NULL;
-    host_info_t **host_info_ptr = NULL;
+    host_info_t *host_info_ptr = NULL;
     host_cache_data_t *host_data = NULL;
-    sp_cache_data_t **sp_data_ptr = NULL;
+    sp_cache_data_t *sp_data_ptr = NULL;
 
     assert(engine);
     gp_cache = GET_GROUP_CACHE(&(engine->procs_cache), group_uid);
@@ -937,16 +949,16 @@ get_all_ranks_by_group_sp_lid(offloading_engine_t *engine,
     }
 
     // Get the host data
-    host_info_ptr = DYN_ARRAY_GET_ELT(&(gp_cache->hosts), host_idx, host_info_t *);
+    host_info_ptr = MIMOSA_GET_HOST_FROM_GROUP_CACHE(gp_cache, host_idx);
     assert(host_info_ptr);
-    host_data = GET_GROUP_HOST_HASH_ENTRY(gp_cache, (*host_info_ptr)->uid);
+    host_data = GET_GROUP_HOST_HASH_ENTRY(gp_cache, host_info_ptr->uid);
     assert(host_data);
 
     // Get the SP's data
-    sp_data_ptr = DYN_ARRAY_GET_ELT(&(host_data->sps), sp_group_lid, sp_cache_data_t *);
+    sp_data_ptr = host_data->sps[sp_group_lid];
     assert(sp_data_ptr);
-    *ranks = &((*sp_data_ptr)->ranks);
-    *num_ranks = (*sp_data_ptr)->n_ranks;
+    *ranks = sp_data_ptr->ranks;
+    *num_ranks = sp_data_ptr->n_ranks;
     return DO_SUCCESS;
 }
 
@@ -958,9 +970,9 @@ get_nth_sp_by_group_host_idx(offloading_engine_t *engine,
                              uint64_t *global_group_sp_id)
 {
     group_cache_t *gp_cache = NULL;
-    host_info_t **host_ptr = NULL;
+    host_info_t *host_ptr = NULL;
     host_cache_data_t *host_data = NULL;
-    sp_cache_data_t **sp_data_ptr = NULL;
+    sp_cache_data_t *sp_data_ptr = NULL;
 
     assert(engine);
     gp_cache = GET_GROUP_CACHE(&(engine->procs_cache), group_uid);
@@ -978,18 +990,16 @@ get_nth_sp_by_group_host_idx(offloading_engine_t *engine,
     }
 
     // Lookup the host's data
-    host_ptr = DYN_ARRAY_GET_ELT(&(gp_cache->hosts),
-                                 host_idx,
-                                 host_info_t *);
+    host_ptr = MIMOSA_GET_HOST_FROM_GROUP_CACHE(gp_cache, host_idx);
     assert(host_ptr);
-    host_data = GET_GROUP_HOST_HASH_ENTRY(gp_cache, (*host_ptr)->uid);
+    host_data = GET_GROUP_HOST_HASH_ENTRY(gp_cache, host_ptr->uid);
     if (n >= host_data->num_sps)
         return DO_ERROR;
 
     // Lookup the SP's data
-    sp_data_ptr = DYN_ARRAY_GET_ELT(&(host_data->sps), n, sp_cache_data_t *);
+    sp_data_ptr = host_data->sps[n];
     assert(sp_data_ptr);
-    *global_group_sp_id = (*sp_data_ptr)->gid;
+    *global_group_sp_id = sp_data_ptr->gid;
     return DO_SUCCESS;
 }
 
@@ -999,7 +1009,7 @@ dpu_offload_status_t get_sp_group_gid(offloading_engine_t *engine,
                                       uint64_t *sp_gp_gid)
 {
     group_cache_t *gp_cache = NULL;
-    size_t sp_gp_idx;
+    size_t sp_gp_idx = 0, idx;
 
     assert(engine);
     gp_cache = GET_GROUP_CACHE(&(engine->procs_cache), group_uid);
@@ -1017,28 +1027,31 @@ dpu_offload_status_t get_sp_group_gid(offloading_engine_t *engine,
     }
 
 #if !NDEBUG
-    if (!gp_cache->sp_array_initialized && !group_cache_populated(engine, group_uid))
+    if (gp_cache->sps == NULL || !group_cache_populated(engine, group_uid))
     {
         ERR_MSG("Group cache lookup tables are not created and the group cache incomplete");
         return DO_ERROR;
     }
 #endif
 
-    assert(gp_cache->sp_array_initialized);
-    for (sp_gp_idx = 0; sp_gp_idx < gp_cache->n_sps; sp_gp_idx++)
+    // The SP is not involved in the group, return an error
+    int sp_in_group = GROUP_CACHE_BITSET_TEST(gp_cache->sps_bitset, (int)sp_gid);
+    if (sp_gid > gp_cache->n_sps || !sp_in_group)
     {
-        remote_service_proc_info_t **sp_data = NULL;
-        sp_data = DYN_ARRAY_GET_ELT(&(gp_cache->sps), sp_gp_idx, remote_service_proc_info_t *);
-        assert(sp_data);
-
-        if ((*sp_data)->service_proc.global_id == sp_gid)
+        *sp_gp_gid = UINT64_MAX;
+        return DO_ERROR;
+    }
+    assert(gp_cache->sps);
+    for (idx = 0; idx < sp_gid; idx++)
+    {
+        int sp_in_group = GROUP_CACHE_BITSET_TEST(gp_cache->sps_bitset, idx);
+        if (sp_in_group)
         {
-            *sp_gp_gid = sp_gp_idx;
-            return DO_SUCCESS;
+            sp_gp_idx++;
         }
     }
-    *sp_gp_gid = UINT64_MAX;
-    return DO_ERROR;
+    *sp_gp_gid = sp_gp_idx;
+    return DO_SUCCESS;
 }
 
 dpu_offload_status_t get_group_ranks_on_host(offloading_engine_t *engine,
@@ -1155,11 +1168,12 @@ dpu_offload_status_t get_group_rank_sps(offloading_engine_t *engine,
                                         group_uid_t gp_uid,
                                         uint64_t rank,
                                         size_t *n_sps,
-                                        dyn_array_t **sps)
+                                        sp_cache_data_t ***sps)
 {
     dpu_offload_status_t rc;
     uint64_t host_id;
     group_cache_t *gp = NULL;
+    host_cache_data_t *host_info = NULL;
 
     gp = GET_GROUP_CACHE(&(engine->procs_cache), gp_uid);
     assert(gp);
@@ -1178,39 +1192,32 @@ dpu_offload_status_t get_group_rank_sps(offloading_engine_t *engine,
     *n_sps = 0;
     rc = get_group_rank_host(engine, gp_uid, rank, &host_id);
     CHECK_ERR_RETURN((rc), DO_ERROR, "get_group_rank_host() failed");
-
-
-    host_cache_data_t *host_info = NULL;
     host_info = GET_GROUP_HOST_HASH_ENTRY(gp, host_id);
     assert(host_info);
     *n_sps = host_info->num_sps;
-    *sps = &(host_info->sps);
+    *sps = host_info->sps;
     return DO_SUCCESS;
 }
 
 static void
 populate_sp_ranks(offloading_engine_t *engine, group_cache_t *gp_cache, sp_cache_data_t *sp_data)
 {
-    size_t i = 0, idx = 0;
-    DYN_ARRAY_ALLOC(&(sp_data->ranks),
-                    gp_cache->group_size,
-                    peer_cache_entry_t *);
-    sp_data->ranks_initialized = true;
     assert(sp_data->n_ranks);
+    
+    size_t i = 0, idx = 0;
+    sp_data->ranks = malloc(sp_data->n_ranks * sizeof(peer_cache_entry_index_t*));
+    assert(sp_data->ranks);
     while (idx < sp_data->n_ranks)
     {
         if (GROUP_CACHE_BITSET_TEST(sp_data->ranks_bitset, i))
         {
             peer_cache_entry_t *rank_info = NULL;
-            peer_cache_entry_t **ptr = NULL;
             rank_info = GET_GROUP_RANK_CACHE_ENTRY(&(engine->procs_cache),
                                                    gp_cache->group_uid,
                                                    i,
                                                    gp_cache->group_size);
             assert(rank_info);
-            ptr = DYN_ARRAY_GET_ELT(&(sp_data->ranks), idx, peer_cache_entry_t *);
-            assert(ptr);
-            (*ptr) = rank_info;
+            sp_data->ranks[idx] = rank_info;
             idx++;
         }
         i++;
@@ -1221,22 +1228,23 @@ populate_sp_ranks(offloading_engine_t *engine, group_cache_t *gp_cache, sp_cache
 static void
 populate_host_sps(group_cache_t *gp_cache, host_cache_data_t *host_data)
 {
+    assert(host_data->num_sps);
+    
     size_t i = 0, idx = 0;
-    DYN_ARRAY_ALLOC(&(host_data->sps),
-                    gp_cache->group_size,
-                    sp_cache_data_t *);
-    host_data->sps_initialized = true;
+    if (host_data->sps == NULL)
+    {
+        host_data->sps = malloc(host_data->num_sps * sizeof(sp_cache_data_t *));
+        assert(host_data->sps);
+    }
     while (idx < host_data->num_sps)
     {
         if (GROUP_CACHE_BITSET_TEST(host_data->sps_bitset, i))
         {
-            sp_cache_data_t **ptr = NULL, *sp_info = NULL;
+            sp_cache_data_t *sp_info = NULL;
             sp_info = GET_GROUP_SP_HASH_ENTRY(gp_cache, i);
             assert(sp_info);
-            ptr = DYN_ARRAY_GET_ELT(&(host_data->sps), idx, sp_cache_data_t *);
-            assert(ptr);
             sp_info->lid = idx;
-            (*ptr) = sp_info;
+            host_data->sps[idx] = sp_info;
             idx++;
         }
         i++;
@@ -1246,7 +1254,7 @@ populate_host_sps(group_cache_t *gp_cache, host_cache_data_t *host_data)
 
 static dpu_offload_status_t
 do_populate_group_cache_lookup_table(offloading_engine_t *engine, group_cache_t *gp_cache)
-{
+{   
     size_t i, idx = 0;
 
     assert(engine);
@@ -1257,12 +1265,10 @@ do_populate_group_cache_lookup_table(offloading_engine_t *engine, group_cache_t 
 
     DBG("Creating the contiguous and ordered list of SPs involved in the group");
     assert(gp_cache->n_sps);
-    if (gp_cache->sp_array_initialized == false)
+    if (gp_cache->sps == NULL)
     {
-        DYN_ARRAY_ALLOC(&(gp_cache->sps),
-                        gp_cache->n_sps,
-                        remote_service_proc_info_t *);
-        gp_cache->sp_array_initialized = true;
+        gp_cache->sps = malloc(gp_cache->n_sps * sizeof(remote_service_proc_info_t*));
+        assert(gp_cache->sps);
     }
 
     i = 0;
@@ -1270,15 +1276,15 @@ do_populate_group_cache_lookup_table(offloading_engine_t *engine, group_cache_t 
     {
         if (GROUP_CACHE_BITSET_TEST(gp_cache->sps_bitset, idx))
         {
-            remote_service_proc_info_t *sp_data = NULL, **ptr = NULL;
-            sp_data = DYN_ARRAY_GET_ELT(GET_ENGINE_LIST_SERVICE_PROCS(engine),
-                                        idx,
-                                        remote_service_proc_info_t);
-            assert(sp_data);
-            ptr = DYN_ARRAY_GET_ELT(&(gp_cache->sps),
-                                    i,
-                                    remote_service_proc_info_t *);
-            *ptr = sp_data;
+            // We use the world group as a reference and set the pointer for the group
+            // based on it.
+            remote_service_proc_info_t *sp;
+            sp = DYN_ARRAY_GET_ELT(GET_ENGINE_LIST_SERVICE_PROCS(engine), i, remote_service_proc_info_t);
+            assert(sp);
+
+            // The list of SPs is constant at this point, should never grow so we can safely use
+            // pointer to elements of the dynamic array.
+            gp_cache->sps[i] = sp;
             i++;
         }
         idx++;
@@ -1296,28 +1302,28 @@ do_populate_group_cache_lookup_table(offloading_engine_t *engine, group_cache_t 
     }
 
     DBG("Creating the contiguous and ordered list of hosts involved in the group");
-    if (gp_cache->host_array_initialized == false)
+    assert(gp_cache->n_hosts);
+    if (gp_cache->hosts == NULL)
     {
-        DYN_ARRAY_ALLOC(&(gp_cache->hosts),
-                        gp_cache->n_hosts,
-                        host_info_t *);
-        gp_cache->host_array_initialized = true;
+        gp_cache->hosts = malloc(gp_cache->n_hosts * sizeof(host_info_t*));
+        assert(gp_cache->hosts);
     }
+    
     i = 0;
     idx = 0;
     while (i < gp_cache->n_hosts)
     {
         if (GROUP_CACHE_BITSET_TEST(gp_cache->hosts_bitset, idx))
         {
-            host_info_t *info = NULL, **ptr = NULL;
+            host_info_t *info = NULL;
             info = DYN_ARRAY_GET_ELT(&(engine->config->hosts_config),
                                      idx,
                                      host_info_t);
             assert(info);
-            ptr = DYN_ARRAY_GET_ELT(&(gp_cache->hosts),
-                                    i,
-                                    host_info_t *);
-            *ptr = info;
+            // The configuration is at this point static, the dynamic array
+            // used for the configuration is not supposed to ever change, we
+            // can safely use pointers to it.
+            gp_cache->hosts[i] = info;
             i++;
         }
         idx++;
@@ -1407,7 +1413,7 @@ update_topology_data(offloading_engine_t *engine, group_cache_t *gp_cache, int64
     if (host_data == NULL)
     {
         // The host is not in the hash yet
-        host_info_t *host_info = NULL;
+        size_t host_idx = -1;
         DBG("group cache does not have host 0x%lx, adding host to hash for the group (0x%x)",
             host_uid, gp_cache->group_uid);
         gp_cache->n_hosts++;
@@ -1426,12 +1432,12 @@ update_topology_data(offloading_engine_t *engine, group_cache_t *gp_cache, int64
         GROUP_CACHE_BITSET_SET(host_data->sps_bitset, sp_gid);
         GROUP_CACHE_BITSET_CREATE(host_data->ranks_bitset, gp_cache->group_size);
         ADD_GROUP_HOST_HASH_ENTRY(gp_cache, host_data);
-        host_info = LOOKUP_HOST_CONFIG(engine, host_uid);
-        assert(host_info);
-        host_data->config_idx = host_info->idx;
+        host_idx = LOOKUP_HOST_CONFIG_IDX(engine, host_uid);
+        assert(host_idx != -1);
+        host_data->config_idx = host_idx;
         GROUP_CACHE_BITSET_CREATE(gp_cache->hosts_bitset, engine->config->num_hosts);
         GROUP_CACHE_BITSET_SET(gp_cache->hosts_bitset,
-                               host_info->idx);
+                               host_idx);
     }
     else
     {
@@ -1453,12 +1459,21 @@ dpu_offload_status_t
 host_add_local_rank_to_cache(offloading_engine_t *engine, rank_info_t *rank_info)
 {
     dpu_offload_state_t ret;
-    peer_cache_entry_t *cache_entry = GET_GROUP_RANK_CACHE_ENTRY(&(engine->procs_cache),
-                                                                 rank_info->group_uid,
-                                                                 rank_info->group_rank,
-                                                                 rank_info->group_size);
-    group_cache_t *gp_cache = GET_GROUP_CACHE_INTERNAL(&(engine->procs_cache), rank_info->group_uid, rank_info->group_size);
+    peer_cache_entry_t *cache_entry = NULL;
+    group_cache_t *gp_cache = NULL;
+
+    assert(engine);
+    assert(engine->config);
+    assert(rank_info);
+
+    cache_entry = GET_GROUP_RANK_CACHE_ENTRY(&(engine->procs_cache),
+                                             rank_info->group_uid,
+                                             rank_info->group_rank,
+                                             rank_info->group_size);
+    gp_cache = GET_GROUP_CACHE_INTERNAL(&(engine->procs_cache), rank_info->group_uid, rank_info->group_size);
     assert(cache_entry);
+    assert(cache_entry->set == false);
+    assert(cache_entry->num_shadow_service_procs == 0);
     assert(gp_cache);
     assert(engine->config != NULL);
     if (gp_cache->num_local_entries == 0)
@@ -1704,7 +1719,7 @@ bool on_same_sp(offloading_engine_t *engine,
         }
     }
 
-    rank1_data = DYN_ARRAY_GET_ELT(&(gp_cache->ranks), rank1, peer_cache_entry_t);
+    rank1_data = MIMOSA_GET_RANK_FROM_GROUP_CACHE(gp_cache, rank1);
     assert(rank1_data);
 
     for (rank1_sp_idx = 0; rank1_sp_idx < rank1_data->num_shadow_service_procs; rank1_sp_idx++)

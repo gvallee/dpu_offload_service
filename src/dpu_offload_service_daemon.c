@@ -1,7 +1,7 @@
 #define _POSIX_C_SOURCE 200809L
 
 //
-// Copyright (c) 2022, NVIDIA CORPORATION. All rights reserved.
+// Copyright (c) 2022-2024, NVIDIA CORPORATION. All rights reserved.
 //
 // See LICENSE.txt for license information
 //
@@ -466,6 +466,7 @@ dpu_offload_status_t oob_client_connect(dpu_offload_client_t *client, sa_family_
     hints.ai_socktype = SOCK_STREAM;
 
     DBG("Connecting to %s:%" PRIu16, client->conn_params.addr_str, client->conn_params.port);
+    assert(client->conn_params.port > 0);
 
     ret = getaddrinfo(client->conn_params.addr_str, service, &hints, &res);
     CHECK_ERR_RETURN((ret < 0), DO_ERROR, "getaddrinfo() failed");
@@ -664,10 +665,10 @@ dpu_offload_status_t client_init_context(execution_context_t *econtext, init_par
 
     // If we have a group/rank in the init params, we pass it down
     econtext->rank.host_info = HASH_LOCAL_HOSTNAME();
-    if (init_params != NULL && init_params->proc_info != NULL)
+    if (init_params != NULL && init_params->proc_info.group_rank != INVALID_RANK)
     {
-        econtext->rank.group_uid = init_params->proc_info->group_uid;
-        econtext->rank.group_rank = init_params->proc_info->group_rank;
+        econtext->rank.group_uid = init_params->proc_info.group_uid;
+        econtext->rank.group_rank = init_params->proc_info.group_rank;
     }
 
     if (init_params != NULL && init_params->connected_cb != NULL)
@@ -933,6 +934,7 @@ static dpu_offload_status_t oob_connect(execution_context_t *econtext)
     dpu_offload_client_t *client = econtext->client;
     CHECK_ERR_GOTO((client->conn_data.oob.local_addr == NULL), error_out, "undefined local address");
     DBG("local address length: %lu", client->conn_data.oob.local_addr_len);
+    assert(client->conn_params.port > 0);
 
     size_t addr_len;
     int rc = oob_client_connect(client, ai_family);
@@ -974,11 +976,11 @@ error_out:
  * @return dpu_offload_status_t 
  */
 static dpu_offload_status_t
-finalize_connection_to_remote_service_proc(offloading_engine_t *offload_engine, remote_service_proc_info_t *remote_sp, execution_context_t *client)
+finalize_connection_to_remote_service_proc(offloading_engine_t *offload_engine, uint64_t remote_sp_idx, execution_context_t *client)
 {
     ENGINE_LOCK(offload_engine);
     remote_service_proc_info_t *sp = DYN_ARRAY_GET_ELT(GET_ENGINE_LIST_SERVICE_PROCS(offload_engine),
-                                                       remote_sp->idx,
+                                                       remote_sp_idx,
                                                        remote_service_proc_info_t);
     assert(sp);
     sp->ep = client->client->server_ep;
@@ -989,12 +991,12 @@ finalize_connection_to_remote_service_proc(offloading_engine_t *offload_engine, 
     assert(sp->init_params.conn_params);
     DBG("Connection successfully established to service process #%" PRIu64
         " running on DPU #%" PRIu64 " (num service processes: %ld, number of connection with other service processes: %ld)",
-        remote_sp->idx,
-        remote_sp->service_proc.dpu,
+        sp->idx,
+        sp->service_proc.dpu,
         offload_engine->num_service_procs,
         offload_engine->num_connected_service_procs);
     DBG("-> Service process #%ld: addr=%s, port=%d, ep=%p, econtext=%p, client_id=%" PRIu64 ", server_id=%" PRIu64,
-        remote_sp->idx,
+        sp->idx,
         sp->init_params.conn_params->addr_str,
         sp->init_params.conn_params->port,
         sp->ep,
@@ -1062,7 +1064,7 @@ dpu_offload_status_t offload_engine_progress(offloading_engine_t *engine)
                     c, c_econtext->client->server_id);
                 ECONTEXT_UNLOCK(c_econtext);
                 dpu_offload_status_t rc = finalize_connection_to_remote_service_proc(engine,
-                                                                                     engine->inter_service_proc_clients[c].remote_service_proc_info,
+                                                                                     engine->inter_service_proc_clients[c].remote_service_proc_idx,
                                                                                      engine->inter_service_proc_clients[c].client_econtext);
                 CHECK_ERR_RETURN((rc), DO_ERROR, "finalize_connection_to_remote_service_proc() failed");
                 ECONTEXT_UNLOCK(c_econtext);
@@ -1553,10 +1555,14 @@ add_cache_entry_for_new_client(peer_info_t *client_info, execution_context_t *ct
                    client_info->peer_addr,
                    client_info->peer_addr_len);
         }
-        assert(client_info->cache_entries.capacity > 0);
-        peer_cache_entry_t **cache_entries = (peer_cache_entry_t **)(client_info->cache_entries.base);
-        assert(cache_entries);
-        cache_entries[0] = cache_entry;
+        assert(client_info->cache_entry_index_data.capacity > 0);
+        peer_cache_entry_index_t *index_item = DYN_ARRAY_GET_ELT(&(client_info->cache_entry_index_data),
+                                                                 0,
+                                                                 peer_cache_entry_index_t);
+        assert(index_item);
+        index_item->group_uid = client_info->rank_data.group_uid;
+        index_item->rank = client_info->rank_data.group_rank;
+        index_item->group_size = client_info->rank_data.group_size;
 
         // Update the topology
         rc = update_topology_data(ctx->engine,
@@ -1891,6 +1897,21 @@ static void progress_client_econtext(execution_context_t *ctx)
                                            ctx->rank.group_uid,
                                            ctx->rank.group_size);
                 assert(gp_cache);
+
+                // On the host, we now have the details about of shadow SP so we can finally add ourselves to the
+                // group cache.
+                if (!ECONTEXT_ON_DPU(ctx))
+                {
+                    int ret;
+                    assert(ctx->engine->config->local_service_proc.info.global_id != UINT64_MAX);
+                    ret = host_add_local_rank_to_cache(ctx->engine, &(ctx->rank));
+                    if (ret != DO_SUCCESS)
+                    {
+                        ERR_MSG("host_add_local_rank_to_cache() failed (rc: %d)", ret);
+                        return;
+                    }
+                }
+
                 rc = update_topology_data(ctx->engine,
                                           gp_cache,
                                           ctx->rank.group_rank,
@@ -2122,6 +2143,7 @@ execution_context_t *client_init(offloading_engine_t *offload_engine, init_param
 
     CHECK_ERR_GOTO((offload_engine == NULL), error_out, "Undefined handle");
     CHECK_ERR_GOTO((offload_engine->client != NULL), error_out, "offload engine already initialized as a client");
+    assert(init_params->conn_params->port > 0);
 
     // When calling this function, we know we can check whether we are
     // on a host or a DPU. If the process is running on a host, it is
@@ -2135,36 +2157,33 @@ execution_context_t *client_init(offloading_engine_t *offload_engine, init_param
     if (init_params != NULL)
     {
         ctx->scope_id = init_params->scope_id;
-        if (init_params->proc_info != NULL)
+        if (init_params->proc_info.group_uid != INT_MAX && init_params->proc_info.host_info == UINT64_MAX)
         {
-            if (init_params->proc_info->group_uid != INT_MAX && init_params->proc_info->host_info == UINT64_MAX)
-            {
-                // We are in the context of an actual rank and the host UID was not set by the caller,
-                // we set it for consistency and for future potential use
-                host_info_t *host_info = NULL;
-                host_info = DYN_ARRAY_GET_ELT(&(offload_engine->config->hosts_config),
-                                              offload_engine->config->host_index,
-                                              host_info_t);
-                assert(host_info);
-                init_params->proc_info->host_info = host_info->uid;
-            }
-            COPY_RANK_INFO(init_params->proc_info, &(ctx->rank));
+            // We are in the context of an actual rank and the host UID was not set by the caller,
+            // we set it for consistency and for future potential use
+            host_info_t *host_info = NULL;
+            host_info = DYN_ARRAY_GET_ELT(&(offload_engine->config->hosts_config),
+                                            offload_engine->config->host_index,
+                                            host_info_t);
+            assert(host_info);
+            init_params->proc_info.host_info = host_info->uid;
+        }
+        COPY_RANK_INFO(&(init_params->proc_info), &(ctx->rank));
 
-            // In the context of inter-SP connections and situations without groups,
-            // the group UID is set to INT_MAX and we should not try to update
-            // the cache.
-            if (ctx->rank.group_uid != INT_MAX)
+        // In the context of inter-SP connections and situations without groups,
+        // the group UID is set to INT_MAX and we should not try to update
+        // the cache.
+        if (ctx->rank.group_uid != INT_MAX)
+        {
+            /* Update the local cache for consistency */
+            group_cache_t *gp_cache = GET_GROUP_CACHE_INTERNAL(&(offload_engine->procs_cache),
+                                                                ctx->rank.group_uid,
+                                                                ctx->rank.group_size);
+            if (gp_cache->group_size <= 0)
             {
-                /* Update the local cache for consistency */
-                group_cache_t *gp_cache = GET_GROUP_CACHE_INTERNAL(&(offload_engine->procs_cache),
-                                                                   ctx->rank.group_uid,
-                                                                   ctx->rank.group_size);
-                if (gp_cache->group_size <= 0)
-                {
-                    gp_cache->group_size = init_params->proc_info->group_size;
-                    gp_cache->n_local_ranks = init_params->proc_info->n_local_ranks;
-                    gp_cache->group_uid = init_params->proc_info->group_uid;
-                }
+                gp_cache->group_size = init_params->proc_info.group_size;
+                gp_cache->n_local_ranks = init_params->proc_info.n_local_ranks;
+                gp_cache->group_uid = init_params->proc_info.group_uid;
             }
         }
 
@@ -2219,12 +2238,10 @@ execution_context_t *client_init(offloading_engine_t *offload_engine, init_param
     ECONTEXT_UNLOCK(ctx);
     CHECK_ERR_GOTO((rc), error_out, "register_default_notfications() failed");
 
-    // We add ourselves to the local EP cache as shadow service process
     if (ctx->rank.group_uid != INT_MAX &&
         ctx->rank.group_rank != INVALID_RANK &&
         !is_in_cache(&(offload_engine->procs_cache), ctx->rank.group_uid, ctx->rank.group_rank, ctx->rank.group_size))
     {
-        dpu_offload_state_t ret;
         group_cache_t *gp_cache = NULL;
         assert(offload_engine->procs_cache.world_group == ctx->rank.group_uid);
         gp_cache = GET_GROUP_CACHE_INTERNAL(&(offload_engine->procs_cache),
@@ -2233,8 +2250,11 @@ execution_context_t *client_init(offloading_engine_t *offload_engine, init_param
         assert(gp_cache);
         assert(gp_cache->persistent.num == 0); // The group is not in use yet so its seq num should be 0
         ctx->rank.group_seq_num = gp_cache->persistent.num = 1; // Now we mark it as in use so the seq num is set to 1
-        ret = host_add_local_rank_to_cache(offload_engine, &(ctx->rank));
-        CHECK_ERR_GOTO((ret != DO_SUCCESS), error_out, "host_add_local_rank_to_cache() failed (rc: %d)", ret);
+
+        // Note that it is not possible to add ourself to the group cache because we do not
+        // know yet the GID of our SP(s). That data is only available when we get data from
+        // a SP during the bootstrapping phase. As a result, the local rank is added to the
+        // group cache only when the bootstrapping process completes.
     }
 
     return ctx;
@@ -2715,7 +2735,8 @@ dpu_offload_status_t server_init_context(execution_context_t *econtext, init_par
 #else
         peer_info->notif_recv.ctx.complete = true; // to make sure we can post the initial recv
 #endif
-        DYN_ARRAY_ALLOC(&(peer_info->cache_entries), MAX_CACHE_ENTRIES_PER_PROC, peer_cache_entry_t *);
+        // TODO: Not sure this is used, but leaving for now. Where is the memory freed?
+        DYN_ARRAY_ALLOC(&(peer_info->cache_entry_index_data), MAX_CACHE_ENTRIES_PER_PROC, peer_cache_entry_index_t);
     }
 
     if (init_params == NULL || init_params->conn_params == NULL)
