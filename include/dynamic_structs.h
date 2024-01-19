@@ -119,60 +119,66 @@ typedef struct dyn_array
     // Size in bytes of a dynamic array element
     size_t type_size;
 
+    // Specify if it is possible to grow the dynamic array
+    bool growable;
+
     // Optional function pointer used to initialize a single dynamic array element;
     // when defined, called for the entire dynarmic array's capacity ti ensure the array
     // is fully initialized before being used.
     dyn_struct_elt_init_fn element_init_fn;
 } dyn_array_t;
 
-#define DYN_ARRAY_ALLOC(_dyn_array_alloc, _da_alloc_num_elts_alloc, _da_alloc_type)                              \
-    do                                                                                                           \
-    {                                                                                                            \
-        assert(_da_alloc_num_elts_alloc);                                                                        \
-        (_dyn_array_alloc)->allocation_size = _da_alloc_num_elts_alloc;                                          \
-        (_dyn_array_alloc)->capacity = _da_alloc_num_elts_alloc;                                                 \
-        (_dyn_array_alloc)->type_size = sizeof(_da_alloc_type);                                                  \
-        (_dyn_array_alloc)->element_init_fn = NULL;                                                              \
-        (_dyn_array_alloc)->base = malloc((_dyn_array_alloc)->allocation_size * (_dyn_array_alloc)->type_size);  \
-        assert((_dyn_array_alloc)->base);                                                                        \
-        memset((_dyn_array_alloc)->base, 0, (_dyn_array_alloc)->allocation_size *(_dyn_array_alloc)->type_size); \
+#define DYN_ARRAY_ALLOC(_dyn_array_alloc, _da_alloc_num_elts_alloc, _da_alloc_type)                                 \
+    do                                                                                                              \
+    {                                                                                                               \
+        assert(_da_alloc_num_elts_alloc);                                                                           \
+        (_dyn_array_alloc)->allocation_size = _da_alloc_num_elts_alloc;                                             \
+        (_dyn_array_alloc)->capacity = _da_alloc_num_elts_alloc;                                                    \
+        (_dyn_array_alloc)->type_size = sizeof(_da_alloc_type);                                                     \
+        (_dyn_array_alloc)->element_init_fn = NULL;                                                                 \
+        (_dyn_array_alloc)->growable = true;                                                                        \
+        (_dyn_array_alloc)->base = malloc((_dyn_array_alloc)->allocation_size * (_dyn_array_alloc)->type_size);     \
+        assert((_dyn_array_alloc)->base);                                                                           \
+        memset((_dyn_array_alloc)->base, 0, (_dyn_array_alloc)->allocation_size *(_dyn_array_alloc)->type_size);    \
     } while (0)
 
-#define DYN_ARRAY_ALLOC_WITH_INIT_FN(_dyn_array, _num_elts_alloc, _type, _fn)      \
-    do                                                                             \
-    {                                                                              \
-        size_t _da_alloc_x;                                                        \
-        assert(_num_elts_alloc);                                                   \
-        (_dyn_array)->allocation_size = _num_elts_alloc;                           \
-        (_dyn_array)->capacity = _num_elts_alloc;                                  \
-        (_dyn_array)->type_size = sizeof(_type);                                   \
-        (_dyn_array)->element_init_fn = _fn;                                       \
-        (_dyn_array)->base = malloc(_num_elts_alloc * sizeof(_type));              \
-        assert((_dyn_array)->base);                                                \
-        memset((_dyn_array)->base, 0, _num_elts_alloc * sizeof(_type));            \
-        _type *_da_alloc_a = (_type *)(_dyn_array)->base;                          \
-        for (_da_alloc_x = 0; _da_alloc_x < (_dyn_array)->capacity; _da_alloc_x++) \
-        {                                                                          \
-            _fn(_da_alloc_a[_da_alloc_x]);                                         \
-        }                                                                          \
+#define DYN_ARRAY_ALLOC_WITH_INIT_FN(_dyn_array, _num_elts_alloc, _type, _fn)       \
+    do                                                                              \
+    {                                                                               \
+        size_t _da_alloc_x;                                                         \
+        assert(_num_elts_alloc);                                                    \
+        (_dyn_array)->allocation_size = _num_elts_alloc;                            \
+        (_dyn_array)->capacity = _num_elts_alloc;                                   \
+        (_dyn_array)->type_size = sizeof(_type);                                    \
+        (_dyn_array)->element_init_fn = _fn;                                        \
+        (_dyn_array)->growable = true;                                              \
+        (_dyn_array)->base = malloc(_num_elts_alloc * sizeof(_type));               \
+        assert((_dyn_array)->base);                                                 \
+        memset((_dyn_array)->base, 0, _num_elts_alloc * sizeof(_type));             \
+        _type *_da_alloc_a = (_type *)(_dyn_array)->base;                           \
+        for (_da_alloc_x = 0; _da_alloc_x < (_dyn_array)->capacity; _da_alloc_x++)  \
+        {                                                                           \
+            _fn(_da_alloc_a[_da_alloc_x]);                                          \
+        }                                                                           \
     } while (0)
 
-#define DYN_ARRAY_FREE(_dyn_array)                \
-    do                                            \
-    {                                             \
-        if ((_dyn_array)->capacity > 0)           \
-        {                                         \
-            if ((_dyn_array)->base)               \
-            {                                     \
-                free((_dyn_array)->base);         \
-                (_dyn_array)->base = NULL;        \
-            }                                     \
-            (_dyn_array)->base = NULL;            \
-            (_dyn_array)->element_init_fn = NULL; \
-            (_dyn_array)->capacity = 0;           \
-            (_dyn_array)->allocation_size = 0;    \
-            (_dyn_array)->type_size = 0;          \
-        }                                         \
+#define DYN_ARRAY_FREE(_dyn_array)                  \
+    do                                              \
+    {                                               \
+        if ((_dyn_array)->capacity > 0)             \
+        {                                           \
+            if ((_dyn_array)->base)                 \
+            {                                       \
+                free((_dyn_array)->base);           \
+                (_dyn_array)->base = NULL;          \
+            }                                       \
+            (_dyn_array)->base = NULL;              \
+            (_dyn_array)->element_init_fn = NULL;   \
+            (_dyn_array)->capacity = 0;             \
+            (_dyn_array)->allocation_size = 0;      \
+            (_dyn_array)->type_size = 0;            \
+            (_dyn_array)->growable = false;         \
+        }                                           \
     } while (0)
 
 #define DYN_ARRAY_GROW(_dyn_array, _type, _size)                                                        \
@@ -216,29 +222,56 @@ typedef struct dyn_array
  *    // ptr_2 is valid pointer into my_dyn_array, but ptr_1 may be invalid if i < j and j
  *    // is greater than the capacity of my_dyn_array after the first call to DYN_ARRAY_GET_ELT()
  */
-#define DYN_ARRAY_GET_ELT(_dyn_array, _idx, _type) ({ \
-    assert(_dyn_array);                               \
-    assert((_dyn_array)->capacity);                   \
-    _type *_elt = NULL;                               \
-    if ((_dyn_array)->capacity <= _idx)               \
-    {                                                 \
-        DYN_ARRAY_GROW(_dyn_array, _type, _idx);      \
-    }                                                 \
-    _type *__ptr = (_type *)((_dyn_array)->base);     \
-    _elt = (_type *)&(__ptr[_idx]);                   \
-    _elt;                                             \
+#define DYN_ARRAY_GET_ELT(_dyn_array, _idx, _type) ({               \
+    assert(_dyn_array);                                             \
+    assert((_dyn_array)->capacity);                                 \
+    _type *_elt = NULL;                                             \
+    if ((_dyn_array)->capacity <= _idx)                             \
+    {                                                               \
+        /* the element is not within the array's capacity */        \
+        if ((_dyn_array)->growable)                                 \
+        {                                                           \
+            /* We can and need to grow the array */                 \
+            DYN_ARRAY_GROW(_dyn_array, _type, _idx);                \
+            _type *__ptr = (_type *)((_dyn_array)->base);           \
+            _elt = (_type *)&(__ptr[_idx]);                         \
+        }                                                           \
+    }                                                               \
+    else                                                            \
+    {                                                               \
+        /* The requested element is within the array's capacity */  \
+        _type *__ptr = (_type *)((_dyn_array)->base);               \
+        _elt = (_type *)&(__ptr[_idx]);                             \
+    }                                                               \
+    _elt;                                                           \
 })
 
-#define DYN_ARRAY_SET_ELT(_dyn_array, _idx, _type, _elt) \
-    do                                                   \
-    {                                                    \
-        assert(_dyn_array);                              \
-        if ((_dyn_array)->capacity <= _idx)              \
-        {                                                \
-            DYN_ARRAY_GROW(_dyn_array, _type, _idx);     \
-        }                                                \
-        _type *_ptr = (_type *)((_dyn_array)->base);     \
-        memcpy(&(_ptr[_idx]), _elt, sizeof(_type));      \
+/**
+ * @brief Macro to set an element in a dynamic array. A memory copy will
+ * occur and the caller is responsible for ensuring the element is either
+ * within the dynamic array's capacity or the dynamic array is growable.
+ * If not, the element will not be set.
+ */
+#define DYN_ARRAY_SET_ELT(_dyn_array, _idx, _type, _elt)                \
+    do                                                                  \
+    {                                                                   \
+        assert(_dyn_array);                                             \
+        if ((_dyn_array)->capacity <= _idx)                             \
+        {                                                               \
+            /* the element is not within the array's capacity */        \
+            if ((_dyn_array)->growable)                                 \
+            {                                                           \
+                DYN_ARRAY_GROW(_dyn_array, _type, _idx);                \
+                _type *_ptr = (_type *)((_dyn_array)->base);            \
+                memcpy(&(_ptr[_idx]), _elt, sizeof(_type));             \
+            }                                                           \
+        }                                                               \
+        else                                                            \
+        {                                                               \
+            /* The requested element is within the array's capacity */  \
+            _type *_ptr = (_type *)((_dyn_array)->base);                \
+            memcpy(&(_ptr[_idx]), _elt, sizeof(_type));                 \
+        }                                                               \
     } while (0)
 
 /****************/
