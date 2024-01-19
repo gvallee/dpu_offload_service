@@ -885,6 +885,7 @@ dpu_offload_status_t unpack_data_sps(offloading_engine_t *engine, void *data)
     off_t offset = 0;
     uint64_t num_sps, *val, idx;
     remote_service_proc_info_t *sp = NULL;
+    dyn_array_t *all_sps = NULL;
 
     val = (uint64_t *) BUFF_AT(data, offset);
     num_sps = *val;
@@ -924,6 +925,10 @@ dpu_offload_status_t unpack_data_sps(offloading_engine_t *engine, void *data)
         memcpy(&(sp->service_proc), recvd_sp_info, sizeof(service_proc_t));
         offset += sizeof(service_proc_t);
     }
+
+    // We received the data for all the SPs, we can make the associated dynamic array constant
+    all_sps = GET_ENGINE_LIST_SERVICE_PROCS(engine);
+    all_sps->growable = false;
 
     return DO_SUCCESS;
 }
@@ -1578,9 +1583,11 @@ dpu_offload_status_t find_dpu_config_from_platform_configfile(char *filepath, of
     size_t len = 0;
     dpu_offload_status_t rc = DO_ERROR;
     bool found_self = false;
+    dyn_array_t *all_sps = NULL;
 
     assert(filepath);
     assert(config_data);
+    assert(config_data->offloading_engine);
 
     // Read the entire file so we can go over the content quickly. Configure files are not expected to get huge
     FILE *file = fopen(filepath, "rb");
@@ -1625,6 +1632,12 @@ dpu_offload_status_t find_dpu_config_from_platform_configfile(char *filepath, of
         line = strtok_r(rest_content, "\n", &rest_content);
     }
     DBG("done parsing the configuration file");
+
+    // We got the data for all the SPs, we can make the associated dynamic array constant
+    all_sps = GET_ENGINE_LIST_SERVICE_PROCS(config_data->offloading_engine);
+    assert(all_sps);
+    all_sps->growable = false;
+
     rc = DO_SUCCESS;
 
 error_out:

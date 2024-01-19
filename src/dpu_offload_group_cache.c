@@ -1276,14 +1276,14 @@ do_populate_group_cache_lookup_table(offloading_engine_t *engine, group_cache_t 
     {
         if (GROUP_CACHE_BITSET_TEST(gp_cache->sps_bitset, idx))
         {
-            // We use the world group as a reference and set the pointer for the group
-            // based on it.
-            remote_service_proc_info_t *sp;
-            sp = DYN_ARRAY_GET_ELT(GET_ENGINE_LIST_SERVICE_PROCS(engine), i, remote_service_proc_info_t);
-            assert(sp);
-
             // The list of SPs is constant at this point, should never grow so we can safely use
             // pointer to elements of the dynamic array.
+            remote_service_proc_info_t *sp;
+            dyn_array_t *all_sps = NULL;
+            all_sps = GET_ENGINE_LIST_SERVICE_PROCS(engine);
+            assert(all_sps->growable == false);
+            sp = DYN_ARRAY_GET_ELT(all_sps, i, remote_service_proc_info_t);
+            assert(sp);
             gp_cache->sps[i] = sp;
             i++;
         }
