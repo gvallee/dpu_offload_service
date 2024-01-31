@@ -83,7 +83,7 @@ int main(int argc, char **argv)
         fprintf(stderr, "[ERROR] client is undefined\n");
         goto error_out;
     }
-    engine->client = client;
+    engine->clients.bootstrap_econtext = client;
 
     // When only one rank is used, make sure the code ensures full initialization
     // otherwise, the cache is full right away and client terminates too quickly

@@ -1659,7 +1659,7 @@ do_get_cache_entry_by_group_rank(offloading_engine_t *engine,
     {
         // If we are on the host, we need to send a request to our first shadow DPU
         DBG("Sending request for cache entry...");
-        execution_context_t *econtext = engine->client;
+        execution_context_t *econtext = engine->clients.bootstrap_econtext;
         return send_cache_entry_request(econtext, GET_SERVER_EP(econtext), econtext->client->server_id, &rank_data, ev);
     }
     return DO_SUCCESS;

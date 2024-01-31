@@ -526,7 +526,7 @@ dpu_offload_status_t inter_dpus_connect_mgr(offloading_engine_t *engine, offload
     assert(cfg->local_service_proc.info.global_id != UINT64_MAX);
     sp->ep = engine->self_ep;
 
-    assert(cfg->offloading_engine->num_servers == 0);
+    assert(cfg->offloading_engine->servers.num == 0);
 
     if (cfg->num_connecting_service_procs > 0)
     {
@@ -538,10 +538,10 @@ dpu_offload_status_t inter_dpus_connect_mgr(offloading_engine_t *engine, offload
         cfg->local_service_proc.inter_service_procs_init_params.scope_id = SCOPE_INTER_SERVICE_PROCS;
         execution_context_t *server = server_init(cfg->offloading_engine, &(cfg->local_service_proc.inter_service_procs_init_params));
         CHECK_ERR_RETURN((server == NULL), DO_ERROR, "server_init() failed");
-        CHECK_ERR_RETURN((cfg->offloading_engine->num_servers + 1 >= cfg->offloading_engine->num_max_servers),
+        CHECK_ERR_RETURN((cfg->offloading_engine->servers.num + 1 >= cfg->offloading_engine->servers.max),
                          DO_ERROR,
                          "max number of server (%ld) has been reached",
-                         cfg->offloading_engine->num_max_servers);
+                         cfg->offloading_engine->servers.max);
         // server_init() already adds the server to the list of servers and handle the associated counter
         DBG("Server successfully started (econtext: %p)", server);
         // Nothing else to do in this context.
