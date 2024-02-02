@@ -2875,6 +2875,7 @@ execution_context_t *server_init(offloading_engine_t *offloading_engine, init_pa
         execution_context->server->id = offloading_engine->servers.num;
     offloading_engine->servers.list[offloading_engine->servers.num] = execution_context;
     offloading_engine->servers.num++;
+    offloading_engine->servers.num_active++;
 
     rc = event_channels_init(execution_context);
     CHECK_ERR_GOTO((rc), error_out, "event_channels_init() failed");
