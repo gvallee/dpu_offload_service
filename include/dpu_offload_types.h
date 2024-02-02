@@ -2130,7 +2130,6 @@ typedef struct group_cache
     do                                                                                  \
     {                                                                                   \
         size_t _rank_idx;                                                               \
-        assert(__gp_size > 0);                                                          \
         BASIC_INIT_GROUP_CACHE((__g));                                                  \
         (__g)->ranks = malloc(__gp_size * sizeof(peer_cache_entry_t));                  \
         assert((__g)->ranks);                                                           \
@@ -2352,10 +2351,9 @@ typedef struct group_cache
         _gp_cache = kh_value((_cache)->data, k);                                                            \
         if (_gp_cache->group_uid == INT_MAX)                                                                \
         {                                                                                                   \
-            /* The group cache is actually not initialized, most certainly because of */                    \
-            /* a previous group revoke, which does not delete entries from hash */                          \
-            /* tables but reset the group cache handle. In such a case, we */                               \
-            /* re-initialize the group cache */                                                             \
+            /* The group cache is actually not initialized, most certainly because no local rank is */      \
+            /* involved, or because of a previous group revoke, which does not delete entries from hash */  \
+            /* tables but reset the group cache handle. In such a case, we re-initialize the group cache */ \
             INIT_GROUP_CACHE(_gp_cache, __gp_size);                                                         \
             _gp_cache->group_uid = _gp_uid;                                                                 \
         }                                                                                                   \
