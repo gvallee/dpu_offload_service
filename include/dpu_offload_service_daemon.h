@@ -102,8 +102,8 @@ void server_fini(execution_context_t **);
 execution_context_t *client_init(offloading_engine_t *engine, init_params_t *init_params);
 
 /**
- * @brief client_fini finalizes an execution context that is being used as a client.
- * Practically, a termination message is sent to the associated server (if any) vi a notification and the function will block until
+ * @brief  is a blocking call to finalize an execution context that is being used as a client.
+ * Practically, a termination message is sent to the associated server (if any) via a notification and the function will block until
  * the notification completes. Then the object is entirely freed. In other words, upon returning from the function, the execution context
  * is guaranteed to have been terminated, completely freed and the potential associated server notified of the termination.
  *

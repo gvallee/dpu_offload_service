@@ -2456,6 +2456,13 @@ void offload_engine_fini(offloading_engine_t **offload_engine)
     *offload_engine = NULL;
 }
 
+/**
+ * @brief Non-blocking function to trigger the termination of a client. Note that it is required
+ * to explicitly terminate the actual client handle and free the execution context. It is safe
+ * to do so when the entire engine is terminated.
+ * This function is designed to be used on the DPU where inter-SP clients are terminated in the
+ * context of a UCX handler and therefore cannot be blocking.
+ */
 void client_fini_nb(execution_context_t *context)
 {
     dpu_offload_status_t rc;
