@@ -993,7 +993,7 @@ dpu_offload_status_t get_sp_ep_by_id(offloading_engine_t *engine, uint64_t sp_id
     if (*sp_ep == NULL && !engine->on_dpu && sp_id == engine->config->local_service_proc.info.global_id)
     {
         // EP not in cache (it happens) but the local SP is requested
-        *sp_ep = engine->client->client->server_ep;
+        *sp_ep = engine->clients.bootstrap_econtext->client->server_ep;
     }
     *econtext_comm = GET_REMOTE_SERVICE_PROC_ECONTEXT(engine, sp_id);
     switch ((*econtext_comm)->type)
@@ -1798,12 +1798,12 @@ execution_context_t *get_server_servicing_host(offloading_engine_t *engine)
     // We start at the end of the list because the server servicing the host
     // is traditionally the last one added
     // Fixme: avoid o(n) lookup
-    for (i = engine->num_servers - 1; i >= 0; i--)
+    for (i = engine->servers.num - 1; i >= 0; i--)
     {
-        if (engine->servers[i] == NULL)
+        if (engine->servers.list[i] == NULL)
             continue;
-        if (engine->servers[i]->scope_id == SCOPE_HOST_DPU)
-            return (engine->servers[i]);
+        if (engine->servers.list[i]->scope_id == SCOPE_HOST_DPU)
+            return (engine->servers.list[i]);
     }
 
     return NULL;

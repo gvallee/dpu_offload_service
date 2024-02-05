@@ -76,6 +76,8 @@
     } while (0)
 
 extern dpu_offload_status_t unpack_data_sps(offloading_engine_t *engine, void *data);
+extern dpu_offload_status_t disconnect_to_service_procs(offloading_engine_t *offload_engine);
+extern void update_engine_state(offloading_engine_t *engine);
 
 #if USE_AM_IMPLEM
 dpu_offload_status_t get_associated_econtext(offloading_engine_t *engine, am_header_t *hdr, execution_context_t **econtext_out)
@@ -89,11 +91,11 @@ dpu_offload_status_t get_associated_econtext(offloading_engine_t *engine, am_hea
         // Message exchanged between a host and a service process
         if (engine->on_dpu)
         {
-            econtext = engine->servers[engine->num_servers - 1];
+            econtext = engine->servers.list[engine->servers.num - 1];
         }
         else
         {
-            econtext = engine->client;
+            econtext = engine->clients.bootstrap_econtext;
         }
     }
     else
@@ -114,8 +116,8 @@ dpu_offload_status_t get_associated_econtext(offloading_engine_t *engine, am_hea
             assert(hdr->server_id == engine->config->local_service_proc.info.global_id);
             if (hdr->scope_id == SCOPE_INTER_SERVICE_PROCS)
             {
-                assert(engine->servers[0] != NULL);
-                econtext = engine->servers[0];
+                assert(engine->servers.list[0] != NULL);
+                econtext = engine->servers.list[0];
             }
             else
             {
@@ -2235,6 +2237,7 @@ static dpu_offload_status_t sp_data_recv_cb(struct dpu_offload_ev_sys *ev_sys, e
 static dpu_offload_status_t term_msg_cb(struct dpu_offload_ev_sys *ev_sys, execution_context_t *econtext, am_header_t *hdr, size_t hdr_size, void *data, size_t data_len)
 {
     assert(econtext);
+    assert(econtext->engine);
     // Termination messages never have a payload
     assert(data == NULL);
     assert(data_len == 0);
@@ -2248,6 +2251,7 @@ static dpu_offload_status_t term_msg_cb(struct dpu_offload_ev_sys *ev_sys, execu
         peer_info_t *client;
         client = DYN_ARRAY_GET_ELT(&(econtext->server->connected_clients.clients), hdr->id, peer_info_t);
         client->bootstrapping.phase = DISCONNECTED;
+        assert(econtext->server->connected_clients.num_connected_clients > 0);
         econtext->server->connected_clients.num_connected_clients--;
         DBG("Remaining number of connected clients: %ld, ongoing connections: %ld",
             econtext->server->connected_clients.num_connected_clients,
@@ -2256,6 +2260,17 @@ static dpu_offload_status_t term_msg_cb(struct dpu_offload_ev_sys *ev_sys, execu
         {
             DBG("server is now done");
             econtext->server->done = true;
+            assert(econtext->engine->servers.num_active > 0);
+            econtext->engine->servers.num_active--;
+            if (econtext->scope_id == SCOPE_HOST_DPU)
+            {
+                dpu_offload_status_t rc;
+                assert(econtext->engine->on_dpu);
+                rc = disconnect_to_service_procs(econtext->engine);
+                CHECK_ERR_RETURN((rc), DO_ERROR, "disconnect_to_service_procs() failed");
+            }
+            else
+                update_engine_state(econtext->engine);
         }
         break;
     }
@@ -2263,6 +2278,8 @@ static dpu_offload_status_t term_msg_cb(struct dpu_offload_ev_sys *ev_sys, execu
     {
         // The server sent us a termination message, we immediatly switch our state to done
         econtext->client->done = true;
+        assert(econtext->engine->clients.num_active > 0);
+        econtext->engine->clients.num_active--;
         break;
     }
     default:

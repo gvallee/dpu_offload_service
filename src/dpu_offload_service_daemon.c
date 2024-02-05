@@ -1012,9 +1012,9 @@ finalize_connection_to_remote_service_proc(offloading_engine_t *offload_engine, 
 static void progress_servers(offloading_engine_t *engine)
 {
     size_t s;
-    for (s = 0; s < engine->num_servers; s++)
+    for (s = 0; s < engine->servers.num; s++)
     {
-        execution_context_t *s_econtext = engine->servers[s];
+        execution_context_t *s_econtext = engine->servers.list[s];
         if (s_econtext != NULL)
         {
             s_econtext->progress(s_econtext);
@@ -1093,9 +1093,9 @@ dpu_offload_status_t offload_engine_progress(offloading_engine_t *engine)
     }
     else
     {
-        if (engine->client != NULL)
+        if (engine->clients.bootstrap_econtext != NULL)
         {
-            engine->client->progress(engine->client);
+            engine->clients.bootstrap_econtext->progress(engine->clients.bootstrap_econtext);
         }
         progress_servers(engine);
     }
@@ -1134,8 +1134,7 @@ dpu_offload_status_t offload_engine_init(offloading_engine_t **engine)
     RESET_ENGINE(d, ret);
     // Check that everthing is fine
     CHECK_ERR_GOTO((ret != 0), error_out, "Engine initialization failed");
-    CHECK_ERR_GOTO((d->servers == NULL), error_out, "unable to allocate memory to track servers");
-    CHECK_ERR_GOTO((d->servers == NULL), error_out, "unable to allocate resources");
+    CHECK_ERR_GOTO((d->servers.list == NULL), error_out, "unable to allocate memory to track servers");
     CHECK_ERR_GOTO((d->free_op_descs == NULL), error_out, "Allocation of pool of free operation descriptors failed");
     CHECK_ERR_GOTO((d->free_cache_entry_requests == NULL), error_out, "Allocations of pool of descriptions for cache queries failed");
     CHECK_ERR_GOTO((d->pool_conn_params == NULL), error_out, "Allocation of pool of connection parameter descriptors failed");
@@ -1202,8 +1201,8 @@ dpu_offload_status_t offload_engine_init(offloading_engine_t **engine)
     *engine = d;
     return DO_SUCCESS;
 error_out:
-    if (d->servers)
-        free(d->servers);
+    if (d->servers.list)
+        free(d->servers.list);
     if (d->inter_service_proc_clients)
         free(d->inter_service_proc_clients);
     if (d->free_op_descs)
@@ -1943,6 +1942,26 @@ static void progress_client_econtext(execution_context_t *ctx)
     }
 }
 
+void update_engine_state(offloading_engine_t *engine)
+{
+    assert(engine);
+
+    if (engine->clients.num_active == 0 && engine->servers.num_active == 0)
+    {
+        if (engine->on_dpu)
+        {
+            size_t idx;
+            for (idx = 0; idx < engine->num_inter_service_proc_clients; idx++)
+            {
+                free(engine->inter_service_proc_clients[idx].client_econtext->client);
+                engine->inter_service_proc_clients[idx].client_econtext->client = NULL;
+                execution_context_fini(&(engine->inter_service_proc_clients[idx].client_econtext));
+            }
+        }
+        engine->state = MIMOSA_ENGINE_STATE_TERMINATED;
+    }
+}
+
 /**
  * @brief term_notification_completed is the funtion invoked once we get the completion of the term notification.
  * Upon completion, we know we can safely
@@ -2034,6 +2053,8 @@ static void term_notification_completed(execution_context_t *econtext)
 #endif // !USE_AM_IMPLEM
 
         econtext->client->done = true;
+        assert(econtext->engine->clients.num_active > 0);
+        econtext->engine->clients.num_active--;
         break;
     }
     case CONTEXT_SERVER:
@@ -2041,7 +2062,12 @@ static void term_notification_completed(execution_context_t *econtext)
 // Free resources to receive notifications
 #if !USE_AM_IMPLEM
 #endif
-        econtext->server->done = true;
+        assert(econtext->engine->clients.num_active > 0);
+        econtext->engine->clients.num_active--;
+        assert(econtext->server->connected_clients.num_connected_clients > 0);
+        econtext->server->connected_clients.num_connected_clients--;
+        if (econtext->server->connected_clients.num_ongoing_connections == 0 && econtext->server->connected_clients.num_connected_clients == 0)
+            econtext->server->done = true;
         break;
     }
     default:
@@ -2049,6 +2075,7 @@ static void term_notification_completed(execution_context_t *econtext)
         ERR_MSG("invalid execution context type (%d)", econtext->type);
     }
     }
+    update_engine_state(econtext->engine);
 }
 
 static void execution_context_progress(execution_context_t *econtext)
@@ -2142,7 +2169,7 @@ execution_context_t *client_init(offloading_engine_t *offload_engine, init_param
     execution_context_t *ctx = NULL;
 
     CHECK_ERR_GOTO((offload_engine == NULL), error_out, "Undefined handle");
-    CHECK_ERR_GOTO((offload_engine->client != NULL), error_out, "offload engine already initialized as a client");
+    CHECK_ERR_GOTO((offload_engine->clients.bootstrap_econtext != NULL), error_out, "offload engine already initialized as a client");
     assert(init_params->conn_params->port > 0);
 
     // When calling this function, we know we can check whether we are
@@ -2259,10 +2286,10 @@ execution_context_t *client_init(offloading_engine_t *offload_engine, init_param
 
     return ctx;
 error_out:
-    if (offload_engine->client != NULL)
+    if (offload_engine->clients.bootstrap_econtext != NULL)
     {
-        free(offload_engine->client);
-        offload_engine->client = NULL;
+        free(offload_engine->clients.bootstrap_econtext);
+        offload_engine->clients.bootstrap_econtext = NULL;
     }
     return NULL;
 }
@@ -2339,12 +2366,12 @@ void offload_engine_fini(offloading_engine_t **offload_engine)
 
     execution_context_fini(&((*offload_engine)->self_econtext));
 
-    if ((*offload_engine)->client)
+    if ((*offload_engine)->clients.bootstrap_econtext)
     {
-        client_fini(&((*offload_engine)->client));
+        client_fini(&((*offload_engine)->clients.bootstrap_econtext));
     }
 
-    for (i = 0; i < (*offload_engine)->num_servers; i++)
+    for (i = 0; i < (*offload_engine)->servers.num; i++)
     {
         // server_fini() FIXME
     }
@@ -2414,10 +2441,10 @@ void offload_engine_fini(offloading_engine_t **offload_engine)
         DYN_LIST_FREE((*offload_engine)->free_pending_rdv_recv, pending_am_rdv_recv_t, item);
     }
 
-    if ((*offload_engine)->servers)
+    if ((*offload_engine)->servers.list)
     {
-        free((*offload_engine)->servers);
-        (*offload_engine)->servers = NULL;
+        free((*offload_engine)->servers.list);
+        (*offload_engine)->servers.list = NULL;
     }
     if ((*offload_engine)->inter_service_proc_clients)
     {
@@ -2429,16 +2456,18 @@ void offload_engine_fini(offloading_engine_t **offload_engine)
     *offload_engine = NULL;
 }
 
-void client_fini(execution_context_t **exec_ctx)
+/**
+ * @brief Non-blocking function to trigger the termination of a client. Note that it is required
+ * to explicitly terminate the actual client handle and free the execution context. It is safe
+ * to do so when the entire engine is terminated.
+ * This function is designed to be used on the DPU where inter-SP clients are terminated in the
+ * context of a UCX handler and therefore cannot be blocking.
+ */
+void client_fini_nb(execution_context_t *context)
 {
-    execution_context_t *context;
     dpu_offload_status_t rc;
     dest_client_t dest_info;
 
-    if (exec_ctx == NULL || *exec_ctx == NULL)
-        return;
-
-    context = *exec_ctx;
     if (context->type != CONTEXT_CLIENT)
     {
         ERR_MSG("invalid type: %d", context->type);
@@ -2456,6 +2485,17 @@ void client_fini(execution_context_t **exec_ctx)
     }
     assert(context->term.ev);
     DBG("Termination message successfully emitted");
+}
+
+void client_fini(execution_context_t **exec_ctx)
+{
+    execution_context_t *context;
+
+    if (exec_ctx == NULL || *exec_ctx == NULL)
+        return;
+
+    context = *exec_ctx;
+    client_fini_nb(context);
 
     // Loop until the term message completes
     while (context->client->done == false)
@@ -2859,9 +2899,10 @@ execution_context_t *server_init(offloading_engine_t *offloading_engine, init_pa
     else if (init_params != NULL && init_params->id_set)
         execution_context->server->id = init_params->id;
     else
-        execution_context->server->id = offloading_engine->num_servers;
-    offloading_engine->servers[offloading_engine->num_servers] = execution_context;
-    offloading_engine->num_servers++;
+        execution_context->server->id = offloading_engine->servers.num;
+    offloading_engine->servers.list[offloading_engine->servers.num] = execution_context;
+    offloading_engine->servers.num++;
+    offloading_engine->servers.num_active++;
 
     rc = event_channels_init(execution_context);
     CHECK_ERR_GOTO((rc), error_out, "event_channels_init() failed");
