@@ -1945,8 +1945,21 @@ static void progress_client_econtext(execution_context_t *ctx)
 void update_engine_state(offloading_engine_t *engine)
 {
     assert(engine);
+
     if (engine->clients.num_active == 0 && engine->servers.num_active == 0)
+    {
+        if (engine->on_dpu)
+        {
+            size_t idx;
+            for (idx = 0; idx < engine->num_inter_service_proc_clients; idx++)
+            {
+                free(engine->inter_service_proc_clients[idx].client_econtext->client);
+                engine->inter_service_proc_clients[idx].client_econtext->client = NULL;
+                execution_context_fini(&(engine->inter_service_proc_clients[idx].client_econtext));
+            }
+        }
         engine->state = MIMOSA_ENGINE_STATE_TERMINATED;
+    }
 }
 
 /**
@@ -2040,6 +2053,7 @@ static void term_notification_completed(execution_context_t *econtext)
 #endif // !USE_AM_IMPLEM
 
         econtext->client->done = true;
+        assert(econtext->engine->clients.num_active > 0);
         econtext->engine->clients.num_active--;
         break;
     }
@@ -2442,16 +2456,11 @@ void offload_engine_fini(offloading_engine_t **offload_engine)
     *offload_engine = NULL;
 }
 
-void client_fini(execution_context_t **exec_ctx)
+void client_fini_nb(execution_context_t *context)
 {
-    execution_context_t *context;
     dpu_offload_status_t rc;
     dest_client_t dest_info;
 
-    if (exec_ctx == NULL || *exec_ctx == NULL)
-        return;
-
-    context = *exec_ctx;
     if (context->type != CONTEXT_CLIENT)
     {
         ERR_MSG("invalid type: %d", context->type);
@@ -2469,6 +2478,17 @@ void client_fini(execution_context_t **exec_ctx)
     }
     assert(context->term.ev);
     DBG("Termination message successfully emitted");
+}
+
+void client_fini(execution_context_t **exec_ctx)
+{
+    execution_context_t *context;
+
+    if (exec_ctx == NULL || *exec_ctx == NULL)
+        return;
+
+    context = *exec_ctx;
+    client_fini_nb(context);
 
     // Loop until the term message completes
     while (context->client->done == false)

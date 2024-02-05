@@ -29,6 +29,7 @@ rank_info_t invalid_group_rank = {
 
 extern execution_context_t *server_init(offloading_engine_t *, init_params_t *);
 extern execution_context_t *client_init(offloading_engine_t *, init_params_t *);
+extern void client_fini_nb(execution_context_t *context);
 
 // The function prepare the resources to track all the SPs running on a specific DPU.
 static dpu_offload_status_t
@@ -341,6 +342,7 @@ dpu_offload_status_t connect_to_remote_service_proc(offloading_engine_t *offload
     offload_engine->inter_service_proc_clients[offload_engine->num_inter_service_proc_clients].client_econtext = client;
     offload_engine->inter_service_proc_clients[offload_engine->num_inter_service_proc_clients].remote_service_proc_idx = target_sp_gid;
     offload_engine->num_inter_service_proc_clients++;
+    offload_engine->clients.num_active++;
     assert(client->client->id != UINT64_MAX);
     assert(client->client->server_global_id != UINT64_MAX);
     CLIENT_SERVER_ADD(offload_engine,
@@ -375,6 +377,16 @@ connect_to_service_procs(offloading_config_t *cfg)
         assert(target_sp_gid);
         rc = connect_to_remote_service_proc(offload_engine, cfg, *target_sp_gid);
         CHECK_ERR_RETURN((rc), DO_ERROR, "unable to start connection thread");
+    }
+    return DO_SUCCESS;
+}
+
+dpu_offload_status_t disconnect_to_service_procs(offloading_engine_t *offload_engine)
+{
+    size_t idx;
+    for (idx = 0; idx < offload_engine->num_inter_service_proc_clients; idx++)
+    {
+        client_fini_nb(offload_engine->inter_service_proc_clients[idx].client_econtext);
     }
     return DO_SUCCESS;
 }
