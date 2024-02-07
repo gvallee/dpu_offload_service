@@ -1932,7 +1932,11 @@ static dpu_offload_status_t handle_revoke_group_rank_through_list_ranks(executio
             // Make the message persistent
             DBG("Queuing revoke msg from another SP (group seq num: %ld, n_local_ranks: %ld, local_revoked: %ld, group ID: 0x%x, ranks for SP: %ld)",
                 gp_cache->persistent.num, gp_cache->n_local_ranks, gp_cache->revokes.local, revoke_msg->gp_uid, gp_cache->sp_ranks);
-            assert(gp_cache->persistent.num == revoke_msg->gp_seq_num);
+#if !NDEBUG
+            // If we have local ranks involved in the group, the seq numbers must match
+            if (gp_cache->n_local_ranks > 0)
+                assert(gp_cache->persistent.num == revoke_msg->gp_seq_num);
+#endif // NDEBUG
             DYN_LIST_GET(econtext->engine->pool_group_revoke_msgs_from_sps,
                          group_revoke_msg_from_sp_t,
                          item,
