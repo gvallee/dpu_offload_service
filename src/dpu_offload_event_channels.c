@@ -1905,8 +1905,14 @@ static dpu_offload_status_t handle_revoke_group_rank_through_list_ranks(executio
         }
         gp_cache->group_size = revoke_msg->group_size;
     }
+
+    // If the SP has local ranks involved in the group, we must know about the group by now
+    if (gp_cache->n_local_ranks != 0)
+    {
+        assert(revoke_msg->gp_seq_num == gp_cache->persistent.num);
+    }
 #endif // NDEBUG
-    assert(revoke_msg->gp_seq_num == gp_cache->persistent.num);
+
     if (econtext->engine->on_dpu)
     {
         DBG("Revoke msg received from another SP (seq num: %ld), local data: n_local_ranks=%ld n_local_ranks_populated=%ld group_size=%ld",
@@ -1999,7 +2005,13 @@ static dpu_offload_status_t handle_revoke_group_rank_through_list_ranks(executio
         DBG("Received final revoke for group 0x%x (size: %ld, seq num: %ld)",
             revoke_msg->gp_uid, revoke_msg->group_size, revoke_msg->gp_seq_num);
         assert(revoke_msg->group_size);
-        assert(revoke_msg->gp_seq_num == gp_cache->persistent.num);
+#if !NDEBUG
+        // If the SP has local ranks involved in the group, we must know about the group by now
+        if (gp_cache->n_local_ranks != 0)
+        {
+            assert(revoke_msg->gp_seq_num == gp_cache->persistent.num);
+        }
+#endif // NDEBUG
 
         // We got a revoke message from our service process so the group is fully revoked, we can reset it
         rc = revoke_group_cache(econtext->engine, revoke_msg->gp_uid);

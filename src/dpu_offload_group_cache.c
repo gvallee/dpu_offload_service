@@ -297,8 +297,8 @@ dpu_offload_status_t handle_peer_cache_entries_recv(execution_context_t *econtex
             assert(entries[idx].num_shadow_service_procs > 0);
             if (gp_cache->num_local_entries == 0)
             {
-                // New "version" of the group.
-                assert(gp_cache->persistent.sent_to_host == gp_cache->persistent.num);
+                // New "version" of the group. Remember that the group may not have any local rank
+                // (both in the context of the host and SP)
                 gp_cache->persistent.num++;
                 DBG("Switched to seq num: %ld for group 0x%x", gp_cache->persistent.num, gp_cache->group_uid);
             }
