@@ -1037,6 +1037,7 @@ dpu_offload_status_t offload_engine_progress(offloading_engine_t *engine)
     assert(engine->self_econtext);
     engine->self_econtext->progress(engine->self_econtext);
 
+    // Progressing clients depends on the context, i.e., host or DPU.
     if (on_dpu)
     {
         // Progress connections between service processes when necessary
@@ -1049,46 +1050,9 @@ dpu_offload_status_t offload_engine_progress(offloading_engine_t *engine)
             ENGINE_LOCK(engine);
             execution_context_t *c_econtext = engine->inter_service_proc_clients[c].client_econtext;
             ENGINE_UNLOCK(engine);
-            ECONTEXT_LOCK(c_econtext);
-            int initial_state = c_econtext->client->bootstrapping.phase;
-            if (c_econtext != NULL)
-            {
-                ECONTEXT_UNLOCK(c_econtext);
-                c_econtext->progress(c_econtext);
-                ECONTEXT_LOCK(c_econtext);
-            }
-            int new_state = c_econtext->client->bootstrapping.phase;
-            if (initial_state != BOOTSTRAP_DONE && new_state == BOOTSTRAP_DONE)
-            {
-                DBG("service proc client #%ld just finished its connection to server #%" PRIu64 ", updating data",
-                    c, c_econtext->client->server_id);
-                ECONTEXT_UNLOCK(c_econtext);
-                dpu_offload_status_t rc = finalize_connection_to_remote_service_proc(engine,
-                                                                                     engine->inter_service_proc_clients[c].remote_service_proc_idx,
-                                                                                     engine->inter_service_proc_clients[c].client_econtext);
-                CHECK_ERR_RETURN((rc), DO_ERROR, "finalize_connection_to_remote_service_proc() failed");
-                ECONTEXT_UNLOCK(c_econtext);
-            }
-            ECONTEXT_UNLOCK(c_econtext);
-        }
-        progress_servers(engine);
-
-        // Progress all the execution context used to connect to other service processes
-        assert(engine->num_service_procs);
-        size_t i;
-        for (i = 0; i < engine->num_service_procs; i++)
-        {
-            remote_service_proc_info_t *sp;
-            sp = DYN_ARRAY_GET_ELT(GET_ENGINE_LIST_SERVICE_PROCS(engine), i, remote_service_proc_info_t);
-            assert(sp);
-            if (sp == NULL)
+            if (c_econtext == NULL)
                 continue;
-
-            execution_context_t *econtext = sp->econtext;
-            if (econtext == NULL || econtext->progress == NULL)
-                continue;
-
-            econtext->progress(econtext);
+            c_econtext->progress(c_econtext);
         }
     }
     else
@@ -1097,8 +1061,9 @@ dpu_offload_status_t offload_engine_progress(offloading_engine_t *engine)
         {
             engine->clients.bootstrap_econtext->progress(engine->clients.bootstrap_econtext);
         }
-        progress_servers(engine);
     }
+
+    progress_servers(engine);
     return DO_SUCCESS;
 }
 
@@ -1784,6 +1749,12 @@ static void progress_client_econtext(execution_context_t *ctx)
 {
     dpu_offload_status_t rc;
 
+    assert(ctx);
+    if (ctx->client == NULL)
+    {
+        return;
+    }
+
     if (ctx->client->bootstrapping.phase == OOB_CONNECT_DONE)
     {
         // // We now have a OOB connection established; we need now to progress UCX bootstrapping
@@ -1884,6 +1855,30 @@ static void progress_client_econtext(execution_context_t *ctx)
             ctx->client->bootstrapping.step4.request == NULL)
         {
             ctx->client->bootstrapping.phase = BOOTSTRAP_DONE;
+
+            if (ctx->engine->on_dpu)
+            {
+                size_t client_idx;
+                // A client to connect to a remote SP is now fully bootstrapped
+
+                // Find the corresponding entry in inter_service_proc_clients
+                // FIXME: find a way to not have to scan through an array
+                for (client_idx = 0; client_idx < ctx->engine->num_inter_service_proc_clients; client_idx++)
+                {
+                    if (ctx->engine->inter_service_proc_clients[client_idx].client_econtext == ctx)
+                    {
+                        rc = finalize_connection_to_remote_service_proc(ctx->engine,
+                                                                        ctx->engine->inter_service_proc_clients[client_idx].remote_service_proc_idx,
+                                                                        ctx->engine->inter_service_proc_clients[client_idx].client_econtext);
+                        if (rc != DO_SUCCESS)
+                        {
+                            ERR_MSG("finalize_connection_to_remote_service_proc() failed");
+                            return;
+                        }
+                        break;
+                    }
+                }
+            }
 
             // Bootstrapping in completed, we have all the necessary data to
             // be able to safely add ourselves to the local EP cache as shadow service process
@@ -2665,7 +2660,7 @@ static dpu_offload_status_t oob_server_listen(execution_context_t *econtext)
 #if !NDEBUG
     if (econtext->engine->on_dpu && econtext->scope_id == SCOPE_INTER_SERVICE_PROCS)
     {
-        assert(client_id < econtext->engine->num_service_procs);
+        assert(client_id < (uint64_t)(econtext->engine->num_service_procs));
     }
 #endif
     size_sent = send(econtext->server->conn_data.oob.sock, &client_id, sizeof(uint64_t), 0);

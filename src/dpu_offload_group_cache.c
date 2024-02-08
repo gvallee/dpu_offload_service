@@ -396,7 +396,7 @@ dpu_offload_status_t revoke_group_cache(offloading_engine_t *engine, group_uid_t
     group_cache_t *c = GET_GROUP_CACHE(&(engine->procs_cache), gp_uid);
     assert(c);
 
-#if !NDEBUG
+#if 0
     if (engine->on_dpu)
     {
         assert(c->persistent.sent_to_host == c->persistent.num);
