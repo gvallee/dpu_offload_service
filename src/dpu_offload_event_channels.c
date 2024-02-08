@@ -609,13 +609,10 @@ dpu_offload_status_t event_channel_deregister(dpu_offload_ev_sys_t *ev_sys, uint
     return DO_SUCCESS;
 }
 
-static size_t num_completed_emit = 0;
 #if USE_AM_IMPLEM
 static void notification_emit_cb(void *request, ucs_status_t status, void *user_data)
 {
     dpu_offload_event_t *ev;
-    num_completed_emit++;
-    DBG("New completion, %ld emit have now completed", num_completed_emit);
     if (user_data == NULL)
     {
         ERR_MSG("undefined event");
@@ -638,8 +635,7 @@ static void notification_emit_cb(void *request, ucs_status_t status, void *user_
 static void notification_emit_cb(void *user_data, const char *type_str)
 {
     dpu_offload_event_t *ev;
-    num_completed_emit++;
-    DBG("New completion, %ld emit have now completed", num_completed_emit);
+    execution_context_t *econtext = NULL;
     if (user_data == NULL)
     {
         ERR_MSG("user_data passed to %s mustn't be NULL", type_str);
@@ -651,7 +647,7 @@ static void notification_emit_cb(void *user_data, const char *type_str)
     DBG("ev=%p ctx=%p id=%" PRIu64, ev, &(ev->ctx), EVENT_HDR_SEQ_NUM(ev));
     COMPLETE_EVENT(ev);
     assert(ev->event_system);
-    execution_context_t *econtext = ev->event_system->econtext;
+    econtext = ev->event_system->econtext;
     DBG("Associated econtext: %p", econtext);
     assert(econtext);
     DBG("evt %p now completed, %ld events left on the ongoing list", ev, ucs_list_length(&(econtext->ongoing_events)));
@@ -762,19 +758,23 @@ int am_send_event_msg(dpu_offload_event_t **event)
     PREP_EVENT_FOR_EMIT(*event);
     (*event)->ctx.hdr.scope_id = (*event)->scope_id;
     rc = do_am_send_event_msg(*event);
-    if ((rc == EVENT_DONE || rc == EVENT_INPROGRESS) && (*event)->req == NULL)
+    if (rc == EVENT_DONE || (rc == EVENT_INPROGRESS && (*event)->req == NULL))
     {
-        // No error
+        // Emit has completed
         if ((*event)->explicit_return == false)
         {
-            // Immediate completion, the callback is *not* invoked
+            // The event system has to handle the event, we can safely return it
             DBG("ucp_am_send_nbx() completed right away");
+            assert((*event)->event_system);
+            assert((*event)->event_system->posted_sends > 0);
+            (*event)->event_system->posted_sends--;
             dpu_offload_status_t rc = event_return(event);
             CHECK_ERR_RETURN((rc), DO_ERROR, "event_return() failed");
             return EVENT_DONE;
         }
         else
         {
+            // The caller asked to control the lifecycle of the event, we do not fully terminate it.
             COMPLETE_EVENT(*event);
             return EVENT_INPROGRESS;
         }
@@ -1087,6 +1087,13 @@ void event_channels_fini(dpu_offload_ev_sys_t **ev_sys)
     {
         WARN_MSG("%ld events objects have not been returned (event system %p; econtext: %p)",
                  (*ev_sys)->num_used_evs, (*ev_sys), (*ev_sys)->econtext);
+        DISPLAY_ECONTEXT_ONGOING_EVTS((*ev_sys)->econtext);
+    }
+
+    if ((*ev_sys)->posted_sends > 0)
+    {
+        WARN_MSG("%ld posted sends have not completed (event system: %p, econtext: %p)",
+                  (*ev_sys)->posted_sends, (*ev_sys), (*ev_sys)->econtext);
         DISPLAY_ECONTEXT_ONGOING_EVTS((*ev_sys)->econtext);
     }
 
@@ -1635,8 +1642,7 @@ void revoke_send_to_host_cb(void *context)
     assert(gp_cache->engine);
     engine = gp_cache->engine; // We cache the engine handle before resetting the group cache since the group's revoke will set it to NULL
     gp_cache->persistent.revoke_sent_to_host = gp_cache->persistent.revoke_send_to_host_posted;
-    // A revoke cannot complete if the cache was not sent to local ranks first
-    assert(gp_cache->persistent.sent_to_host == gp_cache->persistent.num);
+    // A revoke cannot complete if the cache was not sent to local ranks first.
     rc = revoke_group_cache(gp_cache->engine, gp_cache->group_uid);
     if (rc != DO_SUCCESS)
         ERR_MSG("revoke_group_cache() failed (rc: %d)", rc);

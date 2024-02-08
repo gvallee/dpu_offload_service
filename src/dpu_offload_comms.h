@@ -190,6 +190,7 @@ static bool event_posted(dpu_offload_event_t *ev)
                 (__ev)->is_subevent = false;                                                    \
             if ((__ev)->was_posted)                                                             \
             {                                                                                   \
+                assert((__ev)->event_system->posted_sends > 0);                                 \
                 (__ev)->event_system->posted_sends--;                                           \
                 (__ev)->was_posted = false;                                                     \
             }                                                                                   \
@@ -223,6 +224,7 @@ static bool event_posted(dpu_offload_event_t *ev)
                 (__ev)->is_subevent = false;                                                    \
             if ((__ev)->was_posted)                                                             \
             {                                                                                   \
+                assert((__ev)->event_system->posted_sends);                                     \
                 (__ev)->event_system->posted_sends--;                                           \
                 (__ev)->was_posted = false;                                                     \
             }                                                                                   \
@@ -280,6 +282,7 @@ static void progress_econtext_sends(execution_context_t *ctx)
                 ev->is_ongoing_event = false;
                 if (ev->was_posted)
                 {
+                    assert(ev->event_system->posted_sends > 0);
                     ev->event_system->posted_sends--;
                     ev->was_posted = false;
                 }
