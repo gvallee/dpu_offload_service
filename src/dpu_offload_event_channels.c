@@ -766,8 +766,11 @@ int am_send_event_msg(dpu_offload_event_t **event)
             // The event system has to handle the event, we can safely return it
             DBG("ucp_am_send_nbx() completed right away");
             assert((*event)->event_system);
-            assert((*event)->event_system->posted_sends > 0);
-            (*event)->event_system->posted_sends--;
+            if (rc != EVENT_DONE)
+            {
+                assert((*event)->event_system->posted_sends > 0);
+                (*event)->event_system->posted_sends--;
+            }
             dpu_offload_status_t rc = event_return(event);
             CHECK_ERR_RETURN((rc), DO_ERROR, "event_return() failed");
             return EVENT_DONE;
